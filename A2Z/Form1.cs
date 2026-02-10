@@ -2891,14 +2891,15 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 치수 표시 (baseline 기준 오프셋 + 보조선 스타일)
-        /// viewDirection이 null이면 모든 축 표시, "X"/"Y"/"Z"이면 해당 단면 치수만 표시
-        /// X → YZ단면(Y,Z축 치수), Y → XZ단면(X,Z축 치수), Z → XY단면(X,Y축 치수)
+        /// 치수 표시 - Smart Dimension Filtering Algorithm 적용
         ///
-        /// 오프셋 규칙 (X축에서 바라볼 때 기준):
-        ///   Z축 치수들 → 전체 포인트의 minY에서 -Y 방향으로 나란히 정렬
-        ///   Y축 치수들 → 전체 포인트의 minZ에서 -Z 방향으로 나란히 정렬
-        ///   전체 길이(IsTotal) → 순차 치수 바깥에 한 번 더 offset 추가
+        /// 적용된 알고리즘:
+        /// 1. Priority-Based Filtering: 치수 크기/중요도에 따른 우선순위 할당
+        /// 2. Greedy Label Placement: 겹침 방지하면서 우선순위 높은 순으로 배치
+        /// 3. Smart Grouping: 연속된 짧은 치수들을 누적 치수로 병합
+        /// 4. Multi-Level Layout: 레벨 기반 정렬로 깔끔한 배치
+        ///
+        /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
         /// </summary>
         private void ShowAllDimensions(string viewDirection = null)
         {
@@ -2928,11 +2929,21 @@ namespace A2Z
             {
                 vizcore3d.BeginUpdate();
 
-                // 기존 측정 항목 및 보조선 제거 (충돌 심볼·X-Ray 뷰는 유지)
+                // 기존 측정 항목 및 보조선 제거
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
-                // 측정 스타일 설정
+                // ========== Smart Dimension Filtering Algorithm 적용 ==========
+                // 축당 최대 5개 치수, 텍스트 간 최소 30mm 간격
+                var filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 5, minTextSpace: 30.0f);
+
+                if (filteredDims.Count == 0)
+                {
+                    vizcore3d.EndUpdate();
+                    return;
+                }
+
+                // 측정 스타일 설정 (가독성 향상)
                 VIZCore3D.NET.Data.MeasureStyle measureStyle = vizcore3d.Review.Measure.GetStyle();
                 measureStyle.Prefix = false;
                 measureStyle.Unit = false;
@@ -2942,20 +2953,20 @@ namespace A2Z
                 measureStyle.ContinuousDistance = false;
                 measureStyle.BackgroundTransparent = true;
                 measureStyle.FontColor = System.Drawing.Color.Blue;
-                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE10;
+                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;  // 폰트 크기 증가
                 measureStyle.FontBold = true;
                 measureStyle.LineColor = System.Drawing.Color.Blue;
                 measureStyle.LineWidth = 2;
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;
-                measureStyle.ArrowSize = 8;
+                measureStyle.ArrowSize = 10;  // 화살표 크기 증가
                 measureStyle.AssistantLine = true;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
-                measureStyle.AlignDistanceText = true;       // 텍스트 정렬 활성화
-                measureStyle.AlignDistanceTextPosition = 2;  // 0: below, 1: above, 2: outside (바깥쪽)
-                measureStyle.AlignDistanceTextMargine = 10;  // 텍스트와 치수선 간격
+                measureStyle.AlignDistanceText = true;
+                measureStyle.AlignDistanceTextPosition = 2;  // outside
+                measureStyle.AlignDistanceTextMargine = 15;  // 여백 증가
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
-                // 선택된 모델의 바운딩 박스에서 최소값 계산 (baseline 기준)
+                // baseline 계산
                 float globalMinX = float.MaxValue, globalMinY = float.MaxValue, globalMinZ = float.MaxValue;
                 if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
                 {
@@ -2970,10 +2981,9 @@ namespace A2Z
                         }
                     }
                 }
-                // 선택된 노드가 없으면 치수 포인트에서 최소값 사용
                 if (globalMinX == float.MaxValue)
                 {
-                    foreach (var dim in chainDimensionList)
+                    foreach (var dim in filteredDims)
                     {
                         globalMinX = Math.Min(globalMinX, Math.Min(dim.StartPoint.X, dim.EndPoint.X));
                         globalMinY = Math.Min(globalMinY, Math.Min(dim.StartPoint.Y, dim.EndPoint.Y));
@@ -2981,95 +2991,50 @@ namespace A2Z
                     }
                 }
 
-                float initialOffset = 80.0f;
-                float offsetStep = 50.0f;
-                float minDimensionLength = 15.0f;  // 폰트가 들어갈 최소 치수선 길이
+                // 동적 오프셋 (치수 개수에 따라 조정)
+                float baseOffset = 100.0f;
+                float levelSpacing = 60.0f;
 
-                // 보조선(Extension Line) 저장용 리스트
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
-                // 축별로 그룹화하여 처리 (IsTotal 제외한 순차 치수만)
-                var sequentialDims = displayList.Where(d => !d.IsTotal).GroupBy(d => d.Axis);
-                var totalDims = displayList.Where(d => d.IsTotal).ToList();
+                // ========== Level-Based Layout ==========
+                // Level 0: 전체 길이 (IsTotal) - 가장 바깥
+                // Level 1: 주요 치수 (DisplayLevel == 0)
+                // Level 2: 보조 치수 (DisplayLevel > 0)
 
-                // 축별 최대 레벨 추적 (Total offset 계산용)
-                Dictionary<string, int> axisMaxLevel = new Dictionary<string, int>
+                var level0Dims = filteredDims.Where(d => d.IsTotal && d.IsVisible).ToList();
+                var level1Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0).ToList();
+                var level2Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0).ToList();
+
+                // Level 1 치수 (가장 안쪽)
+                foreach (var dim in level1Dims)
                 {
-                    { "X", 1 }, { "Y", 1 }, { "Z", 1 }
-                };
-
-                // 축별 전체 치수 중복 여부 추적
-                Dictionary<string, bool> axisTotalRedundant = new Dictionary<string, bool>();
-
-                foreach (var axisGroup in sequentialDims)
-                {
-                    string axis = axisGroup.Key;
-                    var dims = axisGroup.OrderBy(d =>
-                    {
-                        switch (axis)
-                        {
-                            case "X": return -d.StartPoint.X;
-                            case "Y": return -d.StartPoint.Y;
-                            case "Z": return -d.StartPoint.Z;
-                            default: return 0f;
-                        }
-                    }).ToList();
-
-                    if (dims.Count == 0) continue;
-
-                    var firstPoint = dims[0].StartPoint;
-                    int shortCount = 0;  // 짧은 치수 발생 횟수 (레벨 결정용)
-                    bool lastDimWasShort = false;
-
-                    for (int i = 0; i < dims.Count; i++)
-                    {
-                        if (dims[i].Distance < minDimensionLength)
-                        {
-                            // 짧은 치수 → Level 1에는 그리지 않음
-                            // 처음(firstPoint)부터 이 짧은 치수 끝까지 누적 치수를 다음 레벨에 그리기
-                            shortCount++;
-                            float levelOffset = initialOffset * (shortCount + 1);  // Level 2, 3, 4...
-
-                            DrawDimension(firstPoint, dims[i].EndPoint, axis,
-                                levelOffset, globalMinX, globalMinY, globalMinZ,
-                                viewDirection, extensionLines);
-                            lastDimWasShort = true;
-                        }
-                        else
-                        {
-                            // 정상 길이 치수 → Level 1에 그리기
-                            DrawDimension(dims[i].StartPoint, dims[i].EndPoint, axis,
-                                initialOffset, globalMinX, globalMinY, globalMinZ,
-                                viewDirection, extensionLines);
-                            lastDimWasShort = false;
-                        }
-                    }
-
-                    axisMaxLevel[axis] = shortCount + 1;  // 사용된 최대 레벨
-
-                    // 마지막 치수가 짧으면 누적 치수(firstPoint→마지막EndPoint)가 전체 치수와 동일 → 중복
-                    axisTotalRedundant[axis] = lastDimWasShort;
-                }
-
-                // 전체 길이 치수 그리기 (IsTotal) - 최대 레벨 바깥에 (중복 시 스킵)
-                foreach (var dim in totalDims)
-                {
-                    // 마지막 순차 치수가 짧아서 누적 치수가 이미 전체를 커버하면 스킵
-                    if (axisTotalRedundant.ContainsKey(dim.Axis) && axisTotalRedundant[dim.Axis])
-                        continue;
-
-                    int maxLevel = axisMaxLevel.ContainsKey(dim.Axis) ? axisMaxLevel[dim.Axis] : 1;
-                    float totalOffset = initialOffset * (maxLevel + 1);
-
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        totalOffset, globalMinX, globalMinY, globalMinZ,
+                        baseOffset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines);
                 }
 
-                // 보조선(Extension Line) 그리기 - 검은색 실선
+                // Level 2 치수 (중간)
+                foreach (var dim in level2Dims)
+                {
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                        baseOffset + levelSpacing, globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines);
+                }
+
+                // Level 0 전체 치수 (가장 바깥)
+                int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
+                foreach (var dim in level0Dims)
+                {
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                        baseOffset + (levelSpacing * maxLevelUsed), globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines);
+                }
+
+                // 보조선 그리기 (연한 색상)
                 if (extensionLines.Count > 0)
                 {
-                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.Red, 0.5f, true);
+                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(180, 100, 100), 0.5f, true);
                 }
 
                 // 뷰 방향 지정 시 카메라 이동
@@ -3264,6 +3229,309 @@ namespace A2Z
 
             return result;
         }
+
+        #region Smart Dimension Filtering Algorithm (스마트 치수 필터링 알고리즘)
+
+        /// <summary>
+        /// 치수 우선순위 계산 및 할당
+        /// Priority-Based Filtering Algorithm 적용
+        /// </summary>
+        private void AssignDimensionPriorities(List<ChainDimensionData> dimensions)
+        {
+            if (dimensions == null || dimensions.Count == 0) return;
+
+            // 축별로 그룹화하여 우선순위 계산
+            var groupedByAxis = dimensions.GroupBy(d => d.Axis);
+
+            foreach (var axisGroup in groupedByAxis)
+            {
+                var axisDims = axisGroup.ToList();
+                if (axisDims.Count == 0) continue;
+
+                // 거리값 통계 계산
+                float maxDistance = axisDims.Max(d => d.Distance);
+                float minDistance = axisDims.Min(d => d.Distance);
+                float avgDistance = axisDims.Average(d => d.Distance);
+                float range = maxDistance - minDistance;
+
+                foreach (var dim in axisDims)
+                {
+                    if (dim.IsTotal)
+                    {
+                        // 전체 길이: 최고 우선순위
+                        dim.Priority = 10;
+                    }
+                    else if (range > 0)
+                    {
+                        // 상대적 크기에 따른 우선순위 (정규화)
+                        float normalizedSize = (dim.Distance - minDistance) / range;
+
+                        if (normalizedSize >= 0.7f)
+                        {
+                            // 상위 30%: 주요 구간
+                            dim.Priority = 8;
+                        }
+                        else if (normalizedSize >= 0.4f)
+                        {
+                            // 중간 30%: 중간 구간
+                            dim.Priority = 5;
+                        }
+                        else if (normalizedSize >= 0.15f)
+                        {
+                            // 하위 25%: 작은 구간
+                            dim.Priority = 3;
+                        }
+                        else
+                        {
+                            // 최하위 15%: 매우 작은 구간
+                            dim.Priority = 1;
+                        }
+                    }
+                    else
+                    {
+                        // 모든 치수가 같은 크기
+                        dim.Priority = 5;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 스마트 치수 필터링: 겹침 방지 및 가독성 향상
+        /// Greedy Label Placement Algorithm 기반
+        /// </summary>
+        /// <param name="dimensions">전체 치수 목록</param>
+        /// <param name="maxDimensionsPerAxis">축당 최대 표시 치수 개수</param>
+        /// <param name="minTextSpace">치수 텍스트 간 최소 간격 (mm)</param>
+        /// <returns>필터링된 치수 목록</returns>
+        private List<ChainDimensionData> ApplySmartFiltering(
+            List<ChainDimensionData> dimensions,
+            int maxDimensionsPerAxis = 6,
+            float minTextSpace = 25.0f)
+        {
+            if (dimensions == null || dimensions.Count == 0)
+                return new List<ChainDimensionData>();
+
+            // 우선순위 할당
+            AssignDimensionPriorities(dimensions);
+
+            var result = new List<ChainDimensionData>();
+            var groupedByAxis = dimensions.GroupBy(d => d.Axis);
+
+            foreach (var axisGroup in groupedByAxis)
+            {
+                var axisDims = axisGroup.ToList();
+                var selectedDims = new List<ChainDimensionData>();
+
+                // 1단계: 전체 치수(IsTotal)는 무조건 포함
+                var totalDims = axisDims.Where(d => d.IsTotal).ToList();
+                selectedDims.AddRange(totalDims);
+
+                // 2단계: 나머지 치수를 우선순위 순으로 정렬
+                var sequentialDims = axisDims
+                    .Where(d => !d.IsTotal)
+                    .OrderByDescending(d => d.Priority)
+                    .ThenByDescending(d => d.Distance)
+                    .ToList();
+
+                // 3단계: 연속된 짧은 치수 병합 (Smart Grouping)
+                var mergedDims = MergeShortDimensions(sequentialDims, minTextSpace);
+
+                // 4단계: Greedy 선택 - 겹침 방지하면서 우선순위 높은 순으로 선택
+                var placedPositions = new List<(float start, float end)>();
+
+                foreach (var dim in mergedDims.OrderByDescending(d => d.Priority).ThenByDescending(d => d.Distance))
+                {
+                    if (selectedDims.Count(d => !d.IsTotal) >= maxDimensionsPerAxis - 1)
+                        break;
+
+                    float dimStart = GetAxisValue(dim.StartPoint, axisGroup.Key);
+                    float dimEnd = GetAxisValue(dim.EndPoint, axisGroup.Key);
+                    float dimMin = Math.Min(dimStart, dimEnd);
+                    float dimMax = Math.Max(dimStart, dimEnd);
+
+                    // 텍스트 중앙 위치 계산
+                    float dimCenter = (dimMin + dimMax) / 2;
+
+                    // 기존 배치된 치수와 텍스트 겹침 체크
+                    bool hasOverlap = false;
+                    foreach (var placed in placedPositions)
+                    {
+                        float placedCenter = (placed.start + placed.end) / 2;
+
+                        // 텍스트 간 최소 거리 확인
+                        if (Math.Abs(dimCenter - placedCenter) < minTextSpace)
+                        {
+                            hasOverlap = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasOverlap)
+                    {
+                        dim.IsVisible = true;
+                        dim.DisplayLevel = 0;
+                        selectedDims.Add(dim);
+                        placedPositions.Add((dimMin, dimMax));
+                    }
+                    else
+                    {
+                        // 겹치면 다음 레벨로 배정 (최대 2레벨까지)
+                        if (dim.Priority >= 5 && dim.DisplayLevel < 2)
+                        {
+                            dim.DisplayLevel = 1;
+                            dim.IsVisible = true;
+                            selectedDims.Add(dim);
+                        }
+                        else
+                        {
+                            dim.IsVisible = false;
+                        }
+                    }
+                }
+
+                result.AddRange(selectedDims);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 연속된 짧은 치수들을 하나의 누적 치수로 병합
+        /// </summary>
+        private List<ChainDimensionData> MergeShortDimensions(List<ChainDimensionData> dimensions, float minLength)
+        {
+            if (dimensions == null || dimensions.Count == 0)
+                return new List<ChainDimensionData>();
+
+            var result = new List<ChainDimensionData>();
+            var shortGroup = new List<ChainDimensionData>();
+
+            // 위치 순으로 정렬
+            var sortedDims = dimensions.OrderByDescending(d =>
+            {
+                switch (d.Axis)
+                {
+                    case "X": return d.StartPoint.X;
+                    case "Y": return d.StartPoint.Y;
+                    case "Z": return d.StartPoint.Z;
+                    default: return 0f;
+                }
+            }).ToList();
+
+            foreach (var dim in sortedDims)
+            {
+                if (dim.Distance < minLength)
+                {
+                    // 짧은 치수 → 그룹에 추가
+                    shortGroup.Add(dim);
+                }
+                else
+                {
+                    // 긴 치수 발견 → 이전 짧은 그룹 병합 후 추가
+                    if (shortGroup.Count > 1)
+                    {
+                        var mergedDim = CreateMergedDimension(shortGroup);
+                        if (mergedDim != null)
+                            result.Add(mergedDim);
+                    }
+                    else if (shortGroup.Count == 1)
+                    {
+                        // 단일 짧은 치수는 그대로 추가 (우선순위 낮춤)
+                        shortGroup[0].Priority = Math.Max(1, shortGroup[0].Priority - 2);
+                        result.Add(shortGroup[0]);
+                    }
+
+                    shortGroup.Clear();
+                    result.Add(dim);
+                }
+            }
+
+            // 마지막 그룹 처리
+            if (shortGroup.Count > 1)
+            {
+                var mergedDim = CreateMergedDimension(shortGroup);
+                if (mergedDim != null)
+                    result.Add(mergedDim);
+            }
+            else if (shortGroup.Count == 1)
+            {
+                shortGroup[0].Priority = Math.Max(1, shortGroup[0].Priority - 2);
+                result.Add(shortGroup[0]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 여러 짧은 치수를 하나의 병합 치수로 생성
+        /// </summary>
+        private ChainDimensionData CreateMergedDimension(List<ChainDimensionData> shortDims)
+        {
+            if (shortDims == null || shortDims.Count < 2)
+                return null;
+
+            string axis = shortDims[0].Axis;
+
+            // 시작점과 끝점 결정 (전체 범위)
+            VIZCore3D.NET.Data.Vector3D startPoint = shortDims[0].StartPoint;
+            VIZCore3D.NET.Data.Vector3D endPoint = shortDims[shortDims.Count - 1].EndPoint;
+
+            // 위치 순 정렬 후 처음과 끝 선택
+            switch (axis)
+            {
+                case "X":
+                    startPoint = shortDims.OrderByDescending(d => d.StartPoint.X).First().StartPoint;
+                    endPoint = shortDims.OrderBy(d => d.EndPoint.X).First().EndPoint;
+                    break;
+                case "Y":
+                    startPoint = shortDims.OrderByDescending(d => d.StartPoint.Y).First().StartPoint;
+                    endPoint = shortDims.OrderBy(d => d.EndPoint.Y).First().EndPoint;
+                    break;
+                case "Z":
+                    startPoint = shortDims.OrderByDescending(d => d.StartPoint.Z).First().StartPoint;
+                    endPoint = shortDims.OrderBy(d => d.EndPoint.Z).First().EndPoint;
+                    break;
+            }
+
+            float totalDistance = 0;
+            switch (axis)
+            {
+                case "X": totalDistance = Math.Abs(startPoint.X - endPoint.X); break;
+                case "Y": totalDistance = Math.Abs(startPoint.Y - endPoint.Y); break;
+                case "Z": totalDistance = Math.Abs(startPoint.Z - endPoint.Z); break;
+            }
+
+            return new ChainDimensionData
+            {
+                Axis = axis,
+                ViewName = shortDims[0].ViewName,
+                Distance = totalDistance,
+                StartPoint = startPoint,
+                EndPoint = endPoint,
+                StartPointStr = $"({startPoint.X:F1}, {startPoint.Y:F1}, {startPoint.Z:F1})",
+                EndPointStr = $"({endPoint.X:F1}, {endPoint.Y:F1}, {endPoint.Z:F1})",
+                IsTotal = false,
+                IsMerged = true,
+                Priority = 6  // 병합 치수는 중간 높은 우선순위
+            };
+        }
+
+        /// <summary>
+        /// 포인트에서 축 값 추출
+        /// </summary>
+        private float GetAxisValue(VIZCore3D.NET.Data.Vector3D point, string axis)
+        {
+            switch (axis)
+            {
+                case "X": return point.X;
+                case "Y": return point.Y;
+                case "Z": return point.Z;
+                default: return 0f;
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Clash 리스트 선택 변경 시 뷰어에서 해당 충돌 지점 표시 및 관련 Osnap/치수 자동 선택
@@ -3763,6 +4031,27 @@ namespace A2Z
         public string StartPointStr { get; set; }
         public string EndPointStr { get; set; }
         public bool IsTotal { get; set; }
+
+        /// <summary>
+        /// 치수 우선순위 (높을수록 중요, 1~10)
+        /// 10: 전체 길이, 8: 주요 구간(상위 30%), 5: 중간 구간, 3: 작은 구간, 1: 매우 작은 구간
+        /// </summary>
+        public int Priority { get; set; } = 5;
+
+        /// <summary>
+        /// 표시 레벨 (0: 기본, 1~n: 추가 레벨)
+        /// </summary>
+        public int DisplayLevel { get; set; } = 0;
+
+        /// <summary>
+        /// 표시 여부 (필터링 후 결정)
+        /// </summary>
+        public bool IsVisible { get; set; } = true;
+
+        /// <summary>
+        /// 병합된 치수 여부 (여러 짧은 치수를 하나로 통합)
+        /// </summary>
+        public bool IsMerged { get; set; } = false;
     }
 
     /// <summary>
