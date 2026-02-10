@@ -51,7 +51,6 @@ namespace A2Z
             this.btnShowAxisX = new System.Windows.Forms.Button();
             this.btnShowAxisY = new System.Windows.Forms.Button();
             this.btnShowAxisZ = new System.Windows.Forms.Button();
-            this.chkMinDimension = new System.Windows.Forms.CheckBox();
             this.columnHeader7 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader8 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader9 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -64,6 +63,7 @@ namespace A2Z
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader6 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.btnMainDimension = new System.Windows.Forms.Button();
             this.btnExportPDF = new System.Windows.Forms.Button();
             this.btnGenerate2D = new System.Windows.Forms.Button();
             this.btnClashDetection = new System.Windows.Forms.Button();
@@ -102,9 +102,9 @@ namespace A2Z
             //
             // splitContainer1.Panel1
             //
+            this.splitContainer1.Panel1.Controls.Add(this.groupBox3);
             this.splitContainer1.Panel1.Controls.Add(this.groupBox5);
             this.splitContainer1.Panel1.Controls.Add(this.groupBox4);
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox3);
             this.splitContainer1.Panel1.Controls.Add(this.groupBox2);
             this.splitContainer1.Panel1.Controls.Add(this.groupBox1);
             //
@@ -119,7 +119,7 @@ namespace A2Z
             //
             this.groupBox3.Controls.Add(this.panelClashButtons);
             this.groupBox3.Controls.Add(this.lvClash);
-            this.groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
+            this.groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox3.Location = new System.Drawing.Point(0, 270);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(400, 160);
@@ -205,10 +205,10 @@ namespace A2Z
             //
             this.groupBox5.Controls.Add(this.panelDimensionButtons);
             this.groupBox5.Controls.Add(this.lvDimension);
-            this.groupBox5.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.groupBox5.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox5.Location = new System.Drawing.Point(0, 570);
             this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(400, 230);
+            this.groupBox5.Size = new System.Drawing.Size(400, 150);
             this.groupBox5.TabIndex = 4;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "체인 치수 목록";
@@ -265,10 +265,6 @@ namespace A2Z
             //
             // panelDimensionButtons
             //
-            this.panelDimensionButtons.Controls.Add(this.chkMinDimension);
-            this.panelDimensionButtons.Controls.Add(this.btnShowAxisZ);
-            this.panelDimensionButtons.Controls.Add(this.btnShowAxisY);
-            this.panelDimensionButtons.Controls.Add(this.btnShowAxisX);
             this.panelDimensionButtons.Controls.Add(this.btnDimensionShowSelected);
             this.panelDimensionButtons.Controls.Add(this.btnDimensionDelete);
             this.panelDimensionButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -297,54 +293,6 @@ namespace A2Z
             this.btnDimensionDelete.UseVisualStyleBackColor = true;
             this.btnDimensionDelete.Click += new System.EventHandler(this.btnDimensionDelete_Click);
             //
-            // btnShowAxisX
-            //
-            this.btnShowAxisX.BackColor = System.Drawing.Color.LightCoral;
-            this.btnShowAxisX.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnShowAxisX.Location = new System.Drawing.Point(195, 3);
-            this.btnShowAxisX.Name = "btnShowAxisX";
-            this.btnShowAxisX.Size = new System.Drawing.Size(60, 24);
-            this.btnShowAxisX.TabIndex = 2;
-            this.btnShowAxisX.Text = "X축";
-            this.btnShowAxisX.UseVisualStyleBackColor = false;
-            this.btnShowAxisX.Click += new System.EventHandler(this.btnShowAxisX_Click);
-            //
-            // btnShowAxisY
-            //
-            this.btnShowAxisY.BackColor = System.Drawing.Color.LightGreen;
-            this.btnShowAxisY.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnShowAxisY.Location = new System.Drawing.Point(260, 3);
-            this.btnShowAxisY.Name = "btnShowAxisY";
-            this.btnShowAxisY.Size = new System.Drawing.Size(60, 24);
-            this.btnShowAxisY.TabIndex = 3;
-            this.btnShowAxisY.Text = "Y축";
-            this.btnShowAxisY.UseVisualStyleBackColor = false;
-            this.btnShowAxisY.Click += new System.EventHandler(this.btnShowAxisY_Click);
-            //
-            // btnShowAxisZ
-            //
-            this.btnShowAxisZ.BackColor = System.Drawing.Color.LightBlue;
-            this.btnShowAxisZ.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnShowAxisZ.Location = new System.Drawing.Point(325, 3);
-            this.btnShowAxisZ.Name = "btnShowAxisZ";
-            this.btnShowAxisZ.Size = new System.Drawing.Size(60, 24);
-            this.btnShowAxisZ.TabIndex = 4;
-            this.btnShowAxisZ.Text = "Z축";
-            this.btnShowAxisZ.UseVisualStyleBackColor = false;
-            this.btnShowAxisZ.Click += new System.EventHandler(this.btnShowAxisZ_Click);
-            //
-            // chkMinDimension
-            //
-            this.chkMinDimension.AutoSize = true;
-            this.chkMinDimension.Checked = true;
-            this.chkMinDimension.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkMinDimension.Font = new System.Drawing.Font("맑은 고딕", 9F);
-            this.chkMinDimension.Location = new System.Drawing.Point(5, 28);
-            this.chkMinDimension.Name = "chkMinDimension";
-            this.chkMinDimension.Size = new System.Drawing.Size(200, 19);
-            this.chkMinDimension.TabIndex = 5;
-            this.chkMinDimension.Text = "제작용 최소 치수만 표시";
-            this.chkMinDimension.UseVisualStyleBackColor = true;
             //
             // lvOsnap
             //
@@ -435,7 +383,7 @@ namespace A2Z
             //
             this.groupBox2.Controls.Add(this.lvBOM);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox2.Location = new System.Drawing.Point(0, 120);
+            this.groupBox2.Location = new System.Drawing.Point(0, 130);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(400, 150);
             this.groupBox2.TabIndex = 1;
@@ -500,86 +448,148 @@ namespace A2Z
             this.groupBox1.Controls.Add(this.btnGenerate2D);
             this.groupBox1.Controls.Add(this.btnClashDetection);
             this.groupBox1.Controls.Add(this.btnCollectBOM);
+            this.groupBox1.Controls.Add(this.btnShowAxisX);
+            this.groupBox1.Controls.Add(this.btnShowAxisY);
+            this.groupBox1.Controls.Add(this.btnShowAxisZ);
+            this.groupBox1.Controls.Add(this.btnMainDimension);
             this.groupBox1.Controls.Add(this.btnOpen);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(400, 120);
+            this.groupBox1.Size = new System.Drawing.Size(400, 165);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "작업";
             //
-            // btnExportPDF
+            // btnOpen - 메인 버튼
             //
-            this.btnExportPDF.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.btnExportPDF.Location = new System.Drawing.Point(206, 55);
-            this.btnExportPDF.Name = "btnExportPDF";
-            this.btnExportPDF.Size = new System.Drawing.Size(180, 28);
-            this.btnExportPDF.TabIndex = 4;
-            this.btnExportPDF.Text = "5. PDF 출력";
-            this.btnExportPDF.UseVisualStyleBackColor = true;
-            this.btnExportPDF.Click += new System.EventHandler(this.btnExportPDF_Click);
+            this.btnOpen.BackColor = System.Drawing.Color.SteelBlue;
+            this.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnOpen.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.btnOpen.ForeColor = System.Drawing.Color.White;
+            this.btnOpen.Location = new System.Drawing.Point(10, 20);
+            this.btnOpen.Name = "btnOpen";
+            this.btnOpen.Size = new System.Drawing.Size(185, 40);
+            this.btnOpen.TabIndex = 0;
+            this.btnOpen.Text = "파일 열기";
+            this.btnOpen.UseVisualStyleBackColor = false;
+            this.btnOpen.Click += new System.EventHandler(this.btnOpen_Click);
             //
-            // btnGenerate2D
+            // btnMainDimension - 메인 버튼
             //
-            this.btnGenerate2D.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.btnGenerate2D.Location = new System.Drawing.Point(10, 55);
-            this.btnGenerate2D.Name = "btnGenerate2D";
-            this.btnGenerate2D.Size = new System.Drawing.Size(180, 28);
-            this.btnGenerate2D.TabIndex = 3;
-            this.btnGenerate2D.Text = "4. 2D 도면 생성";
-            this.btnGenerate2D.UseVisualStyleBackColor = true;
-            this.btnGenerate2D.Click += new System.EventHandler(this.btnGenerate2D_Click);
+            this.btnMainDimension.BackColor = System.Drawing.Color.SeaGreen;
+            this.btnMainDimension.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnMainDimension.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.btnMainDimension.ForeColor = System.Drawing.Color.White;
+            this.btnMainDimension.Location = new System.Drawing.Point(205, 20);
+            this.btnMainDimension.Name = "btnMainDimension";
+            this.btnMainDimension.Size = new System.Drawing.Size(185, 40);
+            this.btnMainDimension.TabIndex = 1;
+            this.btnMainDimension.Text = "치수 추출";
+            this.btnMainDimension.UseVisualStyleBackColor = false;
+            this.btnMainDimension.Click += new System.EventHandler(this.btnMainDimension_Click);
             //
-            // btnClashDetection
+            // btnShowAxisX - 중간 버튼 (groupBox1)
             //
-            this.btnClashDetection.Location = new System.Drawing.Point(268, 20);
-            this.btnClashDetection.Name = "btnClashDetection";
-            this.btnClashDetection.Size = new System.Drawing.Size(120, 30);
-            this.btnClashDetection.TabIndex = 2;
-            this.btnClashDetection.Text = "3. Clash 검사";
-            this.btnClashDetection.UseVisualStyleBackColor = true;
-            this.btnClashDetection.Click += new System.EventHandler(this.btnClashDetection_Click);
+            this.btnShowAxisX.BackColor = System.Drawing.Color.LightCoral;
+            this.btnShowAxisX.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnShowAxisX.Location = new System.Drawing.Point(10, 68);
+            this.btnShowAxisX.Name = "btnShowAxisX";
+            this.btnShowAxisX.Size = new System.Drawing.Size(120, 30);
+            this.btnShowAxisX.TabIndex = 2;
+            this.btnShowAxisX.Text = "X축";
+            this.btnShowAxisX.UseVisualStyleBackColor = false;
+            this.btnShowAxisX.Click += new System.EventHandler(this.btnShowAxisX_Click);
             //
-            // btnCollectBOM
+            // btnShowAxisY - 중간 버튼 (groupBox1)
             //
-            this.btnCollectBOM.Location = new System.Drawing.Point(139, 20);
+            this.btnShowAxisY.BackColor = System.Drawing.Color.LightGreen;
+            this.btnShowAxisY.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnShowAxisY.Location = new System.Drawing.Point(140, 68);
+            this.btnShowAxisY.Name = "btnShowAxisY";
+            this.btnShowAxisY.Size = new System.Drawing.Size(120, 30);
+            this.btnShowAxisY.TabIndex = 3;
+            this.btnShowAxisY.Text = "Y축";
+            this.btnShowAxisY.UseVisualStyleBackColor = false;
+            this.btnShowAxisY.Click += new System.EventHandler(this.btnShowAxisY_Click);
+            //
+            // btnShowAxisZ - 중간 버튼 (groupBox1)
+            //
+            this.btnShowAxisZ.BackColor = System.Drawing.Color.LightBlue;
+            this.btnShowAxisZ.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnShowAxisZ.Location = new System.Drawing.Point(270, 68);
+            this.btnShowAxisZ.Name = "btnShowAxisZ";
+            this.btnShowAxisZ.Size = new System.Drawing.Size(120, 30);
+            this.btnShowAxisZ.TabIndex = 4;
+            this.btnShowAxisZ.Text = "Z축";
+            this.btnShowAxisZ.UseVisualStyleBackColor = false;
+            this.btnShowAxisZ.Click += new System.EventHandler(this.btnShowAxisZ_Click);
+            //
+            // btnCollectBOM - 서브 버튼
+            //
+            this.btnCollectBOM.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnCollectBOM.Location = new System.Drawing.Point(10, 105);
             this.btnCollectBOM.Name = "btnCollectBOM";
-            this.btnCollectBOM.Size = new System.Drawing.Size(120, 30);
-            this.btnCollectBOM.TabIndex = 1;
-            this.btnCollectBOM.Text = "2. BOM 수집";
+            this.btnCollectBOM.Size = new System.Drawing.Size(55, 25);
+            this.btnCollectBOM.TabIndex = 5;
+            this.btnCollectBOM.Text = "BOM";
             this.btnCollectBOM.UseVisualStyleBackColor = true;
             this.btnCollectBOM.Click += new System.EventHandler(this.btnCollectBOM_Click);
             //
-            // btnOpen
+            // btnClashDetection - 서브 버튼
             //
-            this.btnOpen.Location = new System.Drawing.Point(10, 20);
-            this.btnOpen.Name = "btnOpen";
-            this.btnOpen.Size = new System.Drawing.Size(120, 30);
-            this.btnOpen.TabIndex = 0;
-            this.btnOpen.Text = "1. 파일 열기";
-            this.btnOpen.UseVisualStyleBackColor = true;
-            this.btnOpen.Click += new System.EventHandler(this.btnOpen_Click);
+            this.btnClashDetection.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnClashDetection.Location = new System.Drawing.Point(70, 105);
+            this.btnClashDetection.Name = "btnClashDetection";
+            this.btnClashDetection.Size = new System.Drawing.Size(55, 25);
+            this.btnClashDetection.TabIndex = 6;
+            this.btnClashDetection.Text = "Clash";
+            this.btnClashDetection.UseVisualStyleBackColor = true;
+            this.btnClashDetection.Click += new System.EventHandler(this.btnClashDetection_Click);
             //
-            // btnCollectOsnap
+            // btnCollectOsnap - 서브 버튼
             //
-            this.btnCollectOsnap.Location = new System.Drawing.Point(10, 88);
+            this.btnCollectOsnap.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnCollectOsnap.Location = new System.Drawing.Point(130, 105);
             this.btnCollectOsnap.Name = "btnCollectOsnap";
-            this.btnCollectOsnap.Size = new System.Drawing.Size(180, 25);
-            this.btnCollectOsnap.TabIndex = 5;
-            this.btnCollectOsnap.Text = "Osnap 수집";
+            this.btnCollectOsnap.Size = new System.Drawing.Size(60, 25);
+            this.btnCollectOsnap.TabIndex = 7;
+            this.btnCollectOsnap.Text = "Osnap";
             this.btnCollectOsnap.UseVisualStyleBackColor = true;
             this.btnCollectOsnap.Click += new System.EventHandler(this.btnCollectOsnap_Click);
             //
-            // btnExtractDimension
+            // btnExtractDimension - 서브 버튼
             //
-            this.btnExtractDimension.Location = new System.Drawing.Point(206, 88);
+            this.btnExtractDimension.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnExtractDimension.Location = new System.Drawing.Point(195, 105);
             this.btnExtractDimension.Name = "btnExtractDimension";
-            this.btnExtractDimension.Size = new System.Drawing.Size(180, 25);
-            this.btnExtractDimension.TabIndex = 6;
-            this.btnExtractDimension.Text = "치수 추출 (체인)";
+            this.btnExtractDimension.Size = new System.Drawing.Size(50, 25);
+            this.btnExtractDimension.TabIndex = 8;
+            this.btnExtractDimension.Text = "치수";
             this.btnExtractDimension.UseVisualStyleBackColor = true;
             this.btnExtractDimension.Click += new System.EventHandler(this.btnExtractDimension_Click);
+            //
+            // btnGenerate2D - 서브 버튼
+            //
+            this.btnGenerate2D.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnGenerate2D.Location = new System.Drawing.Point(250, 105);
+            this.btnGenerate2D.Name = "btnGenerate2D";
+            this.btnGenerate2D.Size = new System.Drawing.Size(50, 25);
+            this.btnGenerate2D.TabIndex = 9;
+            this.btnGenerate2D.Text = "2D";
+            this.btnGenerate2D.UseVisualStyleBackColor = true;
+            this.btnGenerate2D.Click += new System.EventHandler(this.btnGenerate2D_Click);
+            //
+            // btnExportPDF - 서브 버튼
+            //
+            this.btnExportPDF.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnExportPDF.Location = new System.Drawing.Point(305, 105);
+            this.btnExportPDF.Name = "btnExportPDF";
+            this.btnExportPDF.Size = new System.Drawing.Size(50, 25);
+            this.btnExportPDF.TabIndex = 10;
+            this.btnExportPDF.Text = "PDF";
+            this.btnExportPDF.UseVisualStyleBackColor = true;
+            this.btnExportPDF.Click += new System.EventHandler(this.btnExportPDF_Click);
             //
             // panelViewer
             //
@@ -619,6 +629,7 @@ namespace A2Z
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Button btnOpen;
+        private System.Windows.Forms.Button btnMainDimension;
         private System.Windows.Forms.Panel panelViewer;
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.ListView lvBOM;
@@ -667,6 +678,5 @@ namespace A2Z
         private System.Windows.Forms.Button btnShowAxisX;
         private System.Windows.Forms.Button btnShowAxisY;
         private System.Windows.Forms.Button btnShowAxisZ;
-        private System.Windows.Forms.CheckBox chkMinDimension;
     }
 }
