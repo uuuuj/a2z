@@ -2555,7 +2555,7 @@ namespace A2Z
                 // 보조선 그리기 (Osnap 포인트 → 오프셋 치수선)
                 if (extensionLines.Count > 0)
                 {
-                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.Blue, 1.0f, true);
+                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(180, 100, 100), 0.5f, true);
                 }
 
                 vizcore3d.EndUpdate();
@@ -2580,45 +2580,64 @@ namespace A2Z
             string viewDirection,
             List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines)
         {
-            float startX = startPoint.X, startY = startPoint.Y, startZ = startPoint.Z;
-            float endX = endPoint.X, endY = endPoint.Y, endZ = endPoint.Z;
+            // 원본 좌표
+            VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
+                startPoint.X, startPoint.Y, startPoint.Z);
+            VIZCore3D.NET.Data.Vertex3D originalEnd = new VIZCore3D.NET.Data.Vertex3D(
+                endPoint.X, endPoint.Y, endPoint.Z);
 
-            // 오프셋 적용: 치수 화살표를 모델 바깥으로 이동
-            switch (axis)
+            // 오프셋 방향 및 baseline 결정
+            string offsetDir = "";
+            float baseline = 0;
+
+            if (viewDirection == "X" || viewDirection == null)
             {
-                case "X":
-                    if (viewDirection == "Z" || viewDirection == null)
-                    { startY = globalMinY - offset; endY = globalMinY - offset; }
-                    else if (viewDirection == "Y")
-                    { startZ = globalMinZ - offset; endZ = globalMinZ - offset; }
-                    break;
-                case "Y":
-                    if (viewDirection == "Z" || viewDirection == null)
-                    { startX = globalMinX - offset; endX = globalMinX - offset; }
-                    else if (viewDirection == "X")
-                    { startZ = globalMinZ - offset; endZ = globalMinZ - offset; }
-                    break;
-                case "Z":
-                    if (viewDirection == "X" || viewDirection == null)
-                    { startY = globalMinY - offset; endY = globalMinY - offset; }
-                    else if (viewDirection == "Y")
-                    { startX = globalMinX - offset; endX = globalMinX - offset; }
-                    break;
+                switch (axis)
+                {
+                    case "Z": offsetDir = "Y"; baseline = globalMinY; break;
+                    case "Y": offsetDir = "Z"; baseline = globalMinZ; break;
+                    case "X": offsetDir = "Y"; baseline = globalMinY; break;
+                }
+            }
+            else if (viewDirection == "Y")
+            {
+                switch (axis)
+                {
+                    case "Z": offsetDir = "X"; baseline = globalMinY; break;
+                    case "X": offsetDir = "Z"; baseline = globalMinY; break;
+                }
+            }
+            else if (viewDirection == "Z")
+            {
+                switch (axis)
+                {
+                    case "Y": offsetDir = "X"; baseline = globalMinY; break;
+                    case "X": offsetDir = "Y"; baseline = globalMinY; break;
+                }
             }
 
-            VIZCore3D.NET.Data.Vertex3D startVertex = new VIZCore3D.NET.Data.Vertex3D(startX, startY, startZ);
-            VIZCore3D.NET.Data.Vertex3D endVertex = new VIZCore3D.NET.Data.Vertex3D(endX, endY, endZ);
+            // baseline 에서 -offset 방향으로 치수 위치 계산
+            float offsetValue = baseline - offset;
+            VIZCore3D.NET.Data.Vertex3D startVertex;
+            VIZCore3D.NET.Data.Vertex3D endVertex;
 
-            // 보조선 데이터: 원래 Osnap 포인트 → 오프셋 치수선 위치
-            VIZCore3D.NET.Data.Vertex3DItemCollection extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, startPoint.Z));
-            extLine1.Add(startVertex);
-            extensionLines.Add(extLine1);
-
-            VIZCore3D.NET.Data.Vertex3DItemCollection extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, endPoint.Z));
-            extLine2.Add(endVertex);
-            extensionLines.Add(extLine2);
+            switch (offsetDir)
+            {
+                case "X":
+                    startVertex = new VIZCore3D.NET.Data.Vertex3D(offsetValue, startPoint.Y, startPoint.Z);
+                    endVertex = new VIZCore3D.NET.Data.Vertex3D(offsetValue, endPoint.Y, endPoint.Z);
+                    break;
+                case "Y":
+                    startVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, offsetValue, startPoint.Z);
+                    endVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, offsetValue, endPoint.Z);
+                    break;
+                case "Z":
+                    startVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Z, offsetValue);
+                    endVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, offsetValue);
+                    break;
+                default:
+                    return;
+            }
 
             // 치수 추가 (오프셋 좌표)
             switch (axis)
@@ -2633,6 +2652,17 @@ namespace A2Z
                     vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
                     break;
             }
+
+            // 보조선 추가 (원본 → baseline 오프셋 위치)
+            var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
+            extLine1.Add(originalStart);
+            extLine1.Add(startVertex);
+            extensionLines.Add(extLine1);
+
+            var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
+            extLine2.Add(originalStart);
+            extLine2.Add(startVertex);
+            extensionLines.Add(extLine2);
         }
 
         /// <summary>
