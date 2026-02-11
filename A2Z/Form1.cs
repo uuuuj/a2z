@@ -54,12 +54,20 @@ namespace A2Z
         /// </summary>
         private System.Drawing.Bitmap lastGeneratedDrawing = null;
 
+        /// <summary>
+        /// 현재 선택된 노드 인덱스 (부재 정보 탭용)
+        /// </summary>
+        private int selectedAttributeNodeIndex = -1;
+
         public Form1()
         {
             InitializeComponent();
 
             // BOM ListView 컬럼 재구성
             SetupBOMColumns();
+
+            // 부재 정보 DataGridView 컬럼 설정
+            SetupAttributeColumns();
 
             // 이벤트 등록
             lvBOM.DoubleClick += LvBOM_DoubleClick;
@@ -80,6 +88,30 @@ namespace A2Z
             vizcore3d.OnInitializedVIZCore3D += Vizcore3d_OnInitializedVIZCore3D;
 
 
+        }
+
+        /// <summary>
+        /// 부재 정보 DataGridView 컬럼 설정
+        /// </summary>
+        private void SetupAttributeColumns()
+        {
+            dgvAttributes.Columns.Clear();
+            dgvAttributes.Columns.Add("No", "No");
+            dgvAttributes.Columns.Add("Key", "속성명 (Key)");
+            dgvAttributes.Columns.Add("Value", "값 (Value)");
+            dgvAttributes.Columns["No"].Width = 40;
+            dgvAttributes.Columns["Key"].Width = 120;
+            dgvAttributes.Columns["Value"].Width = 200;
+            dgvAttributes.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvAttributes.Columns["No"].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            dgvAttributes.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+            dgvAttributes.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            dgvAttributes.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(60, 60, 60);
+            dgvAttributes.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvAttributes.ColumnHeadersDefaultCellStyle.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            dgvAttributes.EnableHeadersVisualStyles = false;
+            dgvAttributes.ColumnHeadersHeight = 30;
+            dgvAttributes.RowTemplate.Height = 24;
         }
 
         /// <summary>
@@ -117,6 +149,9 @@ namespace A2Z
 
             // VIZCore3D 초기화 완료 후 간섭검사 이벤트 등록
             vizcore3d.Clash.OnClashTestFinishedEvent += Clash_OnClashTestFinishedEvent;
+
+            // 3D 객체 선택 이벤트 등록 (부재 정보 탭용)
+            vizcore3d.Object3D.OnObject3DSelected += Object3D_OnObject3DSelected;
 
             // 모서리(Edge) 데이터 생성 및 읽기 활성화 (파일 열기 전 설정 필요)
             vizcore3d.Model.GenerateEdgeData = true;
@@ -4016,6 +4051,296 @@ namespace A2Z
 
             return dimensions;
         }
+
+        #region 부재 정보 탭 - 속성 조회 기능
+
+        /// <summary>
+        /// 3D 객체 선택 이벤트 핸들러
+        /// </summary>
+        private void Object3D_OnObject3DSelected(object sender, VIZCore3D.NET.Event.EventManager.Object3DSelectedEventArgs e)
+        {
+            // 선택된 노드 가져오기
+            var selectedNodes = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.SELECTED_TOP);
+
+            if (selectedNodes == null || selectedNodes.Count == 0)
+            {
+                ClearAttributeTable();
+                return;
+            }
+
+            // 첫 번째 선택된 노드의 속성 표시
+            var node = selectedNodes[0];
+            selectedAttributeNodeIndex = node.Index;
+
+            // 노드 정보 표시
+            lblSelectedNode.Text = $"[{node.Index}] {node.NodeName}";
+
+            // 속성 테이블 업데이트
+            UpdateAttributeTable(node.Index);
+        }
+
+        /// <summary>
+        /// 속성 테이블 업데이트
+        /// </summary>
+        private void UpdateAttributeTable(int nodeIndex)
+        {
+            dgvAttributes.Rows.Clear();
+
+            try
+            {
+                // 1. 기본 노드 정보 추가
+                AddBasicNodeInfo(nodeIndex);
+
+                // 2. 바운딩 박스 정보 추가
+                AddBoundingBoxInfo(nodeIndex);
+
+                // 3. UDA (User Defined Attributes) 추가
+                AddUDAInfo(nodeIndex);
+
+                // 4. 지오메트리 속성 추가
+                AddGeometryPropertyInfo(nodeIndex);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"속성 조회 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 기본 노드 정보 추가
+        /// </summary>
+        private void AddBasicNodeInfo(int nodeIndex)
+        {
+            var node = vizcore3d.Object3D.FromIndex(nodeIndex);
+            if (node == null) return;
+
+            int rowNum = 1;
+
+            // 구분선 추가
+            AddSectionHeader("기본 정보");
+
+            dgvAttributes.Rows.Add(rowNum++, "Node Index", nodeIndex.ToString());
+            dgvAttributes.Rows.Add(rowNum++, "Node Name", node.NodeName);
+            dgvAttributes.Rows.Add(rowNum++, "Node Type", node.Kind.ToString());
+
+            // 노드 경로에서 부모 정보 추출 시도
+            try
+            {
+                string nodePath = node.NodeName;
+                if (nodePath.Contains("/"))
+                {
+                    string parentPath = nodePath.Substring(0, nodePath.LastIndexOf("/"));
+                    dgvAttributes.Rows.Add(rowNum++, "Parent Path", parentPath);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 바운딩 박스 정보 추가
+        /// </summary>
+        private void AddBoundingBoxInfo(int nodeIndex)
+        {
+            List<int> indices = new List<int> { nodeIndex };
+            var bbox = vizcore3d.Object3D.GetBoundBox(indices, false);
+
+            if (bbox == null) return;
+
+            AddSectionHeader("바운딩 박스 (Bounding Box)");
+
+            int rowNum = dgvAttributes.Rows.Count + 1;
+
+            dgvAttributes.Rows.Add(rowNum++, "Min X", bbox.MinX.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Min Y", bbox.MinY.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Min Z", bbox.MinZ.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Max X", bbox.MaxX.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Max Y", bbox.MaxY.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Max Z", bbox.MaxZ.ToString("F2"));
+
+            // 크기 계산
+            float sizeX = bbox.MaxX - bbox.MinX;
+            float sizeY = bbox.MaxY - bbox.MinY;
+            float sizeZ = bbox.MaxZ - bbox.MinZ;
+
+            dgvAttributes.Rows.Add(rowNum++, "Size X", sizeX.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Size Y", sizeY.ToString("F2"));
+            dgvAttributes.Rows.Add(rowNum++, "Size Z", sizeZ.ToString("F2"));
+
+            // 중심점
+            float centerX = (bbox.MinX + bbox.MaxX) / 2;
+            float centerY = (bbox.MinY + bbox.MaxY) / 2;
+            float centerZ = (bbox.MinZ + bbox.MaxZ) / 2;
+
+            dgvAttributes.Rows.Add(rowNum++, "Center", $"({centerX:F2}, {centerY:F2}, {centerZ:F2})");
+        }
+
+        /// <summary>
+        /// UDA (User Defined Attributes) 정보 추가
+        /// </summary>
+        private void AddUDAInfo(int nodeIndex)
+        {
+            try
+            {
+                // UDA 키 목록 가져오기
+                var udaKeys = vizcore3d.Object3D.UDA.Keys;
+
+                if (udaKeys == null || udaKeys.Count == 0)
+                    return;
+
+                AddSectionHeader("사용자 정의 속성 (UDA)");
+
+                int rowNum = dgvAttributes.Rows.Count + 1;
+
+                foreach (string key in udaKeys)
+                {
+                    try
+                    {
+                        // 해당 노드의 UDA 값 가져오기
+                        var udaData = vizcore3d.Object3D.UDA.FromIndex(nodeIndex, key);
+
+                        if (udaData != null && !string.IsNullOrEmpty(udaData.ToString()))
+                        {
+                            dgvAttributes.Rows.Add(rowNum++, key, udaData.ToString());
+                        }
+                    }
+                    catch
+                    {
+                        // 해당 키에 대한 값이 없으면 스킵
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UDA 조회 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 지오메트리 속성 정보 추가
+        /// </summary>
+        private void AddGeometryPropertyInfo(int nodeIndex)
+        {
+            try
+            {
+                // 지오메트리 속성이 있는지 확인
+                var geomProps = vizcore3d.Object3D.GeometryProperty;
+                if (geomProps == null) return;
+
+                // 노드의 지오메트리 속성 가져오기
+                var props = geomProps.FromIndex(nodeIndex);
+                if (props == null) return;
+
+                // 속성이 있으면 섹션 추가
+                bool hasProps = false;
+
+                // 리플렉션으로 속성 가져오기
+                var propsType = props.GetType();
+                var properties = propsType.GetProperties();
+
+                foreach (var propInfo in properties)
+                {
+                    try
+                    {
+                        var value = propInfo.GetValue(props);
+                        if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                        {
+                            if (!hasProps)
+                            {
+                                AddSectionHeader("지오메트리 속성 (Geometry)");
+                                hasProps = true;
+                            }
+                            int rowNum = dgvAttributes.Rows.Count + 1;
+                            dgvAttributes.Rows.Add(rowNum, propInfo.Name, value.ToString());
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Geometry Property 조회 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 섹션 헤더 추가 (구분선)
+        /// </summary>
+        private void AddSectionHeader(string sectionName)
+        {
+            int rowIndex = dgvAttributes.Rows.Add("", $"━━ {sectionName} ━━", "");
+            dgvAttributes.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(230, 230, 230);
+            dgvAttributes.Rows[rowIndex].DefaultCellStyle.Font = new Font("맑은 고딕", 9, FontStyle.Bold);
+            dgvAttributes.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.FromArgb(80, 80, 80);
+        }
+
+        /// <summary>
+        /// 속성 테이블 초기화
+        /// </summary>
+        private void ClearAttributeTable()
+        {
+            dgvAttributes.Rows.Clear();
+            lblSelectedNode.Text = "3D 뷰어에서 부재를 선택하세요";
+            selectedAttributeNodeIndex = -1;
+        }
+
+        /// <summary>
+        /// 선택 해제 버튼 클릭
+        /// </summary>
+        private void btnClearSelection_Click(object sender, EventArgs e)
+        {
+            vizcore3d.Object3D.Select(new List<int>(), false, false);
+            ClearAttributeTable();
+        }
+
+        /// <summary>
+        /// CSV 내보내기 버튼 클릭
+        /// </summary>
+        private void btnExportAttributeCSV_Click(object sender, EventArgs e)
+        {
+            if (dgvAttributes.Rows.Count == 0)
+            {
+                MessageBox.Show("내보낼 속성이 없습니다.\n부재를 먼저 선택하세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            SaveFileDialog dlg = new SaveFileDialog();
+            dlg.Filter = "CSV 파일 (*.csv)|*.csv";
+            dlg.FileName = $"Attributes_{selectedAttributeNodeIndex}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+
+            if (dlg.ShowDialog() != DialogResult.OK)
+                return;
+
+            try
+            {
+                using (var writer = new System.IO.StreamWriter(dlg.FileName, false, System.Text.Encoding.UTF8))
+                {
+                    // 헤더
+                    writer.WriteLine("No,Key,Value");
+
+                    // 데이터
+                    foreach (DataGridViewRow row in dgvAttributes.Rows)
+                    {
+                        string no = row.Cells["No"].Value?.ToString() ?? "";
+                        string key = row.Cells["Key"].Value?.ToString() ?? "";
+                        string value = row.Cells["Value"].Value?.ToString() ?? "";
+
+                        // CSV 이스케이프
+                        key = key.Contains(",") ? $"\"{key}\"" : key;
+                        value = value.Contains(",") ? $"\"{value}\"" : value;
+
+                        writer.WriteLine($"{no},{key},{value}");
+                    }
+                }
+
+                MessageBox.Show($"CSV 저장 완료:\n{dlg.FileName}", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"CSV 저장 오류:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>

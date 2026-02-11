@@ -29,6 +29,9 @@ namespace A2Z
         private void InitializeComponent()
         {
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.tabControlLeft = new System.Windows.Forms.TabControl();
+            this.tabPageWork = new System.Windows.Forms.TabPage();
+            this.tabPageAttribute = new System.Windows.Forms.TabPage();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.lvOsnap = new System.Windows.Forms.ListView();
             this.columnHeader10 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -80,10 +83,20 @@ namespace A2Z
             this.colDimStart = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colDimEnd = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panelViewer = new System.Windows.Forms.Panel();
+            this.panelAttributeHeader = new System.Windows.Forms.Panel();
+            this.lblSelectedNode = new System.Windows.Forms.Label();
+            this.lblAttributeTitle = new System.Windows.Forms.Label();
+            this.dgvAttributes = new System.Windows.Forms.DataGridView();
+            this.panelAttributeButtons = new System.Windows.Forms.Panel();
+            this.btnExportAttributeCSV = new System.Windows.Forms.Button();
+            this.btnClearSelection = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
+            this.tabControlLeft.SuspendLayout();
+            this.tabPageWork.SuspendLayout();
+            this.tabPageAttribute.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.groupBox5.SuspendLayout();
@@ -92,6 +105,9 @@ namespace A2Z
             this.panelDimensionButtons.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.panelAttributeHeader.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).BeginInit();
+            this.panelAttributeButtons.SuspendLayout();
             this.SuspendLayout();
             //
             // splitContainer1
@@ -102,11 +118,7 @@ namespace A2Z
             //
             // splitContainer1.Panel1
             //
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox5);
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox4);
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox3);
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox2);
-            this.splitContainer1.Panel1.Controls.Add(this.groupBox1);
+            this.splitContainer1.Panel1.Controls.Add(this.tabControlLeft);
             //
             // splitContainer1.Panel2
             //
@@ -114,6 +126,125 @@ namespace A2Z
             this.splitContainer1.Size = new System.Drawing.Size(1400, 800);
             this.splitContainer1.SplitterDistance = 400;
             this.splitContainer1.TabIndex = 0;
+            //
+            // tabControlLeft
+            //
+            this.tabControlLeft.Controls.Add(this.tabPageWork);
+            this.tabControlLeft.Controls.Add(this.tabPageAttribute);
+            this.tabControlLeft.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabControlLeft.Location = new System.Drawing.Point(0, 0);
+            this.tabControlLeft.Name = "tabControlLeft";
+            this.tabControlLeft.SelectedIndex = 0;
+            this.tabControlLeft.Size = new System.Drawing.Size(400, 800);
+            this.tabControlLeft.TabIndex = 0;
+            //
+            // tabPageWork
+            //
+            this.tabPageWork.Controls.Add(this.groupBox5);
+            this.tabPageWork.Controls.Add(this.groupBox4);
+            this.tabPageWork.Controls.Add(this.groupBox3);
+            this.tabPageWork.Controls.Add(this.groupBox2);
+            this.tabPageWork.Controls.Add(this.groupBox1);
+            this.tabPageWork.Location = new System.Drawing.Point(4, 22);
+            this.tabPageWork.Name = "tabPageWork";
+            this.tabPageWork.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageWork.Size = new System.Drawing.Size(392, 774);
+            this.tabPageWork.TabIndex = 0;
+            this.tabPageWork.Text = "작업/데이터";
+            this.tabPageWork.UseVisualStyleBackColor = true;
+            //
+            // tabPageAttribute
+            //
+            this.tabPageAttribute.Controls.Add(this.dgvAttributes);
+            this.tabPageAttribute.Controls.Add(this.panelAttributeButtons);
+            this.tabPageAttribute.Controls.Add(this.panelAttributeHeader);
+            this.tabPageAttribute.Location = new System.Drawing.Point(4, 22);
+            this.tabPageAttribute.Name = "tabPageAttribute";
+            this.tabPageAttribute.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageAttribute.Size = new System.Drawing.Size(392, 774);
+            this.tabPageAttribute.TabIndex = 1;
+            this.tabPageAttribute.Text = "부재 정보";
+            this.tabPageAttribute.UseVisualStyleBackColor = true;
+            //
+            // panelAttributeHeader
+            //
+            this.panelAttributeHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
+            this.panelAttributeHeader.Controls.Add(this.lblSelectedNode);
+            this.panelAttributeHeader.Controls.Add(this.lblAttributeTitle);
+            this.panelAttributeHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelAttributeHeader.Location = new System.Drawing.Point(3, 3);
+            this.panelAttributeHeader.Name = "panelAttributeHeader";
+            this.panelAttributeHeader.Size = new System.Drawing.Size(386, 55);
+            this.panelAttributeHeader.TabIndex = 0;
+            //
+            // lblAttributeTitle
+            //
+            this.lblAttributeTitle.AutoSize = true;
+            this.lblAttributeTitle.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.lblAttributeTitle.ForeColor = System.Drawing.Color.White;
+            this.lblAttributeTitle.Location = new System.Drawing.Point(10, 8);
+            this.lblAttributeTitle.Name = "lblAttributeTitle";
+            this.lblAttributeTitle.Size = new System.Drawing.Size(169, 20);
+            this.lblAttributeTitle.TabIndex = 0;
+            this.lblAttributeTitle.Text = "부재 속성 (Attributes)";
+            //
+            // lblSelectedNode
+            //
+            this.lblSelectedNode.AutoSize = true;
+            this.lblSelectedNode.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            this.lblSelectedNode.ForeColor = System.Drawing.Color.LightGray;
+            this.lblSelectedNode.Location = new System.Drawing.Point(10, 32);
+            this.lblSelectedNode.Name = "lblSelectedNode";
+            this.lblSelectedNode.Size = new System.Drawing.Size(163, 15);
+            this.lblSelectedNode.TabIndex = 1;
+            this.lblSelectedNode.Text = "3D 뷰어에서 부재를 선택하세요";
+            //
+            // dgvAttributes
+            //
+            this.dgvAttributes.AllowUserToAddRows = false;
+            this.dgvAttributes.AllowUserToDeleteRows = false;
+            this.dgvAttributes.BackgroundColor = System.Drawing.Color.White;
+            this.dgvAttributes.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.dgvAttributes.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvAttributes.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvAttributes.Location = new System.Drawing.Point(3, 58);
+            this.dgvAttributes.Name = "dgvAttributes";
+            this.dgvAttributes.ReadOnly = true;
+            this.dgvAttributes.RowHeadersVisible = false;
+            this.dgvAttributes.RowTemplate.Height = 23;
+            this.dgvAttributes.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dgvAttributes.Size = new System.Drawing.Size(386, 678);
+            this.dgvAttributes.TabIndex = 1;
+            //
+            // panelAttributeButtons
+            //
+            this.panelAttributeButtons.Controls.Add(this.btnExportAttributeCSV);
+            this.panelAttributeButtons.Controls.Add(this.btnClearSelection);
+            this.panelAttributeButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelAttributeButtons.Location = new System.Drawing.Point(3, 736);
+            this.panelAttributeButtons.Name = "panelAttributeButtons";
+            this.panelAttributeButtons.Size = new System.Drawing.Size(386, 35);
+            this.panelAttributeButtons.TabIndex = 2;
+            //
+            // btnClearSelection
+            //
+            this.btnClearSelection.Location = new System.Drawing.Point(5, 5);
+            this.btnClearSelection.Name = "btnClearSelection";
+            this.btnClearSelection.Size = new System.Drawing.Size(90, 25);
+            this.btnClearSelection.TabIndex = 0;
+            this.btnClearSelection.Text = "선택 해제";
+            this.btnClearSelection.UseVisualStyleBackColor = true;
+            this.btnClearSelection.Click += new System.EventHandler(this.btnClearSelection_Click);
+            //
+            // btnExportAttributeCSV
+            //
+            this.btnExportAttributeCSV.Location = new System.Drawing.Point(100, 5);
+            this.btnExportAttributeCSV.Name = "btnExportAttributeCSV";
+            this.btnExportAttributeCSV.Size = new System.Drawing.Size(100, 25);
+            this.btnExportAttributeCSV.TabIndex = 1;
+            this.btnExportAttributeCSV.Text = "CSV 내보내기";
+            this.btnExportAttributeCSV.UseVisualStyleBackColor = true;
+            this.btnExportAttributeCSV.Click += new System.EventHandler(this.btnExportAttributeCSV_Click);
             //
             // groupBox3
             //
@@ -602,6 +733,9 @@ namespace A2Z
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
+            this.tabControlLeft.ResumeLayout(false);
+            this.tabPageWork.ResumeLayout(false);
+            this.tabPageAttribute.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
             this.groupBox4.ResumeLayout(false);
             this.groupBox5.ResumeLayout(false);
@@ -610,6 +744,10 @@ namespace A2Z
             this.panelDimensionButtons.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
+            this.panelAttributeHeader.ResumeLayout(false);
+            this.panelAttributeHeader.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).EndInit();
+            this.panelAttributeButtons.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -668,5 +806,15 @@ namespace A2Z
         private System.Windows.Forms.Button btnShowAxisY;
         private System.Windows.Forms.Button btnShowAxisZ;
         private System.Windows.Forms.CheckBox chkMinDimension;
+        private System.Windows.Forms.TabControl tabControlLeft;
+        private System.Windows.Forms.TabPage tabPageWork;
+        private System.Windows.Forms.TabPage tabPageAttribute;
+        private System.Windows.Forms.Panel panelAttributeHeader;
+        private System.Windows.Forms.Label lblAttributeTitle;
+        private System.Windows.Forms.Label lblSelectedNode;
+        private System.Windows.Forms.DataGridView dgvAttributes;
+        private System.Windows.Forms.Panel panelAttributeButtons;
+        private System.Windows.Forms.Button btnClearSelection;
+        private System.Windows.Forms.Button btnExportAttributeCSV;
     }
 }
