@@ -70,6 +70,8 @@ namespace A2Z
             this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.panelBOMButtons = new System.Windows.Forms.Panel();
+            this.btnMfgDrawing = new System.Windows.Forms.Button();
             this.lvBOM = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -529,10 +531,11 @@ namespace A2Z
             // 
             this.columnHeader13.Text = "Z";
             this.columnHeader13.Width = 100;
-            // 
+            //
             // groupBox2
-            // 
+            //
             this.groupBox2.Controls.Add(this.lvBOM);
+            this.groupBox2.Controls.Add(this.panelBOMButtons);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox2.Location = new System.Drawing.Point(0, 175);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -542,6 +545,27 @@ namespace A2Z
             this.groupBox2.TabIndex = 1;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "BOM 데이터";
+            //
+            // panelBOMButtons
+            //
+            this.panelBOMButtons.Controls.Add(this.btnMfgDrawing);
+            this.panelBOMButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelBOMButtons.Location = new System.Drawing.Point(3, 150);
+            this.panelBOMButtons.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.panelBOMButtons.Name = "panelBOMButtons";
+            this.panelBOMButtons.Size = new System.Drawing.Size(451, 34);
+            this.panelBOMButtons.TabIndex = 1;
+            //
+            // btnMfgDrawing
+            //
+            this.btnMfgDrawing.Location = new System.Drawing.Point(6, 4);
+            this.btnMfgDrawing.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.btnMfgDrawing.Name = "btnMfgDrawing";
+            this.btnMfgDrawing.Size = new System.Drawing.Size(120, 26);
+            this.btnMfgDrawing.TabIndex = 0;
+            this.btnMfgDrawing.Text = "가공도 출력";
+            this.btnMfgDrawing.UseVisualStyleBackColor = true;
+            this.btnMfgDrawing.Click += new System.EventHandler(this.btnMfgDrawing_Click);
             // 
             // lvBOM
             // 
@@ -794,6 +818,7 @@ namespace A2Z
             this.groupBox4.ResumeLayout(false);
             this.panelOsnapButtons.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
+            this.panelBOMButtons.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
             this.ResumeLayout(false);
 
@@ -863,5 +888,7 @@ namespace A2Z
         private System.Windows.Forms.Panel panelAttributeButtons;
         private System.Windows.Forms.Button btnClearSelection;
         private System.Windows.Forms.Button btnExportAttributeCSV;
+        private System.Windows.Forms.Panel panelBOMButtons;
+        private System.Windows.Forms.Button btnMfgDrawing;
     }
 }

@@ -1017,7 +1017,7 @@ namespace A2Z
                 }
             }
 
-            float initialOffset = 80.0f;
+            float initialOffset = 5.0f;
             float minDimensionLength = 15.0f;  // 폰트가 들어갈 최소 치수선 길이
 
             // 보조선(Extension Line) 저장용 리스트
@@ -2015,6 +2015,9 @@ namespace A2Z
             {
                 vizcore3d.BeginUpdate();
 
+                // 가공도 모드에서 숨긴 부재 복원
+                RestoreAllPartsVisibility();
+
                 // X-Ray 모드 해제
                 if (vizcore3d.View.XRay.Enable)
                     vizcore3d.View.XRay.Enable = false;
@@ -2414,6 +2417,8 @@ namespace A2Z
         /// </summary>
         private void btnShowAxisX_Click(object sender, EventArgs e)
         {
+            // 가공도 모드에서 숨긴 부재 복원
+            RestoreAllPartsVisibility();
             // 치수 지우고 → 은선 점선 모드 → 카메라 맞추고 → 치수 그리기
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
@@ -2428,6 +2433,7 @@ namespace A2Z
         /// </summary>
         private void btnShowAxisY_Click(object sender, EventArgs e)
         {
+            RestoreAllPartsVisibility();
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
             vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
@@ -2441,6 +2447,7 @@ namespace A2Z
         /// </summary>
         private void btnShowAxisZ_Click(object sender, EventArgs e)
         {
+            RestoreAllPartsVisibility();
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
             vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
@@ -3720,6 +3727,189 @@ namespace A2Z
             {
                 MessageBox.Show($"CSV 저장 오류:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        #endregion
+
+        #region 가공도 출력 - 단일 부재 치수 표시
+
+        /// <summary>
+        /// 가공도 출력 버튼 클릭
+        /// 선택된 부재만 표시하고, 가장 긴 축이 좌우가 되는 시점에서 치수 표시
+        /// </summary>
+        private void btnMfgDrawing_Click(object sender, EventArgs e)
+        {
+            if (lvBOM.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("BOM 리스트에서 부재를 선택하세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                BOMData bom = lvBOM.SelectedItems[0].Tag as BOMData;
+                if (bom == null) return;
+
+                // 1. 기존 치수/보조선 제거 (축 버튼과 동일한 패턴)
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+
+                // 2. X-Ray 끄기 (켜져있으면)
+                if (vizcore3d.View.XRay.Enable)
+                    vizcore3d.View.XRay.Enable = false;
+
+                // 3. 선택된 부재만 보이도록: 전체 숨기기 → 대상만 보이기
+                List<int> allIndices = new List<int>();
+                foreach (BOMData b in bomList)
+                    allIndices.Add(b.Index);
+
+                vizcore3d.Object3D.Show(allIndices, false);  // 전체 숨기기
+
+                List<int> targetIndices = new List<int> { bom.Index };
+                vizcore3d.Object3D.Show(targetIndices, true); // 대상만 보이기
+
+                // 4. 바운딩 박스로 가장 긴 축 판별
+                float sizeX = bom.MaxX - bom.MinX;
+                float sizeY = bom.MaxY - bom.MinY;
+                float sizeZ = bom.MaxZ - bom.MinZ;
+
+                string longestAxis;
+                if (sizeX >= sizeY && sizeX >= sizeZ)
+                    longestAxis = "X";
+                else if (sizeY >= sizeX && sizeY >= sizeZ)
+                    longestAxis = "Y";
+                else
+                    longestAxis = "Z";
+
+                // 5. 카메라 방향 설정 (축 버튼과 동일한 패턴: MoveCamera → FitToView)
+                VIZCore3D.NET.Data.CameraDirection camDir;
+                string viewDirection;
+                bool needRotate90 = false;
+
+                switch (longestAxis)
+                {
+                    case "X":
+                        camDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS;
+                        viewDirection = "Y";
+                        break;
+                    case "Y":
+                        camDir = VIZCore3D.NET.Data.CameraDirection.X_PLUS;
+                        viewDirection = "X";
+                        break;
+                    default: // Z
+                        camDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS;
+                        viewDirection = "Y";
+                        needRotate90 = true;
+                        break;
+                }
+
+                vizcore3d.View.MoveCamera(camDir);
+
+                // Z축 최장: Z축 고정 해제 → 화면 90° 회전 → Z가 수평
+                if (needRotate90)
+                {
+                    bool originalLockZ = vizcore3d.View.ScreenAxisRotation.LockZAxis;
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = originalLockZ;
+                }
+
+                // 6. 화면 맞춤 (축 버튼과 동일: 숨겨진 부재 제외, 보이는 부재만 FitToView)
+                vizcore3d.View.FitToView();
+
+                // 7. 해당 부재의 Osnap 수집
+                var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+
+                var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+                if (osnapListMfg != null)
+                {
+                    foreach (var osnap in osnapListMfg)
+                    {
+                        switch (osnap.Kind)
+                        {
+                            case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                if (osnap.Start != null)
+                                {
+                                    var sv = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
+                                    mfgOsnapWithNames.Add((sv, bom.Name));
+                                }
+                                if (osnap.End != null)
+                                {
+                                    var ev = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
+                                    mfgOsnapWithNames.Add((ev, bom.Name));
+                                }
+                                break;
+                            case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
+                            case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                if (osnap.Center != null)
+                                {
+                                    var cv = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
+                                    mfgOsnapWithNames.Add((cv, bom.Name));
+                                }
+                                break;
+                        }
+                    }
+                }
+
+                if (mfgOsnapWithNames.Count == 0)
+                {
+                    // 실패 시 전체 부재 다시 보이기
+                    vizcore3d.Object3D.Show(allIndices, true);
+                    MessageBox.Show("선택된 부재에서 Osnap 좌표를 수집하지 못했습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // 좌표 병합
+                float tolerance = 5.0f;
+                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(mfgOsnapWithNames, tolerance);
+
+                // 치수 추출 (3축 모두 - AddDimensionsForView가 뷰 방향에 맞게 필터링)
+                var mfgDimensions = new List<ChainDimensionData>();
+                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "X", tolerance));
+                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "Y", tolerance));
+                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "Z", tolerance));
+
+                if (mfgDimensions.Count == 0)
+                {
+                    vizcore3d.Object3D.Show(allIndices, true);
+                    MessageBox.Show("치수를 추출하지 못했습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // 8. 전역 상태 임시 교체 후 AddDimensionsForView 호출
+                var savedChainDimList = new List<ChainDimensionData>(chainDimensionList);
+                var savedXrayIndices = new List<int>(xraySelectedNodeIndices);
+
+                chainDimensionList.Clear();
+                chainDimensionList.AddRange(mfgDimensions);
+                xraySelectedNodeIndices = new List<int>(targetIndices);
+
+                // 보조선 오프셋 + 치수선 표시 (기존 로직 재사용)
+                AddDimensionsForView(viewDirection);
+
+                // 전역 상태 복원
+                chainDimensionList.Clear();
+                chainDimensionList.AddRange(savedChainDimList);
+                xraySelectedNodeIndices = new List<int>(savedXrayIndices);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"가공도 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 가공도 모드 해제 - 전체 부재 다시 보이기
+        /// BOM 더블클릭, 축 버튼, 전체보기 등에서 호출 가능
+        /// </summary>
+        private void RestoreAllPartsVisibility()
+        {
+            List<int> allIndices = new List<int>();
+            foreach (BOMData b in bomList)
+                allIndices.Add(b.Index);
+
+            if (allIndices.Count > 0)
+                vizcore3d.Object3D.Show(allIndices, true);
         }
 
         #endregion
