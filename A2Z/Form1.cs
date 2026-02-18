@@ -750,8 +750,8 @@ namespace A2Z
                         float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
                         float plateThickness = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
 
-                        // 원기둥 높이와 판재 두께 비교 (허용 오차 내)
-                        if (Math.Abs(cylHeight - plateThickness) > tolerance) continue;
+                        // 원기둥 높이가 판재 최소 치수 이하인지 확인 (Angle 등 복합 단면 지원)
+                        if (cylHeight > plateThickness + tolerance) continue;
 
                         // 원기둥 중심이 판재 바운딩 박스 안에 있는지 확인 (약간의 여유)
                         float margin = tolerance;
@@ -2816,7 +2816,7 @@ namespace A2Z
             vizcore3d.View.FitToView();
             ShowBalloonNumbers("ISO");
             // FitToView 후 1.7배 확대
-            vizcore3d.View.ZoomRatio = 70f;
+            vizcore3d.View.ZoomRatio = 105f;
             vizcore3d.View.ZoomIn();
         }
 
@@ -3275,7 +3275,7 @@ namespace A2Z
                 measureStyle.ContinuousDistance = false;
                 measureStyle.BackgroundTransparent = true;
                 measureStyle.FontColor = System.Drawing.Color.Blue;
-                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
+                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE10;
                 measureStyle.FontBold = true;
                 measureStyle.LineColor = System.Drawing.Color.Blue;
                 measureStyle.LineWidth = 2;
@@ -3429,12 +3429,21 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 원형(CIRCLE) 풍선 수집 ---
+                // --- 원형(CIRCLE) 풍선 수집 (홀로 매칭된 원기둥은 제외) ---
                 try
                 {
+                    // 홀로 매칭된 원기둥 Body Index 수집
+                    HashSet<int> holeCylinderIndices = new HashSet<int>();
+                    foreach (var b in bomList)
+                    {
+                        if (b.Holes != null)
+                            foreach (var h in b.Holes)
+                                holeCylinderIndices.Add(h.CylinderBodyIndex);
+                    }
                     foreach (var bom in bomList)
                     {
                         if (bom.CircleRadius <= 0) continue;
+                        if (holeCylinderIndices.Contains(bom.Index)) continue; // 홀 원기둥은 스킵
                         balloonEntries.Add((bom.CenterX, bom.CenterY, bom.CenterZ,
                             $"R{bom.CircleRadius:F1}", Color.Red));
                     }
@@ -3565,7 +3574,7 @@ namespace A2Z
                     }
                     // FitToView 후 1.7배 확대 (모델+보조선이 화면에 크게 보이도록)
                     vizcore3d.View.FitToView();
-                    vizcore3d.View.ZoomRatio = 70f;
+                    vizcore3d.View.ZoomRatio = 105f;
                     vizcore3d.View.ZoomIn();
                 }
 
@@ -5648,7 +5657,7 @@ namespace A2Z
                     vizcore3d.View.FitToView();
                     ShowBalloonNumbers("ISO");
                     // FitToView 후 1.7배 확대
-                    vizcore3d.View.ZoomRatio = 70f;
+                    vizcore3d.View.ZoomRatio = 105f;
                     vizcore3d.View.ZoomIn();
                 }
                 else
