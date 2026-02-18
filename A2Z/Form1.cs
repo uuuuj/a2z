@@ -644,10 +644,36 @@ namespace A2Z
                     bom.HoleSize = "";
                 }
 
-                // 원기둥 Body 후보 (CircleRadius > 0인 body)
-                List<BOMData> cylinderBodies = bomList.Where(b => b.CircleRadius > 0).ToList();
-                // 판재/비원기둥 Body (CircleRadius == 0인 body)
-                List<BOMData> plateBodies = bomList.Where(b => b.CircleRadius <= 0).ToList();
+                // 원기둥 vs 판재 분류: CircleRadius > 0이라도 바운딩박스 형태가 원기둥이 아니면 판재로 분류
+                // (Angle 등 구조 부재가 홀 Osnap 때문에 CircleRadius > 0이 되는 경우 대응)
+                List<BOMData> cylinderBodies = new List<BOMData>();
+                List<BOMData> plateBodies = new List<BOMData>();
+
+                foreach (var b in bomList)
+                {
+                    if (b.CircleRadius <= 0)
+                    {
+                        plateBodies.Add(b);
+                        continue;
+                    }
+
+                    // 바운딩박스 치수 중 지름(2*CircleRadius)과 유사한 축이 2개 이상이면 원기둥
+                    float diameter = b.CircleRadius * 2f;
+                    float sizeX = Math.Abs(b.MaxX - b.MinX);
+                    float sizeY = Math.Abs(b.MaxY - b.MinY);
+                    float sizeZ = Math.Abs(b.MaxZ - b.MinZ);
+                    float cylTol = Math.Max(tolerance * 2f, diameter * 0.2f); // 20% 오차 허용
+
+                    int matchCount = 0;
+                    if (Math.Abs(sizeX - diameter) < cylTol) matchCount++;
+                    if (Math.Abs(sizeY - diameter) < cylTol) matchCount++;
+                    if (Math.Abs(sizeZ - diameter) < cylTol) matchCount++;
+
+                    if (matchCount >= 2)
+                        cylinderBodies.Add(b); // 실제 원기둥 형태
+                    else
+                        plateBodies.Add(b); // Angle 등 원형 특성만 있는 구조 부재
+                }
 
                 if (cylinderBodies.Count == 0 || plateBodies.Count == 0) return;
 
@@ -3444,6 +3470,19 @@ namespace A2Z
                     {
                         if (bom.CircleRadius <= 0) continue;
                         if (holeCylinderIndices.Contains(bom.Index)) continue; // 홀 원기둥은 스킵
+
+                        // 바운딩박스 형태가 원기둥이 아닌 body는 원형 풍선 제외 (Angle 등)
+                        float diameter = bom.CircleRadius * 2f;
+                        float sX = Math.Abs(bom.MaxX - bom.MinX);
+                        float sY = Math.Abs(bom.MaxY - bom.MinY);
+                        float sZ = Math.Abs(bom.MaxZ - bom.MinZ);
+                        float cTol = Math.Max(2f, diameter * 0.2f);
+                        int mc = 0;
+                        if (Math.Abs(sX - diameter) < cTol) mc++;
+                        if (Math.Abs(sY - diameter) < cTol) mc++;
+                        if (Math.Abs(sZ - diameter) < cTol) mc++;
+                        if (mc < 2) continue; // 원기둥 형태가 아니면 스킵
+
                         balloonEntries.Add((bom.CenterX, bom.CenterY, bom.CenterZ,
                             $"R{bom.CircleRadius:F1}", Color.Red));
                     }
@@ -5200,8 +5239,22 @@ namespace A2Z
                 chainDimensionList.AddRange(savedChainDimList);
                 xraySelectedNodeIndices = new List<int>(savedXrayIndices);
 
-                // 9. 선택 부재에 원형이 있으면 반지름 풍선 표시 (EarthBoss 방식)
+                // 9. 선택 부재가 실제 원기둥 형태이면 반지름 풍선 표시 (Angle 등 비원기둥 제외)
+                bool isTrueCylinder = false;
                 if (bom.CircleRadius > 0)
+                {
+                    float diam = bom.CircleRadius * 2f;
+                    float bsX = Math.Abs(bom.MaxX - bom.MinX);
+                    float bsY = Math.Abs(bom.MaxY - bom.MinY);
+                    float bsZ = Math.Abs(bom.MaxZ - bom.MinZ);
+                    float ct = Math.Max(2f, diam * 0.2f);
+                    int mCnt = 0;
+                    if (Math.Abs(bsX - diam) < ct) mCnt++;
+                    if (Math.Abs(bsY - diam) < ct) mCnt++;
+                    if (Math.Abs(bsZ - diam) < ct) mCnt++;
+                    isTrueCylinder = mCnt >= 2;
+                }
+                if (isTrueCylinder)
                 {
                     try
                     {
