@@ -3290,6 +3290,7 @@ namespace A2Z
 
                 // baseline 계산
                 float globalMinX = float.MaxValue, globalMinY = float.MaxValue, globalMinZ = float.MaxValue;
+                float globalMaxX = float.MinValue, globalMaxY = float.MinValue, globalMaxZ = float.MinValue;
                 if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
                 {
                     foreach (int nodeIdx in xraySelectedNodeIndices)
@@ -3300,6 +3301,9 @@ namespace A2Z
                             globalMinX = Math.Min(globalMinX, bom.MinX);
                             globalMinY = Math.Min(globalMinY, bom.MinY);
                             globalMinZ = Math.Min(globalMinZ, bom.MinZ);
+                            globalMaxX = Math.Max(globalMaxX, bom.MaxX);
+                            globalMaxY = Math.Max(globalMaxY, bom.MaxY);
+                            globalMaxZ = Math.Max(globalMaxZ, bom.MaxZ);
                         }
                     }
                 }
@@ -3310,8 +3314,15 @@ namespace A2Z
                         globalMinX = Math.Min(globalMinX, Math.Min(dim.StartPoint.X, dim.EndPoint.X));
                         globalMinY = Math.Min(globalMinY, Math.Min(dim.StartPoint.Y, dim.EndPoint.Y));
                         globalMinZ = Math.Min(globalMinZ, Math.Min(dim.StartPoint.Z, dim.EndPoint.Z));
+                        globalMaxX = Math.Max(globalMaxX, Math.Max(dim.StartPoint.X, dim.EndPoint.X));
+                        globalMaxY = Math.Max(globalMaxY, Math.Max(dim.StartPoint.Y, dim.EndPoint.Y));
+                        globalMaxZ = Math.Max(globalMaxZ, Math.Max(dim.StartPoint.Z, dim.EndPoint.Z));
                     }
                 }
+                // 모델 중심 계산 (풍선 방향 결정용)
+                float modelCenterX = (globalMinX + globalMaxX) / 2f;
+                float modelCenterY = (globalMinY + globalMaxY) / 2f;
+                float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
                 // 동적 오프셋 (치수 개수에 따라 조정)
                 float baseOffset = 100.0f;
@@ -3430,16 +3441,24 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 홀(Hole) 풍선 수집 ---
+                // --- 홀(Hole) 풍선 수집 (같은 직경 그룹핑) ---
                 try
                 {
                     foreach (var bom in bomList)
                     {
                         if (bom.Holes == null || bom.Holes.Count == 0) continue;
-                        foreach (var hole in bom.Holes)
+                        // BOM별로 같은 직경 홀 그룹핑
+                        var holeGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
+                        foreach (var grp in holeGroups)
                         {
-                            balloonEntries.Add((hole.CenterX, hole.CenterY, hole.CenterZ,
-                                $"\u00d8{hole.Diameter:F1}", Color.FromArgb(0, 160, 0)));
+                            int count = grp.Count();
+                            string holeText = count > 1
+                                ? $"\u00d8{grp.Key:F1} * {count}개"
+                                : $"\u00d8{grp.Key:F1}";
+                            // 대표 홀(첫 번째)에만 풍선 표시
+                            var firstHole = grp.First();
+                            balloonEntries.Add((firstHole.CenterX, firstHole.CenterY, firstHole.CenterZ,
+                                holeText, Color.FromArgb(0, 160, 0)));
                         }
                     }
                 }
@@ -3450,6 +3469,10 @@ namespace A2Z
                 {
                     Func<float, float, float, int, float> getComp = (x, y, z, axis) =>
                         axis == 0 ? x : (axis == 1 ? y : z);
+
+                    // 모델 중심의 수평축 좌표 (풍선 방향 결정용)
+                    float[] modelCenterArr = { modelCenterX, modelCenterY, modelCenterZ };
+                    float modelCenterH = modelCenterArr[bHAxis];
 
                     // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
                     List<(float h, float v)> placedTextPositions = new List<(float, float)>();
@@ -3463,13 +3486,14 @@ namespace A2Z
                             float originV = getComp(entry.ox, entry.oy, entry.oz, bVAxis);
                             float originD = getComp(entry.ox, entry.oy, entry.oz, bDAxis);
 
-                            // 앵커 = 마지막 보조선 위, 기점과 같은 수직 위치
-                            // 여기서 45° 방향으로 100mm 나감
-                            float angleDeg = 225f; // 기본 좌하향 45°
+                            // 모델 중심 기준 좌/우 판단 → 풍선 방향 결정
+                            // 왼쪽이면 225° (좌하향), 오른쪽이면 315° (우하향)
+                            float baseAngle = (originH < modelCenterH) ? 225f : 315f;
+                            float angleDeg = baseAngle;
                             float length = balloonGap;
 
                             // 후보 텍스트 위치 계산
-                            float anchorH = dimBaselineH;
+                            float anchorH = originH; // 홀 중심에서 시작
                             float candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
                             float candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
 
@@ -3488,7 +3512,7 @@ namespace A2Z
                                     {
                                         hasOverlap = true;
                                         overlapCount++;
-                                        angleDeg = 225f + overlapCount * overlapAngleStep;
+                                        angleDeg = baseAngle + overlapCount * overlapAngleStep;
                                         length = balloonGap + overlapCount * overlapLengthStep;
                                         candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
                                         candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
@@ -5212,34 +5236,77 @@ namespace A2Z
                     catch { }
                 }
 
-                // 10. 선택 부재에 홀이 있으면 홀 풍선 표시
+                // 10. 선택 부재에 홀이 있으면 홀 풍선 표시 (같은 직경 그룹핑 + 부재 중심 기준 좌/우 방향)
                 if (bom.Holes != null && bom.Holes.Count > 0)
                 {
                     try
                     {
                         float holeMargin = 50f;
-                        foreach (var hole in bom.Holes)
+
+                        // 부재 중심 계산 (방향 결정용)
+                        float partCenterX = (bom.MinX + bom.MaxX) / 2f;
+                        float partCenterY = (bom.MinY + bom.MaxY) / 2f;
+                        float partCenterZ = (bom.MinZ + bom.MaxZ) / 2f;
+
+                        // 뷰 방향별 수평축 인덱스
+                        int mfgHAxis;
+                        switch (viewDirection)
                         {
+                            case "X": mfgHAxis = 1; break; // H=Y
+                            case "Y": mfgHAxis = 0; break; // H=X
+                            case "Z": mfgHAxis = 0; break; // H=X
+                            default:  mfgHAxis = 1; break;
+                        }
+                        float partCenterH = mfgHAxis == 0 ? partCenterX : (mfgHAxis == 1 ? partCenterY : partCenterZ);
+
+                        // 같은 직경 홀 그룹핑
+                        var mfgHoleGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
+                        foreach (var grp in mfgHoleGroups)
+                        {
+                            int count = grp.Count();
+                            string holeText = count > 1
+                                ? $"\u00d8{grp.Key:F1} * {count}개"
+                                : $"\u00d8{grp.Key:F1}";
+
+                            // 대표 홀(첫 번째)에만 풍선 표시
+                            var hole = grp.First();
                             float hx = hole.CenterX;
                             float hy = hole.CenterY;
                             float hz = hole.CenterZ;
 
                             VIZCore3D.NET.Data.Vertex3D holeCenter = new VIZCore3D.NET.Data.Vertex3D(hx, hy, hz);
 
+                            // 홀 중심이 부재 중심의 좌/우 판단 → 풍선 방향 결정
+                            float holeH = mfgHAxis == 0 ? hx : (mfgHAxis == 1 ? hy : hz);
+                            bool isLeft = holeH < partCenterH;
+                            float angleDeg = isLeft ? 225f : 315f; // 좌하향 or 우하향
+                            float cosA = (float)Math.Cos(angleDeg * Math.PI / 180.0);
+                            float sinA = (float)Math.Sin(angleDeg * Math.PI / 180.0);
+
                             VIZCore3D.NET.Data.Vertex3D holeTextPos;
                             switch (viewDirection)
                             {
-                                case "X":
-                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx, bom.MinY - holeMargin, bom.MinZ - holeMargin * 0.5f);
+                                case "X": // H=Y, V=Z
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx,
+                                        hy + holeMargin * cosA,
+                                        hz + holeMargin * sinA);
                                     break;
-                                case "Y":
-                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - holeMargin, hy, bom.MinZ - holeMargin * 0.5f);
+                                case "Y": // H=X, V=Z
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(
+                                        hx + holeMargin * cosA,
+                                        hy,
+                                        hz + holeMargin * sinA);
                                     break;
-                                case "Z":
-                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - holeMargin, bom.MinY - holeMargin * 0.5f, hz);
+                                case "Z": // H=X, V=Y
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(
+                                        hx + holeMargin * cosA,
+                                        hy + holeMargin * sinA,
+                                        hz);
                                     break;
                                 default:
-                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx, bom.MinY - holeMargin, bom.MinZ - holeMargin * 0.5f);
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx,
+                                        hy + holeMargin * cosA,
+                                        hz + holeMargin * sinA);
                                     break;
                             }
 
@@ -5254,7 +5321,6 @@ namespace A2Z
                             holeStyle.ArrowColor = Color.FromArgb(0, 160, 0);
                             holeStyle.ArrowWidth = 3;
 
-                            string holeText = $"\u00d8{hole.Diameter:F1}";
                             vizcore3d.Review.Note.AddNoteSurface(holeText, holeTextPos, holeCenter, holeStyle);
                         }
                     }
