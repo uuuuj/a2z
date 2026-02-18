@@ -69,6 +69,16 @@ namespace A2Z
         /// </summary>
         private string currentBalloonView = "";
 
+        /// <summary>
+        /// Body 인덱스 → 부모 Part 풀네임 매핑 캐시
+        /// </summary>
+        private Dictionary<int, string> bodyToPartNameMap = new Dictionary<int, string>();
+
+        /// <summary>
+        /// 도면 시트 데이터 리스트
+        /// </summary>
+        private List<DrawingSheetData> drawingSheetList = new List<DrawingSheetData>();
+
         public Form1()
         {
             InitializeComponent();
@@ -83,6 +93,7 @@ namespace A2Z
             lvBOM.DoubleClick += LvBOM_DoubleClick;
             lvClash.DoubleClick += LvClash_DoubleClick;
             lvClash.SelectedIndexChanged += LvClash_SelectedIndexChanged;
+            lvDrawingSheet.SelectedIndexChanged += LvDrawingSheet_SelectedIndexChanged;
 
             // VIZCore3D.NET 초기화
             VIZCore3D.NET.ModuleInitializer.Run();
@@ -117,6 +128,80 @@ namespace A2Z
             lvBOM.Columns.Add("Z_Max", 70);
             lvBOM.Columns.Add("원형", 50);
             lvBOM.Columns.Add("용도", 70);
+            lvBOM.Columns.Add("홀사이즈", 100);
+        }
+
+        /// <summary>
+        /// Body 인덱스 → 부모 Part 풀네임 매핑 구축
+        /// Part 노드 리스트를 조회하여 각 Part의 하위 Body 인덱스를 매핑
+        /// </summary>
+        private void BuildBodyToPartNameMap()
+        {
+            bodyToPartNameMap.Clear();
+
+            try
+            {
+                // Part 노드 가져오기
+                List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
+                if (partNodes == null || partNodes.Count == 0) return;
+
+                // Body 노드 가져오기
+                List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (bodyNodes == null || bodyNodes.Count == 0) return;
+
+                // 각 Part 노드의 범위를 인덱스로 계산
+                // Part 노드의 하위 Body를 찾기 위해 Part의 자식 Body를 매핑
+                // Part 인덱스 기준으로 정렬하여 범위 매핑
+                List<int> partIndices = new List<int>();
+                Dictionary<int, string> partIndexToName = new Dictionary<int, string>();
+                foreach (var part in partNodes)
+                {
+                    partIndices.Add(part.Index);
+                    partIndexToName[part.Index] = part.NodeName;
+                }
+                partIndices.Sort();
+
+                // 각 Body에 대해 가장 가까운 상위 Part를 찾기
+                // Body 인덱스보다 작거나 같은 가장 큰 Part 인덱스가 부모
+                foreach (var body in bodyNodes)
+                {
+                    int parentPartIndex = -1;
+                    // 이진 탐색으로 body.Index보다 작거나 같은 최대 Part 인덱스 찾기
+                    int lo = 0, hi = partIndices.Count - 1;
+                    while (lo <= hi)
+                    {
+                        int mid = (lo + hi) / 2;
+                        if (partIndices[mid] <= body.Index)
+                        {
+                            parentPartIndex = partIndices[mid];
+                            lo = mid + 1;
+                        }
+                        else
+                        {
+                            hi = mid - 1;
+                        }
+                    }
+
+                    if (parentPartIndex >= 0 && partIndexToName.ContainsKey(parentPartIndex))
+                    {
+                        bodyToPartNameMap[body.Index] = partIndexToName[parentPartIndex];
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BuildBodyToPartNameMap] 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Body 인덱스로부터 Part 풀네임 가져오기
+        /// </summary>
+        private string GetPartNameFromBodyIndex(int bodyIndex, string fallbackName)
+        {
+            if (bodyToPartNameMap.ContainsKey(bodyIndex))
+                return bodyToPartNameMap[bodyIndex];
+            return fallbackName;
         }
 
         /// <summary>
@@ -202,9 +287,12 @@ namespace A2Z
                 osnapPointsWithNames.Clear();
                 chainDimensionList.Clear();
                 xraySelectedNodeIndices.Clear();
+                drawingSheetList.Clear();
+                bodyToPartNameMap.Clear();
                 _autoProcessOsnapSuccess = false;
                 lvBOM.Items.Clear();
                 lvClash.Items.Clear();
+                lvDrawingSheet.Items.Clear();
                 lvOsnap.Items.Clear();
                 lvDimension.Items.Clear();
                 vizcore3d.Review.Measure.Clear();
@@ -225,6 +313,9 @@ namespace A2Z
                     // 전역 실루엣 엣지 활성화 및 색상 설정 (검정색) - 외곽선
                     vizcore3d.View.SilhouetteEdge = true;
                     vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+                    // Body → Part 이름 매핑 구축
+                    BuildBodyToPartNameMap();
 
                     // BOM 수집만 수행
                     bool bomSuccess = CollectBOMData();
@@ -338,6 +429,7 @@ namespace A2Z
 
                 foreach (var node in allBodyNodes)
                 {
+                    string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
                     List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
 
                     if (osnapList != null && osnapList.Count > 0)
@@ -351,13 +443,13 @@ namespace A2Z
                                     {
                                         var startVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
                                         osnapPoints.Add(startVertex);
-                                        osnapPointsWithNames.Add((startVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((startVertex, partName));
                                     }
                                     if (osnap.End != null)
                                     {
                                         var endVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
                                         osnapPoints.Add(endVertex);
-                                        osnapPointsWithNames.Add((endVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((endVertex, partName));
                                     }
                                     break;
 
@@ -366,7 +458,7 @@ namespace A2Z
                                     {
                                         var centerVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(centerVertex);
-                                        osnapPointsWithNames.Add((centerVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((centerVertex, partName));
                                     }
                                     break;
 
@@ -375,7 +467,7 @@ namespace A2Z
                                     {
                                         var pointVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(pointVertex);
-                                        osnapPointsWithNames.Add((pointVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((pointVertex, partName));
                                     }
                                     break;
                             }
@@ -427,7 +519,7 @@ namespace A2Z
                 foreach (var node in allNodes)
                 {
                     BOMData bom = new BOMData();
-                    bom.Name = node.NodeName;
+                    bom.Name = GetPartNameFromBodyIndex(node.Index, node.NodeName);
                     bom.Index = node.Index;
 
                     List<int> nodeIndices = new List<int>();
@@ -450,21 +542,26 @@ namespace A2Z
 
                     bom.RotationAngle = 0.0f;
 
-                    // Osnap으로 원형(CIRCLE) 존재 여부 체크
-                    bom.HasCircle = false;
+                    // Osnap으로 원형(CIRCLE) 반지름 계산
+                    bom.CircleRadius = 0f;
                     try
                     {
                         var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
                         if (osnapList != null)
                         {
+                            float maxRadius = 0f;
                             foreach (var osnap in osnapList)
                             {
-                                if (osnap.Kind == VIZCore3D.NET.Data.OsnapKind.CIRCLE)
+                                if (osnap.Kind == VIZCore3D.NET.Data.OsnapKind.CIRCLE && osnap.Center != null && osnap.Start != null)
                                 {
-                                    bom.HasCircle = true;
-                                    break;
+                                    float dx = osnap.Start.X - osnap.Center.X;
+                                    float dy = osnap.Start.Y - osnap.Center.Y;
+                                    float dz = osnap.Start.Z - osnap.Center.Z;
+                                    float r = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                                    if (r > maxRadius) maxRadius = r;
                                 }
                             }
+                            bom.CircleRadius = maxRadius;
                         }
                     }
                     catch { }
@@ -493,7 +590,17 @@ namespace A2Z
                     catch { }
 
                     bomList.Add(bom);
+                }
 
+                // Z_Max 내림차순 정렬 (큰 값이 위로)
+                bomList.Sort((a, b) => b.MaxZ.CompareTo(a.MaxZ));
+
+                // 홀 검출 수행
+                DetectHoles();
+
+                // 정렬된 순서로 ListView 채우기
+                foreach (var bom in bomList)
+                {
                     ListViewItem lvi = new ListViewItem(bom.Name);
                     lvi.SubItems.Add(bom.RotationAngle.ToString("F2"));
                     lvi.SubItems.Add(bom.CenterX.ToString("F2"));
@@ -505,8 +612,9 @@ namespace A2Z
                     lvi.SubItems.Add(bom.MaxY.ToString("F2"));
                     lvi.SubItems.Add(bom.MinZ.ToString("F2"));
                     lvi.SubItems.Add(bom.MaxZ.ToString("F2"));
-                    lvi.SubItems.Add(bom.HasCircle ? "O" : "");
+                    lvi.SubItems.Add(bom.CircleRadius > 0 ? bom.CircleRadius.ToString("F1") : "");
                     lvi.SubItems.Add(bom.Purpose);
+                    lvi.SubItems.Add(bom.HoleSize);
                     lvi.Tag = bom;
                     lvBOM.Items.Add(lvi);
                 }
@@ -517,6 +625,185 @@ namespace A2Z
             {
                 System.Diagnostics.Debug.WriteLine($"BOM 수집 오류: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 홀 검출: 원기둥 Body의 높이가 다른 부재의 두께와 일치하면 홀로 판별
+        /// GetCircleData를 사용하여 원형 데이터(지름, 중심)를 얻고,
+        /// 원기둥의 높이와 부재 두께를 비교
+        /// </summary>
+        private void DetectHoles(float tolerance = 1.0f)
+        {
+            try
+            {
+                // 모든 BOM 항목의 홀 정보 초기화
+                foreach (var bom in bomList)
+                {
+                    bom.Holes.Clear();
+                    bom.HoleSize = "";
+                }
+
+                // 원기둥 Body 후보 (CircleRadius > 0인 body)
+                List<BOMData> cylinderBodies = bomList.Where(b => b.CircleRadius > 0).ToList();
+                // 판재/비원기둥 Body (CircleRadius == 0인 body)
+                List<BOMData> plateBodies = bomList.Where(b => b.CircleRadius <= 0).ToList();
+
+                if (cylinderBodies.Count == 0 || plateBodies.Count == 0) return;
+
+                foreach (var cylinder in cylinderBodies)
+                {
+                    // 원기둥의 바운딩 박스 크기
+                    float cylSizeX = Math.Abs(cylinder.MaxX - cylinder.MinX);
+                    float cylSizeY = Math.Abs(cylinder.MaxY - cylinder.MinY);
+                    float cylSizeZ = Math.Abs(cylinder.MaxZ - cylinder.MinZ);
+
+                    // 원기둥 높이 = 바운딩 박스의 최소 치수 (지름 방향이 아닌 축 방향)
+                    // 원기둥은 지름 방향 2개가 비슷하고, 높이 방향이 다름
+                    float[] cylDims = { cylSizeX, cylSizeY, cylSizeZ };
+                    Array.Sort(cylDims); // 오름차순: [가장 작은, 중간, 가장 큰]
+
+                    // 원기둥의 높이 = 가장 작은 값 (얇은 원기둥 = 홀)
+                    // 단, 두 값이 비슷하면 (지름 방향) 나머지가 높이
+                    float cylHeight;
+                    string cylAxis; // 높이 축
+                    if (Math.Abs(cylSizeX - cylSizeY) < tolerance && cylSizeZ < Math.Max(cylSizeX, cylSizeY))
+                    {
+                        cylHeight = cylSizeZ;
+                        cylAxis = "Z";
+                    }
+                    else if (Math.Abs(cylSizeX - cylSizeZ) < tolerance && cylSizeY < Math.Max(cylSizeX, cylSizeZ))
+                    {
+                        cylHeight = cylSizeY;
+                        cylAxis = "Y";
+                    }
+                    else if (Math.Abs(cylSizeY - cylSizeZ) < tolerance && cylSizeX < Math.Max(cylSizeY, cylSizeZ))
+                    {
+                        cylHeight = cylSizeX;
+                        cylAxis = "X";
+                    }
+                    else
+                    {
+                        // 최소값을 높이로 간주
+                        cylHeight = cylDims[0];
+                        cylAxis = cylSizeX == cylDims[0] ? "X" : (cylSizeY == cylDims[0] ? "Y" : "Z");
+                    }
+
+                    float cylDiameter = cylinder.CircleRadius * 2f;
+
+                    // 원기둥 중심
+                    float cylCx = cylinder.CenterX;
+                    float cylCy = cylinder.CenterY;
+                    float cylCz = cylinder.CenterZ;
+
+                    // GetCircleData로 더 정확한 지름과 중심 가져오기
+                    try
+                    {
+                        var circleDataList = vizcore3d.GeometryUtility.GetCircleData(cylinder.Index);
+                        if (circleDataList != null && circleDataList.Count > 0)
+                        {
+                            // 가장 큰 원형의 지름 사용
+                            float maxDiam = 0f;
+                            VIZCore3D.NET.Data.Vertex3D bestCenter = null;
+                            foreach (var cd in circleDataList)
+                            {
+                                if (cd.Diameter > maxDiam)
+                                {
+                                    maxDiam = cd.Diameter;
+                                    bestCenter = cd.Center;
+                                }
+                            }
+                            if (maxDiam > 0) cylDiameter = maxDiam;
+                            if (bestCenter != null)
+                            {
+                                cylCx = bestCenter.X;
+                                cylCy = bestCenter.Y;
+                                cylCz = bestCenter.Z;
+                            }
+
+                            // 원형이 2개이면 두 중심 사이 거리로 높이 재계산
+                            if (circleDataList.Count >= 2)
+                            {
+                                var c1 = circleDataList[0].Center;
+                                var c2 = circleDataList[1].Center;
+                                float dist = (float)Math.Sqrt(
+                                    (c2.X - c1.X) * (c2.X - c1.X) +
+                                    (c2.Y - c1.Y) * (c2.Y - c1.Y) +
+                                    (c2.Z - c1.Z) * (c2.Z - c1.Z));
+                                if (dist > 0.1f) cylHeight = dist;
+
+                                // 홀 중심 = 두 원의 중점
+                                cylCx = (c1.X + c2.X) / 2f;
+                                cylCy = (c1.Y + c2.Y) / 2f;
+                                cylCz = (c1.Z + c2.Z) / 2f;
+                            }
+                        }
+                    }
+                    catch { }
+
+                    // 각 판재 부재에 대해 홀 여부 검사
+                    foreach (var plate in plateBodies)
+                    {
+                        // 판재 두께 = 바운딩 박스의 최소 치수
+                        float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
+                        float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
+                        float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
+                        float plateThickness = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
+
+                        // 원기둥 높이와 판재 두께 비교 (허용 오차 내)
+                        if (Math.Abs(cylHeight - plateThickness) > tolerance) continue;
+
+                        // 원기둥 중심이 판재 바운딩 박스 안에 있는지 확인 (약간의 여유)
+                        float margin = tolerance;
+                        bool insideX = cylCx >= plate.MinX - margin && cylCx <= plate.MaxX + margin;
+                        bool insideY = cylCy >= plate.MinY - margin && cylCy <= plate.MaxY + margin;
+                        bool insideZ = cylCz >= plate.MinZ - margin && cylCz <= plate.MaxZ + margin;
+
+                        if (insideX && insideY && insideZ)
+                        {
+                            // 홀 발견! 판재에 홀 정보 추가
+                            HoleInfo hole = new HoleInfo
+                            {
+                                Diameter = cylDiameter,
+                                CenterX = cylCx,
+                                CenterY = cylCy,
+                                CenterZ = cylCz,
+                                CylinderBodyIndex = cylinder.Index
+                            };
+                            plate.Holes.Add(hole);
+                            break; // 하나의 판재에만 할당
+                        }
+                    }
+                }
+
+                // 홀사이즈 문자열 생성
+                foreach (var bom in bomList)
+                {
+                    if (bom.Holes.Count > 0)
+                    {
+                        // 중복 제거하여 고유 지름 목록 생성
+                        var uniqueDiameters = bom.Holes
+                            .Select(h => Math.Round(h.Diameter, 1))
+                            .Distinct()
+                            .OrderBy(d => d)
+                            .ToList();
+
+                        List<string> holeParts = new List<string>();
+                        foreach (var diam in uniqueDiameters)
+                        {
+                            int count = bom.Holes.Count(h => Math.Abs(Math.Round(h.Diameter, 1) - diam) < 0.1);
+                            if (count > 1)
+                                holeParts.Add($"\u00d8{diam:F1}x{count}");
+                            else
+                                holeParts.Add($"\u00d8{diam:F1}");
+                        }
+                        bom.HoleSize = string.Join(", ", holeParts);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"홀 검출 오류: {ex.Message}");
             }
         }
 
@@ -704,6 +991,12 @@ namespace A2Z
                 }
 
                 MessageBox.Show(summaryMessage, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Clash 완료 후 도면 시트 자동 생성
+                if (clashList.Count > 0)
+                {
+                    GenerateDrawingSheets();
+                }
             }
             catch (Exception ex)
             {
@@ -1075,7 +1368,21 @@ namespace A2Z
                 }
             }
 
-            float initialOffset = 5.0f;
+            // 부재 크기 기반 동적 오프셋 계산
+            float dimMaxX = float.MinValue, dimMaxY = float.MinValue, dimMaxZ = float.MinValue;
+            foreach (var dim in displayList)
+            {
+                dimMaxX = Math.Max(dimMaxX, Math.Max(dim.StartPoint.X, dim.EndPoint.X));
+                dimMaxY = Math.Max(dimMaxY, Math.Max(dim.StartPoint.Y, dim.EndPoint.Y));
+                dimMaxZ = Math.Max(dimMaxZ, Math.Max(dim.StartPoint.Z, dim.EndPoint.Z));
+            }
+            float extentX = dimMaxX - globalMinX;
+            float extentY = dimMaxY - globalMinY;
+            float extentZ = dimMaxZ - globalMinZ;
+            float modelDiag = (float)Math.Sqrt(extentX * extentX + extentY * extentY + extentZ * extentZ);
+
+            float baseOffset = Math.Max(modelDiag * 0.12f, 30f);   // 1단 체인 치수 오프셋
+            float levelSpacing = Math.Max(modelDiag * 0.08f, 25f);  // 레벨 간 간격
             float minDimensionLength = 15.0f;  // 폰트가 들어갈 최소 치수선 길이
 
             // 보조선(Extension Line) 저장용 리스트
@@ -1090,7 +1397,6 @@ namespace A2Z
             {
                 { "X", 1 }, { "Y", 1 }, { "Z", 1 }
             };
-
 
             // 축별 전체 치수 중복 여부 추적
             Dictionary<string, bool> axisTotalRedundant = new Dictionary<string, bool>();
@@ -1122,7 +1428,7 @@ namespace A2Z
                         // 짧은 치수 → Level 1에는 그리지 않음
                         // 처음(firstPoint)부터 이 짧은 치수 끝까지 누적 치수를 다음 레벨에 그리기
                         shortCount++;
-                        float levelOffset = initialOffset * (shortCount + 1);
+                        float levelOffset = baseOffset + (levelSpacing * shortCount);
 
                         DrawDimension(firstPoint, dims[i].EndPoint, axis,
                             levelOffset, globalMinX, globalMinY, globalMinZ,
@@ -1133,7 +1439,7 @@ namespace A2Z
                     {
                         // 정상 길이 치수 → Level 1에 그리기
                         DrawDimension(dims[i].StartPoint, dims[i].EndPoint, axis,
-                            initialOffset, globalMinX, globalMinY, globalMinZ,
+                            baseOffset, globalMinX, globalMinY, globalMinZ,
                             viewDirection, extensionLines);
                         lastDimWasShort = false;
                     }
@@ -1153,7 +1459,7 @@ namespace A2Z
                     continue;
 
                 int maxLevel = axisMaxLevel.ContainsKey(dim.Axis) ? axisMaxLevel[dim.Axis] : 1;
-                float totalOffset = initialOffset * (maxLevel + 1);
+                float totalOffset = baseOffset + (levelSpacing * maxLevel);
 
                 DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                     totalOffset, globalMinX, globalMinY, globalMinZ,
@@ -1908,9 +2214,9 @@ namespace A2Z
                 // 각 노드 인덱스에 대해 직접 Osnap 포인트 수집
                 foreach (int nodeIndex in nodeIndices)
                 {
-                    // 노드 정보 가져오기
+                    // 노드 정보 가져오기 (Part 풀네임 사용)
                     VIZCore3D.NET.Data.Node node = vizcore3d.Object3D.FromIndex(nodeIndex);
-                    string nodeName = node != null ? node.NodeName : $"Node_{nodeIndex}";
+                    string nodeName = GetPartNameFromBodyIndex(nodeIndex, node != null ? node.NodeName : $"Node_{nodeIndex}");
 
                     System.Diagnostics.Debug.WriteLine($"  - 노드 인덱스 {nodeIndex}: {nodeName}");
 
@@ -2509,6 +2815,9 @@ namespace A2Z
             vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
             vizcore3d.View.FitToView();
             ShowBalloonNumbers("ISO");
+            // FitToView 후 1.7배 확대
+            vizcore3d.View.ZoomRatio = 70f;
+            vizcore3d.View.ZoomIn();
         }
 
         /// <summary>
@@ -3046,29 +3355,44 @@ namespace A2Z
                     vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(180, 100, 100), 0.5f, true);
                 }
 
-                // ========== EBOS (EarthBoss) 라벨 표시 ==========
-                // UDA NAME=PURPOSE, VALUE=EBOS인 노드를 찾아 EarthBoss 풍선 표시
-                // 보조선: 부재 중심 → 풍선: 부재 바운딩 박스 바로 밖
+                // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
+                float dimBaseline_OuterOffset = baseOffset + (levelSpacing * maxLevelUsed);
+                float balloonGap = 100f; // 치수선 마지막 선에서 100mm 기본 거리
+                float overlapAngleStep = 5f; // 겹침 시 5° 추가
+                float overlapLengthStep = 20f; // 겹침 시 보조선 20mm 연장
+
+                // 뷰 방향별 축 매핑 (hAxis=수평, vAxis=수직, dAxis=깊이)
+                int bHAxis, bVAxis, bDAxis;
+                switch (viewDirection)
+                {
+                    case "X": bHAxis = 1; bVAxis = 2; bDAxis = 0; break; // H=Y, V=Z, D=X
+                    case "Y": bHAxis = 0; bVAxis = 2; bDAxis = 1; break; // H=X, V=Z, D=Y
+                    case "Z": bHAxis = 0; bVAxis = 1; bDAxis = 2; break; // H=X, V=Y, D=Z
+                    default:  bHAxis = 1; bVAxis = 2; bDAxis = 0; break;
+                }
+
+                // 치수선 마지막 기준선 (수평축 방향)
+                float[] globalMinArr = { globalMinX, globalMinY, globalMinZ };
+                float dimBaselineH = globalMinArr[bHAxis] - dimBaseline_OuterOffset;
+
+                // 풍선 항목 수집 (기점 좌표, 텍스트, 색상)
+                List<(float ox, float oy, float oz, string text, Color color)> balloonEntries =
+                    new List<(float, float, float, string, Color)>();
+
+                // --- EBOS 풍선 수집 ---
                 try
                 {
-                    // PURPOSE 키 찾기 (대소문자 무시)
                     string purposeKey = null;
                     var udaKeys = vizcore3d.Object3D.UDA.Keys;
                     if (udaKeys != null)
                     {
                         foreach (string k in udaKeys)
                         {
-                            if (k.Trim().ToUpper() == "PURPOSE")
-                            {
-                                purposeKey = k;
-                                break;
-                            }
+                            if (k.Trim().ToUpper() == "PURPOSE") { purposeKey = k; break; }
                         }
                     }
-
                     if (purposeKey != null)
                     {
-                        // 모든 노드 레벨 검색 (Assembly, Part, Body)
                         var allNodes = vizcore3d.Object3D.GetPartialNode(true, true, true);
                         if (allNodes != null)
                         {
@@ -3077,88 +3401,136 @@ namespace A2Z
                                 try
                                 {
                                     var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, purposeKey);
-                                    if (val == null) continue;
-                                    if (val.ToString().Trim().ToUpper() != "EBOS") continue;
-
-                                    // 해당 노드의 바운딩 박스
-                                    var bboxIndices = new List<int> { node.Index };
-                                    var bbox = vizcore3d.Object3D.GetBoundBox(bboxIndices, false);
+                                    if (val == null || val.ToString().Trim().ToUpper() != "EBOS") continue;
+                                    var bboxI = new List<int> { node.Index };
+                                    var bbox = vizcore3d.Object3D.GetBoundBox(bboxI, false);
                                     if (bbox == null) continue;
-
-                                    float cx = (bbox.MinX + bbox.MaxX) / 2f;
-                                    float cy = (bbox.MinY + bbox.MaxY) / 2f;
-                                    float cz = (bbox.MinZ + bbox.MaxZ) / 2f;
-
-                                    // 보조선 끝점(화살표) = 부재 중심
-                                    VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(cx, cy, cz);
-
-                                    // 풍선 위치 = 부재 중심에서 45° 아래 방향, 치수선 밖
-                                    float outerDimOffset = baseOffset + (levelSpacing * maxLevelUsed);
-                                    float ebosMargin = 40f;
-                                    VIZCore3D.NET.Data.Vertex3D textPos;
-                                    switch (viewDirection)
-                                    {
-                                        case "X":
-                                            // X뷰: Y-Z 평면, Y=치수 밖, Z=아래로 (45°)
-                                            {
-                                                float dimOuterY = globalMinY - outerDimOffset - ebosMargin;
-                                                float yDist = cy - dimOuterY;
-                                                textPos = new VIZCore3D.NET.Data.Vertex3D(
-                                                    cx, dimOuterY, cz - yDist);
-                                            }
-                                            break;
-                                        case "Y":
-                                            // Y뷰: X-Z 평면, X=치수 밖, Z=아래로 (45°)
-                                            {
-                                                float dimOuterX = globalMinX - outerDimOffset - ebosMargin;
-                                                float xDist = cx - dimOuterX;
-                                                textPos = new VIZCore3D.NET.Data.Vertex3D(
-                                                    dimOuterX, cy, cz - xDist);
-                                            }
-                                            break;
-                                        case "Z":
-                                            // Z뷰: X-Y 평면, X=치수 밖, Y=아래로 (45°)
-                                            {
-                                                float dimOuterX = globalMinX - outerDimOffset - ebosMargin;
-                                                float xDist = cx - dimOuterX;
-                                                textPos = new VIZCore3D.NET.Data.Vertex3D(
-                                                    dimOuterX, cy - xDist, cz);
-                                            }
-                                            break;
-                                        default:
-                                            {
-                                                float dimOuterY = globalMinY - outerDimOffset - ebosMargin;
-                                                float yDist = cy - dimOuterY;
-                                                textPos = new VIZCore3D.NET.Data.Vertex3D(
-                                                    cx, dimOuterY, cz - yDist);
-                                            }
-                                            break;
-                                    }
-
-                                    VIZCore3D.NET.Data.NoteStyle ebosStyle = vizcore3d.Review.Note.GetStyle();
-                                    ebosStyle.UseSymbol = false;
-                                    ebosStyle.BackgroudTransparent = true;
-                                    ebosStyle.FontBold = true;
-                                    ebosStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
-                                    ebosStyle.FontColor = Color.Blue;
-                                    ebosStyle.LineColor = Color.Blue;
-                                    ebosStyle.LineWidth = 1;
-                                    ebosStyle.ArrowColor = Color.Blue;
-                                    ebosStyle.ArrowWidth = 3;
-                                    // param2=풍선(텍스트) 위치, param3=화살표(보조선 끝) 위치
-                                    vizcore3d.Review.Note.AddNoteSurface("EarthBoss", textPos, center, ebosStyle);
+                                    balloonEntries.Add((
+                                        (bbox.MinX + bbox.MaxX) / 2f,
+                                        (bbox.MinY + bbox.MaxY) / 2f,
+                                        (bbox.MinZ + bbox.MaxZ) / 2f,
+                                        "EarthBoss", Color.Blue));
                                 }
                                 catch { }
                             }
                         }
                     }
                 }
-                catch (Exception ebosEx)
+                catch { }
+
+                // --- 원형(CIRCLE) 풍선 수집 ---
+                try
                 {
-                    System.Diagnostics.Debug.WriteLine($"EBOS 라벨 오류: {ebosEx.Message}");
+                    foreach (var bom in bomList)
+                    {
+                        if (bom.CircleRadius <= 0) continue;
+                        balloonEntries.Add((bom.CenterX, bom.CenterY, bom.CenterZ,
+                            $"R{bom.CircleRadius:F1}", Color.Red));
+                    }
+                }
+                catch { }
+
+                // --- 홀(Hole) 풍선 수집 ---
+                try
+                {
+                    foreach (var bom in bomList)
+                    {
+                        if (bom.Holes == null || bom.Holes.Count == 0) continue;
+                        foreach (var hole in bom.Holes)
+                        {
+                            balloonEntries.Add((hole.CenterX, hole.CenterY, hole.CenterZ,
+                                $"\u00d8{hole.Diameter:F1}", Color.FromArgb(0, 160, 0)));
+                        }
+                    }
+                }
+                catch { }
+
+                // --- 풍선 일괄 배치 (겹침 방지: 마지막 보조선에서 100mm 바깥, 45° 방향) ---
+                try
+                {
+                    Func<float, float, float, int, float> getComp = (x, y, z, axis) =>
+                        axis == 0 ? x : (axis == 1 ? y : z);
+
+                    // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
+                    List<(float h, float v)> placedTextPositions = new List<(float, float)>();
+
+                    foreach (var entry in balloonEntries)
+                    {
+                        try
+                        {
+                            // 기점의 2D 화면좌표 (수평, 수직, 깊이)
+                            float originH = getComp(entry.ox, entry.oy, entry.oz, bHAxis);
+                            float originV = getComp(entry.ox, entry.oy, entry.oz, bVAxis);
+                            float originD = getComp(entry.ox, entry.oy, entry.oz, bDAxis);
+
+                            // 앵커 = 마지막 보조선 위, 기점과 같은 수직 위치
+                            // 여기서 45° 방향으로 100mm 나감
+                            float angleDeg = 225f; // 기본 좌하향 45°
+                            float length = balloonGap;
+
+                            // 후보 텍스트 위치 계산
+                            float anchorH = dimBaselineH;
+                            float candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
+                            float candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
+
+                            // 이전에 배치된 풍선과 텍스트 위치 근접도 확인 → 겹치면 5°씩 추가 회전 + 20mm 연장
+                            int overlapCount = 0;
+                            bool hasOverlap = true;
+                            while (hasOverlap && overlapCount < 36) // 최대 36회 (180°)
+                            {
+                                hasOverlap = false;
+                                foreach (var placed in placedTextPositions)
+                                {
+                                    float dh = candidateH - placed.h;
+                                    float dv = candidateV - placed.v;
+                                    float textDist = (float)Math.Sqrt(dh * dh + dv * dv);
+                                    if (textDist < 30f) // 텍스트 간 최소 30mm 간격
+                                    {
+                                        hasOverlap = true;
+                                        overlapCount++;
+                                        angleDeg = 225f + overlapCount * overlapAngleStep;
+                                        length = balloonGap + overlapCount * overlapLengthStep;
+                                        candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
+                                        candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // 3D 좌표로 복원
+                            float[] textXYZ = new float[3];
+                            textXYZ[bHAxis] = candidateH;
+                            textXYZ[bVAxis] = candidateV;
+                            textXYZ[bDAxis] = originD;
+
+                            VIZCore3D.NET.Data.Vertex3D arrowPos = new VIZCore3D.NET.Data.Vertex3D(
+                                entry.ox, entry.oy, entry.oz);
+                            VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(
+                                textXYZ[0], textXYZ[1], textXYZ[2]);
+
+                            VIZCore3D.NET.Data.NoteStyle style = vizcore3d.Review.Note.GetStyle();
+                            style.UseSymbol = false;
+                            style.BackgroudTransparent = true;
+                            style.FontBold = true;
+                            style.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
+                            style.FontColor = entry.color;
+                            style.LineColor = entry.color;
+                            style.LineWidth = 1;
+                            style.ArrowColor = entry.color;
+                            style.ArrowWidth = 3;
+
+                            vizcore3d.Review.Note.AddNoteSurface(entry.text, textPos, arrowPos, style);
+                            placedTextPositions.Add((candidateH, candidateV));
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception balloonEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"풍선 배치 오류: {balloonEx.Message}");
                 }
 
-                // 뷰 방향 지정 시 카메라 이동
+                // 뷰 방향 지정 시 카메라 이동 + 1.7배 확대
                 if (viewDirection != null)
                 {
                     switch (viewDirection)
@@ -3167,7 +3539,10 @@ namespace A2Z
                         case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
                         case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
                     }
+                    // FitToView 후 1.7배 확대 (모델+보조선이 화면에 크게 보이도록)
                     vizcore3d.View.FitToView();
+                    vizcore3d.View.ZoomRatio = 70f;
+                    vizcore3d.View.ZoomIn();
                 }
 
                 vizcore3d.EndUpdate();
@@ -4649,9 +5024,10 @@ namespace A2Z
                 BOMData bom = lvBOM.SelectedItems[0].Tag as BOMData;
                 if (bom == null) return;
 
-                // 1. 기존 치수/보조선 제거 (축 버튼과 동일한 패턴)
+                // 1. 기존 치수/보조선/풍선 모두 제거 (다른 부재 정보 완전 제거)
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
+                vizcore3d.Review.Note.Clear();
 
                 // 2. X-Ray 끄기 (켜져있으면)
                 if (vizcore3d.View.XRay.Enable)
@@ -4790,6 +5166,100 @@ namespace A2Z
                 chainDimensionList.Clear();
                 chainDimensionList.AddRange(savedChainDimList);
                 xraySelectedNodeIndices = new List<int>(savedXrayIndices);
+
+                // 9. 선택 부재에 원형이 있으면 반지름 풍선 표시 (EarthBoss 방식)
+                if (bom.CircleRadius > 0)
+                {
+                    try
+                    {
+                        float cx = bom.CenterX;
+                        float cy = bom.CenterY;
+                        float cz = bom.CenterZ;
+                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(cx, cy, cz);
+
+                        float margin = 30f;
+                        VIZCore3D.NET.Data.Vertex3D textPos;
+                        switch (viewDirection)
+                        {
+                            case "X":
+                                textPos = new VIZCore3D.NET.Data.Vertex3D(cx, bom.MinY - margin, bom.MinZ - margin);
+                                break;
+                            case "Y":
+                                textPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - margin, cy, bom.MinZ - margin);
+                                break;
+                            case "Z":
+                                textPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - margin, bom.MinY - margin, cz);
+                                break;
+                            default:
+                                textPos = new VIZCore3D.NET.Data.Vertex3D(cx, bom.MinY - margin, bom.MinZ - margin);
+                                break;
+                        }
+
+                        VIZCore3D.NET.Data.NoteStyle circleStyle = vizcore3d.Review.Note.GetStyle();
+                        circleStyle.UseSymbol = false;
+                        circleStyle.BackgroudTransparent = true;
+                        circleStyle.FontBold = true;
+                        circleStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
+                        circleStyle.FontColor = Color.Red;
+                        circleStyle.LineColor = Color.Red;
+                        circleStyle.LineWidth = 1;
+                        circleStyle.ArrowColor = Color.Red;
+                        circleStyle.ArrowWidth = 3;
+
+                        string radiusText = $"R{bom.CircleRadius:F1}";
+                        vizcore3d.Review.Note.AddNoteSurface(radiusText, textPos, center, circleStyle);
+                    }
+                    catch { }
+                }
+
+                // 10. 선택 부재에 홀이 있으면 홀 풍선 표시
+                if (bom.Holes != null && bom.Holes.Count > 0)
+                {
+                    try
+                    {
+                        float holeMargin = 50f;
+                        foreach (var hole in bom.Holes)
+                        {
+                            float hx = hole.CenterX;
+                            float hy = hole.CenterY;
+                            float hz = hole.CenterZ;
+
+                            VIZCore3D.NET.Data.Vertex3D holeCenter = new VIZCore3D.NET.Data.Vertex3D(hx, hy, hz);
+
+                            VIZCore3D.NET.Data.Vertex3D holeTextPos;
+                            switch (viewDirection)
+                            {
+                                case "X":
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx, bom.MinY - holeMargin, bom.MinZ - holeMargin * 0.5f);
+                                    break;
+                                case "Y":
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - holeMargin, hy, bom.MinZ - holeMargin * 0.5f);
+                                    break;
+                                case "Z":
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - holeMargin, bom.MinY - holeMargin * 0.5f, hz);
+                                    break;
+                                default:
+                                    holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hx, bom.MinY - holeMargin, bom.MinZ - holeMargin * 0.5f);
+                                    break;
+                            }
+
+                            VIZCore3D.NET.Data.NoteStyle holeStyle = vizcore3d.Review.Note.GetStyle();
+                            holeStyle.UseSymbol = false;
+                            holeStyle.BackgroudTransparent = true;
+                            holeStyle.FontBold = true;
+                            holeStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
+                            holeStyle.FontColor = Color.FromArgb(0, 160, 0);
+                            holeStyle.LineColor = Color.FromArgb(0, 160, 0);
+                            holeStyle.LineWidth = 1;
+                            holeStyle.ArrowColor = Color.FromArgb(0, 160, 0);
+                            holeStyle.ArrowWidth = 3;
+
+                            string holeText = $"\u00d8{hole.Diameter:F1}";
+                            vizcore3d.Review.Note.AddNoteSurface(holeText, holeTextPos, holeCenter, holeStyle);
+                        }
+                    }
+                    catch { }
+                }
             }
             catch (Exception ex)
             {
@@ -4809,6 +5279,497 @@ namespace A2Z
 
             if (allIndices.Count > 0)
                 vizcore3d.Object3D.Show(allIndices, true);
+        }
+
+        #endregion
+
+        #region 도면 시트 생성 (BFS)
+
+        /// <summary>
+        /// Clash 인접 리스트 기반 BFS로 도면 시트 생성
+        /// </summary>
+        private void GenerateDrawingSheets()
+        {
+            drawingSheetList.Clear();
+            lvDrawingSheet.Items.Clear();
+
+            if (bomList.Count == 0)
+            {
+                MessageBox.Show("BOM 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Sheet 1: 전체 BOM 부재
+            DrawingSheetData sheet1 = new DrawingSheetData();
+            sheet1.SheetNumber = 1;
+            sheet1.BaseMemberName = "전체";
+            sheet1.BaseMemberIndex = -1;
+            foreach (var bom in bomList)
+            {
+                sheet1.MemberIndices.Add(bom.Index);
+                sheet1.MemberNames.Add(bom.Name);
+            }
+            drawingSheetList.Add(sheet1);
+
+            // BOM 이름 → BOM 인덱스 매핑
+            Dictionary<string, int> bomNameToIndex = new Dictionary<string, int>();
+            foreach (var bom in bomList)
+            {
+                if (!bomNameToIndex.ContainsKey(bom.Name))
+                    bomNameToIndex[bom.Name] = bom.Index;
+            }
+
+            // Clash 인접 리스트 구축 (이름 기반 - BOM Name과 Clash Name 매칭)
+            Dictionary<string, HashSet<string>> adjacency = new Dictionary<string, HashSet<string>>();
+            foreach (var clash in clashList)
+            {
+                if (!adjacency.ContainsKey(clash.Name1))
+                    adjacency[clash.Name1] = new HashSet<string>();
+                if (!adjacency.ContainsKey(clash.Name2))
+                    adjacency[clash.Name2] = new HashSet<string>();
+
+                adjacency[clash.Name1].Add(clash.Name2);
+                adjacency[clash.Name2].Add(clash.Name1);
+            }
+
+            // Sheet 2~: BOM 순서대로 순회
+            // appearedAsIncluded: 다른 시트의 포함부재에 나온 부재 이름 (기준부재 스킵용)
+            HashSet<string> appearedAsIncluded = new HashSet<string>();
+            int sheetNumber = 2;
+
+            foreach (var bom in bomList)
+            {
+                // 이미 다른 시트의 포함부재에 나온 부재면 기준부재로 스킵
+                if (appearedAsIncluded.Contains(bom.Name))
+                    continue;
+
+                DrawingSheetData sheet = new DrawingSheetData();
+                sheet.SheetNumber = sheetNumber;
+                sheet.BaseMemberIndex = bom.Index;
+                sheet.BaseMemberName = bom.Name;
+
+                // 포함부재: 기준부재 자신
+                sheet.MemberIndices.Add(bom.Index);
+                sheet.MemberNames.Add(bom.Name);
+
+                // 포함부재: Clash에서 기준부재와 연결된 모든 부재 (중복 허용 - 다른 시트에 있어도 추가)
+                if (adjacency.ContainsKey(bom.Name))
+                {
+                    foreach (string neighborName in adjacency[bom.Name])
+                    {
+                        // 같은 시트 내 중복만 방지
+                        if (!sheet.MemberNames.Contains(neighborName))
+                        {
+                            sheet.MemberNames.Add(neighborName);
+
+                            if (bomNameToIndex.ContainsKey(neighborName))
+                                sheet.MemberIndices.Add(bomNameToIndex[neighborName]);
+                        }
+                        // 포함부재로 등록 → 이후 기준부재로 선정되지 않음
+                        appearedAsIncluded.Add(neighborName);
+                    }
+                }
+
+                drawingSheetList.Add(sheet);
+                sheetNumber++;
+            }
+
+            // 마지막 시트: 설치도 (모든 연결된 부재를 BFS로 탐색)
+            HashSet<string> installMembers = new HashSet<string>();
+            Queue<string> bfsQueue = new Queue<string>();
+
+            // 첫 번째 BOM 부재부터 BFS 시작
+            if (bomList.Count > 0 && adjacency.Count > 0)
+            {
+                string startName = bomList[0].Name;
+                bfsQueue.Enqueue(startName);
+                installMembers.Add(startName);
+
+                while (bfsQueue.Count > 0)
+                {
+                    string current = bfsQueue.Dequeue();
+                    if (adjacency.ContainsKey(current))
+                    {
+                        foreach (string neighbor in adjacency[current])
+                        {
+                            if (!installMembers.Contains(neighbor))
+                            {
+                                installMembers.Add(neighbor);
+                                bfsQueue.Enqueue(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // BFS에 포함되지 않은 독립 부재도 추가
+            foreach (var bom in bomList)
+            {
+                installMembers.Add(bom.Name);
+            }
+
+            DrawingSheetData installSheet = new DrawingSheetData();
+            installSheet.SheetNumber = sheetNumber;
+            installSheet.BaseMemberName = "설치도";
+            installSheet.BaseMemberIndex = -2; // 설치도 식별자
+            foreach (var bom in bomList)
+            {
+                if (installMembers.Contains(bom.Name))
+                {
+                    installSheet.MemberIndices.Add(bom.Index);
+                    installSheet.MemberNames.Add(bom.Name);
+                }
+            }
+            drawingSheetList.Add(installSheet);
+
+            // ListView 갱신
+            foreach (var sheet in drawingSheetList)
+            {
+                ListViewItem lvi = new ListViewItem($"Sheet {sheet.SheetNumber}");
+                lvi.SubItems.Add(sheet.BaseMemberName);
+                lvi.SubItems.Add(string.Join(", ", sheet.MemberNames));
+                lvi.SubItems.Add(sheet.MemberIndices.Count.ToString());
+                lvi.Tag = sheet;
+                lvDrawingSheet.Items.Add(lvi);
+            }
+        }
+
+        /// <summary>
+        /// 도면 생성 버튼 핸들러
+        /// </summary>
+        private void btnGenerateSheets_Click(object sender, EventArgs e)
+        {
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (bomList.Count == 0)
+            {
+                MessageBox.Show("BOM 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (clashList.Count == 0)
+            {
+                MessageBox.Show("Clash 데이터가 없습니다. 먼저 Clash 검사를 수행해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            GenerateDrawingSheets();
+            MessageBox.Show($"도면 시트 {drawingSheetList.Count}개가 생성되었습니다.", "도면 생성", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// 도면 시트 선택 시 X-Ray + 치수 표시
+        /// </summary>
+        private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lvDrawingSheet.SelectedItems.Count == 0)
+                return;
+
+            DrawingSheetData sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            if (sheet == null || sheet.MemberIndices.Count == 0)
+                return;
+
+            try
+            {
+                vizcore3d.BeginUpdate();
+
+                // X-Ray 모드 활성화
+                if (!vizcore3d.View.XRay.Enable)
+                    vizcore3d.View.XRay.Enable = true;
+
+                // X-Ray 옵션 설정
+                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+
+                // 모서리(SilhouetteEdge) 표시
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+                // 이전 선택 해제
+                vizcore3d.View.XRay.Clear();
+
+                // 선택된 시트의 노드들만 표시
+                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+
+                // X-Ray 모드에서 선택된 노드 인덱스 저장
+                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+
+                // 선택된 노드로 화면 이동
+                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+
+                // 이전 심볼 제거
+                vizcore3d.Clash.ClearResultSymbol();
+
+                vizcore3d.EndUpdate();
+
+                // 설치도 시트: 부재 바운딩박스 경계 기반 체인치수
+                // 일반 시트: Osnap 기반 체인치수
+                if (sheet.BaseMemberIndex == -2) // 설치도
+                {
+                    ExtractInstallationDimensions(sheet.MemberIndices);
+                }
+                else
+                {
+                    CollectOsnapForSelectedNodes(sheet.MemberIndices);
+                    ExtractDimensionForSelectedNodes();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"도면 시트 표시 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 도면정보 탭 - 선택된 시트의 포함부재를 X-Ray 선택 + Osnap/치수 추출 + 방향 보기
+        /// </summary>
+        private void ApplyDrawingSheetView(string viewDirection)
+        {
+            if (lvDrawingSheet.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("도면 시트를 선택해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DrawingSheetData sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            if (sheet == null || sheet.MemberIndices.Count == 0)
+                return;
+
+            try
+            {
+                vizcore3d.BeginUpdate();
+
+                // X-Ray 모드 활성화
+                if (!vizcore3d.View.XRay.Enable)
+                    vizcore3d.View.XRay.Enable = true;
+
+                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+                // 이전 선택 해제 후 시트 부재 선택
+                vizcore3d.View.XRay.Clear();
+                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+
+                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                vizcore3d.Clash.ClearResultSymbol();
+
+                vizcore3d.EndUpdate();
+
+                // 설치도 시트: 부재 바운딩박스 경계 기반 체인치수
+                // 일반 시트: Osnap 기반 체인치수
+                if (sheet.BaseMemberIndex == -2) // 설치도
+                {
+                    ExtractInstallationDimensions(sheet.MemberIndices);
+                }
+                else
+                {
+                    CollectOsnapForSelectedNodes(sheet.MemberIndices);
+                    ExtractDimensionForSelectedNodes();
+                }
+
+                // 방향 보기 실행
+                if (viewDirection == "ISO")
+                {
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                    vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
+                    vizcore3d.View.FitToView();
+                    ShowBalloonNumbers("ISO");
+                    // FitToView 후 1.7배 확대
+                    vizcore3d.View.ZoomRatio = 70f;
+                    vizcore3d.View.ZoomIn();
+                }
+                else
+                {
+                    vizcore3d.Review.Note.Clear();
+                    ShowAllDimensions(viewDirection);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"도면 시트 뷰 표시 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnDrawingISO_Click(object sender, EventArgs e)
+        {
+            ApplyDrawingSheetView("ISO");
+        }
+
+        private void btnDrawingAxisX_Click(object sender, EventArgs e)
+        {
+            ApplyDrawingSheetView("X");
+        }
+
+        private void btnDrawingAxisY_Click(object sender, EventArgs e)
+        {
+            ApplyDrawingSheetView("Y");
+        }
+
+        private void btnDrawingAxisZ_Click(object sender, EventArgs e)
+        {
+            ApplyDrawingSheetView("Z");
+        }
+
+        /// <summary>
+        /// 설치도용 치수 추출 - 부재 바운딩박스 경계 기반 체인치수
+        /// 각 부재의 Min/Max를 축별로 정렬하여 설치 위치를 표시
+        /// </summary>
+        private void ExtractInstallationDimensions(List<int> memberIndices)
+        {
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+            vizcore3d.Review.Note.Clear();
+            chainDimensionList.Clear();
+            lvDimension.Items.Clear();
+
+            // 포함된 부재의 BOM 데이터 수집
+            List<BOMData> members = new List<BOMData>();
+            foreach (int idx in memberIndices)
+            {
+                BOMData bom = bomList.FirstOrDefault(b => b.Index == idx);
+                if (bom != null) members.Add(bom);
+            }
+
+            if (members.Count < 2) return;
+
+            float tolerance = 1.0f;
+
+            // 축별로 부재 경계값(Min, Max)을 수집하여 체인치수 생성
+            string[] axes = { "X", "Y", "Z" };
+            foreach (string axis in axes)
+            {
+                // 각 부재의 Min, Max 경계값 수집
+                List<float> boundaries = new List<float>();
+                foreach (var m in members)
+                {
+                    float minVal = 0, maxVal = 0;
+                    switch (axis)
+                    {
+                        case "X": minVal = m.MinX; maxVal = m.MaxX; break;
+                        case "Y": minVal = m.MinY; maxVal = m.MaxY; break;
+                        case "Z": minVal = m.MinZ; maxVal = m.MaxZ; break;
+                    }
+                    boundaries.Add(minVal);
+                    boundaries.Add(maxVal);
+                }
+
+                // 중복 제거 후 정렬 (큰 값부터)
+                List<float> unique = new List<float>();
+                boundaries.Sort();
+                foreach (float v in boundaries)
+                {
+                    if (unique.Count == 0 || Math.Abs(v - unique[unique.Count - 1]) > tolerance)
+                        unique.Add(v);
+                }
+                unique.Reverse(); // 큰 값부터 (체인치수 방식)
+
+                if (unique.Count < 2) continue;
+
+                // 기준선 좌표 생성 (다른 축의 최소값 사용)
+                float refVal1 = float.MaxValue, refVal2 = float.MaxValue;
+                foreach (var m in members)
+                {
+                    switch (axis)
+                    {
+                        case "X": refVal1 = Math.Min(refVal1, m.MinY); refVal2 = Math.Min(refVal2, m.MinZ); break;
+                        case "Y": refVal1 = Math.Min(refVal1, m.MinX); refVal2 = Math.Min(refVal2, m.MinZ); break;
+                        case "Z": refVal1 = Math.Min(refVal1, m.MinX); refVal2 = Math.Min(refVal2, m.MinY); break;
+                    }
+                }
+
+                // 순차 체인 치수 (인접 경계 간)
+                for (int i = 0; i < unique.Count - 1; i++)
+                {
+                    float dist = Math.Abs(unique[i] - unique[i + 1]);
+                    if (dist <= tolerance) continue;
+
+                    VIZCore3D.NET.Data.Vector3D startPt, endPt;
+                    switch (axis)
+                    {
+                        case "X":
+                            startPt = new VIZCore3D.NET.Data.Vector3D(unique[i], refVal1, refVal2);
+                            endPt = new VIZCore3D.NET.Data.Vector3D(unique[i + 1], refVal1, refVal2);
+                            break;
+                        case "Y":
+                            startPt = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[i], refVal2);
+                            endPt = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[i + 1], refVal2);
+                            break;
+                        default: // Z
+                            startPt = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[i]);
+                            endPt = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[i + 1]);
+                            break;
+                    }
+
+                    chainDimensionList.Add(new ChainDimensionData
+                    {
+                        Axis = axis,
+                        ViewName = GetViewNameByAxis(axis),
+                        Distance = dist,
+                        StartPoint = startPt,
+                        EndPoint = endPt,
+                        StartPointStr = $"({startPt.X:F1}, {startPt.Y:F1}, {startPt.Z:F1})",
+                        EndPointStr = $"({endPt.X:F1}, {endPt.Y:F1}, {endPt.Z:F1})"
+                    });
+                }
+
+                // 전체 치수 (처음~끝, 순차가 2개 이상일 때)
+                if (unique.Count > 2)
+                {
+                    float totalDist = Math.Abs(unique[0] - unique[unique.Count - 1]);
+                    VIZCore3D.NET.Data.Vector3D totalStart, totalEnd;
+                    switch (axis)
+                    {
+                        case "X":
+                            totalStart = new VIZCore3D.NET.Data.Vector3D(unique[0], refVal1, refVal2);
+                            totalEnd = new VIZCore3D.NET.Data.Vector3D(unique[unique.Count - 1], refVal1, refVal2);
+                            break;
+                        case "Y":
+                            totalStart = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[0], refVal2);
+                            totalEnd = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[unique.Count - 1], refVal2);
+                            break;
+                        default: // Z
+                            totalStart = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[0]);
+                            totalEnd = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[unique.Count - 1]);
+                            break;
+                    }
+
+                    chainDimensionList.Add(new ChainDimensionData
+                    {
+                        Axis = axis,
+                        ViewName = GetViewNameByAxis(axis),
+                        Distance = totalDist,
+                        StartPoint = totalStart,
+                        EndPoint = totalEnd,
+                        StartPointStr = $"({totalStart.X:F1}, {totalStart.Y:F1}, {totalStart.Z:F1})",
+                        EndPointStr = $"({totalEnd.X:F1}, {totalEnd.Y:F1}, {totalEnd.Z:F1})",
+                        IsTotal = true
+                    });
+                }
+            }
+
+            // ListView 갱신
+            int no = 1;
+            foreach (var dim in chainDimensionList)
+            {
+                ListViewItem lvi = new ListViewItem(no.ToString());
+                lvi.SubItems.Add(dim.Axis);
+                lvi.SubItems.Add(dim.ViewName);
+                lvi.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
+                lvi.SubItems.Add(dim.StartPointStr);
+                lvi.SubItems.Add(dim.EndPointStr);
+                lvi.Tag = dim;
+                lvDimension.Items.Add(lvi);
+                no++;
+            }
+
+            xraySelectedNodeIndices = new List<int>(memberIndices);
         }
 
         #endregion
@@ -4867,8 +5828,28 @@ namespace A2Z
         public float MaxX { get; set; }
         public float MaxY { get; set; }
         public float MaxZ { get; set; }
-        public bool HasCircle { get; set; }
+        public float CircleRadius { get; set; }
         public string Purpose { get; set; }
+        public string HoleSize { get; set; }
+        public List<HoleInfo> Holes { get; set; }
+
+        public BOMData()
+        {
+            Holes = new List<HoleInfo>();
+            HoleSize = "";
+        }
+    }
+
+    /// <summary>
+    /// 홀 정보 구조체
+    /// </summary>
+    public class HoleInfo
+    {
+        public float Diameter { get; set; }
+        public float CenterX { get; set; }
+        public float CenterY { get; set; }
+        public float CenterZ { get; set; }
+        public int CylinderBodyIndex { get; set; }
     }
 
     /// <summary>
@@ -4881,5 +5862,23 @@ namespace A2Z
         public string Name1 { get; set; }
         public string Name2 { get; set; }
         public float ZValue { get; set; }
+    }
+
+    /// <summary>
+    /// 도면 시트 데이터 구조체
+    /// </summary>
+    public class DrawingSheetData
+    {
+        public int SheetNumber { get; set; }
+        public string BaseMemberName { get; set; }
+        public int BaseMemberIndex { get; set; }
+        public List<int> MemberIndices { get; set; }
+        public List<string> MemberNames { get; set; }
+
+        public DrawingSheetData()
+        {
+            MemberIndices = new List<int>();
+            MemberNames = new List<string>();
+        }
     }
 }
