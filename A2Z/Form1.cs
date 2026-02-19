@@ -902,6 +902,16 @@ namespace A2Z
                                     hcy >= plate.MinY - m && hcy <= plate.MaxY + m &&
                                     hcz >= plate.MinZ - m && hcz <= plate.MaxZ + m)
                                 {
+                                    // 6) 홀 축 방향 결정
+                                    string holeAxis;
+                                    if (dx > axisTol) holeAxis = "X";
+                                    else if (dy > axisTol) holeAxis = "Y";
+                                    else holeAxis = "Z";
+
+                                    // 7) 완전한 원형 검증: Osnap 포인트 8개 이상이 원을 따라 360° 분포해야 함
+                                    if (!IsCompleteCircle(osnapList, hcx, hcy, hcz, ci.Radius, holeAxis, holeDepth, tolerance))
+                                        continue;
+
                                     plate.Holes.Add(new HoleInfo
                                     {
                                         Diameter = ci.Radius * 2f,
@@ -971,6 +981,84 @@ namespace A2Z
             {
                 System.Diagnostics.Debug.WriteLine($"홀 검출 오류: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 원형 완전성 검증: Osnap 포인트가 원 둘레를 따라 8개 이상 규칙적으로 분포하는지 확인
+        /// 모서리 라운드/필렛은 부분 호(90° 등)만 커버하므로 걸러짐
+        /// </summary>
+        private bool IsCompleteCircle(
+            List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList,
+            float cx, float cy, float cz, float radius,
+            string axis, float depth, float tolerance)
+        {
+            float radTol = Math.Max(tolerance, radius * 0.15f);
+            float halfDepth = depth / 2f + tolerance;
+            var angles = new List<double>();
+
+            foreach (var osnap in osnapList)
+            {
+                // Start, End 포인트 수집
+                var pointsToCheck = new List<VIZCore3D.NET.Data.Vertex3D>();
+                if (osnap.Start != null) pointsToCheck.Add(osnap.Start);
+                if (osnap.End != null) pointsToCheck.Add(osnap.End);
+
+                foreach (var pt in pointsToCheck)
+                {
+                    float dist2D, distAxis;
+                    double angle;
+
+                    switch (axis)
+                    {
+                        case "X":
+                            dist2D = (float)Math.Sqrt((pt.Y - cy) * (pt.Y - cy) + (pt.Z - cz) * (pt.Z - cz));
+                            distAxis = Math.Abs(pt.X - cx);
+                            angle = Math.Atan2(pt.Z - cz, pt.Y - cy);
+                            break;
+                        case "Y":
+                            dist2D = (float)Math.Sqrt((pt.X - cx) * (pt.X - cx) + (pt.Z - cz) * (pt.Z - cz));
+                            distAxis = Math.Abs(pt.Y - cy);
+                            angle = Math.Atan2(pt.Z - cz, pt.X - cx);
+                            break;
+                        default: // "Z"
+                            dist2D = (float)Math.Sqrt((pt.X - cx) * (pt.X - cx) + (pt.Y - cy) * (pt.Y - cy));
+                            distAxis = Math.Abs(pt.Z - cz);
+                            angle = Math.Atan2(pt.Y - cy, pt.X - cx);
+                            break;
+                    }
+
+                    // 원 둘레 근처에 있고 홀 깊이 범위 안에 있는 포인트만 수집
+                    if (Math.Abs(dist2D - radius) < radTol && distAxis <= halfDepth)
+                    {
+                        angles.Add(angle);
+                    }
+                }
+            }
+
+            // 최소 8개 포인트 필요
+            if (angles.Count < 8) return false;
+
+            // 각도 정렬 후 중복 제거 (0.01 rad ≈ 0.6° 이내는 동일 포인트)
+            angles.Sort();
+            var uniqueAngles = new List<double> { angles[0] };
+            for (int k = 1; k < angles.Count; k++)
+            {
+                if (angles[k] - uniqueAngles[uniqueAngles.Count - 1] > 0.01)
+                    uniqueAngles.Add(angles[k]);
+            }
+
+            if (uniqueAngles.Count < 8) return false;
+
+            // 최대 각도 간격 계산 - 360° 전체를 커버하는지 확인
+            double maxGap = 0;
+            for (int k = 1; k < uniqueAngles.Count; k++)
+                maxGap = Math.Max(maxGap, uniqueAngles[k] - uniqueAngles[k - 1]);
+            // 처음과 마지막 사이 간격 (360° 감싸기)
+            maxGap = Math.Max(maxGap, (2 * Math.PI) - uniqueAngles[uniqueAngles.Count - 1] + uniqueAngles[0]);
+
+            // 최대 간격이 90° (π/2) 미만이어야 완전한 원형
+            // 모서리 라운드는 90° 호만 커버하므로 나머지 270°가 빈 간격 → 걸러짐
+            return maxGap < Math.PI / 2.0;
         }
 
         /// <summary>
