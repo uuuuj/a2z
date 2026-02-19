@@ -1493,7 +1493,7 @@ namespace A2Z
             measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
             measureStyle.AlignDistanceText = true;
             measureStyle.AlignDistanceTextPosition = 2;
-            measureStyle.AlignDistanceTextMargine = 10;
+            measureStyle.AlignDistanceTextMargine = 3;
             vizcore3d.Review.Measure.SetStyle(measureStyle);
 
             // 선택된 모델의 바운딩 박스에서 최소값 계산 (baseline 기준)
@@ -2837,6 +2837,9 @@ namespace A2Z
                 measureStyle.LineWidth = 2;
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;     // 검은색
                 measureStyle.ArrowSize = 8;
+                measureStyle.AlignDistanceText = true;
+                measureStyle.AlignDistanceTextPosition = 2;
+                measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
                 // 축별 오프셋 카운터 (여러 치수 동시 표시 시 겹치지 않도록)
@@ -3507,7 +3510,7 @@ namespace A2Z
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
                 measureStyle.AlignDistanceText = true;
                 measureStyle.AlignDistanceTextPosition = 2;
-                measureStyle.AlignDistanceTextMargine = 15;
+                measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
                 // baseline 계산
