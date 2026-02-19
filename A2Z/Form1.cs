@@ -882,12 +882,37 @@ namespace A2Z
                 }
                 catch { }
 
+                // 홀 중복 제거: 같은 직경 + 같은 좌표(동일 축 위치)의 홀은 1개로 카운팅
+                foreach (var bom in bomList)
+                {
+                    if (bom.Holes.Count <= 1) continue;
+                    var deduped = new List<HoleInfo>();
+                    foreach (var hole in bom.Holes)
+                    {
+                        bool isDuplicate = false;
+                        foreach (var existing in deduped)
+                        {
+                            if (Math.Abs(Math.Round(hole.Diameter, 1) - Math.Round(existing.Diameter, 1)) > 0.1) continue;
+                            float dx = Math.Abs(hole.CenterX - existing.CenterX);
+                            float dy = Math.Abs(hole.CenterY - existing.CenterY);
+                            float dz = Math.Abs(hole.CenterZ - existing.CenterZ);
+                            // 같은 축 위치: 3축 중 2축이 일치하면 동일 홀 (허용 오차 내)
+                            int closeAxes = 0;
+                            if (dx < tolerance * 2) closeAxes++;
+                            if (dy < tolerance * 2) closeAxes++;
+                            if (dz < tolerance * 2) closeAxes++;
+                            if (closeAxes >= 2) { isDuplicate = true; break; }
+                        }
+                        if (!isDuplicate) deduped.Add(hole);
+                    }
+                    bom.Holes = deduped;
+                }
+
                 // 홀사이즈 문자열 생성
                 foreach (var bom in bomList)
                 {
                     if (bom.Holes.Count > 0)
                     {
-                        // 중복 제거하여 고유 지름 목록 생성
                         var uniqueDiameters = bom.Holes
                             .Select(h => Math.Round(h.Diameter, 1))
                             .Distinct()
