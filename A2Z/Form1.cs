@@ -767,7 +767,10 @@ namespace A2Z
                     }
                     catch { }
 
-                    // 각 판재 부재에 대해 홀 여부 검사
+                    // 각 판재 부재에 대해 홀 여부 검사 - 가장 작은(가까운) bbox에 할당
+                    BOMData bestPlate = null;
+                    float bestVolume = float.MaxValue;
+
                     foreach (var plate in plateBodies)
                     {
                         // 판재 두께 = 바운딩 박스의 최소 치수
@@ -787,18 +790,26 @@ namespace A2Z
 
                         if (insideX && insideY && insideZ)
                         {
-                            // 홀 발견! 판재에 홀 정보 추가
-                            HoleInfo hole = new HoleInfo
+                            // bbox 부피가 가장 작은 판재에 할당 (가장 근접한 부재)
+                            float vol = plateSizeX * plateSizeY * plateSizeZ;
+                            if (vol < bestVolume)
                             {
-                                Diameter = cylDiameter,
-                                CenterX = cylCx,
-                                CenterY = cylCy,
-                                CenterZ = cylCz,
-                                CylinderBodyIndex = cylinder.Index
-                            };
-                            plate.Holes.Add(hole);
-                            break; // 하나의 판재에만 할당
+                                bestVolume = vol;
+                                bestPlate = plate;
+                            }
                         }
+                    }
+
+                    if (bestPlate != null)
+                    {
+                        bestPlate.Holes.Add(new HoleInfo
+                        {
+                            Diameter = cylDiameter,
+                            CenterX = cylCx,
+                            CenterY = cylCy,
+                            CenterZ = cylCz,
+                            CylinderBodyIndex = cylinder.Index
+                        });
                     }
                 }
 
@@ -3575,12 +3586,18 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 홀(Hole) 풍선 수집 (같은 직경 그룹핑) ---
+                // --- 홀(Hole) 풍선 수집 (BOM 부재별 같은 직경 그룹핑, 선택 노드만) ---
                 try
                 {
+                    // 선택된 노드 집합 (필터링용)
+                    HashSet<int> selectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                        ? new HashSet<int>(xraySelectedNodeIndices) : null;
+
                     foreach (var bom in bomList)
                     {
                         if (bom.Holes == null || bom.Holes.Count == 0) continue;
+                        // 선택된 노드가 있으면 해당 노드의 홀만 표시
+                        if (selectedSet != null && !selectedSet.Contains(bom.Index)) continue;
                         // BOM별로 같은 직경 홀 그룹핑
                         var holeGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
                         foreach (var grp in holeGroups)
