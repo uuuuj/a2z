@@ -802,6 +802,72 @@ namespace A2Z
                     }
                 }
 
+                // --- 보조 홀 검출: 별도 원기둥 body가 없는 경우, GetCircleData로 판재 자체에서 홀 검출 ---
+                // (Angle 등 부재에 직접 뚫린 홀 대응)
+                try
+                {
+                    foreach (var plate in plateBodies)
+                    {
+                        if (plate.Holes.Count > 0) continue; // 이미 원기둥 매칭으로 홀을 찾은 경우 스킵
+
+                        var circleDataList = vizcore3d.GeometryUtility.GetCircleData(plate.Index);
+                        if (circleDataList == null || circleDataList.Count < 2) continue;
+
+                        // 같은 지름의 원형을 쌍으로 묶어 홀 검출 (원형 2개 = 홀 1개)
+                        List<bool> used = new List<bool>(new bool[circleDataList.Count]);
+                        for (int i = 0; i < circleDataList.Count; i++)
+                        {
+                            if (used[i]) continue;
+                            var ci = circleDataList[i];
+                            // 같은 지름의 짝 찾기
+                            for (int j = i + 1; j < circleDataList.Count; j++)
+                            {
+                                if (used[j]) continue;
+                                var cj = circleDataList[j];
+                                if (Math.Abs(ci.Diameter - cj.Diameter) > tolerance) continue;
+
+                                // 두 원의 중심 거리 = 홀 깊이 (판재 두께 이내여야 함)
+                                float dist = (float)Math.Sqrt(
+                                    (cj.Center.X - ci.Center.X) * (cj.Center.X - ci.Center.X) +
+                                    (cj.Center.Y - ci.Center.Y) * (cj.Center.Y - ci.Center.Y) +
+                                    (cj.Center.Z - ci.Center.Z) * (cj.Center.Z - ci.Center.Z));
+
+                                float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
+                                float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
+                                float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
+                                float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
+
+                                if (dist < 0.1f || dist > plateMinDim + tolerance) continue;
+
+                                // 홀 중심 = 두 원의 중점
+                                float hcx = (ci.Center.X + cj.Center.X) / 2f;
+                                float hcy = (ci.Center.Y + cj.Center.Y) / 2f;
+                                float hcz = (ci.Center.Z + cj.Center.Z) / 2f;
+
+                                // 중심이 판재 바운딩 박스 안에 있는지 확인
+                                float m = tolerance;
+                                if (hcx >= plate.MinX - m && hcx <= plate.MaxX + m &&
+                                    hcy >= plate.MinY - m && hcy <= plate.MaxY + m &&
+                                    hcz >= plate.MinZ - m && hcz <= plate.MaxZ + m)
+                                {
+                                    plate.Holes.Add(new HoleInfo
+                                    {
+                                        Diameter = ci.Diameter,
+                                        CenterX = hcx,
+                                        CenterY = hcy,
+                                        CenterZ = hcz,
+                                        CylinderBodyIndex = -1 // 별도 원기둥 없음
+                                    });
+                                    used[i] = true;
+                                    used[j] = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
                 // 홀사이즈 문자열 생성
                 foreach (var bom in bomList)
                 {
@@ -3281,6 +3347,21 @@ namespace A2Z
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
+                // 카메라 방향 + FitToView를 치수/풍선 그리기 전에 실행
+                // (FitToView가 모델만 기준으로 동작하여 반복 클릭 시 크기 유지)
+                if (viewDirection != null)
+                {
+                    switch (viewDirection)
+                    {
+                        case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
+                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
+                        case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
+                    }
+                    vizcore3d.View.FitToView();
+                    vizcore3d.View.ZoomRatio = 105f;
+                    vizcore3d.View.ZoomIn();
+                }
+
                 // ========== Smart Dimension Filtering Algorithm 적용 ==========
                 // 축당 최대 5개 치수, 텍스트 간 최소 30mm 간격
                 var filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 5, minTextSpace: 30.0f);
@@ -3394,7 +3475,12 @@ namespace A2Z
 
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
                 float dimBaseline_OuterOffset = baseOffset + (levelSpacing * maxLevelUsed);
-                float balloonGap = 100f; // 치수선 마지막 선에서 100mm 기본 거리
+                // 모델 크기에 비례하여 풍선 오프셋 결정 (최소 100mm, 모델 대각 크기의 10%)
+                float modelSpanH = Math.Abs(globalMaxX - globalMinX);
+                float modelSpanV = Math.Abs(globalMaxY - globalMinY);
+                float modelSpanD = Math.Abs(globalMaxZ - globalMinZ);
+                float modelDiag = (float)Math.Sqrt(modelSpanH * modelSpanH + modelSpanV * modelSpanV + modelSpanD * modelSpanD);
+                float balloonGap = Math.Max(100f, modelDiag * 0.1f); // 모델과 충분히 떨어진 위치
                 float overlapAngleStep = 5f; // 겹침 시 5° 추가
                 float overlapLengthStep = 20f; // 겹침 시 보조선 20mm 연장
 
@@ -3600,21 +3686,6 @@ namespace A2Z
                 catch (Exception balloonEx)
                 {
                     System.Diagnostics.Debug.WriteLine($"풍선 배치 오류: {balloonEx.Message}");
-                }
-
-                // 뷰 방향 지정 시 카메라 이동 + 1.7배 확대
-                if (viewDirection != null)
-                {
-                    switch (viewDirection)
-                    {
-                        case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
-                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
-                        case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
-                    }
-                    // FitToView 후 1.7배 확대 (모델+보조선이 화면에 크게 보이도록)
-                    vizcore3d.View.FitToView();
-                    vizcore3d.View.ZoomRatio = 105f;
-                    vizcore3d.View.ZoomIn();
                 }
 
                 vizcore3d.EndUpdate();
@@ -5263,7 +5334,11 @@ namespace A2Z
                         float cz = bom.CenterZ;
                         VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(cx, cy, cz);
 
-                        float margin = 30f;
+                        // 부재 크기에 비례한 오프셋 (최소 50mm)
+                        float bSpanX = Math.Abs(bom.MaxX - bom.MinX);
+                        float bSpanY = Math.Abs(bom.MaxY - bom.MinY);
+                        float bSpanZ = Math.Abs(bom.MaxZ - bom.MinZ);
+                        float margin = Math.Max(50f, Math.Max(bSpanX, Math.Max(bSpanY, bSpanZ)) * 0.15f);
                         VIZCore3D.NET.Data.Vertex3D textPos;
                         switch (viewDirection)
                         {
