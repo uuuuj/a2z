@@ -427,7 +427,19 @@ namespace A2Z
                     return false;
                 }
 
-                foreach (var node in allBodyNodes)
+                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                List<VIZCore3D.NET.Data.Node> bodyNodes;
+                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                {
+                    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
+                    bodyNodes = allBodyNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
+                }
+                else
+                {
+                    bodyNodes = allBodyNodes;
+                }
+
+                foreach (var node in bodyNodes)
                 {
                     string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
                     List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
@@ -1483,7 +1495,7 @@ namespace A2Z
             measureStyle.ContinuousDistance = false;
             measureStyle.BackgroundTransparent = true;
             measureStyle.FontColor = System.Drawing.Color.Black;
-            measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE10;
+            measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
             measureStyle.FontBold = true;
             measureStyle.LineColor = System.Drawing.Color.Black;
             measureStyle.LineWidth = 2;
@@ -3500,7 +3512,7 @@ namespace A2Z
                 measureStyle.ContinuousDistance = false;
                 measureStyle.BackgroundTransparent = true;
                 measureStyle.FontColor = System.Drawing.Color.Blue;
-                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE10;
+                measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
                 measureStyle.FontBold = true;
                 measureStyle.LineColor = System.Drawing.Color.Blue;
                 measureStyle.LineWidth = 2;
@@ -5851,6 +5863,9 @@ namespace A2Z
 
                 // 이전 심볼 제거
                 vizcore3d.Clash.ClearResultSymbol();
+
+                // 기존 풍선(Note) 제거
+                vizcore3d.Review.Note.Clear();
 
                 vizcore3d.EndUpdate();
 
