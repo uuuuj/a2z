@@ -882,7 +882,7 @@ namespace A2Z
                 }
                 catch { }
 
-                // 홀 중복 제거: 같은 직경 + 같은 좌표(동일 축 위치)의 홀은 1개로 카운팅
+                // 홀 중복 제거: 같은 직경 + 같은 중심 좌표(3축 모두 근접)의 홀은 1개로 카운팅
                 foreach (var bom in bomList)
                 {
                     if (bom.Holes.Count <= 1) continue;
@@ -896,12 +896,9 @@ namespace A2Z
                             float dx = Math.Abs(hole.CenterX - existing.CenterX);
                             float dy = Math.Abs(hole.CenterY - existing.CenterY);
                             float dz = Math.Abs(hole.CenterZ - existing.CenterZ);
-                            // 같은 축 위치: 3축 중 2축이 일치하면 동일 홀 (허용 오차 내)
-                            int closeAxes = 0;
-                            if (dx < tolerance * 2) closeAxes++;
-                            if (dy < tolerance * 2) closeAxes++;
-                            if (dz < tolerance * 2) closeAxes++;
-                            if (closeAxes >= 2) { isDuplicate = true; break; }
+                            // 중심 간 거리가 허용 오차 이내면 동일 홀 (3축 모두 근접)
+                            float dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                            if (dist < tolerance * 2) { isDuplicate = true; break; }
                         }
                         if (!isDuplicate) deduped.Add(hole);
                     }
@@ -2698,6 +2695,40 @@ namespace A2Z
                     vizcore3d.ShapeDrawing.AddSphere(spherePoints, 0, System.Drawing.Color.Red, 5.0f, true);
                 }
 
+                // 선택된 좌표에 풍선(Note) 표시 - 좌표 + 홀사이즈 정보
+                vizcore3d.Review.Note.Clear();
+                foreach (ListViewItem lvi in lvOsnap.SelectedItems)
+                {
+                    int index = lvi.Index;
+                    if (index >= osnapPoints.Count) continue;
+                    var pt = osnapPoints[index];
+                    string nodeName = lvi.SubItems.Count > 1 ? lvi.SubItems[1].Text : "";
+                    string holeSize = lvi.SubItems.Count > 5 ? lvi.SubItems[5].Text : "";
+
+                    // 풍선 텍스트: 부재명 + 좌표 + 홀사이즈
+                    string balloonText = $"{nodeName}\n({pt.X:F1}, {pt.Y:F1}, {pt.Z:F1})";
+                    if (!string.IsNullOrEmpty(holeSize))
+                        balloonText += $"\n{holeSize}";
+
+                    // 텍스트 위치: 좌표에서 약간 오프셋
+                    VIZCore3D.NET.Data.Vertex3D arrowPos = pt;
+                    VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(
+                        pt.X + 30f, pt.Y + 30f, pt.Z + 30f);
+
+                    VIZCore3D.NET.Data.NoteStyle style = vizcore3d.Review.Note.GetStyle();
+                    style.UseSymbol = false;
+                    style.BackgroudTransparent = true;
+                    style.FontBold = true;
+                    style.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE10;
+                    style.FontColor = Color.DarkBlue;
+                    style.LineColor = Color.DarkBlue;
+                    style.LineWidth = 1;
+                    style.ArrowColor = Color.Red;
+                    style.ArrowWidth = 3;
+
+                    vizcore3d.Review.Note.AddNoteSurface(balloonText, textPos, arrowPos, style);
+                }
+
                 // 첫 번째 선택 좌표로 카메라 이동
                 if (targetPoint != null)
                 {
@@ -2729,6 +2760,19 @@ namespace A2Z
             {
                 MessageBox.Show($"Osnap 좌표 설정 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// 풍선 지우기 버튼 - Note와 ShapeDrawing(구 마커) 모두 제거
+        /// </summary>
+        private void btnOsnapClearBalloon_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                vizcore3d.Review.Note.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+            }
+            catch { }
         }
 
         /// <summary>

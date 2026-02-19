@@ -55,6 +55,7 @@ namespace A2Z
             this.btnOsnapAdd = new System.Windows.Forms.Button();
             this.btnOsnapDelete = new System.Windows.Forms.Button();
             this.btnOsnapShowSelected = new System.Windows.Forms.Button();
+            this.btnOsnapClearBalloon = new System.Windows.Forms.Button();
             this.lvOsnap = new System.Windows.Forms.ListView();
             this.columnHeader10 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader14 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -381,6 +382,7 @@ namespace A2Z
             this.panelOsnapButtons.Controls.Add(this.btnOsnapAdd);
             this.panelOsnapButtons.Controls.Add(this.btnOsnapDelete);
             this.panelOsnapButtons.Controls.Add(this.btnOsnapShowSelected);
+            this.panelOsnapButtons.Controls.Add(this.btnOsnapClearBalloon);
             this.panelOsnapButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelOsnapButtons.Location = new System.Drawing.Point(3, 147);
             this.panelOsnapButtons.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -420,6 +422,17 @@ namespace A2Z
             this.btnOsnapShowSelected.Text = "선택 좌표 보기";
             this.btnOsnapShowSelected.UseVisualStyleBackColor = true;
             this.btnOsnapShowSelected.Click += new System.EventHandler(this.btnOsnapShowSelected_Click);
+            //
+            // btnOsnapClearBalloon
+            //
+            this.btnOsnapClearBalloon.Location = new System.Drawing.Point(342, 4);
+            this.btnOsnapClearBalloon.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.btnOsnapClearBalloon.Name = "btnOsnapClearBalloon";
+            this.btnOsnapClearBalloon.Size = new System.Drawing.Size(90, 30);
+            this.btnOsnapClearBalloon.TabIndex = 3;
+            this.btnOsnapClearBalloon.Text = "풍선 지우기";
+            this.btnOsnapClearBalloon.UseVisualStyleBackColor = true;
+            this.btnOsnapClearBalloon.Click += new System.EventHandler(this.btnOsnapClearBalloon_Click);
             // 
             // lvOsnap
             // 
@@ -1135,6 +1148,7 @@ namespace A2Z
         private System.Windows.Forms.Button btnOsnapAdd;
         private System.Windows.Forms.Button btnOsnapDelete;
         private System.Windows.Forms.Button btnOsnapShowSelected;
+        private System.Windows.Forms.Button btnOsnapClearBalloon;
         private System.Windows.Forms.Panel panelDimensionButtons;
         private System.Windows.Forms.Button btnDimensionShowSelected;
         private System.Windows.Forms.Button btnDimensionDelete;
