@@ -817,7 +817,7 @@ namespace A2Z
                 }
 
                 // --- 보조 홀 검출: 별도 원기둥 body가 없는 경우, GetCircleData로 판재 자체에서 홀 검출 ---
-                // (Angle 등 부재에 직접 뚫린 홀 대응)
+                // 동축(coaxial) 원형 쌍만 홀로 인식: 한 축 방향으로만 떨어지고 나머지 2축은 일치
                 try
                 {
                     foreach (var plate in plateBodies)
@@ -827,38 +827,49 @@ namespace A2Z
                         var circleDataList = vizcore3d.GeometryUtility.GetCircleData(plate.Index);
                         if (circleDataList == null || circleDataList.Count < 2) continue;
 
-                        // 같은 지름의 원형을 쌍으로 묶어 홀 검출 (원형 2개 = 홀 1개)
+                        float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
+                        float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
+                        float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
+                        float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
+
+                        // 같은 지름의 동축 원형 쌍만 홀로 검출
                         List<bool> used = new List<bool>(new bool[circleDataList.Count]);
                         for (int i = 0; i < circleDataList.Count; i++)
                         {
                             if (used[i]) continue;
                             var ci = circleDataList[i];
-                            // 같은 지름의 짝 찾기
                             for (int j = i + 1; j < circleDataList.Count; j++)
                             {
                                 if (used[j]) continue;
                                 var cj = circleDataList[j];
+
+                                // 1) 같은 직경
                                 if (Math.Abs(ci.Diameter - cj.Diameter) > tolerance) continue;
 
-                                // 두 원의 중심 거리 = 홀 깊이 (판재 두께 이내여야 함)
-                                float dist = (float)Math.Sqrt(
-                                    (cj.Center.X - ci.Center.X) * (cj.Center.X - ci.Center.X) +
-                                    (cj.Center.Y - ci.Center.Y) * (cj.Center.Y - ci.Center.Y) +
-                                    (cj.Center.Z - ci.Center.Z) * (cj.Center.Z - ci.Center.Z));
+                                float dx = Math.Abs(cj.Center.X - ci.Center.X);
+                                float dy = Math.Abs(cj.Center.Y - ci.Center.Y);
+                                float dz = Math.Abs(cj.Center.Z - ci.Center.Z);
 
-                                float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
-                                float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
-                                float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
-                                float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
+                                // 2) 동축 검증: 정확히 1개 축만 의미 있는 거리, 나머지 2축은 거의 일치
+                                //    → 필렛/곡면의 원형은 여러 축으로 분산되어 탈락
+                                float axisTol = tolerance;
+                                int significantAxes = 0;
+                                float holeDepth = 0f;
+                                if (dx > axisTol) { significantAxes++; holeDepth = dx; }
+                                if (dy > axisTol) { significantAxes++; holeDepth = dy; }
+                                if (dz > axisTol) { significantAxes++; holeDepth = dz; }
 
-                                if (dist < 0.1f || dist > plateMinDim + tolerance) continue;
+                                if (significantAxes != 1) continue; // 정확히 1축만 떨어져야 동축
 
-                                // 홀 중심 = 두 원의 중점
+                                // 3) 홀 깊이가 판재 최소 치수 이하
+                                if (holeDepth > plateMinDim + tolerance) continue;
+
+                                // 4) 홀 중심 = 두 원의 중점
                                 float hcx = (ci.Center.X + cj.Center.X) / 2f;
                                 float hcy = (ci.Center.Y + cj.Center.Y) / 2f;
                                 float hcz = (ci.Center.Z + cj.Center.Z) / 2f;
 
-                                // 중심이 판재 바운딩 박스 안에 있는지 확인
+                                // 5) 중심이 판재 바운딩 박스 안에 있는지 확인
                                 float m = tolerance;
                                 if (hcx >= plate.MinX - m && hcx <= plate.MaxX + m &&
                                     hcy >= plate.MinY - m && hcy <= plate.MaxY + m &&
@@ -870,7 +881,7 @@ namespace A2Z
                                         CenterX = hcx,
                                         CenterY = hcy,
                                         CenterZ = hcz,
-                                        CylinderBodyIndex = -1 // 별도 원기둥 없음
+                                        CylinderBodyIndex = -1
                                     });
                                     used[i] = true;
                                     used[j] = true;
