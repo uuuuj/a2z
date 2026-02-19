@@ -1492,7 +1492,7 @@ namespace A2Z
             measureStyle.AssistantLine = true;
             measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
             measureStyle.AlignDistanceText = true;
-            measureStyle.AlignDistanceTextPosition = 2;
+            measureStyle.AlignDistanceTextPosition = 1;
             measureStyle.AlignDistanceTextMargine = 3;
             vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -2838,7 +2838,7 @@ namespace A2Z
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;     // 검은색
                 measureStyle.ArrowSize = 8;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 2;
+                measureStyle.AlignDistanceTextPosition = 1;
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -3509,7 +3509,7 @@ namespace A2Z
                 measureStyle.AssistantLine = true;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 2;
+                measureStyle.AlignDistanceTextPosition = 1;
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -3926,7 +3926,7 @@ namespace A2Z
             if (distance > 0.1f)
             {
                 // === 모든 치수: AddCustomAxisDistance 사용 ===
-                // AlignDistanceTextPosition = 2 (외측 배치) 설정으로
+                // AlignDistanceTextPosition = 1 (보조선 방향 외측 배치) 설정으로
                 // 작은 치수도 자동으로 옆치수 방식 표시
                 switch (axis)
                 {
