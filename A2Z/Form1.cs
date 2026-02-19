@@ -486,6 +486,9 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
+                        // 홀사이즈: 부재 이름으로 BOM 매칭
+                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
+                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -2099,6 +2102,8 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
+                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
+                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
 
@@ -2401,6 +2406,8 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
+                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
+                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -2568,6 +2575,8 @@ namespace A2Z
                 lvi.SubItems.Add(point.X.ToString("F2"));
                 lvi.SubItems.Add(point.Y.ToString("F2"));
                 lvi.SubItems.Add(point.Z.ToString("F2"));
+                var matchBom = bomList?.FirstOrDefault(b => b.Name == nodeName);
+                lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
                 lvOsnap.Items.Add(lvi);
             }
             catch (Exception ex)
@@ -3615,7 +3624,7 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 풍선 일괄 배치 (겹침 방지: 마지막 보조선에서 100mm 바깥, 45° 방향) ---
+                // --- 풍선 일괄 배치 (Osnap 범위 바깥으로 배치, 겹침 방지) ---
                 try
                 {
                     Func<float, float, float, int, float> getComp = (x, y, z, axis) =>
@@ -3624,6 +3633,32 @@ namespace A2Z
                     // 모델 중심의 수평축 좌표 (풍선 방향 결정용)
                     float[] modelCenterArr = { modelCenterX, modelCenterY, modelCenterZ };
                     float modelCenterH = modelCenterArr[bHAxis];
+                    float modelCenterV = modelCenterArr[bVAxis];
+
+                    // Osnap 좌표 기반 모델 외곽 범위 계산 (2D 뷰 기준)
+                    float osnapMinH = float.MaxValue, osnapMaxH = float.MinValue;
+                    float osnapMinV = float.MaxValue, osnapMaxV = float.MinValue;
+                    if (osnapPoints != null && osnapPoints.Count > 0)
+                    {
+                        foreach (var pt in osnapPoints)
+                        {
+                            float ph = getComp(pt.X, pt.Y, pt.Z, bHAxis);
+                            float pv = getComp(pt.X, pt.Y, pt.Z, bVAxis);
+                            if (ph < osnapMinH) osnapMinH = ph;
+                            if (ph > osnapMaxH) osnapMaxH = ph;
+                            if (pv < osnapMinV) osnapMinV = pv;
+                            if (pv > osnapMaxV) osnapMaxV = pv;
+                        }
+                    }
+                    else
+                    {
+                        // Osnap 없으면 globalMin/Max 사용
+                        float[] gMinArr = { globalMinX, globalMinY, globalMinZ };
+                        float[] gMaxArr = { globalMaxX, globalMaxY, globalMaxZ };
+                        osnapMinH = gMinArr[bHAxis]; osnapMaxH = gMaxArr[bHAxis];
+                        osnapMinV = gMinArr[bVAxis]; osnapMaxV = gMaxArr[bVAxis];
+                    }
+                    float textMargin = 30f; // 모델 외곽에서 텍스트까지 최소 간격
 
                     // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
                     List<(float h, float v)> placedTextPositions = new List<(float, float)>();
@@ -3637,21 +3672,19 @@ namespace A2Z
                             float originV = getComp(entry.ox, entry.oy, entry.oz, bVAxis);
                             float originD = getComp(entry.ox, entry.oy, entry.oz, bDAxis);
 
-                            // 모델 중심 기준 좌/우 판단 → 풍선 방향 결정
-                            // 왼쪽이면 225° (좌하향), 오른쪽이면 315° (우하향)
-                            float baseAngle = (originH < modelCenterH) ? 225f : 315f;
-                            float angleDeg = baseAngle;
-                            float length = balloonGap;
+                            // 모델 중심 기준 좌/우 판단 → 풍선을 모델 바깥으로 배치
+                            bool isLeft = originH < modelCenterH;
+                            // 텍스트 H좌표: 모델 Osnap 외곽 바깥으로 배치
+                            float candidateH = isLeft
+                                ? osnapMinH - textMargin - balloonGap
+                                : osnapMaxH + textMargin + balloonGap;
+                            // 텍스트 V좌표: 홀의 V좌표를 기본으로, 모델 아래쪽 바깥으로
+                            float candidateV = osnapMinV - textMargin;
 
-                            // 후보 텍스트 위치 계산
-                            float anchorH = originH; // 홀 중심에서 시작
-                            float candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
-                            float candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
-
-                            // 이전에 배치된 풍선과 텍스트 위치 근접도 확인 → 겹치면 5°씩 추가 회전 + 20mm 연장
+                            // 이전에 배치된 풍선과 텍스트 위치 근접도 확인 → 겹치면 아래로 이동
                             int overlapCount = 0;
                             bool hasOverlap = true;
-                            while (hasOverlap && overlapCount < 36) // 최대 36회 (180°)
+                            while (hasOverlap && overlapCount < 36)
                             {
                                 hasOverlap = false;
                                 foreach (var placed in placedTextPositions)
@@ -3663,10 +3696,7 @@ namespace A2Z
                                     {
                                         hasOverlap = true;
                                         overlapCount++;
-                                        angleDeg = baseAngle + overlapCount * overlapAngleStep;
-                                        length = balloonGap + overlapCount * overlapLengthStep;
-                                        candidateH = anchorH + length * (float)Math.Cos(angleDeg * Math.PI / 180.0);
-                                        candidateV = originV + length * (float)Math.Sin(angleDeg * Math.PI / 180.0);
+                                        candidateV = osnapMinV - textMargin - overlapCount * overlapLengthStep;
                                         break;
                                     }
                                 }

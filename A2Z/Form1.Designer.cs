@@ -61,6 +61,7 @@ namespace A2Z
             this.columnHeader11 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader15 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.lvBOM = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -427,7 +428,8 @@ namespace A2Z
             this.columnHeader14,
             this.columnHeader11,
             this.columnHeader12,
-            this.columnHeader13});
+            this.columnHeader13,
+            this.columnHeader15});
             this.lvOsnap.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvOsnap.FullRowSelect = true;
             this.lvOsnap.GridLines = true;
@@ -464,7 +466,12 @@ namespace A2Z
             // 
             this.columnHeader13.Text = "Z";
             this.columnHeader13.Width = 100;
-            // 
+            //
+            // columnHeader15
+            //
+            this.columnHeader15.Text = "홀사이즈";
+            this.columnHeader15.Width = 120;
+            //
             // groupBox2
             // 
             this.groupBox2.Controls.Add(this.lvBOM);
@@ -1120,6 +1127,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader columnHeader11;
         private System.Windows.Forms.ColumnHeader columnHeader12;
         private System.Windows.Forms.ColumnHeader columnHeader13;
+        private System.Windows.Forms.ColumnHeader columnHeader15;
         private System.Windows.Forms.Panel panelClashButtons;
         private System.Windows.Forms.Button btnClashShowSelected;
         private System.Windows.Forms.Button btnClashShowAll;
