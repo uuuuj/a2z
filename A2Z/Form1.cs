@@ -816,42 +816,57 @@ namespace A2Z
                     }
                 }
 
-                // --- 보조 홀 검출: 별도 원기둥 body가 없는 경우, GetCircleData로 판재 자체에서 홀 검출 ---
-                // 동축(coaxial) 원형 쌍만 홀로 인식: 한 축 방향으로만 떨어지고 나머지 2축은 일치
+                // --- 보조 홀 검출: 별도 원기둥 body가 없는 경우, Osnap CIRCLE로 판재 자체에서 홀 검출 ---
+                // Osnap CIRCLE만 사용하여 완벽한 원기둥 형태의 홀만 인식 (곡면/필렛 제외)
                 try
                 {
                     foreach (var plate in plateBodies)
                     {
                         if (plate.Holes.Count > 0) continue; // 이미 원기둥 매칭으로 홀을 찾은 경우 스킵
 
-                        var circleDataList = vizcore3d.GeometryUtility.GetCircleData(plate.Index);
-                        if (circleDataList == null || circleDataList.Count < 2) continue;
+                        var osnapList = vizcore3d.Object3D.GetOsnapPoint(plate.Index);
+                        if (osnapList == null) continue;
+
+                        // Osnap에서 CIRCLE 종류만 추출 (완벽한 원형만 해당)
+                        var circles = new List<(float CenterX, float CenterY, float CenterZ, float Radius)>();
+                        foreach (var osnap in osnapList)
+                        {
+                            if (osnap.Kind != VIZCore3D.NET.Data.OsnapKind.CIRCLE) continue;
+                            if (osnap.Center == null || osnap.Start == null) continue;
+                            float rdx = osnap.Start.X - osnap.Center.X;
+                            float rdy = osnap.Start.Y - osnap.Center.Y;
+                            float rdz = osnap.Start.Z - osnap.Center.Z;
+                            float r = (float)Math.Sqrt(rdx * rdx + rdy * rdy + rdz * rdz);
+                            if (r < 0.1f) continue; // 너무 작은 원 무시
+                            circles.Add((osnap.Center.X, osnap.Center.Y, osnap.Center.Z, r));
+                        }
+
+                        if (circles.Count < 2) continue;
 
                         float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
                         float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
                         float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
                         float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
 
-                        // 같은 지름의 동축 원형 쌍만 홀로 검출
-                        List<bool> used = new List<bool>(new bool[circleDataList.Count]);
-                        for (int i = 0; i < circleDataList.Count; i++)
+                        // 같은 반지름의 동축 원형 쌍 = 홀
+                        List<bool> used = new List<bool>(new bool[circles.Count]);
+                        for (int i = 0; i < circles.Count; i++)
                         {
                             if (used[i]) continue;
-                            var ci = circleDataList[i];
-                            for (int j = i + 1; j < circleDataList.Count; j++)
+                            var ci = circles[i];
+                            for (int j = i + 1; j < circles.Count; j++)
                             {
                                 if (used[j]) continue;
-                                var cj = circleDataList[j];
+                                var cj = circles[j];
 
-                                // 1) 같은 직경
-                                if (Math.Abs(ci.Diameter - cj.Diameter) > tolerance) continue;
+                                // 1) 같은 반지름 (= 같은 직경)
+                                if (Math.Abs(ci.Radius - cj.Radius) > tolerance) continue;
 
-                                float dx = Math.Abs(cj.Center.X - ci.Center.X);
-                                float dy = Math.Abs(cj.Center.Y - ci.Center.Y);
-                                float dz = Math.Abs(cj.Center.Z - ci.Center.Z);
+                                float dx = Math.Abs(cj.CenterX - ci.CenterX);
+                                float dy = Math.Abs(cj.CenterY - ci.CenterY);
+                                float dz = Math.Abs(cj.CenterZ - ci.CenterZ);
 
                                 // 2) 동축 검증: 정확히 1개 축만 의미 있는 거리, 나머지 2축은 거의 일치
-                                //    → 필렛/곡면의 원형은 여러 축으로 분산되어 탈락
                                 float axisTol = tolerance;
                                 int significantAxes = 0;
                                 float holeDepth = 0f;
@@ -865,9 +880,9 @@ namespace A2Z
                                 if (holeDepth > plateMinDim + tolerance) continue;
 
                                 // 4) 홀 중심 = 두 원의 중점
-                                float hcx = (ci.Center.X + cj.Center.X) / 2f;
-                                float hcy = (ci.Center.Y + cj.Center.Y) / 2f;
-                                float hcz = (ci.Center.Z + cj.Center.Z) / 2f;
+                                float hcx = (ci.CenterX + cj.CenterX) / 2f;
+                                float hcy = (ci.CenterY + cj.CenterY) / 2f;
+                                float hcz = (ci.CenterZ + cj.CenterZ) / 2f;
 
                                 // 5) 중심이 판재 바운딩 박스 안에 있는지 확인
                                 float m = tolerance;
@@ -877,7 +892,7 @@ namespace A2Z
                                 {
                                     plate.Holes.Add(new HoleInfo
                                     {
-                                        Diameter = ci.Diameter,
+                                        Diameter = ci.Radius * 2f,
                                         CenterX = hcx,
                                         CenterY = hcy,
                                         CenterZ = hcz,
