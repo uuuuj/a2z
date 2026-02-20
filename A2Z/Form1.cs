@@ -958,7 +958,7 @@ namespace A2Z
                 }
 
                 // --- 슬롯홀 검출: 반원기둥 2개 + 사각기둥 1개 구조 검증 ---
-                // 홀과 동일하게 관통(depth ≈ 판재두께) 검증 + LINE Osnap으로 사각기둥 검증
+                // 홀로 확정된 Osnap은 제외, 관통 검증 + LINE 사각기둥 검증
                 try
                 {
                     foreach (var plate in plateBodies)
@@ -972,7 +972,10 @@ namespace A2Z
                         float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
                         float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
 
-                        // CIRCLE Osnap 수집 (반원기둥 검출용)
+                        // ★ 이미 확정된 홀 중심 목록 (이 원들은 슬롯홀 후보에서 제외)
+                        var confirmedHoles = plate.Holes;
+
+                        // CIRCLE Osnap 수집 - 확정 홀 근처 원은 제외
                         var slotCircles = new List<(float CX, float CY, float CZ, float R)>();
                         foreach (var osnap in slotOsnapList)
                         {
@@ -983,6 +986,23 @@ namespace A2Z
                             float rdz = osnap.Start.Z - osnap.Center.Z;
                             float r = (float)Math.Sqrt(rdx * rdx + rdy * rdy + rdz * rdz);
                             if (r < 0.1f) continue;
+
+                            // ★ 확정된 홀 중심 근처의 원은 슬롯홀 후보에서 제외
+                            bool nearHole = false;
+                            foreach (var hole in confirmedHoles)
+                            {
+                                float dist = (float)Math.Sqrt(
+                                    (osnap.Center.X - hole.CenterX) * (osnap.Center.X - hole.CenterX) +
+                                    (osnap.Center.Y - hole.CenterY) * (osnap.Center.Y - hole.CenterY) +
+                                    (osnap.Center.Z - hole.CenterZ) * (osnap.Center.Z - hole.CenterZ));
+                                if (dist < hole.Diameter / 2f + tolerance)
+                                {
+                                    nearHole = true;
+                                    break;
+                                }
+                            }
+                            if (nearHole) continue;
+
                             slotCircles.Add((osnap.Center.X, osnap.Center.Y, osnap.Center.Z, r));
                         }
 
@@ -1017,9 +1037,8 @@ namespace A2Z
                                 if (ddz > tolerance) { sigAxes++; depth = ddz; axis = "Z"; }
                                 if (sigAxes != 1) continue;
 
-                                // ★ 관통 검증 (홀과 동일): 깊이가 판재 두께 이하여야 함
+                                // 관통 검증: 깊이가 판재 두께 범위 내
                                 if (depth > plateMinDim + tolerance) continue;
-                                // 깊이가 판재 두께의 50% 이상이어야 관통홀 (표면 스크래치 제외)
                                 if (depth < plateMinDim * 0.5f) continue;
 
                                 float pcx = (slotCircles[i].CX + slotCircles[j].CX) / 2f;
@@ -1033,7 +1052,6 @@ namespace A2Z
                         if (coaxialPairs.Count < 2) continue;
 
                         // 완전한 원형인 동축 쌍은 일반 홀이므로 슬롯홀 후보에서 제외
-                        // (슬롯홀의 양 끝은 반원이므로 IsCompleteCircle을 통과하지 않음)
                         var slotCandidatePairs = new List<int>();
                         for (int pi = 0; pi < coaxialPairs.Count; pi++)
                         {
@@ -1042,7 +1060,6 @@ namespace A2Z
                             var c1 = slotCircles[indices.ci];
                             var c2 = slotCircles[indices.cj];
 
-                            // 두 원 중 하나라도 완전한 원형이면 일반 홀 → 슬롯홀 후보 제외
                             bool isCircle1Complete = IsCompleteCircle(slotOsnapList, c1.CX, c1.CY, c1.CZ, c1.R, pair.axis, pair.depth, tolerance);
                             bool isCircle2Complete = IsCompleteCircle(slotOsnapList, c2.CX, c2.CY, c2.CZ, c2.R, pair.axis, pair.depth, tolerance);
 
@@ -1055,21 +1072,28 @@ namespace A2Z
                         if (slotCandidatePairs.Count < 2) continue;
 
                         // 슬롯홀 감지: 같은 반지름 + 같은 축 + 횡방향 오프셋 + 사각기둥 검증
+                        // ★ 각 원(circle index)은 한 번만 사용 (1슬롯홀 = 반원기둥2 + 사각기둥1)
+                        var usedCircleIdx = new HashSet<int>();
                         var usedPairIdx = new HashSet<int>();
                         for (int pi = 0; pi < slotCandidatePairs.Count; pi++)
                         {
                             int p = slotCandidatePairs[pi];
                             if (usedPairIdx.Contains(p)) continue;
+                            var pIndices = pairCircleIndices[p];
+                            if (usedCircleIdx.Contains(pIndices.ci) || usedCircleIdx.Contains(pIndices.cj)) continue;
+
                             for (int qi = pi + 1; qi < slotCandidatePairs.Count; qi++)
                             {
                                 int q = slotCandidatePairs[qi];
                                 if (usedPairIdx.Contains(q)) continue;
+                                var qIndices = pairCircleIndices[q];
+                                if (usedCircleIdx.Contains(qIndices.ci) || usedCircleIdx.Contains(qIndices.cj)) continue;
+
                                 if (Math.Abs(coaxialPairs[p].radius - coaxialPairs[q].radius) > tolerance) continue;
                                 if (coaxialPairs[p].axis != coaxialPairs[q].axis) continue;
-                                // 두 쌍의 깊이도 유사해야 함 (같은 판재 관통)
                                 if (Math.Abs(coaxialPairs[p].depth - coaxialPairs[q].depth) > tolerance) continue;
 
-                                // 횡방향 거리 계산 (홀 축에 수직인 평면)
+                                // 횡방향 거리 계산
                                 float lateralDist;
                                 switch (coaxialPairs[p].axis)
                                 {
@@ -1090,12 +1114,10 @@ namespace A2Z
                                         break;
                                 }
 
-                                if (lateralDist < tolerance) continue; // 같은 위치 = 일반 홀
-                                if (lateralDist > coaxialPairs[p].radius * 5f) continue; // 슬롯홀 길이는 반지름의 5배 이내
+                                if (lateralDist < tolerance) continue;
+                                if (lateralDist > coaxialPairs[p].radius * 5f) continue;
 
-                                // ★ 사각기둥 검증: 두 반원기둥 사이에 직선(LINE) Osnap이 있는지 확인
-                                // 슬롯홀은 반원기둥 2개 + 사각기둥 1개로 구성되며,
-                                // 사각기둥의 직선 변이 LINE Osnap으로 검출되어야 함
+                                // 사각기둥 검증: LINE Osnap이 반원기둥 사이에 있는지
                                 if (!HasSlotConnectingLines(slotLines, coaxialPairs[p], coaxialPairs[q], lateralDist, tolerance))
                                     continue;
 
@@ -1113,10 +1135,41 @@ namespace A2Z
                                     CenterZ = slotCz
                                 });
 
+                                // ★ 사용된 원과 쌍 모두 마킹 (재사용 방지)
                                 usedPairIdx.Add(p);
                                 usedPairIdx.Add(q);
+                                usedCircleIdx.Add(pIndices.ci);
+                                usedCircleIdx.Add(pIndices.cj);
+                                usedCircleIdx.Add(qIndices.ci);
+                                usedCircleIdx.Add(qIndices.cj);
                                 break;
                             }
+                        }
+
+                        // 슬롯홀 중복 제거: 같은 위치(중심 근접)의 슬롯홀은 1개로
+                        if (plate.SlotHoles.Count > 1)
+                        {
+                            var dedupSlots = new List<SlotHoleInfo>();
+                            foreach (var slot in plate.SlotHoles)
+                            {
+                                bool isDup = false;
+                                foreach (var existing in dedupSlots)
+                                {
+                                    float dist = (float)Math.Sqrt(
+                                        (slot.CenterX - existing.CenterX) * (slot.CenterX - existing.CenterX) +
+                                        (slot.CenterY - existing.CenterY) * (slot.CenterY - existing.CenterY) +
+                                        (slot.CenterZ - existing.CenterZ) * (slot.CenterZ - existing.CenterZ));
+                                    if (dist < tolerance * 2 &&
+                                        Math.Abs(slot.Radius - existing.Radius) < tolerance &&
+                                        Math.Abs(slot.SlotLength - existing.SlotLength) < tolerance)
+                                    {
+                                        isDup = true;
+                                        break;
+                                    }
+                                }
+                                if (!isDup) dedupSlots.Add(slot);
+                            }
+                            plate.SlotHoles = dedupSlots;
                         }
 
                         // 슬롯홀 위치와 겹치는 일반 홀 제거
@@ -1137,14 +1190,24 @@ namespace A2Z
                             });
                         }
 
-                        // 슬롯홀 사이즈 문자열 생성: R{반지름}/({폭}*{길이}*{깊이})
+                        // ★ 슬롯홀 사이즈 문자열: 동일 스펙 그룹핑 → *N 표기
                         if (plate.SlotHoles.Count > 0)
                         {
+                            // 동일 스펙(반지름+길이+깊이) 기준 그룹핑
+                            var slotGroups = plate.SlotHoles
+                                .GroupBy(s => $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}")
+                                .ToList();
+
                             var slotParts = new List<string>();
-                            foreach (var slot in plate.SlotHoles)
+                            foreach (var grp in slotGroups)
                             {
+                                var slot = grp.First();
                                 float width = slot.Radius * 2f;
-                                slotParts.Add($"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})");
+                                string spec = $"({width:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
+                                if (grp.Count() > 1)
+                                    slotParts.Add($"{spec}*{grp.Count()}");
+                                else
+                                    slotParts.Add(spec);
                             }
                             plate.SlotHoleSize = string.Join(", ", slotParts);
                         }
