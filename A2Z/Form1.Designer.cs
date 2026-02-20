@@ -107,6 +107,7 @@ namespace A2Z
             this.colBomStage6 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomRmk = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panelBOMInfoHeader = new System.Windows.Forms.Panel();
+            this.btnCollectBOMInfo = new System.Windows.Forms.Button();
             this.lblBOMInfoDesc = new System.Windows.Forms.Label();
             this.lblBOMInfoTitle = new System.Windows.Forms.Label();
             this.lvDrawingSheet = new System.Windows.Forms.ListView();
@@ -1096,6 +1097,7 @@ namespace A2Z
             // panelBOMInfoHeader
             //
             this.panelBOMInfoHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
+            this.panelBOMInfoHeader.Controls.Add(this.btnCollectBOMInfo);
             this.panelBOMInfoHeader.Controls.Add(this.lblBOMInfoDesc);
             this.panelBOMInfoHeader.Controls.Add(this.lblBOMInfoTitle);
             this.panelBOMInfoHeader.Dock = System.Windows.Forms.DockStyle.Top;
@@ -1114,6 +1116,22 @@ namespace A2Z
             this.lblBOMInfoTitle.Size = new System.Drawing.Size(150, 25);
             this.lblBOMInfoTitle.TabIndex = 0;
             this.lblBOMInfoTitle.Text = "BILL OF MATERIAL";
+            //
+            // btnCollectBOMInfo
+            //
+            this.btnCollectBOMInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCollectBOMInfo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(130)))), ((int)(((byte)(180)))));
+            this.btnCollectBOMInfo.FlatAppearance.BorderSize = 0;
+            this.btnCollectBOMInfo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCollectBOMInfo.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnCollectBOMInfo.ForeColor = System.Drawing.Color.White;
+            this.btnCollectBOMInfo.Location = new System.Drawing.Point(333, 12);
+            this.btnCollectBOMInfo.Name = "btnCollectBOMInfo";
+            this.btnCollectBOMInfo.Size = new System.Drawing.Size(100, 30);
+            this.btnCollectBOMInfo.TabIndex = 2;
+            this.btnCollectBOMInfo.Text = "BOM 수집";
+            this.btnCollectBOMInfo.UseVisualStyleBackColor = false;
+            this.btnCollectBOMInfo.Click += new System.EventHandler(this.btnCollectBOMInfo_Click);
             //
             // lblBOMInfoDesc
             //
@@ -1156,8 +1174,8 @@ namespace A2Z
             //
             // colBomPieceNo
             //
-            this.colBomPieceNo.Text = "Piece No.";
-            this.colBomPieceNo.Width = 120;
+            this.colBomPieceNo.Text = "No";
+            this.colBomPieceNo.Width = 40;
             //
             // colBomL
             //
@@ -1366,6 +1384,7 @@ namespace A2Z
         private System.Windows.Forms.Button btnDrawingAxisZ;
         private System.Windows.Forms.TabPage tabPageBOMInfo;
         private System.Windows.Forms.Panel panelBOMInfoHeader;
+        private System.Windows.Forms.Button btnCollectBOMInfo;
         private System.Windows.Forms.Label lblBOMInfoTitle;
         private System.Windows.Forms.Label lblBOMInfoDesc;
         private System.Windows.Forms.ListView lvBOMInfo;

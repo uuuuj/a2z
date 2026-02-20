@@ -957,7 +957,8 @@ namespace A2Z
                     bom.Holes = deduped;
                 }
 
-                // --- 슬롯홀 검출: 같은 반지름의 동축 쌍 2개가 횡방향 오프셋 → 슬롯홀 ---
+                // --- 슬롯홀 검출: 반원기둥 2개 + 사각기둥 1개 구조 검증 ---
+                // 홀과 동일하게 관통(depth ≈ 판재두께) 검증 + LINE Osnap으로 사각기둥 검증
                 try
                 {
                     foreach (var plate in plateBodies)
@@ -965,7 +966,13 @@ namespace A2Z
                         var slotOsnapList = vizcore3d.Object3D.GetOsnapPoint(plate.Index);
                         if (slotOsnapList == null) continue;
 
-                        // CIRCLE Osnap 수집
+                        // 판재 두께 계산 (홀 관통 검증용)
+                        float plateSizeX = Math.Abs(plate.MaxX - plate.MinX);
+                        float plateSizeY = Math.Abs(plate.MaxY - plate.MinY);
+                        float plateSizeZ = Math.Abs(plate.MaxZ - plate.MinZ);
+                        float plateMinDim = Math.Min(plateSizeX, Math.Min(plateSizeY, plateSizeZ));
+
+                        // CIRCLE Osnap 수집 (반원기둥 검출용)
                         var slotCircles = new List<(float CX, float CY, float CZ, float R)>();
                         foreach (var osnap in slotOsnapList)
                         {
@@ -981,7 +988,17 @@ namespace A2Z
 
                         if (slotCircles.Count < 4) continue;
 
-                        // 동축 쌍 검색 (같은 반지름, 1축만 차이)
+                        // LINE Osnap 수집 (사각기둥 직선 변 검증용)
+                        var slotLines = new List<(float SX, float SY, float SZ, float EX, float EY, float EZ)>();
+                        foreach (var osnap in slotOsnapList)
+                        {
+                            if (osnap.Kind != VIZCore3D.NET.Data.OsnapKind.LINE) continue;
+                            if (osnap.Start == null || osnap.End == null) continue;
+                            slotLines.Add((osnap.Start.X, osnap.Start.Y, osnap.Start.Z,
+                                           osnap.End.X, osnap.End.Y, osnap.End.Z));
+                        }
+
+                        // 동축 쌍 검색 (같은 반지름, 1축만 차이) + 관통 검증
                         var coaxialPairs = new List<(float radius, float cx, float cy, float cz, string axis, float depth)>();
                         var pairCircleIndices = new List<(int ci, int cj)>();
                         for (int i = 0; i < slotCircles.Count; i++)
@@ -999,6 +1016,11 @@ namespace A2Z
                                 if (ddy > tolerance) { sigAxes++; depth = ddy; axis = "Y"; }
                                 if (ddz > tolerance) { sigAxes++; depth = ddz; axis = "Z"; }
                                 if (sigAxes != 1) continue;
+
+                                // ★ 관통 검증 (홀과 동일): 깊이가 판재 두께 이하여야 함
+                                if (depth > plateMinDim + tolerance) continue;
+                                // 깊이가 판재 두께의 50% 이상이어야 관통홀 (표면 스크래치 제외)
+                                if (depth < plateMinDim * 0.5f) continue;
 
                                 float pcx = (slotCircles[i].CX + slotCircles[j].CX) / 2f;
                                 float pcy = (slotCircles[i].CY + slotCircles[j].CY) / 2f;
@@ -1032,7 +1054,7 @@ namespace A2Z
 
                         if (slotCandidatePairs.Count < 2) continue;
 
-                        // 슬롯홀 감지: 같은 반지름 + 같은 축 + 횡방향 오프셋된 동축 쌍 조합
+                        // 슬롯홀 감지: 같은 반지름 + 같은 축 + 횡방향 오프셋 + 사각기둥 검증
                         var usedPairIdx = new HashSet<int>();
                         for (int pi = 0; pi < slotCandidatePairs.Count; pi++)
                         {
@@ -1044,6 +1066,8 @@ namespace A2Z
                                 if (usedPairIdx.Contains(q)) continue;
                                 if (Math.Abs(coaxialPairs[p].radius - coaxialPairs[q].radius) > tolerance) continue;
                                 if (coaxialPairs[p].axis != coaxialPairs[q].axis) continue;
+                                // 두 쌍의 깊이도 유사해야 함 (같은 판재 관통)
+                                if (Math.Abs(coaxialPairs[p].depth - coaxialPairs[q].depth) > tolerance) continue;
 
                                 // 횡방향 거리 계산 (홀 축에 수직인 평면)
                                 float lateralDist;
@@ -1068,6 +1092,12 @@ namespace A2Z
 
                                 if (lateralDist < tolerance) continue; // 같은 위치 = 일반 홀
                                 if (lateralDist > coaxialPairs[p].radius * 5f) continue; // 슬롯홀 길이는 반지름의 5배 이내
+
+                                // ★ 사각기둥 검증: 두 반원기둥 사이에 직선(LINE) Osnap이 있는지 확인
+                                // 슬롯홀은 반원기둥 2개 + 사각기둥 1개로 구성되며,
+                                // 사각기둥의 직선 변이 LINE Osnap으로 검출되어야 함
+                                if (!HasSlotConnectingLines(slotLines, coaxialPairs[p], coaxialPairs[q], lateralDist, tolerance))
+                                    continue;
 
                                 float slotCx = (coaxialPairs[p].cx + coaxialPairs[q].cx) / 2f;
                                 float slotCy = (coaxialPairs[p].cy + coaxialPairs[q].cy) / 2f;
@@ -1231,6 +1261,73 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 슬롯홀 사각기둥 검증: 두 반원기둥 쌍 사이에 직선(LINE) Osnap이 존재하는지 확인
+        /// 슬롯홀 = 반원기둥 2개 + 사각기둥 1개 구조이며, 사각기둥의 직선 변이
+        /// LINE Osnap으로 검출되어야 진짜 슬롯홀로 인정
+        /// </summary>
+        private bool HasSlotConnectingLines(
+            List<(float SX, float SY, float SZ, float EX, float EY, float EZ)> lines,
+            (float radius, float cx, float cy, float cz, string axis, float depth) pair1,
+            (float radius, float cx, float cy, float cz, string axis, float depth) pair2,
+            float lateralDist, float tolerance)
+        {
+            // LINE Osnap이 없으면 사각기둥 구조가 아님 → 슬롯홀 아님
+            if (lines.Count == 0) return false;
+
+            // 슬롯 방향 벡터 (pair1 → pair2, 깊이 축 제외한 횡방향)
+            float dirX = pair2.cx - pair1.cx;
+            float dirY = pair2.cy - pair1.cy;
+            float dirZ = pair2.cz - pair1.cz;
+            float dirLen = (float)Math.Sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+            if (dirLen < 0.001f) return false;
+            dirX /= dirLen; dirY /= dirLen; dirZ /= dirLen;
+
+            // 슬롯 중심
+            float midX = (pair1.cx + pair2.cx) / 2f;
+            float midY = (pair1.cy + pair2.cy) / 2f;
+            float midZ = (pair1.cz + pair2.cz) / 2f;
+
+            int connectingLineCount = 0;
+            float lineLenTol = lateralDist * 0.5f; // 길이 50% 허용 오차
+
+            foreach (var line in lines)
+            {
+                // 직선의 방향 벡터
+                float lx = line.EX - line.SX;
+                float ly = line.EY - line.SY;
+                float lz = line.EZ - line.SZ;
+                float lineLen = (float)Math.Sqrt(lx * lx + ly * ly + lz * lz);
+                if (lineLen < 0.1f) continue;
+
+                // 직선 길이가 lateralDist와 유사한지 확인
+                if (Math.Abs(lineLen - lateralDist) > lineLenTol) continue;
+
+                // 직선 방향이 슬롯 방향과 평행한지 확인 (내적 절대값 ≈ 1)
+                float lnx = lx / lineLen, lny = ly / lineLen, lnz = lz / lineLen;
+                float dot = Math.Abs(lnx * dirX + lny * dirY + lnz * dirZ);
+                if (dot < 0.8f) continue; // 약 37° 이내
+
+                // 직선 중점이 슬롯 중심 근처에 있는지 확인
+                float lmx = (line.SX + line.EX) / 2f;
+                float lmy = (line.SY + line.EY) / 2f;
+                float lmz = (line.SZ + line.EZ) / 2f;
+                float distToMid = (float)Math.Sqrt(
+                    (lmx - midX) * (lmx - midX) +
+                    (lmy - midY) * (lmy - midY) +
+                    (lmz - midZ) * (lmz - midZ));
+
+                // 직선 중점이 슬롯 영역 안에 있어야 (반지름 + 깊이 범위)
+                float maxDist = pair1.radius + pair1.depth + tolerance;
+                if (distToMid > maxDist) continue;
+
+                connectingLineCount++;
+            }
+
+            // 최소 2개의 연결 직선 필요 (상면/하면 각 1개, 또는 양쪽 각 1개)
+            return connectingLineCount >= 2;
+        }
+
+        /// <summary>
         /// BOM 데이터 수집 버튼
         /// </summary>
         private void btnCollectBOM_Click(object sender, EventArgs e)
@@ -1243,6 +1340,131 @@ namespace A2Z
             else
             {
                 MessageBox.Show("로드된 모델이 없거나 BOM 수집에 실패했습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>
+        /// BOM 정보 수집 버튼 클릭 - UDA에서 Item, Size, Matl, Weight를 가져와 그룹핑
+        /// </summary>
+        private void btnCollectBOMInfo_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                lvBOMInfo.Items.Clear();
+
+                // Part 노드 가져오기 (Part 레벨에서 UDA 조회)
+                List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
+                if (partNodes == null || partNodes.Count == 0)
+                {
+                    // Part가 없으면 Body 노드로 시도
+                    partNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                }
+
+                if (partNodes == null || partNodes.Count == 0)
+                {
+                    MessageBox.Show("로드된 모델이 없거나 노드를 찾을 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // UDA 키 목록 한번만 조회
+                List<string> udaKeyList = null;
+                try
+                {
+                    var keys = vizcore3d.Object3D.UDA.Keys;
+                    if (keys != null && keys.Count > 0)
+                        udaKeyList = new List<string>(keys);
+                }
+                catch { }
+
+                // 각 노드에서 UDA 값 수집 (UDA가 없어도 노드 이름으로 표시)
+                var rawBomItems = new List<Tuple<string, string, string, string>>();  // Item, Size, Matl, Weight
+
+                foreach (var node in partNodes)
+                {
+                    string itemVal = "";
+                    string sizeVal = "";
+                    string matlVal = "";
+                    string weightVal = "";
+
+                    // UDA 키가 존재하면 값 조회 시도
+                    if (udaKeyList != null)
+                    {
+                        foreach (string key in udaKeyList)
+                        {
+                            string keyUpper = key.Trim().ToUpper();
+                            try
+                            {
+                                var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
+                                string valStr = (val != null) ? val.ToString().Trim() : "";
+
+                                if (keyUpper == "ITEM")
+                                    itemVal = valStr;
+                                else if (keyUpper == "SIZE")
+                                    sizeVal = valStr;
+                                else if (keyUpper == "MATL" || keyUpper == "MATERIAL")
+                                    matlVal = valStr;
+                                else if (keyUpper == "WEIGHT")
+                                    weightVal = valStr;
+                            }
+                            catch { }
+                        }
+                    }
+
+                    // UDA에 Item이 없으면 노드 이름을 Item으로 사용
+                    if (string.IsNullOrEmpty(itemVal))
+                        itemVal = node.NodeName ?? "";
+
+                    // 빈 항목은 "X"로 표시
+                    if (string.IsNullOrEmpty(itemVal)) itemVal = "X";
+                    if (string.IsNullOrEmpty(sizeVal)) sizeVal = "X";
+                    if (string.IsNullOrEmpty(matlVal)) matlVal = "X";
+                    if (string.IsNullOrEmpty(weightVal)) weightVal = "X";
+
+                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matlVal, weightVal));
+                }
+
+                // Item, Size, Matl, Weight 4개 값 기준으로 그룹핑 및 Q'ty 카운팅
+                var grouped = rawBomItems
+                    .GroupBy(x => new { Item = x.Item1, Size = x.Item2, Matl = x.Item3, Weight = x.Item4 })
+                    .Select(g => new
+                    {
+                        Item = g.Key.Item,
+                        Size = g.Key.Size,
+                        Matl = g.Key.Matl,
+                        Weight = g.Key.Weight,
+                        Qty = g.Count()
+                    })
+                    .ToList();
+
+                // ListView에 채우기 (No는 1번부터)
+                lvBOMInfo.BeginUpdate();
+                int no = 1;
+                foreach (var item in grouped)
+                {
+                    ListViewItem lvi = new ListViewItem(no.ToString());  // No
+                    lvi.SubItems.Add("");               // L
+                    lvi.SubItems.Add(item.Item);        // Item
+                    lvi.SubItems.Add(item.Size);        // Size
+                    lvi.SubItems.Add(item.Matl);        // Mat'l
+                    lvi.SubItems.Add(item.Qty.ToString());  // Q'ty
+                    lvi.SubItems.Add(item.Weight);      // Weight
+                    lvi.SubItems.Add("");               // MA
+                    lvi.SubItems.Add("");               // FA
+                    lvi.SubItems.Add("");               // ST
+                    lvi.SubItems.Add("");               // Stage4
+                    lvi.SubItems.Add("");               // Stage5
+                    lvi.SubItems.Add("");               // Stage6
+                    lvi.SubItems.Add("");               // Rmk
+                    lvBOMInfo.Items.Add(lvi);
+                    no++;
+                }
+                lvBOMInfo.EndUpdate();
+
+                MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료 (중복 그룹핑 적용)", grouped.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("BOM 정보 수집 오류:\n" + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
