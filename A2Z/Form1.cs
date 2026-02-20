@@ -501,6 +501,7 @@ namespace A2Z
                         // 홀사이즈: 부재 이름으로 BOM 매칭
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
                         lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
+                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -657,6 +658,8 @@ namespace A2Z
                 {
                     bom.Holes.Clear();
                     bom.HoleSize = "";
+                    bom.SlotHoles.Clear();
+                    bom.SlotHoleSize = "";
                 }
 
                 // 원기둥 vs 판재 분류: CircleRadius > 0이라도 바운딩박스 형태가 원기둥이 아니면 판재로 분류
@@ -690,8 +693,9 @@ namespace A2Z
                         plateBodies.Add(b); // Angle 등 원형 특성만 있는 구조 부재
                 }
 
-                if (cylinderBodies.Count == 0 || plateBodies.Count == 0) return;
+                if (plateBodies.Count == 0) return;
 
+                if (cylinderBodies.Count > 0)
                 foreach (var cylinder in cylinderBodies)
                 {
                     // 원기둥의 바운딩 박스 크기
@@ -952,6 +956,146 @@ namespace A2Z
                     }
                     bom.Holes = deduped;
                 }
+
+                // --- 슬롯홀 검출: 같은 반지름의 동축 쌍 2개가 횡방향 오프셋 → 슬롯홀 ---
+                try
+                {
+                    foreach (var plate in plateBodies)
+                    {
+                        var slotOsnapList = vizcore3d.Object3D.GetOsnapPoint(plate.Index);
+                        if (slotOsnapList == null) continue;
+
+                        // CIRCLE Osnap 수집
+                        var slotCircles = new List<(float CX, float CY, float CZ, float R)>();
+                        foreach (var osnap in slotOsnapList)
+                        {
+                            if (osnap.Kind != VIZCore3D.NET.Data.OsnapKind.CIRCLE) continue;
+                            if (osnap.Center == null || osnap.Start == null) continue;
+                            float rdx = osnap.Start.X - osnap.Center.X;
+                            float rdy = osnap.Start.Y - osnap.Center.Y;
+                            float rdz = osnap.Start.Z - osnap.Center.Z;
+                            float r = (float)Math.Sqrt(rdx * rdx + rdy * rdy + rdz * rdz);
+                            if (r < 0.1f) continue;
+                            slotCircles.Add((osnap.Center.X, osnap.Center.Y, osnap.Center.Z, r));
+                        }
+
+                        if (slotCircles.Count < 4) continue;
+
+                        // 동축 쌍 검색 (같은 반지름, 1축만 차이)
+                        var coaxialPairs = new List<(float radius, float cx, float cy, float cz, string axis, float depth)>();
+                        var pairCircleIndices = new List<(int ci, int cj)>();
+                        for (int i = 0; i < slotCircles.Count; i++)
+                        {
+                            for (int j = i + 1; j < slotCircles.Count; j++)
+                            {
+                                if (Math.Abs(slotCircles[i].R - slotCircles[j].R) > tolerance) continue;
+                                float ddx = Math.Abs(slotCircles[j].CX - slotCircles[i].CX);
+                                float ddy = Math.Abs(slotCircles[j].CY - slotCircles[i].CY);
+                                float ddz = Math.Abs(slotCircles[j].CZ - slotCircles[i].CZ);
+                                int sigAxes = 0;
+                                float depth = 0f;
+                                string axis = "";
+                                if (ddx > tolerance) { sigAxes++; depth = ddx; axis = "X"; }
+                                if (ddy > tolerance) { sigAxes++; depth = ddy; axis = "Y"; }
+                                if (ddz > tolerance) { sigAxes++; depth = ddz; axis = "Z"; }
+                                if (sigAxes != 1) continue;
+
+                                float pcx = (slotCircles[i].CX + slotCircles[j].CX) / 2f;
+                                float pcy = (slotCircles[i].CY + slotCircles[j].CY) / 2f;
+                                float pcz = (slotCircles[i].CZ + slotCircles[j].CZ) / 2f;
+                                coaxialPairs.Add((slotCircles[i].R, pcx, pcy, pcz, axis, depth));
+                                pairCircleIndices.Add((i, j));
+                            }
+                        }
+
+                        if (coaxialPairs.Count < 2) continue;
+
+                        // 슬롯홀 감지: 같은 반지름 + 같은 축 + 횡방향 오프셋된 동축 쌍 조합
+                        var usedPairIdx = new HashSet<int>();
+                        for (int p = 0; p < coaxialPairs.Count; p++)
+                        {
+                            if (usedPairIdx.Contains(p)) continue;
+                            for (int q = p + 1; q < coaxialPairs.Count; q++)
+                            {
+                                if (usedPairIdx.Contains(q)) continue;
+                                if (Math.Abs(coaxialPairs[p].radius - coaxialPairs[q].radius) > tolerance) continue;
+                                if (coaxialPairs[p].axis != coaxialPairs[q].axis) continue;
+
+                                // 횡방향 거리 계산 (홀 축에 수직인 평면)
+                                float lateralDist;
+                                switch (coaxialPairs[p].axis)
+                                {
+                                    case "X":
+                                        lateralDist = (float)Math.Sqrt(
+                                            (coaxialPairs[q].cy - coaxialPairs[p].cy) * (coaxialPairs[q].cy - coaxialPairs[p].cy) +
+                                            (coaxialPairs[q].cz - coaxialPairs[p].cz) * (coaxialPairs[q].cz - coaxialPairs[p].cz));
+                                        break;
+                                    case "Y":
+                                        lateralDist = (float)Math.Sqrt(
+                                            (coaxialPairs[q].cx - coaxialPairs[p].cx) * (coaxialPairs[q].cx - coaxialPairs[p].cx) +
+                                            (coaxialPairs[q].cz - coaxialPairs[p].cz) * (coaxialPairs[q].cz - coaxialPairs[p].cz));
+                                        break;
+                                    default: // Z
+                                        lateralDist = (float)Math.Sqrt(
+                                            (coaxialPairs[q].cx - coaxialPairs[p].cx) * (coaxialPairs[q].cx - coaxialPairs[p].cx) +
+                                            (coaxialPairs[q].cy - coaxialPairs[p].cy) * (coaxialPairs[q].cy - coaxialPairs[p].cy));
+                                        break;
+                                }
+
+                                if (lateralDist < tolerance) continue; // 같은 위치 = 일반 홀
+                                if (lateralDist > coaxialPairs[p].radius * 20f) continue; // 너무 먼 거리
+
+                                float slotCx = (coaxialPairs[p].cx + coaxialPairs[q].cx) / 2f;
+                                float slotCy = (coaxialPairs[p].cy + coaxialPairs[q].cy) / 2f;
+                                float slotCz = (coaxialPairs[p].cz + coaxialPairs[q].cz) / 2f;
+
+                                plate.SlotHoles.Add(new SlotHoleInfo
+                                {
+                                    Radius = coaxialPairs[p].radius,
+                                    SlotLength = lateralDist,
+                                    CenterX = slotCx,
+                                    CenterY = slotCy,
+                                    CenterZ = slotCz
+                                });
+
+                                usedPairIdx.Add(p);
+                                usedPairIdx.Add(q);
+                                break;
+                            }
+                        }
+
+                        // 슬롯홀 위치와 겹치는 일반 홀 제거
+                        if (plate.SlotHoles.Count > 0 && plate.Holes.Count > 0)
+                        {
+                            plate.Holes.RemoveAll(h =>
+                            {
+                                foreach (var slot in plate.SlotHoles)
+                                {
+                                    float dist = (float)Math.Sqrt(
+                                        (h.CenterX - slot.CenterX) * (h.CenterX - slot.CenterX) +
+                                        (h.CenterY - slot.CenterY) * (h.CenterY - slot.CenterY) +
+                                        (h.CenterZ - slot.CenterZ) * (h.CenterZ - slot.CenterZ));
+                                    if (dist < slot.SlotLength / 2f + slot.Radius + tolerance)
+                                        return true;
+                                }
+                                return false;
+                            });
+                        }
+
+                        // 슬롯홀 사이즈 문자열 생성: R{반지름}/({폭}*{길이})
+                        if (plate.SlotHoles.Count > 0)
+                        {
+                            var slotParts = new List<string>();
+                            foreach (var slot in plate.SlotHoles)
+                            {
+                                float width = slot.Radius * 2f;
+                                slotParts.Add($"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0})");
+                            }
+                            plate.SlotHoleSize = string.Join(", ", slotParts);
+                        }
+                    }
+                }
+                catch { }
 
                 // 홀사이즈 문자열 생성
                 foreach (var bom in bomList)
@@ -2252,6 +2396,7 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
                         lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
+                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
 
@@ -2556,6 +2701,7 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
                         lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
+                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -2725,6 +2871,7 @@ namespace A2Z
                 lvi.SubItems.Add(point.Z.ToString("F2"));
                 var matchBom = bomList?.FirstOrDefault(b => b.Name == nodeName);
                 lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
+                lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
                 lvOsnap.Items.Add(lvi);
             }
             catch (Exception ex)
@@ -5668,6 +5815,53 @@ namespace A2Z
                     }
                     catch { }
                 }
+
+                // 11. 슬롯홀 풍선 표시 (오른쪽 상부 45° 방향)
+                if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
+                {
+                    try
+                    {
+                        foreach (var slot in bom.SlotHoles)
+                        {
+                            float slotWidth = slot.Radius * 2f;
+                            string slotText = $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0})";
+
+                            VIZCore3D.NET.Data.Vertex3D slotCenter = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ);
+
+                            // 오른쪽 상부 45° 방향에 텍스트 배치 (오른쪽=+H, 위=+V)
+                            VIZCore3D.NET.Data.Vertex3D slotTextPos;
+                            float sOffH = baseOffset;
+                            float sOffV = baseOffset + balloonIdx * lineSpacing;
+                            switch (viewDirection)
+                            {
+                                case "X": // H=Y, V=Z → 오른쪽=+Y, 위=+Z
+                                    slotTextPos = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, bom.MaxY + sOffH, bom.MaxZ + sOffV);
+                                    break;
+                                case "Y": // H=X, V=Z → 오른쪽=+X, 위=+Z
+                                    slotTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MaxX + sOffH, slot.CenterY, bom.MaxZ + sOffV);
+                                    break;
+                                default: // Z: H=X, V=Y → 오른쪽=+X, 위=+Y
+                                    slotTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MaxX + sOffH, bom.MaxY + sOffV, slot.CenterZ);
+                                    break;
+                            }
+
+                            VIZCore3D.NET.Data.NoteStyle slotStyle = vizcore3d.Review.Note.GetStyle();
+                            slotStyle.UseSymbol = false;
+                            slotStyle.BackgroudTransparent = true;
+                            slotStyle.FontBold = true;
+                            slotStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
+                            slotStyle.FontColor = Color.FromArgb(180, 0, 180);
+                            slotStyle.LineColor = Color.FromArgb(180, 0, 180);
+                            slotStyle.LineWidth = 1;
+                            slotStyle.ArrowColor = Color.FromArgb(180, 0, 180);
+                            slotStyle.ArrowWidth = 3;
+
+                            vizcore3d.Review.Note.AddNoteSurface(slotText, slotCenter, slotTextPos, slotStyle);
+                            balloonIdx++;
+                        }
+                    }
+                    catch { }
+                }
             }
             catch (Exception ex)
             {
@@ -6243,11 +6437,15 @@ namespace A2Z
         public string Purpose { get; set; }
         public string HoleSize { get; set; }
         public List<HoleInfo> Holes { get; set; }
+        public string SlotHoleSize { get; set; }
+        public List<SlotHoleInfo> SlotHoles { get; set; }
 
         public BOMData()
         {
             Holes = new List<HoleInfo>();
             HoleSize = "";
+            SlotHoles = new List<SlotHoleInfo>();
+            SlotHoleSize = "";
         }
     }
 
@@ -6261,6 +6459,18 @@ namespace A2Z
         public float CenterY { get; set; }
         public float CenterZ { get; set; }
         public int CylinderBodyIndex { get; set; }
+    }
+
+    /// <summary>
+    /// 슬롯홀 정보 구조체
+    /// </summary>
+    public class SlotHoleInfo
+    {
+        public float Radius { get; set; }
+        public float SlotLength { get; set; }
+        public float CenterX { get; set; }
+        public float CenterY { get; set; }
+        public float CenterZ { get; set; }
     }
 
     /// <summary>
