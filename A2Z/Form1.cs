@@ -1010,13 +1010,37 @@ namespace A2Z
 
                         if (coaxialPairs.Count < 2) continue;
 
+                        // 완전한 원형인 동축 쌍은 일반 홀이므로 슬롯홀 후보에서 제외
+                        // (슬롯홀의 양 끝은 반원이므로 IsCompleteCircle을 통과하지 않음)
+                        var slotCandidatePairs = new List<int>();
+                        for (int pi = 0; pi < coaxialPairs.Count; pi++)
+                        {
+                            var pair = coaxialPairs[pi];
+                            var indices = pairCircleIndices[pi];
+                            var c1 = slotCircles[indices.ci];
+                            var c2 = slotCircles[indices.cj];
+
+                            // 두 원 중 하나라도 완전한 원형이면 일반 홀 → 슬롯홀 후보 제외
+                            bool isCircle1Complete = IsCompleteCircle(slotOsnapList, c1.CX, c1.CY, c1.CZ, c1.R, pair.axis, pair.depth, tolerance);
+                            bool isCircle2Complete = IsCompleteCircle(slotOsnapList, c2.CX, c2.CY, c2.CZ, c2.R, pair.axis, pair.depth, tolerance);
+
+                            if (!isCircle1Complete && !isCircle2Complete)
+                            {
+                                slotCandidatePairs.Add(pi);
+                            }
+                        }
+
+                        if (slotCandidatePairs.Count < 2) continue;
+
                         // 슬롯홀 감지: 같은 반지름 + 같은 축 + 횡방향 오프셋된 동축 쌍 조합
                         var usedPairIdx = new HashSet<int>();
-                        for (int p = 0; p < coaxialPairs.Count; p++)
+                        for (int pi = 0; pi < slotCandidatePairs.Count; pi++)
                         {
+                            int p = slotCandidatePairs[pi];
                             if (usedPairIdx.Contains(p)) continue;
-                            for (int q = p + 1; q < coaxialPairs.Count; q++)
+                            for (int qi = pi + 1; qi < slotCandidatePairs.Count; qi++)
                             {
+                                int q = slotCandidatePairs[qi];
                                 if (usedPairIdx.Contains(q)) continue;
                                 if (Math.Abs(coaxialPairs[p].radius - coaxialPairs[q].radius) > tolerance) continue;
                                 if (coaxialPairs[p].axis != coaxialPairs[q].axis) continue;
@@ -1043,7 +1067,7 @@ namespace A2Z
                                 }
 
                                 if (lateralDist < tolerance) continue; // 같은 위치 = 일반 홀
-                                if (lateralDist > coaxialPairs[p].radius * 20f) continue; // 너무 먼 거리
+                                if (lateralDist > coaxialPairs[p].radius * 5f) continue; // 슬롯홀 길이는 반지름의 5배 이내
 
                                 float slotCx = (coaxialPairs[p].cx + coaxialPairs[q].cx) / 2f;
                                 float slotCy = (coaxialPairs[p].cy + coaxialPairs[q].cy) / 2f;
@@ -3835,7 +3859,7 @@ namespace A2Z
                 // 보조선 그리기 (연한 색상)
                 if (extensionLines.Count > 0)
                 {
-                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(180, 100, 100), 0.5f, true);
+                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(80, 80, 200), 1.5f, true);
                 }
 
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
@@ -3964,6 +3988,28 @@ namespace A2Z
                             var firstHole = grp.First();
                             balloonEntries.Add((firstHole.CenterX, firstHole.CenterY, firstHole.CenterZ,
                                 holeText, Color.FromArgb(0, 160, 0)));
+                        }
+                    }
+                }
+                catch { }
+
+                // --- 슬롯홀(SlotHole) 풍선 수집 ---
+                try
+                {
+                    HashSet<int> slotSelectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                        ? new HashSet<int>(xraySelectedNodeIndices) : null;
+
+                    foreach (var bom in bomList)
+                    {
+                        if (bom.SlotHoles == null || bom.SlotHoles.Count == 0) continue;
+                        if (slotSelectedSet != null && !slotSelectedSet.Contains(bom.Index)) continue;
+
+                        foreach (var slot in bom.SlotHoles)
+                        {
+                            float slotWidth = slot.Radius * 2f;
+                            string slotText = $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0})";
+                            balloonEntries.Add((slot.CenterX, slot.CenterY, slot.CenterZ,
+                                slotText, Color.FromArgb(180, 0, 180)));
                         }
                     }
                 }
