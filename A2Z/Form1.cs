@@ -1077,6 +1077,7 @@ namespace A2Z
                                 {
                                     Radius = coaxialPairs[p].radius,
                                     SlotLength = lateralDist,
+                                    Depth = coaxialPairs[p].depth,
                                     CenterX = slotCx,
                                     CenterY = slotCy,
                                     CenterZ = slotCz
@@ -1106,14 +1107,14 @@ namespace A2Z
                             });
                         }
 
-                        // 슬롯홀 사이즈 문자열 생성: R{반지름}/({폭}*{길이})
+                        // 슬롯홀 사이즈 문자열 생성: R{반지름}/({폭}*{길이}*{깊이})
                         if (plate.SlotHoles.Count > 0)
                         {
                             var slotParts = new List<string>();
                             foreach (var slot in plate.SlotHoles)
                             {
                                 float width = slot.Radius * 2f;
-                                slotParts.Add($"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0})");
+                                slotParts.Add($"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})");
                             }
                             plate.SlotHoleSize = string.Join(", ", slotParts);
                         }
@@ -3993,7 +3994,7 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 슬롯홀(SlotHole) 풍선 수집 ---
+                // --- 슬롯홀(SlotHole) 풍선 수집 (같은 사이즈 그룹핑, 1풍선/사이즈) ---
                 try
                 {
                     HashSet<int> slotSelectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
@@ -4004,11 +4005,18 @@ namespace A2Z
                         if (bom.SlotHoles == null || bom.SlotHoles.Count == 0) continue;
                         if (slotSelectedSet != null && !slotSelectedSet.Contains(bom.Index)) continue;
 
-                        foreach (var slot in bom.SlotHoles)
+                        // 같은 사이즈(반지름+길이+깊이) 슬롯홀 그룹핑
+                        var slotGroups = bom.SlotHoles.GroupBy(s =>
+                            $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
+                        foreach (var grp in slotGroups)
                         {
-                            float slotWidth = slot.Radius * 2f;
-                            string slotText = $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0})";
-                            balloonEntries.Add((slot.CenterX, slot.CenterY, slot.CenterZ,
+                            var first = grp.First();
+                            int count = grp.Count();
+                            float slotWidth = first.Radius * 2f;
+                            string slotText = count > 1
+                                ? $"R{first.Radius:F1}/({slotWidth:F0}*{first.SlotLength:F0}*{first.Depth:F0}) * {count}개"
+                                : $"R{first.Radius:F1}/({slotWidth:F0}*{first.SlotLength:F0}*{first.Depth:F0})";
+                            balloonEntries.Add((first.CenterX, first.CenterY, first.CenterZ,
                                 slotText, Color.FromArgb(180, 0, 180)));
                         }
                     }
@@ -5862,15 +5870,22 @@ namespace A2Z
                     catch { }
                 }
 
-                // 11. 슬롯홀 풍선 표시 (오른쪽 상부 45° 방향)
+                // 11. 슬롯홀 풍선 표시 (오른쪽 상부 45° 방향, 같은 사이즈 그룹핑)
                 if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
                 {
                     try
                     {
-                        foreach (var slot in bom.SlotHoles)
+                        // 같은 사이즈 슬롯홀 그룹핑 → 1풍선/사이즈
+                        var slotGroups = bom.SlotHoles.GroupBy(s =>
+                            $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
+                        foreach (var grp in slotGroups)
                         {
+                            var slot = grp.First();
+                            int count = grp.Count();
                             float slotWidth = slot.Radius * 2f;
-                            string slotText = $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0})";
+                            string slotText = count > 1
+                                ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {count}개"
+                                : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
 
                             VIZCore3D.NET.Data.Vertex3D slotCenter = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ);
 
@@ -6514,6 +6529,7 @@ namespace A2Z
     {
         public float Radius { get; set; }
         public float SlotLength { get; set; }
+        public float Depth { get; set; }
         public float CenterX { get; set; }
         public float CenterY { get; set; }
         public float CenterZ { get; set; }
