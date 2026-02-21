@@ -498,10 +498,11 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
-                        // 홀사이즈: 부재 이름으로 BOM 매칭
+                        // 홀사이즈/슬롯홀: 포인트 위치 기반으로 해당하는 것만 표시
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
-                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
+                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
+                        lvi.SubItems.Add(sizes.holeSize);
+                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -1388,6 +1389,57 @@ namespace A2Z
 
             // 최소 2개의 연결 직선 필요 (상면/하면 각 1개, 또는 양쪽 각 1개)
             return connectingLineCount >= 2;
+        }
+
+        /// <summary>
+        /// Osnap 포인트가 홀/슬롯홀 중 어디에 가까운지 판별하여 해당 사이즈 문자열 반환
+        /// 홀 근처면 (HoleSize, ""), 슬롯홀 근처면 ("", SlotHoleSize), 둘 다 아니면 ("", "")
+        /// </summary>
+        private (string holeSize, string slotHoleSize) GetHoleOrSlotForPoint(BOMData bom, float px, float py, float pz, float tolerance = 2.0f)
+        {
+            if (bom == null) return ("", "");
+
+            // 가장 가까운 홀까지의 거리
+            float minHoleDist = float.MaxValue;
+            if (bom.Holes != null)
+            {
+                foreach (var hole in bom.Holes)
+                {
+                    float dist = (float)Math.Sqrt(
+                        (px - hole.CenterX) * (px - hole.CenterX) +
+                        (py - hole.CenterY) * (py - hole.CenterY) +
+                        (pz - hole.CenterZ) * (pz - hole.CenterZ));
+                    if (dist < minHoleDist) minHoleDist = dist;
+                }
+            }
+
+            // 가장 가까운 슬롯홀까지의 거리
+            float minSlotDist = float.MaxValue;
+            if (bom.SlotHoles != null)
+            {
+                foreach (var slot in bom.SlotHoles)
+                {
+                    float dist = (float)Math.Sqrt(
+                        (px - slot.CenterX) * (px - slot.CenterX) +
+                        (py - slot.CenterY) * (py - slot.CenterY) +
+                        (pz - slot.CenterZ) * (pz - slot.CenterZ));
+                    if (dist < minSlotDist) minSlotDist = dist;
+                }
+            }
+
+            // 둘 다 멀면 빈값
+            bool nearHole = minHoleDist < float.MaxValue;
+            bool nearSlot = minSlotDist < float.MaxValue;
+
+            if (!nearHole && !nearSlot) return ("", "");
+            if (nearHole && !nearSlot) return (bom.HoleSize, "");
+            if (!nearHole && nearSlot) return ("", bom.SlotHoleSize);
+
+            // 둘 다 존재 → 더 가까운 쪽만 표시
+            if (minHoleDist <= minSlotDist)
+                return (bom.HoleSize, "");
+            else
+                return ("", bom.SlotHoleSize);
         }
 
         /// <summary>
@@ -2705,8 +2757,9 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
-                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
+                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
+                        lvi.SubItems.Add(sizes.holeSize);
+                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
 
@@ -3010,8 +3063,9 @@ namespace A2Z
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
                         var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
-                        lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
+                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
+                        lvi.SubItems.Add(sizes.holeSize);
+                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -3180,8 +3234,9 @@ namespace A2Z
                 lvi.SubItems.Add(point.Y.ToString("F2"));
                 lvi.SubItems.Add(point.Z.ToString("F2"));
                 var matchBom = bomList?.FirstOrDefault(b => b.Name == nodeName);
-                lvi.SubItems.Add(matchBom != null ? matchBom.HoleSize : "");
-                lvi.SubItems.Add(matchBom != null ? matchBom.SlotHoleSize : "");
+                var sizes = GetHoleOrSlotForPoint(matchBom, point.X, point.Y, point.Z);
+                lvi.SubItems.Add(sizes.holeSize);
+                lvi.SubItems.Add(sizes.slotHoleSize);
                 lvOsnap.Items.Add(lvi);
             }
             catch (Exception ex)
