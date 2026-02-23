@@ -80,6 +80,11 @@ namespace A2Z
         private Dictionary<int, string> bodyToPartNameMap = new Dictionary<int, string>();
 
         /// <summary>
+        /// Body 인덱스 → 부모 Part 인덱스 매핑 캐시
+        /// </summary>
+        private Dictionary<int, int> bodyToPartIndexMap = new Dictionary<int, int>();
+
+        /// <summary>
         /// 도면 시트 데이터 리스트
         /// </summary>
         private List<DrawingSheetData> drawingSheetList = new List<DrawingSheetData>();
@@ -148,6 +153,7 @@ namespace A2Z
         private void BuildBodyToPartNameMap()
         {
             bodyToPartNameMap.Clear();
+            bodyToPartIndexMap.Clear();
 
             try
             {
@@ -192,9 +198,13 @@ namespace A2Z
                         }
                     }
 
-                    if (parentPartIndex >= 0 && partIndexToName.ContainsKey(parentPartIndex))
+                    if (parentPartIndex >= 0)
                     {
-                        bodyToPartNameMap[body.Index] = partIndexToName[parentPartIndex];
+                        bodyToPartIndexMap[body.Index] = parentPartIndex;
+                        if (partIndexToName.ContainsKey(parentPartIndex))
+                        {
+                            bodyToPartNameMap[body.Index] = partIndexToName[parentPartIndex];
+                        }
                     }
                 }
             }
@@ -1811,10 +1821,10 @@ namespace A2Z
 
                     if (clashTest == null) continue;
 
-                    // 결과 조회 (BODY 레벨로 그룹화 - BOM.Index와 일치)
+                    // 결과 조회 (PART 레벨로 그룹화)
                     var results = vizcore3d.Clash.GetResultItem(
                         clashTest,
-                        VIZCore3D.NET.Manager.ClashManager.ResultGroupingOptions.BODY
+                        VIZCore3D.NET.Manager.ClashManager.ResultGroupingOptions.PART
                     );
 
                     if (results != null && results.Count > 0)
@@ -6536,21 +6546,43 @@ namespace A2Z
                 bomIndexSet.Add(bom.Index);
             }
 
-            // Clash 인접 리스트 구축 (Index 기반 - 확실한 매칭)
+            // Part Index → Body Index 리스트 (역매핑)
+            Dictionary<int, List<int>> partToBodyIndices = new Dictionary<int, List<int>>();
+            foreach (var bom in bomList)
+            {
+                if (bodyToPartIndexMap.ContainsKey(bom.Index))
+                {
+                    int partIdx = bodyToPartIndexMap[bom.Index];
+                    if (!partToBodyIndices.ContainsKey(partIdx))
+                        partToBodyIndices[partIdx] = new List<int>();
+                    partToBodyIndices[partIdx].Add(bom.Index);
+                }
+            }
+
+            // Clash 인접 리스트 구축 (Part → Body 변환하여 Body 기반 매칭)
             Dictionary<int, HashSet<int>> adjacencyByIndex = new Dictionary<int, HashSet<int>>();
             foreach (var clash in clashList)
             {
-                // BOM에 있는 인덱스만 사용
-                if (!bomIndexSet.Contains(clash.Index1) || !bomIndexSet.Contains(clash.Index2))
-                    continue;
+                // Clash.Index1/Index2는 Part 인덱스 → Body 인덱스로 변환
+                List<int> bodies1 = partToBodyIndices.ContainsKey(clash.Index1) ? partToBodyIndices[clash.Index1] : new List<int>();
+                List<int> bodies2 = partToBodyIndices.ContainsKey(clash.Index2) ? partToBodyIndices[clash.Index2] : new List<int>();
 
-                if (!adjacencyByIndex.ContainsKey(clash.Index1))
-                    adjacencyByIndex[clash.Index1] = new HashSet<int>();
-                if (!adjacencyByIndex.ContainsKey(clash.Index2))
-                    adjacencyByIndex[clash.Index2] = new HashSet<int>();
+                // 두 Part에 속한 모든 Body들 간에 연결 추가
+                foreach (int bodyIdx1 in bodies1)
+                {
+                    foreach (int bodyIdx2 in bodies2)
+                    {
+                        if (bodyIdx1 == bodyIdx2) continue;
 
-                adjacencyByIndex[clash.Index1].Add(clash.Index2);
-                adjacencyByIndex[clash.Index2].Add(clash.Index1);
+                        if (!adjacencyByIndex.ContainsKey(bodyIdx1))
+                            adjacencyByIndex[bodyIdx1] = new HashSet<int>();
+                        if (!adjacencyByIndex.ContainsKey(bodyIdx2))
+                            adjacencyByIndex[bodyIdx2] = new HashSet<int>();
+
+                        adjacencyByIndex[bodyIdx1].Add(bodyIdx2);
+                        adjacencyByIndex[bodyIdx2].Add(bodyIdx1);
+                    }
+                }
             }
 
             // Sheet 2~: BOM 순서대로 순회
