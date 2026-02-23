@@ -120,6 +120,7 @@ namespace A2Z
             this.lblDrawingDesc = new System.Windows.Forms.Label();
             this.lblDrawingTitle = new System.Windows.Forms.Label();
             this.panelDrawingButtons = new System.Windows.Forms.Panel();
+            this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
@@ -956,6 +957,7 @@ namespace A2Z
             //
             // panelDrawingButtons
             //
+            this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
             this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelDrawingButtons.Location = new System.Drawing.Point(3, 928);
@@ -972,6 +974,16 @@ namespace A2Z
             this.btnGenerateSheets.Text = "도면 생성";
             this.btnGenerateSheets.UseVisualStyleBackColor = true;
             this.btnGenerateSheets.Click += new System.EventHandler(this.btnGenerateSheets_Click);
+            //
+            // btnMfgDrawingSheet
+            //
+            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(132, 5);
+            this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
+            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(120, 30);
+            this.btnMfgDrawingSheet.TabIndex = 1;
+            this.btnMfgDrawingSheet.Text = "가공도 출력";
+            this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
+            this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
             //
             // tabPageBOMInfo
             //
@@ -1338,6 +1350,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colSheetCount;
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnGenerateSheets;
+        private System.Windows.Forms.Button btnMfgDrawingSheet;
         private System.Windows.Forms.TabPage tabPageBOMInfo;
         private System.Windows.Forms.Panel panelGlobalViewButtons;
         private System.Windows.Forms.Button btnGlobalISO;
