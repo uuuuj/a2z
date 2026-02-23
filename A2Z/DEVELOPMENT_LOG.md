@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-23
+> 최종 업데이트: 2026-02-24
 
 ---
 
@@ -32,7 +32,7 @@ A2Z/
 | 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 완료  | 글로벌 뷰 버튼 패널로 통합 + 도면정보 탭 시트 선택 연동 (Phase 12~13)                                                   |
 | 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료  | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                                   |
 | 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료  | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시             |
-| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현 | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                   |
+| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 진행중 | 가공도 시트 생성 + 단일 부재 가공도 출력 완료 (Phase 15). 4개씩 묶기는 미구현                                              |
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
 | 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
 
@@ -54,6 +54,7 @@ A2Z/
 | ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
 | 도면 시트 선택 연동       | 완료 | 도면정보 탭 시트 선택 시 기준부재+Clash 연결부재만 X-Ray 표시 (Phase 13) |
 | 치수 번호 동기화          | 완료 | ListView No.와 ChainDimensionData.No 동기화 (Phase 13) |
+| 가공도 시트 생성/출력     | 완료 | 도면시트에 가공도 자동 생성, 가공도 출력 버튼, 시트 선택 시 자동 실행 (Phase 15) |
 
 ---
 
@@ -918,6 +919,58 @@ allNodes = allNodes.Where(n =>
 
 ---
 
+### Phase 15: 가공도 시트 생성 및 출력 기능 추가
+
+**[요청]** "가공도 출력 기능 — 도면시트에 BOM 부재별 가공도 시트 자동 생성, 가공도 출력 버튼 추가"
+
+**[구현 내용]**
+
+1. **가공도 핵심 로직 분리 (`ExecuteMfgDrawing`)**
+   - 기존 `btnMfgDrawing_Click`에서 가공도 로직을 `ExecuteMfgDrawing(int bomIndex)`로 분리
+   - BOM 선택 가공도와 도면시트 가공도에서 공통 사용
+
+2. **가공도 시트 자동 생성 (`GenerateDrawingSheets` 확장)**
+   - `drawingSheetList`에 BOM 부재별 가공도 시트 추가
+   - 가공도 식별자: `BaseMemberIndex = -3` (설치도 `-2`와 구분)
+   - `DrawingSheetData`에 `MfgDrawingNo` 속성 추가 (가공도 번호)
+   - ListView 표시: `가공도_1`, `가공도_2`, ... 형식
+
+3. **가공도 출력 버튼 (`btnMfgDrawingSheet_Click`)**
+   - 도면정보 탭 하단 `panelDrawingButtons`에 "가공도 출력" 버튼 추가
+   - 선택된 시트가 가공도(`BaseMemberIndex == -3`)인지 검증 후 `ExecuteMfgDrawing` 호출
+
+4. **도면시트 선택 시 가공도 자동 실행**
+   - `LvDrawingSheet_SelectedIndexChanged`에서 `BaseMemberIndex == -3`이면 `ExecuteMfgDrawing` 호출
+   - 기존 설치도(`-2`)/일반 시트 로직과 분기 처리
+
+5. **BOM 수집 로직 개선**
+   - `btnMainDimension_Click`에서 `bomList.Count == 0`일 때만 `CollectBOMData()` 호출 (조건부)
+   - `btnCollectBOMInfo_Click` → `CollectBOMInfo(bool showAlert)` 분리, 알람 제어 가능
+   - 도면시트 선택 시 `CollectBOMInfo(false)` — 알람 없이 자동 수집
+
+6. **코드 정리**
+   - `RestoreAllPartsVisibility()` 메서드 추가 (전체 부재 Show 복원)
+   - 가공도 내 Osnap 수집/치수 추출/풍선 배치 코드 간결화
+   - 불필요한 주석·빈 줄 제거, switch문 한줄 정리
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | ExecuteMfgDrawing 분리, 가공도 시트 생성, btnMfgDrawingSheet_Click, CollectBOMInfo 분리, 코드 정리 |
+| `Form1.Designer.cs` | btnMfgDrawingSheet 버튼 추가 (panelDrawingButtons, 120x30, "가공도 출력") |
+
+**[DrawingSheetData 식별자 규약]**
+
+| BaseMemberIndex | 의미 |
+| --------------- | ---- |
+| `>= 0` | 일반 시트 (기준 부재 인덱스) |
+| `-1` | 전체 BOM 시트 |
+| `-2` | 설치도 시트 |
+| `-3` | 가공도 시트 |
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -946,6 +999,8 @@ allNodes = allNodes.Where(n =>
 [Clash 선택보기] → X-Ray 모드 → 해당 부재만 Osnap/치수 재추출 → 치수 표시
                     │
 [2D 도면] ──→ 4면도 캡처 → 치수 오버레이 → BOM표 + 타이틀블록 → PNG/PDF 출력
+                    │
+[도면시트] ──→ 일반 시트: Osnap 치수 / 설치도: 경계 치수 / 가공도: 단일 부재 치수+풍선
 ```
 
 ### 4.2 BOM 추출 (CollectBOMData)
