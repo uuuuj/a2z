@@ -1811,10 +1811,10 @@ namespace A2Z
 
                     if (clashTest == null) continue;
 
-                    // 결과 조회 (PART 레벨로 그룹화)
+                    // 결과 조회 (BODY 레벨로 그룹화 - BOM.Index와 일치)
                     var results = vizcore3d.Clash.GetResultItem(
                         clashTest,
-                        VIZCore3D.NET.Manager.ClashManager.ResultGroupingOptions.PART
+                        VIZCore3D.NET.Manager.ClashManager.ResultGroupingOptions.BODY
                     );
 
                     if (results != null && results.Count > 0)
