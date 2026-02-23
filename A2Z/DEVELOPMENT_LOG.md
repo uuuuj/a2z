@@ -27,24 +27,25 @@ A2Z/
 
 ### 개발 진행 예정 사항
 
-| No  | 기능                         | 상태    | 설명                                                                                               |
-| --- | -------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
-| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 완료 | 글로벌 뷰 버튼 패널로 통합 + 도면정보 탭 시트 선택 연동 (Phase 12~13)                                                |
-| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료    | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                               |
-| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료    | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시 |
-| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현   | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                  |
-| 5   | 풍선 위치 개선                   | 완료    | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35              |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 미구현   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
+| No  | 기능                         | 상태  | 설명                                                                                                |
+| --- | -------------------------- | --- | ------------------------------------------------------------------------------------------------- |
+| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 완료  | 글로벌 뷰 버튼 패널로 통합 + 도면정보 탭 시트 선택 연동 (Phase 12~13)                                                   |
+| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료  | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                                   |
+| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료  | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시             |
+| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현 | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                   |
+| 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
+
 
 ### 현재 구현 완료된 기능
 
 | 기능                      | 상태 | 설명                                                 |
 | ------------------------- | ---- | ---------------------------------------------------- |
-| 파일 열기 + BOM 수집      | 완료 | 모델 로드 시 자동 BOM 수집, 새 파일 시 전체 초기화   |
-| Osnap 좌표 수집           | 완료 | LINE/CIRCLE/POINT 유형 자동 수집 + 수동 추가/삭제    |
+| 파일 열기 + BOM 수집      | 완료 | 치수 추출 시 BOM 수집 (보이는 모델만), 새 파일 시 전체 초기화 |
+| Osnap 좌표 수집           | 완료 | LINE/CIRCLE/POINT 유형 자동 수집 + 보이는 노드만 대상 |
 | 체인 치수 자동 추출       | 완료 | X/Y/Z축별 순차치수 + 전체치수 자동 생성              |
 | Smart Dimension Filtering | 완료 | 우선순위 기반 필터링, 텍스트 겹침 방지, 레벨별 배치  |
-| 간섭(Clash) 검사          | 완료 | 전체 부재 쌍 대상, Z값 기준 정렬, 비동기 실행        |
+| 간섭(Clash) 검사          | 완료 | 보이는 부재 쌍 대상, Z값 기준 정렬, 비동기 실행      |
 | X-Ray 선택 보기           | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출        |
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
 | 2D 도면 생성              | 완료 | 4면도(ISO+평면+정면+측면) + BOM표 + 타이틀블록       |
@@ -856,6 +857,67 @@ btnCollectBOMInfo_Click(sender, e);  // 자동 BOM 수집
 
 ---
 
+### Phase 14: BOM 수집 시점 변경 + 보이는 모델 기준 수집
+
+**[요청]** "BOM 수집을 파일 열기가 아닌 치수 추출 버튼 클릭 시로 변경. 트리뷰에서 보이는(체크된) 모델만 대상으로 BOM/Osnap/Clash 수집"
+
+**[문제점 분석]**
+
+1. **BOM 수집 시점**: `btnOpen_Click`에서 자동 수집 → 사용자가 원하는 부재만 선택 후 수집 불가
+2. **Node.Visible 스냅샷 문제**: `GetPartialNode()`으로 가져온 Node의 `Visible` 속성은 스냅샷이라 모든 노드가 `false` 반환
+3. **Osnap/Clash 필터 불일치**: BOM만 필터링하고 Osnap/Clash는 전체 노드 대상 → 데이터 불일치
+
+**[해결 — 1. BOM 수집 시점 이동]**
+
+```csharp
+// btnOpen_Click — CollectBOMData() 호출 제거
+// BOM 수집은 치수 추출 시 수행 (보이는 모델 기준)
+
+// btnMainDimension_Click — 치수 추출 전에 BOM 수집
+bool bomSuccess = CollectBOMData();
+if (!bomSuccess || bomList.Count == 0)
+{
+    MessageBox.Show("보이는 모델이 없습니다.\n트리뷰에서 모델을 체크해주세요.");
+    return;
+}
+```
+
+**[해결 — 2. FromIndex() 실시간 Visible 조회]**
+
+```csharp
+// GetPartialNode() 스냅샷의 Visible은 부정확
+// FromIndex()로 개별 조회하면 실시간 상태 반환
+allNodes = allNodes.Where(n =>
+{
+    var current = vizcore3d.Object3D.FromIndex(n.Index);
+    return current != null && current.Visible;
+}).ToList();
+```
+
+**[해결 — 3. Osnap/Clash도 동일 필터 적용]**
+
+| 메서드 | 변경 전 | 변경 후 |
+| ------ | ------- | ------- |
+| `CollectBOMData` | 전체 Body 노드 | `FromIndex().Visible` 필터 |
+| `CollectAllOsnap` | XRay 모드일 때만 `xraySelectedNodeIndices` 필터 | `FromIndex().Visible` 필터 |
+| `DetectClash` | 전체 Body 노드 | `FromIndex().Visible` 필터 |
+
+**[VIZCore3D API 발견사항]**
+
+- `Node.Visible` (read-only) — 트리뷰 체크 상태 반영
+- `GetPartialNode()` — 대량 조회 시 Visible이 스냅샷 값 (실시간 미반영)
+- `FromIndex(int)` → `Node` — 개별 노드 실시간 상태 조회 가능
+- `Object3D.IsVisible()` — 존재하지 않음 (Object3DManager에 없음)
+- `OnObject3DVisibleChangedEvent` — Visible 변경 이벤트 존재 (미사용)
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | btnOpen_Click에서 CollectBOMData 제거, btnMainDimension_Click에서 호출 추가, CollectBOMData/CollectAllOsnap/DetectClash에 FromIndex().Visible 필터 추가 |
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -875,9 +937,9 @@ btnCollectBOMInfo_Click(sender, e);  // 자동 BOM 수집
 ### 4.1 전체 워크플로우
 
 ```
-[파일 열기] ──→ 모델 로드 + BOM 자동 수집
+[파일 열기] ──→ 모델 로드 + Body→Part 매핑 구축 (BOM 수집 안 함)
                     │
-[치수 추출] ──→ Osnap 수집 → 체인 치수 생성 → 치수 표시 → Clash 검사
+[치수 추출] ──→ BOM 수집 (보이는 노드만) → Osnap 수집 → 체인 치수 생성 → 치수 표시 → Clash 검사
                     │
 [X/Y/Z 축] ──→ Clear → 은선점선 모드 → 카메라 방향 → FitToView → 해당 축 치수만 표시
                     │
@@ -889,19 +951,22 @@ btnCollectBOMInfo_Click(sender, e);  // 자동 BOM 수집
 ### 4.2 BOM 추출 (CollectBOMData)
 
 ```
-1. vizcore3d.Object3D.FromFilter("BODY") 로 모든 Body 노드 가져오기
-2. 각 노드별:
+1. vizcore3d.Object3D.GetPartialNode(false, false, true) 로 전체 Body 노드 가져오기
+2. FromIndex()로 각 노드의 실시간 Visible 상태 조회 → 보이는 노드만 필터링
+3. 각 노드별:
    a. Name, Index 추출
    b. BoundBox → MinX/Y/Z, MaxX/Y/Z 계산
    c. Center = (Min + Max) / 2
    d. BOMData 객체 생성 → bomList 추가
-3. ListView에 표시 (이름, 각도, 좌표)
+4. ListView에 표시 (이름, 각도, 좌표)
+※ 호출 시점: btnMainDimension_Click (치수 추출 버튼)
+※ 보이는 노드 없으면 "보이는 모델이 없습니다" 경고 + return
 ```
 
 ### 4.3 Osnap 좌표 수집 (CollectAllOsnap / btnCollectOsnap_Click)
 
 ```
-1. Body 노드 목록 가져오기 (전체 또는 X-Ray 선택 노드)
+1. Body 노드 목록 가져오기 → FromIndex().Visible로 보이는 노드만 필터링
 2. 각 노드의 Osnap 점 조회:
    - LINE 유형 → Start/End 포인트 수집
    - CIRCLE 유형 → Center 포인트 수집
@@ -1010,6 +1075,7 @@ btnCollectBOMInfo_Click(sender, e);  // 자동 BOM 수집
 - `AssistantLine` 활성화해도 내장 보조선이 표시되지 않는 경우 있음
 - `AddCustomAxisDistance`가 비측정축 좌표를 무시할 가능성 있음 (검증 필요)
 - `RestoreColorAll()`이 Select로 적용된 하이라이트를 해제하지 못하는 경우 있음
+- `GetPartialNode()`으로 가져온 Node의 `Visible` 속성은 스냅샷이라 실시간 상태와 불일치 → `FromIndex(index).Visible`로 개별 조회해야 정확
 
 **ShapeDrawing 제약**
 
