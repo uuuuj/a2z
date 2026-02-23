@@ -6488,12 +6488,8 @@ namespace A2Z
         /// </summary>
         private void RestoreAllPartsVisibility()
         {
-            List<int> allIndices = new List<int>();
-            foreach (BOMData b in bomList)
-                allIndices.Add(b.Index);
-
-            if (allIndices.Count > 0)
-                vizcore3d.Object3D.Show(allIndices, true);
+            // 모든 부재 표시 (숨겨진 부재 복원)
+            vizcore3d.Object3D.ShowAll(true);
         }
 
         #endregion
@@ -6696,25 +6692,24 @@ namespace A2Z
             {
                 vizcore3d.BeginUpdate();
 
-                // X-Ray 모드 활성화
-                if (!vizcore3d.View.XRay.Enable)
-                    vizcore3d.View.XRay.Enable = true;
+                // X-Ray 모드 비활성화 (관련 부재만 완전히 표시하기 위해)
+                if (vizcore3d.View.XRay.Enable)
+                {
+                    vizcore3d.View.XRay.Clear();
+                    vizcore3d.View.XRay.Enable = false;
+                }
 
-                // X-Ray 옵션 설정
-                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
-                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                // 모든 부재 숨기기
+                vizcore3d.Object3D.ShowAll(false);
+
+                // 선택된 시트의 부재만 표시
+                vizcore3d.Object3D.Show(sheet.MemberIndices, true);
 
                 // 모서리(SilhouetteEdge) 표시
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
 
-                // 이전 선택 해제
-                vizcore3d.View.XRay.Clear();
-
-                // 선택된 시트의 노드들만 표시
-                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-
-                // X-Ray 모드에서 선택된 노드 인덱스 저장
+                // 선택된 노드 인덱스 저장 (글로벌 뷰 버튼용)
                 xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
 
                 // 선택된 노드로 화면 이동
