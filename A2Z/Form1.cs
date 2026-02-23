@@ -4296,14 +4296,9 @@ namespace A2Z
                     }
                 }
 
-                // ========== 모든 치수 표시 (필터링 없음) ==========
-                // ListView의 모든 치수를 화면에 표시
-                var filteredDims = displayList;
-                foreach (var dim in filteredDims)
-                {
-                    dim.IsVisible = true;
-                    dim.DisplayLevel = 0;
-                }
+                // ========== Smart Dimension Filtering 적용 ==========
+                // 우선순위 기반 필터링 + 짧은 치수 병합 + 레벨 배치
+                var filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
 
                 if (filteredDims.Count == 0)
                 {
