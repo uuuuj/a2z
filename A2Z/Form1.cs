@@ -4496,7 +4496,7 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    float balloonOffset = 25f; // 부재 근처 초기 오프셋
+                    float balloonOffset = 40f; // 부재 근처 초기 오프셋
                     float minBalloonDist = 20f; // 풍선 간 최소 거리
                     float bomPad = 5f; // 부재 바운딩박스 패딩
 
@@ -6239,7 +6239,7 @@ namespace A2Z
                 // 9~10. 풍선 배치: 모든 풍선을 모델 상부 왼쪽 45° 방향에 겹치지 않게 배치
                 // 모델 대각선 기반 오프셋 계산
                 float modelDiag = (float)Math.Sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
-                float baseOffset = Math.Max(modelDiag * 0.30f, 60f);
+                float baseOffset = Math.Max(modelDiag * 0.35f, 70f);
                 float lineSpacing = Math.Max(modelDiag * 0.08f, 20f);
                 int balloonIdx = 0;
 
