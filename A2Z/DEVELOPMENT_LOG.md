@@ -581,6 +581,11 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
    - 루프 내에서 `balloonDisplayNumbers`에 없는 항목은 `continue`로 스킵
    - `style.SymbolText = balloonDisplayNumbers[i].ToString()` 으로 그룹 번호 표시
 
+**[버그 수정 — 풍선 미표시]**
+
+- 원인: `btnCollectBOMInfo_Click`은 **Part** 노드 인덱스(`GetPartialNode(false, true, false)`)를 저장하는데, `bomList`는 **Body** 노드 인덱스(`GetPartialNode(false, false, true)`)를 사용. Part Index ≠ Body Index이므로 `TryGetValue`가 항상 실패 → 풍선 0개
+- 수정: 기존 `bodyToPartNameMap` 구축에 사용된 이진탐색 패턴을 활용하여, Body 노드마다 부모 Part를 찾고 Part의 groupNo를 Body 인덱스에 매핑
+
 **[하위호환]**
 
 - BOM정보 미수집 상태에서 ISO → 기존처럼 개별 순번 풍선 표시

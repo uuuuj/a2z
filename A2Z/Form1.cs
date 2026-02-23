@@ -1557,16 +1557,50 @@ namespace A2Z
                     })
                     .ToList();
 
-                // bomInfoNodeGroupMap 구축: nodeIndex → groupNo 매핑
+                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
+                // partNodes의 Index는 Part 레벨이므로, Body 노드를 가져와서 Part→Body 매핑 필요
                 bomInfoNodeGroupMap.Clear();
-                int groupNo = 1;
-                foreach (var item in grouped)
+                List<VIZCore3D.NET.Data.Node> bodyNodesForMap = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (bodyNodesForMap != null && bodyNodesForMap.Count > 0)
                 {
-                    foreach (int nodeIdx in item.NodeIndices)
+                    // Part 인덱스 정렬 (이진 탐색용)
+                    List<int> partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
+
+                    // Part 인덱스 → groupNo 매핑
+                    var partToGroup = new Dictionary<int, int>();
+                    int groupNo = 1;
+                    foreach (var item in grouped)
                     {
-                        bomInfoNodeGroupMap[nodeIdx] = groupNo;
+                        foreach (int partIdx in item.NodeIndices)
+                        {
+                            partToGroup[partIdx] = groupNo;
+                        }
+                        groupNo++;
                     }
-                    groupNo++;
+
+                    // 각 Body에 대해 부모 Part를 찾아 groupNo 매핑
+                    foreach (var body in bodyNodesForMap)
+                    {
+                        int parentPartIndex = -1;
+                        int lo = 0, hi = partIdxSorted.Count - 1;
+                        while (lo <= hi)
+                        {
+                            int mid = (lo + hi) / 2;
+                            if (partIdxSorted[mid] <= body.Index)
+                            {
+                                parentPartIndex = partIdxSorted[mid];
+                                lo = mid + 1;
+                            }
+                            else
+                            {
+                                hi = mid - 1;
+                            }
+                        }
+                        if (parentPartIndex >= 0 && partToGroup.ContainsKey(parentPartIndex))
+                        {
+                            bomInfoNodeGroupMap[body.Index] = partToGroup[parentPartIndex];
+                        }
+                    }
                 }
 
                 // ListView에 채우기 (No는 1번부터)
