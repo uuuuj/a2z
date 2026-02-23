@@ -4296,13 +4296,7 @@ namespace A2Z
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
                 float dimBaseline_OuterOffset = baseOffset + (levelSpacing * maxLevelUsed);
                 // 모델 크기에 비례하여 풍선 오프셋 결정 (최소 100mm, 모델 대각 크기의 10%)
-                float modelSpanH = Math.Abs(globalMaxX - globalMinX);
-                float modelSpanV = Math.Abs(globalMaxY - globalMinY);
-                float modelSpanD = Math.Abs(globalMaxZ - globalMinZ);
-                float modelDiag = (float)Math.Sqrt(modelSpanH * modelSpanH + modelSpanV * modelSpanV + modelSpanD * modelSpanD);
-                float balloonGap = Math.Max(100f, modelDiag * 0.1f); // 모델과 충분히 떨어진 위치
-                float overlapAngleStep = 5f; // 겹침 시 5° 추가
-                float overlapLengthStep = 20f; // 겹침 시 보조선 20mm 연장
+                // (풍선 배치를 부재 옆 방식으로 변경 - 모델 외곽 배치 파라미터 제거됨)
 
                 // 뷰 방향별 축 매핑 (hAxis=수평, vAxis=수직, dAxis=깊이)
                 int bHAxis, bVAxis, bDAxis;
