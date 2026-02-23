@@ -29,10 +29,12 @@ A2Z/
 
 | No  | 기능                         | 상태    | 설명                                                                                               |
 | --- | -------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
-| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 미구현   | 도면 정보 탭에서 선택된 부재의 BOM 정보를 표시                                                                     |
+| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 완료 | 글로벌 뷰 버튼 패널로 통합 + 도면정보 탭 시트 선택 연동 (Phase 12~13)                                                |
+| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료    | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                               |
+| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료    | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시 |
 | 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현   | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                  |
-| 5   | 풍선 위치 개선                   | 미구현   | 풍선이 부재/치수와 겹치지 않으면서도 모델 가까이에 배치되도록 개선 (현재 부재 밖으로 너무 멀리 나감)                                       |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 진행중   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
+| 5   | 풍선 위치 개선                   | 완료    | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35              |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 미구현   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
 
 ### 현재 구현 완료된 기능
 
@@ -815,12 +817,42 @@ groupBox1 높이 130→110px 축소, 버튼 재배치:
                └→ FlyToObject3d(선택 부재만)
 ```
 
+**[해결 — 6. 도면시트 선택 시 BOM정보 자동 필터링]**
+
+```csharp
+// btnCollectBOMInfo_Click에 추가
+if (lvDrawingSheet.SelectedItems.Count > 0)
+{
+    DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+    if (selectedSheet != null && selectedSheet.MemberIndices.Count > 0)
+    {
+        var sheetBodySet = new HashSet<int>(selectedSheet.MemberIndices);
+        // Body→Part 이진탐색으로 필터링
+        partNodes = partNodes.Where(p => allowedPartIndices.Contains(p.Index)).ToList();
+    }
+}
+
+// LvDrawingSheet_SelectedIndexChanged 끝에 추가
+btnCollectBOMInfo_Click(sender, e);  // 자동 BOM 수집
+```
+
+**[해결 — 7. 풍선 오프셋 조정]**
+
+| 위치 | 변경 전 | 변경 후 |
+| ---- | ------- | ------- |
+| ISO 풍선 (`memberOffset`) | `memberDiag * 0.3f, 15f` | `memberDiag * 0.5f, 25f` |
+| ISO 풍선 2D (`memberOffset2D`) | `memberDiag2D * 0.3f, 15f` | `memberDiag2D * 0.5f, 25f` |
+| 홀/슬롯홀 (`balloonOffset`) | `25f` | `40f` |
+| 홀/슬롯홀 (`baseOffset`) | `modelDiag * 0.25f, 50f` | `modelDiag * 0.35f, 70f` |
+
 **[기대 효과]**
 
 - 글로벌 뷰 버튼 아래에 탭 정상 표시
 - ListView의 모든 치수가 화면에 표시됨
 - 도면 시트 선택 시 정확한 부재만 X-Ray 표시
 - 치수 번호 ListView ↔ 데이터 ↔ 화면 일치
+- 도면시트 선택 시 BOM정보 자동 필터링
+- 풍선이 부재와 적절한 거리 유지
 
 ---
 

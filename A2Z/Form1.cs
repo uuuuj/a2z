@@ -1528,6 +1528,44 @@ namespace A2Z
                     return;
                 }
 
+                // ★ 도면시트 선택 시 해당 시트 부재만 필터링
+                if (lvDrawingSheet.SelectedItems.Count > 0)
+                {
+                    DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+                    if (selectedSheet != null && selectedSheet.MemberIndices.Count > 0)
+                    {
+                        // MemberIndices는 Body 인덱스 → 부모 Part 인덱스를 찾아서 필터링
+                        var sheetBodySet = new HashSet<int>(selectedSheet.MemberIndices);
+                        List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                        var partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
+                        var allowedPartIndices = new HashSet<int>();
+
+                        if (bodyNodes != null)
+                        {
+                            foreach (var body in bodyNodes)
+                            {
+                                if (!sheetBodySet.Contains(body.Index)) continue;
+                                // 이진탐색으로 부모 Part 찾기 (body.Index보다 작거나 같은 가장 큰 Part 인덱스)
+                                int lo = 0, hi = partIdxSorted.Count - 1;
+                                int parentPart = -1;
+                                while (lo <= hi)
+                                {
+                                    int mid = (lo + hi) / 2;
+                                    if (partIdxSorted[mid] <= body.Index)
+                                    {
+                                        parentPart = partIdxSorted[mid];
+                                        lo = mid + 1;
+                                    }
+                                    else hi = mid - 1;
+                                }
+                                if (parentPart >= 0) allowedPartIndices.Add(parentPart);
+                            }
+                        }
+
+                        partNodes = partNodes.Where(p => allowedPartIndices.Contains(p.Index)).ToList();
+                    }
+                }
+
                 // UDA 키 목록 한번만 조회
                 List<string> udaKeyList = null;
                 try
@@ -3894,7 +3932,7 @@ namespace A2Z
                         float mHalfY = (bom.MaxY - bom.MinY) / 2f;
                         float mHalfZ = (bom.MaxZ - bom.MinZ) / 2f;
                         float memberDiag = (float)Math.Sqrt(mHalfX * mHalfX + mHalfY * mHalfY + mHalfZ * mHalfZ);
-                        float memberOffset = Math.Max(memberDiag * 0.3f, 15f);
+                        float memberOffset = Math.Max(memberDiag * 0.5f, 25f);
                         float edgeDist = Math.Abs(d3x) * mHalfX + Math.Abs(d3y) * mHalfY + Math.Abs(d3z) * mHalfZ;
                         float totalDist = edgeDist + memberOffset;
 
@@ -3978,7 +4016,7 @@ namespace A2Z
 
                         // 개별 부재 크기 기반 오프셋
                         float memberDiag2D = (float)Math.Sqrt(memberHalfH * memberHalfH + memberHalfV * memberHalfV);
-                        float memberOffset2D = Math.Max(memberDiag2D * 0.3f, 15f);
+                        float memberOffset2D = Math.Max(memberDiag2D * 0.5f, 25f);
                         float edgeDist = Math.Abs(dirH) * memberHalfH + Math.Abs(dirV) * memberHalfV;
                         float totalOffset = edgeDist + memberOffset2D;
                         float bestH = memberH + dirH * totalOffset;
@@ -4529,7 +4567,7 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    float balloonOffset = 25f; // 부재 근처 초기 오프셋
+                    float balloonOffset = 40f; // 부재 근처 초기 오프셋
                     float minBalloonDist = 20f; // 풍선 간 최소 거리
                     float bomPad = 5f; // 부재 바운딩박스 패딩
 
@@ -6273,7 +6311,7 @@ namespace A2Z
                 // 9~10. 풍선 배치: 모든 풍선을 모델 상부 왼쪽 45° 방향에 겹치지 않게 배치
                 // 모델 대각선 기반 오프셋 계산
                 float modelDiag = (float)Math.Sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
-                float baseOffset = Math.Max(modelDiag * 0.25f, 50f);
+                float baseOffset = Math.Max(modelDiag * 0.35f, 70f);
                 float lineSpacing = Math.Max(modelDiag * 0.08f, 20f);
                 int balloonIdx = 0;
 
@@ -6706,6 +6744,9 @@ namespace A2Z
             {
                 MessageBox.Show($"도면 시트 표시 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
+            // 선택된 시트 기준으로 BOM정보 자동 수집
+            btnCollectBOMInfo_Click(sender, e);
         }
 
         /// <summary>
