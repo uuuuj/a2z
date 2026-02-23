@@ -27,15 +27,15 @@ A2Z/
 
 ### 개발 진행 예정 사항
 
-| No  | 기능                                  | 상태      | 설명                                                                                                                                                          |
-| --- | ------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인 | 수정 필요 | 도면정보 탭의 X/Y/Z 축 버튼이 정상적으로 동작도록 수정                                                                                                        |
-| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 미구현    | 도면 정보 탭에서 선택된 부재의 BOM 정보를 표시                                                                                                                |
-| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경   | 미구현    | ISO 버튼 클릭 시 풍선 번호를 작업/데이터 탭의 BOM이 아닌 BOM정보 탭의 데이터 기준으로 표시                                                                    |
-| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기 | 미구현    | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                                      |
-| 5   | 풍선 위치 개선                        | 미구현    | 풍선이 부재/치수와 겹치지 않으면서도 모델 가까이에 배치되도록 개선 (현재 부재 밖으로 너무 멀리 나감)                                                          |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준 | 미구현    | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
-|     |                                       |           |                                                                                                                                                               |
+| No  | 기능                         | 상태    | 설명                                                                                               |
+| --- | -------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
+| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 수정 필요 | 도면정보 탭의 X/Y/Z 축 버튼이 정상적으로 동작도록 수정                                                                |
+| 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 미구현   | 도면 정보 탭에서 선택된 부재의 BOM 정보를 표시                                                                     |
+| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료   | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지 |
+| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현   | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                  |
+| 5   | 풍선 위치 개선                   | 미구현   | 풍선이 부재/치수와 겹치지 않으면서도 모델 가까이에 배치되도록 개선 (현재 부재 밖으로 너무 멀리 나감)                                       |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 미구현   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
+|     |                            |       |                                                                                                  |
 
 ### 현재 구현 완료된 기능
 
@@ -551,6 +551,45 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 - `ShowResultSymbol` 호출 2건 — LvClash_DoubleClick, LvClash_SelectedIndexChanged
 - `chkMinDimension` — 체크박스 UI + 필드 선언 + 관련 로직 (완전 미구현)
 - `SelectRelatedOsnapItems`/`SelectRelatedDimensionItems` 내 불필요한 이벤트 해제/재등록
+
+---
+
+### Phase 11: ISO 풍선을 BOM정보 탭 그룹 기준으로 변경
+
+**[요청]** "ISO 버튼 클릭 시 풍선 번호를 작업/데이터 탭 BOM이 아닌 BOM정보 탭의 그룹핑된 데이터 기준으로 표시. 같은 그룹은 대표 1개만 풍선 표시"
+
+**[분석]**
+
+- 기존: `ShowBalloonNumbers()`가 `bomList` 순회하며 각 부재마다 개별 풍선(순번 i+1) 표시
+- 목표: `btnCollectBOMInfo_Click()`에서 Item+Size+Matl+Weight로 그룹핑한 번호를 풍선에 사용, 같은 그룹은 첫 번째 부재에만 풍선 표시
+
+**[구현 — 3곳 수정]**
+
+1. **필드 추가** — `bomInfoNodeGroupMap` (Dictionary<int,int>)
+   - key: nodeIndex, value: BOM정보 탭 그룹 No
+   - `ShowBalloonNumbers`와 `btnCollectBOMInfo_Click` 간 데이터 연결 역할
+
+2. **btnCollectBOMInfo_Click 수정**
+   - `rawBomItems` 튜플: `Tuple<string,string,string,string>` → `Tuple<string,string,string,string,int>` (node.Index 추가)
+   - 그룹핑 시 `NodeIndices = g.Select(x => x.Item5).ToList()` 추출
+   - 그룹핑 후 `bomInfoNodeGroupMap`에 각 nodeIndex → groupNo 매핑 저장
+
+3. **ShowBalloonNumbers 수정**
+   - 루프 전에 `balloonDisplayNumbers` (Dictionary<int,int>) 구성
+   - `bomInfoNodeGroupMap`에 데이터 있으면: 같은 그룹 중 첫 번째만 등록 (그룹 No)
+   - 비어있으면: 기존처럼 `i+1` 순번 (하위호환)
+   - 루프 내에서 `balloonDisplayNumbers`에 없는 항목은 `continue`로 스킵
+   - `style.SymbolText = balloonDisplayNumbers[i].ToString()` 으로 그룹 번호 표시
+
+**[버그 수정 — 풍선 미표시]**
+
+- 원인: `btnCollectBOMInfo_Click`은 **Part** 노드 인덱스(`GetPartialNode(false, true, false)`)를 저장하는데, `bomList`는 **Body** 노드 인덱스(`GetPartialNode(false, false, true)`)를 사용. Part Index ≠ Body Index이므로 `TryGetValue`가 항상 실패 → 풍선 0개
+- 수정: 기존 `bodyToPartNameMap` 구축에 사용된 이진탐색 패턴을 활용하여, Body 노드마다 부모 Part를 찾고 Part의 groupNo를 Body 인덱스에 매핑
+
+**[하위호환]**
+
+- BOM정보 미수집 상태에서 ISO → 기존처럼 개별 순번 풍선 표시
+- 풍선 위치 조정(btnBalloonAdjust) 기존 동작 유지
 
 ---
 
