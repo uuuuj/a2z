@@ -9,9 +9,11 @@
 ## 1. Project Overview
 
 ### 핵심 목적
+
 삼성중공업 조선/해양 3D CAD 모델(.vizx/.viz)을 로드하여, **BOM 추출 → Osnap 좌표 수집 → 체인 치수 자동 생성 → 간섭(Clash) 검사 → 2D 제조 도면 출력**까지의 전 과정을 자동화하는 데스크톱 애플리케이션.
 
 ### 프로젝트 구조
+
 ```
 A2Z/
 ├── Form1.cs              # 전체 비즈니스 로직 (약 3,440줄)
@@ -24,17 +26,18 @@ A2Z/
 ```
 
 ### 현재 구현 완료된 기능
-| 기능 | 상태 | 설명 |
-|------|------|------|
-| 파일 열기 + BOM 수집 | 완료 | 모델 로드 시 자동 BOM 수집, 새 파일 시 전체 초기화 |
-| Osnap 좌표 수집 | 완료 | LINE/CIRCLE/POINT 유형 자동 수집 + 수동 추가/삭제 |
-| 체인 치수 자동 추출 | 완료 | X/Y/Z축별 순차치수 + 전체치수 자동 생성 |
-| Smart Dimension Filtering | 완료 | 우선순위 기반 필터링, 텍스트 겹침 방지, 레벨별 배치 |
-| 간섭(Clash) 검사 | 완료 | 전체 부재 쌍 대상, Z값 기준 정렬, 비동기 실행 |
-| X-Ray 선택 보기 | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출 |
-| X/Y/Z축 방향 보기 | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
-| 2D 도면 생성 | 완료 | 4면도(ISO+평면+정면+측면) + BOM표 + 타이틀블록 |
-| PDF/이미지 출력 | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF |
+
+| 기능                      | 상태 | 설명                                                 |
+| ------------------------- | ---- | ---------------------------------------------------- |
+| 파일 열기 + BOM 수집      | 완료 | 모델 로드 시 자동 BOM 수집, 새 파일 시 전체 초기화   |
+| Osnap 좌표 수집           | 완료 | LINE/CIRCLE/POINT 유형 자동 수집 + 수동 추가/삭제    |
+| 체인 치수 자동 추출       | 완료 | X/Y/Z축별 순차치수 + 전체치수 자동 생성              |
+| Smart Dimension Filtering | 완료 | 우선순위 기반 필터링, 텍스트 겹침 방지, 레벨별 배치  |
+| 간섭(Clash) 검사          | 완료 | 전체 부재 쌍 대상, Z값 기준 정렬, 비동기 실행        |
+| X-Ray 선택 보기           | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출        |
+| X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
+| 2D 도면 생성              | 완료 | 4면도(ISO+평면+정면+측면) + BOM표 + 타이틀블록       |
+| PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
 
 ---
 
@@ -43,28 +46,33 @@ A2Z/
 ### 2.1 VIZCore3D.NET API 활용 규칙
 
 **초기화 순서 (필수)**
+
 ```
 ModuleInitializer.Run() → new VIZCore3DControl() → OnInitializedVIZCore3D 이벤트에서 라이선스/설정
 ```
 
 **카메라 제어**
+
 - `FlyToObject3d(indices, ratio)` — 특정 부재로 카메라 이동 (ratio 1.2f 권장)
 - `MoveCamera(CameraDirection)` — 카메라 방향 전환
 - `FitToView()` — 전체 모델 화면 맞춤
 - 주의: `FitToView()`는 치수선도 포함하여 계산하므로 **치수 그리기 전에 호출**해야 progressive zoom 방지
 
 **카메라 방향 설정값**
+
 - X축 보기: `CameraDirection.X_MINUS` (모델 정면에서 봄)
 - Y축 보기: `CameraDirection.Y_MINUS`
 - Z축 보기: `CameraDirection.Z_PLUS` (위에서 내려다봄)
 
 **렌더 모드**
+
 ```csharp
 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE); // 은선점선 (치수 검사용)
 // enum: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_REMOVAL(5), DASH_LINE(6)
 ```
 
 **치수(Measure) API**
+
 - `AddCustomAxisDistance(Axis, Vertex3D, Vertex3D)` → int ID 반환, 축방향 거리 측정
 - `AddDistance(Vector3D, Vector3D)` — 2점 거리, 텍스트 위치는 사용자 수동 선택
 - `AddDistance()` — 파라미터 없음, 인터랙티브 모드
@@ -73,6 +81,7 @@ vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE); // 은�
 - `UpdatePosition(id, ReviewPosition, Vertex3D)` — 존재하지만 ReviewPosition 클래스 구성이 복잡
 
 **MeasureStyle 주요 설정**
+
 ```csharp
 measureStyle.Prefix = false;              // 접두사 제거
 measureStyle.Unit = false;                // 단위 제거
@@ -91,16 +100,19 @@ measureStyle.AlignDistanceText = true;
 ```
 
 **ShapeDrawing API**
+
 - `AddLine(List<Vertex3DItemCollection>, groupId, Color, width, visible)` — 보조선/확장선 그리기
 - `AddSphere(List<Vertex3D>, groupId, Color, radius, visible)` — 좌표 마커 표시
 - 주의: `AddLine`은 단일 `Vertex3DItemCollection`이 아닌 `List<Vertex3DItemCollection>`을 받음
 
 **선택/하이라이트**
+
 - `Object3D.Select(List<int>, true, false)` — 부재 선택 (빨간 하이라이트)
 - `Object3D.Color.RestoreColorAll()` — 선택 해제 시도 (일부 상황에서 미동작)
 - 주의: Clash 더블클릭 시 이전 선택 색상이 해제되지 않는 이슈 미해결
 
 **Edge 데이터 (2D 도면용)**
+
 ```csharp
 vizcore3d.Model.GenerateEdgeData = true;  // 파일 열기 전 설정 필수
 vizcore3d.Model.LoadEdgeData = true;
@@ -109,6 +121,7 @@ vizcore3d.Model.LoadEdgeData = true;
 ### 2.2 WinForms 패턴
 
 **UI 레이아웃 구조**
+
 ```
 Form1 (1600x1000)
 └── SplitContainer (좌: 457px 패널 / 우: 3D 뷰어)
@@ -123,10 +136,12 @@ Form1 (1600x1000)
 ```
 
 **Dock 순서 규칙**
+
 - `Controls.Add()` 순서가 Dock 레이아웃에 영향 — Fill은 마지막에 Add
 - groupBox3(Clash)는 Fill로 나머지 공간 차지, 다른 그룹은 Top으로 위에서 아래 순서
 
 **버튼 계층 구조**
+
 ```
 메인 버튼 (190x40, Bold 11pt, 색상 강조):  [파일 열기] [치수 추출]
 축 버튼   (120x30, 중간 크기):             [X축] [Y축] [Z축]
@@ -158,10 +173,12 @@ Form1 (1600x1000)
 > 동료가 만든 코드 폴더에서 작업. 개인 프로젝트(`C:\Users\duddl\source\2D_Dimm`)에서 기능을 가져옴.
 
 **[요청 1]** "동료가 만든 코드 폴더에서 작업할건데, 내가 개발하던 코드에서 두 가지를 가져오고 싶어:
+
 1. 모델 윤곽선 표시 기능
 2. 치수 표시할 때 한쪽 끝에서 반대쪽 끝까지 순차적으로 거리 표시"
 
 **[구현 결과]**
+
 - Osnap(Object Snap Point) 수집 시스템 구축
   - `vizcore3d.Object3D.GetOsnapPoint(node.Index)` — LINE/CIRCLE/POINT 유형 수집, SURFACE 제외
   - LINE: StartPoint/EndPoint, CIRCLE/POINT: Center 추출
@@ -177,6 +194,7 @@ Form1 (1600x1000)
   - Clash 선택 부재 대상 Osnap/치수 재추출
 
 **[핵심 데이터 구조 확립]**
+
 ```csharp
 ChainDimensionData { Axis, StartPoint, EndPoint, Distance, ViewName }
 BOMData { Name, Index, MinX/Y/Z, MaxX/Y/Z }
@@ -184,6 +202,7 @@ ClashData { Index1, Index2, Name1, Name2, ZValue }
 ```
 
 **[치수 표시 방식 결정]**
+
 - `AddCustomAxisDistance(Axis, Vertex3D, Vertex3D)` — 축방향 거리 측정
 - MeasureStyle: SIZE10 폰트, 검정색, Bold, 정수표시, 프레임 없음, 투명 배경
 - 카메라 방향별 표시할 축 필터링:
@@ -192,6 +211,7 @@ ClashData { Index1, Index2, Name1, Name2, ZValue }
   - Z방향 보기 → X, Y축 치수만
 
 **[ShapeDrawing 보조선 첫 구현]**
+
 - `ShapeDrawing.AddLine()` — 확장선/보조선 그리기
 - `ShapeDrawing.Clear()` — 새 작업 전 초기화
 - `Vertex3DItemCollection`으로 라인 데이터 구성
@@ -206,6 +226,7 @@ ClashData { Index1, Index2, Name1, Name2, ZValue }
 **[요청]** 동료 프로젝트 버전에 2D 제조도면 기능을 병합하는 구현 계획
 
 **[설계 사항]**
+
 - SilhouetteEdge 렌더링 — 흰색 오브젝트 + 검정 실루엣 엣지로 라인 도면 스타일
 - BackgroundRenderingMode — 4방향 직교 뷰 캡처 (400x300)
   - ISO (등각투영, 치수 없음)
@@ -225,12 +246,14 @@ ClashData { Index1, Index2, Name1, Name2, ZValue }
 | `AddDimensionsForView()` | 뷰별 치수 추가 (2D 도면용, 검정색) |
 
 **[신규 필드]**
+
 ```csharp
 private string currentFilePath = "";           // 열린 파일 경로 추적
 private Bitmap lastGeneratedDrawing = null;    // 생성된 도면 캐시 (PDF용)
 ```
 
 **[유지할 기존 기능]**
+
 - AutoProcessModel, ShowAllDimensions (멀티레벨), DrawDimension
 - IsTotal 전체치수 플래그, Blue/Red 색상 코딩
 
@@ -244,7 +267,9 @@ private Bitmap lastGeneratedDrawing = null;    // 생성된 도면 캐시 (PDF�
 **[요청]** "지금 내 파일 읽어줄래?" — 프로젝트 파일 전체 리뷰
 
 **[확인된 코드 패턴]**
+
 - VIZCore3D 초기화 패턴 확립:
+
 ```csharp
 VIZCore3DX.NET.ModuleInitializer.Run();
 vizcore3dx = new VIZCore3DX.NET.VIZCore3DXControl();
@@ -252,6 +277,7 @@ vizcore3dx.Dock = DockStyle.Fill;
 panel1.Controls.Add(vizcore3dx);
 vizcore3dx.OnInitializedVIZCore3DX += handler;
 ```
+
 - 라이선스 인증: `vizcore3dx.License.LicenseServer("127.0.0.1", 8901)`
 - Program.cs: 표준 WinForms 진입점 구조
 
@@ -263,13 +289,16 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 > API 문서 URL을 참조하여 코드 작성.
 
 **[요청 1]** "내가 특정 Document 문서가 작성된 API URL 주소를 주면 너는 그걸 확인하고 코드를 작성해줄 수 있어?"
+
 - URL: `softhills.net/SHDC/VIZCore3D.NET/Help/html/T_VIZCore3D_NET_VIZCore3DControl.htm`
 - **결과**: API 문서 확인 후 코드 작성 가능 확인
 
 **[요청 2]** "코드가 어떤건지 주석에 너가 작성했다는 표시를 추가해서 주석 작성할 수 있어?"
+
 - **결과**: `[Claude 작성 주석]` 마크로 XML 문서 주석 추가
 
 **[요청 3]** "code.txt를 참고해서 150번째 줄 이후를 code.txt와 동일하게 작성해달라"
+
 - **결과**: `BtnAddClashtask_Click()` 구현
   - txtGroupA/txtGroupB 입력 검증
   - `ClashTest` 객체 생성
@@ -284,6 +313,7 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 | lvTask 컨트롤 누락 | Designer.cs에 ListView 미등록 | Designer 확인 후 추가 |
 
 **[사용 순서 정리]**
+
 1. GUI 실행 → 모델 파일 열기
 2. GroupA/GroupB 텍스트 입력
 3. Clash 테스트 추가 버튼 클릭
@@ -296,15 +326,18 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 **[요청]** 발표 시 "파일 열기 → 치수 추출" 2단계 흐름을 직관적으로 보여줄 수 있도록 UI 재구성
 
 **[결정]**
+
 - 기존: 7개 버튼이 동일 크기로 나열 → 주요 워크플로우 불명확
 - 변경: 3단 계층 구조 도입
 
 **[결과]**
+
 ```
 메인 버튼 (190x40, Bold 11pt, 색상 강조):  [파일 열기(SteelBlue)] [치수 추출(SeaGreen)]
 축 버튼   (120x30, 중간 크기):              [X축] [Y축] [Z축]
 서브 버튼 (55~65x25, 기본 폰트):            [BOM] [Clash] [Osnap] [치수] [2D] [PDF]
 ```
+
 - groupBox1 높이 130→165px 확장
 - `btnMainDimension` 신규 버튼 추가 (Osnap→치수→Clash 원클릭 실행)
 - `btnOpen_Click` 수정: 파일 열기 → `CollectBOMData()` 만 호출 (이전엔 AutoProcessModel 전체 실행)
@@ -314,12 +347,15 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 ### Phase 2: 4가지 기능 요청 동시 처리
 
 **[요청 1]** "선택항목만 보기 눌렀다가 전체보기 눌렀을 때 모든 치수가 다시 나오기"
+
 - **결과**: `btnClashShowAll_Click`에 `ShowAllDimensions()` 호출 추가
 
 **[요청 2]** "X축 Y축 Z축 버튼은 메인 버튼 바로 아래로 옮겨서 중간 크기로"
+
 - **결과**: panelDimensionButtons → groupBox1로 이동, y=68, 120x30 크기
 
 **[요청 3]** "모델을 새로 선택했을 때 리스트 다 초기화 하기"
+
 - **결과**: `btnOpen_Click`에 Model.Open() 전 전체 초기화 추가
   - bomList, clashList, osnapPoints, osnapPointsWithNames, chainDimensionList 클리어
   - xraySelectedNodeIndices 클리어
@@ -327,6 +363,7 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
   - Review.Measure.Clear(), ShapeDrawing.Clear()
 
 **[요청 4]** "선택좌표보기 버튼 어떻게 작동하는지 확인해서 알려주기"
+
 - **분석 결과**: 좌표에 심볼 표시 + 카메라 이동하는 기능이지만, 둘 다 미작동 상태
 
 ---
@@ -336,27 +373,33 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 **[요청]** 6개 코드 영역을 분석하고 각각 수정
 
 **1. FitToView 버그 (LvBOM_DoubleClick, LvClash_DoubleClick)**
+
 - 문제: `FitToView()`가 전체 모델로 이동함 (선택 부재가 아님)
 - 수정: `FlyToObject3d(indices, 1.2f)` 로 교체 (ratio 2→1.2f, 2는 너무 가까움)
 
 **2. ShowResultSymbol 미작동 (LvClash_DoubleClick)**
+
 - 문제: 오렌지 심볼이 전혀 표시되지 않음
 - 수정: 해당 호출 완전 삭제
 
 **3. 선택좌표보기 구현 (btnOsnapShowSelected_Click)**
+
 - 1차: RGB 십자 마커(ShapeDrawing.AddLine) → 크기가 너무 큼
 - 2차: `ShapeDrawing.AddSphere(빨간색, radius 5)` 로 변경
 - 카메라: `FitToView()` → 가장 가까운 노드 찾아서 `FlyToObject3d(index, 1.2f)` 로 이동
 
 **4. chkMinDimension 삭제**
+
 - 문제: "제작용 최소 치수만 표시" 체크박스가 완전히 미구현
 - 수정: UI(Designer) + 필드 선언 + 관련 코드 전부 삭제
 
 **5. ShowResultSymbol 미작동 (LvClash_SelectedIndexChanged)**
+
 - 문제: 오렌지 심볼 표시 코드가 여기서도 작동 안 함
 - 수정: 해당 호출 삭제, Osnap/치수 자동 연동 로직만 유지
 
 **6. 빈 이벤트 핸들러 삭제**
+
 - `LvOsnap_SelectedIndexChanged`, `LvDimension_SelectedIndexChanged` — 빈 메서드 + 이벤트 등록 삭제
 - `SelectRelatedOsnapItems`/`SelectRelatedDimensionItems`에서 불필요한 이벤트 해제/재등록 제거
 
@@ -367,15 +410,19 @@ vizcore3dx.OnInitializedVIZCore3DX += handler;
 **[요청]** "X축, Y축, Z축 버튼 누를 떄마다 모델이 점점 멀어지거나 가까워지는 문제"
 
 **시도 1**: `FitToView()` → `MoveCamera()` 순서 변경
+
 - 결과: progressive zoom은 해결, 카메라 방향 안 바뀜
 
 **시도 2**: `MoveCamera()` → `FitToView()` 순서로 변경
+
 - 결과: 카메라 방향은 바뀌지만 progressive zoom 재발
 
 **시도 3**: ShowAllDimensions 내부에서 `Clear → MoveCamera → FitToView` 후 치수 그리기
+
 - 결과: FitToView가 치수선 포함 계산하여 여전히 progressive zoom
 
 **최종 해결**: 카메라 로직을 버튼 핸들러로 완전 분리
+
 ```csharp
 // 버튼 핸들러
 vizcore3d.Review.Measure.Clear();
@@ -385,6 +432,7 @@ vizcore3d.View.MoveCamera(방향);
 vizcore3d.View.FitToView();
 ShowAllDimensions("축");  // 여기서는 치수만 그림 (카메라 조작 없음)
 ```
+
 **핵심 원칙**: `FitToView()`는 치수선도 포함하여 범위를 계산하므로, 반드시 치수 그리기 전에 호출
 
 ---
@@ -404,6 +452,7 @@ ShowAllDimensions("축");  // 여기서는 치수만 그림 (카메라 조작 �
 **[요청]** "간섭검사 리스트가 제일 아래에 위치해야 함"
 
 **수정**:
+
 - groupBox3 (Clash): `Dock = Fill` → 나머지 공간 모두 차지 (최하단)
 - groupBox5 (치수): `Dock = Top`, Height = 150 → 188
 - `Controls.Add()` 순서 변경 (Fill을 마지막에 Add)
@@ -415,6 +464,7 @@ ShowAllDimensions("축");  // 여기서는 치수만 그림 (카메라 조작 �
 **[요청]** "깃 HE0IN 브랜치에 커밋해줘" → "아 HYI에 넣어달라는 말이였어"
 
 **경과**:
+
 1. HE0IN 브랜치 생성 및 커밋 (실수)
 2. HYI 브랜치로 전환
 3. HE0IN 브랜치 삭제
@@ -427,13 +477,16 @@ ShowAllDimensions("축");  // 여기서는 치수만 그림 (카메라 조작 �
 ### Phase 8: 카메라 방향 반전 + 렌더 모드
 
 **[요청 1]** "X/Y/Z축에서 바라보는거 반대 방향에서 보게 바꾸는 설정값이 있어?"
+
 - 확인: `CameraDirection` enum에 `X_PLUS/X_MINUS/Y_PLUS/Y_MINUS/Z_PLUS/Z_MINUS` 존재
 - **결정**: "X랑 Y만 마이너스로 바꾸자"
 - X: `X_PLUS → X_MINUS`, Y: `Y_PLUS → Y_MINUS`, Z: `Z_PLUS` 유지
 
 **[요청 2]** "치수검사하면 은선점선으로 모델링 표현옵션값을 바꾸는 API 확인해볼래?"
+
 - 확인: `SetRenderMode(RenderModes.DASH_LINE)` — enum값 6
 - **적용**: X/Y/Z 축 버튼 클릭 시 DASH_LINE 모드로 전환
+
 ```
 RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_REMOVAL(5), DASH_LINE(6)
 ```
@@ -447,22 +500,28 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 **문제**: ShapeDrawing으로 그린 보조선이 축 버튼 클릭 시 사라짐
 
 **시도 1**: ShapeDrawing 보조선 제거 → 원본 좌표로 AddCustomAxisDistance + AssistantLine=true
+
 - 결과: 내장 AssistantLine이 표시되지 않음, 치수가 모델에 붙음
 
 **시도 2**: AddDistance(start, end, position) 3파라미터 사용 제안
+
 - API 문서 확인 결과: 해당 오버로드 존재하지 않음
 - AddDistance는 2파라미터(Vector3D, Vector3D) 또는 0파라미터만 있음
 
 **시도 3**: AddCustomDistanceUserAxis(Vertex3D, Vertex3D, Vertex3D) 확인
+
 - axis가 방향 벡터이지 position이 아님 → 치수선 위치 제어 불가
 
 **시도 4**: SetTextPosition(id, position) 사용 제안
+
 - API 문서 확인 결과: MeasureManager에 SetTextPosition 메서드 없음
 
 **시도 5**: UpdatePosition(id, ReviewPosition, Vertex3D) 확인
+
 - 존재하지만 ReviewPosition 클래스가 복잡하여 활용 어려움
 
 **시도 6 (현재)**: 원래 방식으로 복귀
+
 - AddCustomAxisDistance에 오프셋 좌표 전달 + ShapeDrawing.AddLine으로 보조선
 - baseOffset: 100→500, levelSpacing: 60→200 으로 증가
 - AssistantLine = false (ShapeDrawing 사용 시 비활성화)
@@ -474,6 +533,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ### Phase 10: 데드코드 대규모 정리 (~560줄)
 
 **삭제 항목 상세**:
+
 - `LvOsnap_SelectedIndexChanged` — 빈 메서드 + 이벤트 등록
 - `LvDimension_SelectedIndexChanged` — 빈 메서드 + 이벤트 등록
 - `ShowResultSymbol` 호출 2건 — LvClash_DoubleClick, LvClash_SelectedIndexChanged
@@ -483,15 +543,16 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ---
 
 ### 확인된 API 문서 URL
-| API | URL |
-|-----|-----|
-| MeasureManager 메서드 | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Methods_T_VIZCore3D_NET_Manager_MeasureManager.htm` |
-| AddDistance 오버로드 | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Overload_VIZCore3D_NET_Manager_MeasureManager_AddDistance.htm` |
-| AddCustomAxisDistance | `softhills.net/SHDC/VIZCore3D.NET/Help/html/M_VIZCore3D_NET_Manager_MeasureManager_AddCustomAxisDistance.htm` |
+
+| API                       | URL                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| MeasureManager 메서드     | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Methods_T_VIZCore3D_NET_Manager_MeasureManager.htm`                   |
+| AddDistance 오버로드      | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Overload_VIZCore3D_NET_Manager_MeasureManager_AddDistance.htm`        |
+| AddCustomAxisDistance     | `softhills.net/SHDC/VIZCore3D.NET/Help/html/M_VIZCore3D_NET_Manager_MeasureManager_AddCustomAxisDistance.htm`     |
 | AddCustomDistanceUserAxis | `softhills.net/SHDC/VIZCore3D.NET/Help/html/M_VIZCore3D_NET_Manager_MeasureManager_AddCustomDistanceUserAxis.htm` |
-| ShapeDrawing.AddLine | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Overload_VIZCore3D_NET_Manager_ShapeDrawingManager_AddLine.htm` |
-| UpdatePosition | `softhills.net/SHDC/VIZCore3D.NET/Help/html/M_VIZCore3D_NET_Manager_MeasureManager_UpdatePosition.htm` |
-| MarineAxisManager | `softhills.net/SHDC/VIZCore3D.NET/Help/html/T_VIZCore3D_NET_Manager_MarineAxisManager.htm` |
+| ShapeDrawing.AddLine      | `softhills.net/SHDC/VIZCore3D.NET/Help/html/Overload_VIZCore3D_NET_Manager_ShapeDrawingManager_AddLine.htm`       |
+| UpdatePosition            | `softhills.net/SHDC/VIZCore3D.NET/Help/html/M_VIZCore3D_NET_Manager_MeasureManager_UpdatePosition.htm`            |
+| MarineAxisManager         | `softhills.net/SHDC/VIZCore3D.NET/Help/html/T_VIZCore3D_NET_Manager_MarineAxisManager.htm`                        |
 
 ---
 
@@ -512,6 +573,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.2 BOM 추출 (CollectBOMData)
+
 ```
 1. vizcore3d.Object3D.FromFilter("BODY") 로 모든 Body 노드 가져오기
 2. 각 노드별:
@@ -523,6 +585,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.3 Osnap 좌표 수집 (CollectAllOsnap / btnCollectOsnap_Click)
+
 ```
 1. Body 노드 목록 가져오기 (전체 또는 X-Ray 선택 노드)
 2. 각 노드의 Osnap 점 조회:
@@ -535,6 +598,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.4 체인 치수 추출 (AddChainDimensionByAxis)
+
 ```
 1. Osnap 좌표를 tolerance(0.5mm) 내에서 병합 (MergeCoordinates)
 2. 축별(X/Y/Z) 처리:
@@ -549,6 +613,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.5 치수 표시 (ShowAllDimensions → DrawDimension)
+
 ```
 1. viewDirection에 따라 표시할 축 필터링
    - "X" 방향 보기 → Y, Z축 치수만
@@ -570,6 +635,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.6 Clash 검사 (DetectClash → Clash_OnClashTestFinishedEvent)
+
 ```
 1. Body 노드 전체 가져오기
 2. N*(N-1)/2 쌍으로 Clash 테스트 등록
@@ -581,6 +647,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.7 X-Ray 선택 보기 (btnClashShowSelected_Click)
+
 ```
 1. 선택된 Clash 항목에서 부재 인덱스 추출
 2. xraySelectedNodeIndices에 저장
@@ -592,6 +659,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ```
 
 ### 4.8 2D 도면 생성 (btnGenerate2D_Click)
+
 ```
 1. 렌더 설정: 검정색, DASH_LINE, 실루엣 엣지
 2. 4방향 캡처 (400x300):
@@ -613,15 +681,16 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 
 ### 5.1 미해결 이슈
 
-| 이슈 | 상태 | 설명 |
-|------|------|------|
-| 치수 오프셋 미적용 | 디버깅 중 | AddCustomAxisDistance에 오프셋 좌표를 넘기지만 모델에 붙어서 표시됨. API가 비측정축 좌표를 무시할 가능성 |
-| 보조선(Extension Line) | 디버깅 중 | ShapeDrawing.AddLine으로 보조선 그리기 시도 중. 오프셋 문제와 연동 |
-| Clash 선택 색상 미해제 | 미해결 | 더블클릭으로 다른 Clash 선택 시 이전 빨간색 하이라이트가 해제 안됨. `RestoreColorAll()` 미동작, `Select(emptyList, false, false)` 미동작 |
+| 이슈                   | 상태      | 설명                                                                                                                                     |
+| ---------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 치수 오프셋 미적용     | 디버깅 중 | AddCustomAxisDistance에 오프셋 좌표를 넘기지만 모델에 붙어서 표시됨. API가 비측정축 좌표를 무시할 가능성                                 |
+| 보조선(Extension Line) | 디버깅 중 | ShapeDrawing.AddLine으로 보조선 그리기 시도 중. 오프셋 문제와 연동                                                                       |
+| Clash 선택 색상 미해제 | 미해결    | 더블클릭으로 다른 Clash 선택 시 이전 빨간색 하이라이트가 해제 안됨. `RestoreColorAll()` 미동작, `Select(emptyList, false, false)` 미동작 |
 
 ### 5.2 기술적 제약사항
 
 **VIZCore3D.NET API 제약**
+
 - `AddDistance`에 position 파라미터 오버로드 없음 — 치수선 위치를 코드로 지정 불가
 - `SetTextPosition` 메서드 존재하지 않음
 - `AssistantLine` 활성화해도 내장 보조선이 표시되지 않는 경우 있음
@@ -629,13 +698,16 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 - `RestoreColorAll()`이 Select로 적용된 하이라이트를 해제하지 못하는 경우 있음
 
 **ShapeDrawing 제약**
+
 - `AddLine`은 `List<Vertex3DItemCollection>` 타입만 받음 (단일 항목 불가)
 - DASH_LINE 렌더 모드에서 ShapeDrawing 표시 여부 확인 필요
 
 **라이선스**
+
 - 로컬 라이선스 서버 필요: `127.0.0.1:8901`
 
 ### 5.3 향후 개선 가능 항목
+
 - 치수 오프셋 해결 후 보조선 완성
 - Clash 선택 해제 대안 방법 탐색
 - 2D 도면 치수 자동 배치 개선
@@ -646,6 +718,7 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 ## 6. Data Class Reference
 
 ### ChainDimensionData (Line ~3376)
+
 ```csharp
 string Axis;           // "X", "Y", "Z"
 string ViewName;       // "측면도", "정면도", "평면도"
@@ -662,6 +735,7 @@ bool IsMerged;         // 병합 치수 여부
 ```
 
 ### BOMData (Line ~3412)
+
 ```csharp
 int Index;             // 노드 인덱스
 string Name;           // 부재 이름
@@ -672,6 +746,7 @@ float MaxX/Y/Z;       // 바운딩박스 최대값
 ```
 
 ### ClashData (Line ~3431)
+
 ```csharp
 int Index1, Index2;    // 충돌 부재 인덱스 쌍
 string Name1, Name2;  // 충돌 부재 이름 쌍
@@ -682,43 +757,43 @@ float ZValue;          // 충돌 지점 Z좌표
 
 ## 7. Method Index (주요 메서드 라인 번호)
 
-| 라인 | 메서드 | 역할 |
-|------|--------|------|
-| 57 | `Form1()` | 생성자: UI 초기화, VIZCore3D 컨트롤 생성 |
-| 102 | `Vizcore3d_OnInitializedVIZCore3D` | 라이선스, Edge 설정, Clash 이벤트 등록 |
-| 128 | `btnOpen_Click` | 파일 열기 + 전체 초기화 + BOM 수집 |
-| 202 | `btnMainDimension_Click` | 메인 워크플로우 (Osnap→치수→Clash) |
-| 365 | `CollectBOMData` | BOM 데이터 수집 |
-| 452 | `DetectClash` | Clash 검사 실행 |
-| 525 | `Clash_OnClashTestFinishedEvent` | Clash 결과 수집/표시 |
-| 627 | `btnGenerate2D_Click` | 2D 도면 생성 |
-| 912 | `AddDimensionsForView` | 2D 뷰에 치수 추가 |
-| 1082 | `Show2DDrawingForm` | 2D 도면 미리보기 폼 |
-| 1323 | `PrintToPDF` | PDF 출력 |
-| 1403 | `LvBOM_DoubleClick` | BOM 부재 확대 이동 |
-| 1431 | `LvClash_DoubleClick` | Clash 부재 확대 이동 + 하이라이트 |
-| 1459 | `btnCollectOsnap_Click` | Osnap 수집 |
-| 1681 | `btnClashShowSelected_Click` | X-Ray 선택 보기 |
-| 1979 | `btnClashShowAll_Click` | 전체 보기 복원 |
-| 2128 | `btnOsnapShowSelected_Click` | 선택 Osnap 빨간 구 마커 표시 |
-| 2382 | `btnShowAxisX_Click` | X축 방향 보기 (Y,Z 치수) |
-| 2396 | `btnShowAxisY_Click` | Y축 방향 보기 (X,Z 치수) |
-| 2409 | `btnShowAxisZ_Click` | Z축 방향 보기 (X,Y 치수) |
-| 2430 | `ShowAllDimensions` | 치수 필터링 + 레벨 배치 + 렌더링 |
-| 2572 | `DrawDimension` | 단일 치수 + 오프셋 + 보조선 |
-| 2647 | `AssignDimensionPriorities` | 치수 우선순위 점수 할당 |
-| 2715 | `ApplySmartFiltering` | Greedy 필터링 (겹침 방지) |
-| 2947 | `LvClash_SelectedIndexChanged` | Clash 선택 시 Osnap/치수 자동 연동 |
-| 3109 | `btnExtractDimension_Click` | 체인 치수 추출 |
-| 3234 | `AddChainDimensionByAxis` | 축별 순차/전체 치수 생성 |
+| 라인 | 메서드                             | 역할                                     |
+| ---- | ---------------------------------- | ---------------------------------------- |
+| 57   | `Form1()`                          | 생성자: UI 초기화, VIZCore3D 컨트롤 생성 |
+| 102  | `Vizcore3d_OnInitializedVIZCore3D` | 라이선스, Edge 설정, Clash 이벤트 등록   |
+| 128  | `btnOpen_Click`                    | 파일 열기 + 전체 초기화 + BOM 수집       |
+| 202  | `btnMainDimension_Click`           | 메인 워크플로우 (Osnap→치수→Clash)       |
+| 365  | `CollectBOMData`                   | BOM 데이터 수집                          |
+| 452  | `DetectClash`                      | Clash 검사 실행                          |
+| 525  | `Clash_OnClashTestFinishedEvent`   | Clash 결과 수집/표시                     |
+| 627  | `btnGenerate2D_Click`              | 2D 도면 생성                             |
+| 912  | `AddDimensionsForView`             | 2D 뷰에 치수 추가                        |
+| 1082 | `Show2DDrawingForm`                | 2D 도면 미리보기 폼                      |
+| 1323 | `PrintToPDF`                       | PDF 출력                                 |
+| 1403 | `LvBOM_DoubleClick`                | BOM 부재 확대 이동                       |
+| 1431 | `LvClash_DoubleClick`              | Clash 부재 확대 이동 + 하이라이트        |
+| 1459 | `btnCollectOsnap_Click`            | Osnap 수집                               |
+| 1681 | `btnClashShowSelected_Click`       | X-Ray 선택 보기                          |
+| 1979 | `btnClashShowAll_Click`            | 전체 보기 복원                           |
+| 2128 | `btnOsnapShowSelected_Click`       | 선택 Osnap 빨간 구 마커 표시             |
+| 2382 | `btnShowAxisX_Click`               | X축 방향 보기 (Y,Z 치수)                 |
+| 2396 | `btnShowAxisY_Click`               | Y축 방향 보기 (X,Z 치수)                 |
+| 2409 | `btnShowAxisZ_Click`               | Z축 방향 보기 (X,Y 치수)                 |
+| 2430 | `ShowAllDimensions`                | 치수 필터링 + 레벨 배치 + 렌더링         |
+| 2572 | `DrawDimension`                    | 단일 치수 + 오프셋 + 보조선              |
+| 2647 | `AssignDimensionPriorities`        | 치수 우선순위 점수 할당                  |
+| 2715 | `ApplySmartFiltering`              | Greedy 필터링 (겹침 방지)                |
+| 2947 | `LvClash_SelectedIndexChanged`     | Clash 선택 시 Osnap/치수 자동 연동       |
+| 3109 | `btnExtractDimension_Click`        | 체인 치수 추출                           |
+| 3234 | `AddChainDimensionByAxis`          | 축별 순차/전체 치수 생성                 |
 
 ---
 
 ## 8. Git Branch Strategy
 
-| 브랜치 | 용도 |
-|--------|------|
-| `main` | 메인 브랜치 |
-| `HYI` | 현재 개발 브랜치 (활성) |
+| 브랜치 | 용도                    |
+| ------ | ----------------------- |
+| `main` | 메인 브랜치             |
+| `HYI`  | 현재 개발 브랜치 (활성) |
 
 커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함.
