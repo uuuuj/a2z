@@ -45,6 +45,11 @@ namespace A2Z
         private List<int> xraySelectedNodeIndices = new List<int>();
 
         /// <summary>
+        /// BOM정보 탭 그룹 매핑 (key: nodeIndex, value: BOM정보 탭 그룹 No)
+        /// </summary>
+        private Dictionary<int, int> bomInfoNodeGroupMap = new Dictionary<int, int>();
+
+        /// <summary>
         /// 현재 열린 파일 경로
         /// </summary>
         private string currentFilePath = "";
@@ -1492,7 +1497,7 @@ namespace A2Z
                 catch { }
 
                 // 각 노드에서 UDA 값 수집 (UDA가 없어도 노드 이름으로 표시)
-                var rawBomItems = new List<Tuple<string, string, string, string>>();  // Item, Size, Matl, Weight
+                var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Matl, Weight, NodeIndex
 
                 foreach (var node in partNodes)
                 {
@@ -1535,7 +1540,7 @@ namespace A2Z
                     if (string.IsNullOrEmpty(matlVal)) matlVal = "X";
                     if (string.IsNullOrEmpty(weightVal)) weightVal = "X";
 
-                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matlVal, weightVal));
+                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matlVal, weightVal, node.Index));
                 }
 
                 // Item, Size, Matl, Weight 4개 값 기준으로 그룹핑 및 Q'ty 카운팅
@@ -1547,9 +1552,22 @@ namespace A2Z
                         Size = g.Key.Size,
                         Matl = g.Key.Matl,
                         Weight = g.Key.Weight,
-                        Qty = g.Count()
+                        Qty = g.Count(),
+                        NodeIndices = g.Select(x => x.Item5).ToList()
                     })
                     .ToList();
+
+                // bomInfoNodeGroupMap 구축: nodeIndex → groupNo 매핑
+                bomInfoNodeGroupMap.Clear();
+                int groupNo = 1;
+                foreach (var item in grouped)
+                {
+                    foreach (int nodeIdx in item.NodeIndices)
+                    {
+                        bomInfoNodeGroupMap[nodeIdx] = groupNo;
+                    }
+                    groupNo++;
+                }
 
                 // ListView에 채우기 (No는 1번부터)
                 lvBOMInfo.BeginUpdate();
@@ -3705,9 +3723,41 @@ namespace A2Z
 
                 List<float[]> placed = new List<float[]>();
 
-                // ===== 4. 각 부재별 풍선 배치 =====
+                // ===== 4. 표시할 풍선 결정 (BOM정보 탭 그룹 기준) =====
+                // balloonDisplayNumbers: key=bomList인덱스, value=표시할 번호
+                var balloonDisplayNumbers = new Dictionary<int, int>();
+                if (bomInfoNodeGroupMap.Count > 0)
+                {
+                    // BOM정보 탭 그룹 기준: 같은 그룹에서 첫 번째만 표시
+                    var shownGroups = new HashSet<int>();
+                    for (int i = 0; i < bomList.Count; i++)
+                    {
+                        int nodeIdx = bomList[i].Index;
+                        if (bomInfoNodeGroupMap.TryGetValue(nodeIdx, out int grpNo))
+                        {
+                            if (!shownGroups.Contains(grpNo))
+                            {
+                                shownGroups.Add(grpNo);
+                                balloonDisplayNumbers[i] = grpNo;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // BOM정보 미수집: 기존처럼 개별 순번
+                    for (int i = 0; i < bomList.Count; i++)
+                    {
+                        balloonDisplayNumbers[i] = i + 1;
+                    }
+                }
+
+                // ===== 5. 각 부재별 풍선 배치 =====
                 for (int i = 0; i < bomList.Count; i++)
                 {
+                    // 대표 아닌 부재는 스킵
+                    if (!balloonDisplayNumbers.ContainsKey(i)) continue;
+
                     var bom = bomList[i];
                     float bx, by, bz;
 
@@ -3885,7 +3935,7 @@ namespace A2Z
 
                     VIZCore3D.NET.Data.NoteStyle style = vizcore3d.Review.Note.GetStyle();
                     style.UseSymbol = true;
-                    style.SymbolText = (i + 1).ToString();
+                    style.SymbolText = balloonDisplayNumbers[i].ToString();
                     style.SymbolBackgroundColor = Color.Transparent;
                     style.SymbolFontColor = Color.Black;
                     style.SymbolFontBold = true;
@@ -6547,53 +6597,51 @@ namespace A2Z
 
             try
             {
-                vizcore3d.BeginUpdate();
-
-                // X-Ray 모드 활성화
-                if (!vizcore3d.View.XRay.Enable)
-                    vizcore3d.View.XRay.Enable = true;
-
-                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
-                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
-                vizcore3d.View.SilhouetteEdge = true;
-                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-
-                // 이전 선택 해제 후 시트 부재 선택
-                vizcore3d.View.XRay.Clear();
-                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
-
-                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
-                vizcore3d.Clash.ClearResultSymbol();
-
-                vizcore3d.EndUpdate();
-
-                // 설치도 시트: 부재 바운딩박스 경계 기반 체인치수
-                // 일반 시트: Osnap 기반 체인치수
-                if (sheet.BaseMemberIndex == -2) // 설치도
-                {
-                    ExtractInstallationDimensions(sheet.MemberIndices);
-                }
-                else
-                {
-                    CollectOsnapForSelectedNodes(sheet.MemberIndices);
-                    ExtractDimensionForSelectedNodes();
-                }
-
-                // 방향 보기 실행
                 if (viewDirection == "ISO")
                 {
+                    // ISO: 전체 X-Ray 설정 + Osnap/치수 수집 + 풍선 표시
+                    vizcore3d.BeginUpdate();
+
+                    if (!vizcore3d.View.XRay.Enable)
+                        vizcore3d.View.XRay.Enable = true;
+
+                    vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                    vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                    vizcore3d.View.SilhouetteEdge = true;
+                    vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+                    vizcore3d.View.XRay.Clear();
+                    vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                    xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+
+                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                    vizcore3d.Clash.ClearResultSymbol();
+
+                    vizcore3d.EndUpdate();
+
+                    if (sheet.BaseMemberIndex == -2)
+                    {
+                        ExtractInstallationDimensions(sheet.MemberIndices);
+                    }
+                    else
+                    {
+                        CollectOsnapForSelectedNodes(sheet.MemberIndices);
+                        ExtractDimensionForSelectedNodes();
+                    }
+
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     vizcore3d.View.FitToView();
                     ShowBalloonNumbers("ISO");
-                    // FitToView 후 1.7배 확대
                     vizcore3d.View.ZoomRatio = 105f;
                     vizcore3d.View.ZoomIn();
                 }
                 else
                 {
+                    // X/Y/Z: 시트 선택 시 이미 수집된 Osnap/치수 데이터 재활용
+                    // 방향 전환 + 렌더모드 + 치수 표시만 수행
                     vizcore3d.Review.Note.Clear();
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                     ShowAllDimensions(viewDirection);
                 }
             }
