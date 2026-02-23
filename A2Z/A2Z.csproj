@@ -47,6 +47,9 @@
     <Reference Include="VIZCore3D+.NET">
       <HintPath>..\..\..\..\..\..\softhills\03.VIZCore3D+.NET\VIZCore3D+.NET.dll</HintPath>
     </Reference>
+    <Reference Include="VIZCore3DX.NET">
+      <HintPath>..\..\04.VIZCore3DX.NET\VIZCore3DX.NET.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Form1.cs">

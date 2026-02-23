@@ -29,13 +29,10 @@ A2Z/
 
 | No  | 기능                         | 상태    | 설명                                                                                               |
 | --- | -------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
-| 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 수정 필요 | 도면정보 탭의 X/Y/Z 축 버튼이 정상적으로 동작도록 수정                                                                |
 | 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 미구현   | 도면 정보 탭에서 선택된 부재의 BOM 정보를 표시                                                                     |
-| 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료   | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지 |
 | 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 미구현   | BOM정보 탭 기준으로 가공도를 4개씩 묶어 출력. 가공도1 기준부재를 나열 후 도면 번호 매칭하여 4개씩 그룹핑                                  |
 | 5   | 풍선 위치 개선                   | 미구현   | 풍선이 부재/치수와 겹치지 않으면서도 모델 가까이에 배치되도록 개선 (현재 부재 밖으로 너무 멀리 나감)                                       |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 미구현   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
-|     |                            |       |                                                                                                  |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 진행중   | 파일 열기 시 자동 BOM 수집 → 치수 추출 버튼 클릭 시 수집으로 변경. 전체 모델이 아닌 뷰어에 보이는 모델(트리 선택 기준) 대상으로 수집. 미선택 시 예외처리 필요 |
 
 ### 현재 구현 완료된 기능
 
@@ -50,6 +47,10 @@ A2Z/
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
 | 2D 도면 생성              | 완료 | 4면도(ISO+평면+정면+측면) + BOM표 + 타이틀블록       |
 | PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
+| 글로벌 뷰 버튼            | 완료 | 탭 공통 ISO/X/Y/Z 버튼, 줌 누적 문제 해결 (Phase 12) |
+| ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
+| 도면 시트 선택 연동       | 완료 | 도면정보 탭 시트 선택 시 기준부재+Clash 연결부재만 X-Ray 표시 (Phase 13) |
+| 치수 번호 동기화          | 완료 | ListView No.와 ChainDimensionData.No 동기화 (Phase 13) |
 
 ---
 
@@ -590,6 +591,236 @@ RenderModes: WIRE(0), FLAT(1), SMOOTH(2), EDGE(3), SMOOTH_EDGE(4), HIDDEN_LINE_R
 
 - BOM정보 미수집 상태에서 ISO → 기존처럼 개별 순번 풍선 표시
 - 풍선 위치 조정(btnBalloonAdjust) 기존 동작 유지
+
+---
+
+### Phase 12: 글로벌 뷰 버튼 (탭 공통 ISO/X/Y/Z)
+
+**[요청]** "ISO, X축, Y축, Z축 버튼을 탭 위에 글로벌하게 배치하여 모든 탭에서 공통으로 사용. 축 버튼 반복 클릭 시 줌 누적 문제 해결. 도면정보 탭에서 시트 선택 후 축 버튼 클릭 시 정상 동작하도록 수정"
+
+**[문제점 분석]**
+
+1. 기존에 축 버튼이 탭별로 분산되어 있음
+   - 작업/데이터 탭: `btnShowISO`, `btnShowAxisX/Y/Z` (groupBox1 내부)
+   - 도면정보 탭: `btnDrawingISO`, `btnDrawingAxisX/Y/Z` (panelDrawingButtons 내부)
+2. 탭 이동 시 축 버튼 동작이 일관되지 않음
+3. `FitToView()` + `ZoomRatio` + `ZoomIn()` 조합이 반복 호출될 때마다 줌이 누적됨
+
+**[구현 — UI 변경]**
+
+1. **글로벌 뷰 버튼 패널 추가** (`panelGlobalViewButtons`)
+   - 위치: `splitContainer1.Panel1` 최상단 (탭 컨트롤 위)
+   - 크기: 457 x 50px, 배경색 `#3C3C3C` (어두운 회색)
+   - 버튼 4개: `btnGlobalISO`, `btnGlobalAxisX`, `btnGlobalAxisY`, `btnGlobalAxisZ`
+   - 각 버튼 크기 100x34px, FlatStyle, Bold 폰트
+
+2. **기존 탭별 축 버튼 제거**
+   - `groupBox1`에서 `btnShowISO/X/Y/Z` 제거, 높이 175→130px로 축소
+   - `panelDrawingButtons`에서 `btnDrawingISO/X/Y/Z` 제거, 높이 80→40px로 축소
+
+**[구현 — 로직 변경]**
+
+1. **글로벌 뷰 핸들러 추가** (`ApplyGlobalView`)
+   ```csharp
+   private void ApplyGlobalView(string viewDirection)
+   {
+       // 1. 도면정보 탭 + 시트 선택됨 → ApplyDrawingSheetView() 호출
+       // 2. X-Ray 선택된 부재 있음 → ApplySelectedNodesView() 호출
+       // 3. 그 외 → ApplyFullModelView() 호출 (전체 모델 기준)
+   }
+   ```
+
+2. **줌 누적 문제 해결**
+   - 기존: `FitToView()` → `ZoomRatio=105f` → `ZoomIn()` (3단계, 반복 시 누적)
+   - 변경: `FlyToObject3d(indices, 1.0f)` 또는 `FitToView()` 단독 호출 (1단계, 매번 동일)
+
+3. **ShowAllDimensions 수정**
+   - 카메라 방향만 설정, 줌 관련 코드 제거 (호출하는 쪽에서 담당)
+
+4. **ApplyDrawingSheetView 수정**
+   - X/Y/Z 뷰에서도 `FlyToObject3d(sheet.MemberIndices, 1.0f)` 호출하여 선택 부재에 맞춤
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Designer.cs` | panelGlobalViewButtons 추가, 기존 축 버튼 제거, groupBox1/panelDrawingButtons 크기 조정 |
+| `Form1.cs` | `btnGlobalISO/X/Y/Z_Click`, `ApplyGlobalView`, `ApplySelectedNodesView`, `ApplyFullModelView` 메서드 추가 |
+
+**[동작 흐름]**
+
+```
+[글로벌 뷰 버튼 클릭] → ApplyGlobalView(direction)
+        │
+        ├─ 도면정보 탭 + 시트 선택됨?
+        │       └─ Yes → ApplyDrawingSheetView(direction)
+        │
+        ├─ X-Ray 선택 부재 있음?
+        │       └─ Yes → ApplySelectedNodesView(direction)
+        │               → FlyToObject3d(선택 부재, 1.0f)
+        │               → ISO면 풍선, X/Y/Z면 치수 표시
+        │
+        └─ 기본 (전체 모델)
+                └─ ApplyFullModelView(direction)
+                        → FitToView() 한 번만 호출
+                        → ISO면 풍선, X/Y/Z면 치수 표시
+```
+
+**[기대 효과]**
+
+- 어떤 탭에 있든 상단 글로벌 버튼으로 뷰 전환 가능
+- 반복 클릭해도 줌 크기 일정 유지
+- 도면정보 탭에서 시트 선택 후 X/Y/Z 뷰 정상 동작
+
+---
+
+### Phase 13: UI 정리 + 도면 시트 로직 개선 + 치수 동기화
+
+**[요청]** "글로벌 뷰가 위자리를 차지해서 탭이 안보임. 치수 목록과 화면 치수 불일치. 도면정보 탭에서 시트 선택 시 기준부재+Clash 연결부재만 보이도록 수정"
+
+**[문제점 분석]**
+
+1. **WinForms Dock 순서 오류**: `panelGlobalViewButtons`(Top)를 먼저 Add하고 `tabControlLeft`(Fill)를 나중에 Add → Fill이 전체를 차지하고 Top이 덮어씀
+2. **치수 SmartFiltering**: 축당 5개로 필터링하여 ListView와 화면 표시 개수 불일치
+3. **도면 시트 Name 기반 매칭**: Clash.Name과 BOM.Name이 다른 경우 연결 실패
+
+**[해결 — 1. Dock 순서 수정]**
+
+```csharp
+// 수정 전 (잘못됨 - Top이 먼저)
+this.splitContainer1.Panel1.Controls.Add(this.panelGlobalViewButtons);  // Dock=Top
+this.splitContainer1.Panel1.Controls.Add(this.tabControlLeft);          // Dock=Fill
+
+// 수정 후 (올바름 - Fill 먼저, Top 나중 = Top이 먼저 처리됨)
+this.splitContainer1.Panel1.Controls.Add(this.tabControlLeft);          // Dock=Fill
+this.splitContainer1.Panel1.Controls.Add(this.panelGlobalViewButtons);  // Dock=Top
+```
+
+**WinForms Dock 핵심 원칙**: 나중에 Add된 컨트롤이 먼저 Dock 처리됨
+
+**[해결 — 2. SmartFiltering 제거]**
+
+```csharp
+// 수정 전 - 필터링 적용
+var filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 5, minTextSpace: 30.0f);
+
+// 수정 후 - 모든 치수 표시
+var filteredDims = displayList;
+foreach (var dim in filteredDims)
+{
+    dim.IsVisible = true;
+    dim.DisplayLevel = 0;
+}
+```
+
+**[해결 — 3. 치수 번호 동기화]**
+
+`ChainDimensionData` 클래스에 `No` 속성 추가:
+
+```csharp
+public class ChainDimensionData
+{
+    public int No { get; set; }  // ListView 번호와 일치
+    // ... 기존 속성
+}
+```
+
+치수 추가 시 번호 설정:
+```csharp
+int no = 1;
+foreach (var dim in chainDimensionList)
+{
+    dim.No = no;  // 치수 데이터에 번호 저장
+    ListViewItem lvi = new ListViewItem(no.ToString());
+    // ...
+    no++;
+}
+```
+
+삭제 후 재번호 처리:
+```csharp
+for (int i = 0; i < lvDimension.Items.Count; i++)
+{
+    lvDimension.Items[i].Text = (i + 1).ToString();
+    if (i < chainDimensionList.Count)
+        chainDimensionList[i].No = i + 1;
+}
+```
+
+**[해결 — 4. 도면 시트 Index 기반 매칭]**
+
+```csharp
+// 수정 전 (이름 기반 - 매칭 실패 가능)
+Dictionary<string, HashSet<string>> adjacency;
+foreach (var clash in clashList)
+{
+    adjacency[clash.Name1].Add(clash.Name2);  // Name 불일치 시 실패
+}
+
+// 수정 후 (Index 기반 - 확실한 매칭)
+Dictionary<int, HashSet<int>> adjacencyByIndex;
+foreach (var clash in clashList)
+{
+    if (!bomIndexSet.Contains(clash.Index1) || !bomIndexSet.Contains(clash.Index2))
+        continue;  // BOM에 없는 인덱스 무시
+    adjacencyByIndex[clash.Index1].Add(clash.Index2);
+    adjacencyByIndex[clash.Index2].Add(clash.Index1);
+}
+```
+
+**[해결 — 5. UI 버튼 배치 정리]**
+
+groupBox1 높이 130→110px 축소, 버튼 재배치:
+
+```
+┌─────────────────────────────────────────────────┐
+│ [ISO] [X축] [Y축] [Z축]          ← 글로벌 뷰 (42px) │
+├─────────────────────────────────────────────────┤
+│ 작업/데이터 | 부재정보 | 도면정보 | BOM정보        │
+├─────────────────────────────────────────────────┤
+│ ┌──────────────┐  ┌──────────────┐              │
+│ │  파일 열기    │  │   치수 추출   │              │
+│ └──────────────┘  └──────────────┘              │
+│ [2D생성] [PDF]    [BOM][Clash][Osnap][치수]      │
+└─────────────────────────────────────────────────┘
+```
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Designer.cs` | Dock 순서 수정, groupBox1 높이 110px, 버튼 재배치, 글로벌뷰 패널 42px |
+| `Form1.cs` | ChainDimensionData.No 추가, SmartFiltering 제거, Index 기반 도면 시트 생성, 치수 번호 동기화 |
+
+**[도면정보 탭 동작 흐름]**
+
+```
+1. 도면 생성 버튼 클릭
+   └→ GenerateDrawingSheets()
+       ├→ Sheet 1: 전체 BOM 부재
+       ├→ Sheet 2~N: 각 부재 + Clash 연결부재 (Index 기반 adjacency)
+       └→ 마지막: 설치도 (BFS로 전체 연결)
+
+2. 도면 시트 선택 (lvDrawingSheet)
+   └→ LvDrawingSheet_SelectedIndexChanged()
+       ├→ X-Ray 모드 활성화
+       ├→ sheet.MemberIndices만 X-Ray.Select()
+       ├→ xraySelectedNodeIndices에 저장
+       └→ Osnap/치수 자동 추출
+
+3. 글로벌 뷰 버튼 클릭 (X/Y/Z)
+   └→ ApplyGlobalView()
+       └→ xraySelectedNodeIndices 있음?
+           └→ ApplySelectedNodesView()
+               └→ FlyToObject3d(선택 부재만)
+```
+
+**[기대 효과]**
+
+- 글로벌 뷰 버튼 아래에 탭 정상 표시
+- ListView의 모든 치수가 화면에 표시됨
+- 도면 시트 선택 시 정확한 부재만 X-Ray 표시
+- 치수 번호 ListView ↔ 데이터 ↔ 화면 일치
 
 ---
 
