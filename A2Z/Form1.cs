@@ -4458,8 +4458,15 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    float baseOffset = 25f; // 부재 근처 오프셋
+                    float balloonOffset = 25f; // 부재 근처 초기 오프셋
                     float minBalloonDist = 20f; // 풍선 간 최소 거리
+                    float bomPad = 5f; // 부재 바운딩박스 패딩
+
+                    // 부재 바운딩박스를 2D(H,V) 기준으로 미리 계산
+                    Func<BOMData, int, float> getBomMin = (b, ax) =>
+                        ax == 0 ? b.MinX : (ax == 1 ? b.MinY : b.MinZ);
+                    Func<BOMData, int, float> getBomMax = (b, ax) =>
+                        ax == 0 ? b.MaxX : (ax == 1 ? b.MaxY : b.MaxZ);
 
                     // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
                     List<(float h, float v)> placedTextPositions = new List<(float, float)>();
@@ -4473,7 +4480,7 @@ namespace A2Z
                             float originV = getComp(entry.ox, entry.oy, entry.oz, bVAxis);
                             float originD = getComp(entry.ox, entry.oy, entry.oz, bDAxis);
 
-                            // 모델 중심 → 홀 위치 방향으로 오프셋 (숫자 풍선과 동일 패턴)
+                            // 모델 중심 → 홀 위치 방향으로 오프셋
                             float dirH = originH - modelCenterH;
                             float dirV = originV - modelCenterV;
                             float dirLen = (float)Math.Sqrt(dirH * dirH + dirV * dirV);
@@ -4485,20 +4492,37 @@ namespace A2Z
                             dirH /= dirLen;
                             dirV /= dirLen;
 
-                            float candidateH = originH + dirH * baseOffset;
-                            float candidateV = originV + dirV * baseOffset;
+                            float candidateH = originH + dirH * balloonOffset;
+                            float candidateV = originV + dirV * balloonOffset;
 
-                            // 겹침 방지: 다른 풍선과 가까우면 회전하며 위치 조정
+                            // 겹침 방지: 다른 풍선 + 부재 바운딩박스(2D 투영)와 겹치면 회전
                             bool positionFound = false;
                             for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
                             {
                                 bool collision = false;
+
+                                // 다른 풍선과 겹침 검사
                                 foreach (var placed in placedTextPositions)
                                 {
                                     float dh = candidateH - placed.h;
                                     float dv = candidateV - placed.v;
                                     if (Math.Sqrt(dh * dh + dv * dv) < minBalloonDist)
                                     { collision = true; break; }
+                                }
+
+                                // 부재 바운딩박스(2D 투영)와 겹침 검사
+                                if (!collision)
+                                {
+                                    foreach (var bom in bomList)
+                                    {
+                                        float bMinH = getBomMin(bom, bHAxis) - bomPad;
+                                        float bMaxH = getBomMax(bom, bHAxis) + bomPad;
+                                        float bMinV = getBomMin(bom, bVAxis) - bomPad;
+                                        float bMaxV = getBomMax(bom, bVAxis) + bomPad;
+                                        if (candidateH >= bMinH && candidateH <= bMaxH &&
+                                            candidateV >= bMinV && candidateV <= bMaxV)
+                                        { collision = true; break; }
+                                    }
                                 }
 
                                 if (!collision)
@@ -4513,7 +4537,7 @@ namespace A2Z
                                     float sinA = (float)Math.Sin(rotAngle);
                                     float newDirH = cosA * dirH - sinA * dirV;
                                     float newDirV = sinA * dirH + cosA * dirV;
-                                    float newOffset = baseOffset * (1f + (attempt / 6) * 0.1f);
+                                    float newOffset = balloonOffset * (1f + (attempt / 4) * 0.15f);
                                     candidateH = originH + newDirH * newOffset;
                                     candidateV = originV + newDirV * newOffset;
                                 }
