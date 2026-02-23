@@ -6489,7 +6489,12 @@ namespace A2Z
         private void RestoreAllPartsVisibility()
         {
             // 모든 부재 표시 (숨겨진 부재 복원)
-            vizcore3d.Object3D.ShowAll(true);
+            List<int> allIndices = new List<int>();
+            foreach (BOMData b in bomList)
+                allIndices.Add(b.Index);
+
+            if (allIndices.Count > 0)
+                vizcore3d.Object3D.Show(allIndices, true);
         }
 
         #endregion
@@ -6700,7 +6705,11 @@ namespace A2Z
                 }
 
                 // 모든 부재 숨기기
-                vizcore3d.Object3D.ShowAll(false);
+                List<int> allIndices = new List<int>();
+                foreach (BOMData b in bomList)
+                    allIndices.Add(b.Index);
+                if (allIndices.Count > 0)
+                    vizcore3d.Object3D.Show(allIndices, false);
 
                 // 선택된 시트의 부재만 표시
                 vizcore3d.Object3D.Show(sheet.MemberIndices, true);
