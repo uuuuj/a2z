@@ -3862,7 +3862,7 @@ namespace A2Z
                         float mHalfY = (bom.MaxY - bom.MinY) / 2f;
                         float mHalfZ = (bom.MaxZ - bom.MinZ) / 2f;
                         float memberDiag = (float)Math.Sqrt(mHalfX * mHalfX + mHalfY * mHalfY + mHalfZ * mHalfZ);
-                        float memberOffset = Math.Max(memberDiag * 0.3f, 15f);
+                        float memberOffset = Math.Max(memberDiag * 0.5f, 25f);
                         float edgeDist = Math.Abs(d3x) * mHalfX + Math.Abs(d3y) * mHalfY + Math.Abs(d3z) * mHalfZ;
                         float totalDist = edgeDist + memberOffset;
 
@@ -3946,7 +3946,7 @@ namespace A2Z
 
                         // 개별 부재 크기 기반 오프셋
                         float memberDiag2D = (float)Math.Sqrt(memberHalfH * memberHalfH + memberHalfV * memberHalfV);
-                        float memberOffset2D = Math.Max(memberDiag2D * 0.3f, 15f);
+                        float memberOffset2D = Math.Max(memberDiag2D * 0.5f, 25f);
                         float edgeDist = Math.Abs(dirH) * memberHalfH + Math.Abs(dirV) * memberHalfV;
                         float totalOffset = edgeDist + memberOffset2D;
                         float bestH = memberH + dirH * totalOffset;
