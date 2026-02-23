@@ -3752,8 +3752,7 @@ namespace A2Z
                 float modelDiag = (float)Math.Sqrt(modelSizeH * modelSizeH + modelSizeV * modelSizeV);
 
                 // ===== 3. 풍선 배치 파라미터 =====
-                float baseOffset = Math.Max(modelDiag * 0.15f, 50f);
-                float minBalloonDist = Math.Max(modelDiag * 0.06f, 30f);
+                float minBalloonDist = Math.Max(modelDiag * 0.04f, 20f);
 
                 List<float[]> placed = new List<float[]>();
 
@@ -3804,7 +3803,7 @@ namespace A2Z
                     }
                     else if (viewDirection == "ISO")
                     {
-                        // === ISO 뷰: 부재 중심→모델 중심 반대 방향으로 배치 ===
+                        // === ISO 뷰: 부재 중심→모델 중심 반대 방향으로, 부재 바로 옆에 배치 ===
                         float d3x = bom.CenterX - gcX;
                         float d3y = bom.CenterY - gcY;
                         float d3z = bom.CenterZ - gcZ;
@@ -3820,18 +3819,20 @@ namespace A2Z
                         }
                         d3x /= d3len; d3y /= d3len; d3z /= d3len;
 
-                        // 부재 가장자리까지 거리 + 오프셋
+                        // 부재 가장자리까지 거리 + 개별 부재 크기 기반 오프셋
                         float mHalfX = (bom.MaxX - bom.MinX) / 2f;
                         float mHalfY = (bom.MaxY - bom.MinY) / 2f;
                         float mHalfZ = (bom.MaxZ - bom.MinZ) / 2f;
+                        float memberDiag = (float)Math.Sqrt(mHalfX * mHalfX + mHalfY * mHalfY + mHalfZ * mHalfZ);
+                        float memberOffset = Math.Max(memberDiag * 0.3f, 15f);
                         float edgeDist = Math.Abs(d3x) * mHalfX + Math.Abs(d3y) * mHalfY + Math.Abs(d3z) * mHalfZ;
-                        float totalDist = edgeDist + baseOffset;
+                        float totalDist = edgeDist + memberOffset;
 
                         bx = bom.CenterX + d3x * totalDist;
                         by = bom.CenterY + d3y * totalDist;
                         bz = bom.CenterZ + d3z * totalDist;
 
-                        // 충돌 검사 (다른 풍선 + 모든 부재 바운딩박스)
+                        // 충돌 검사 (다른 풍선 + 다른 부재 바운딩박스, 자기 자신 제외)
                         bool positionFound = false;
                         for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
                         {
@@ -3849,6 +3850,7 @@ namespace A2Z
                                 float pad = minBalloonDist * 0.3f;
                                 foreach (var otherBom in bomList)
                                 {
+                                    if (otherBom == bom) continue; // 자기 자신 부재는 충돌 제외
                                     if (bx >= otherBom.MinX - pad && bx <= otherBom.MaxX + pad &&
                                         by >= otherBom.MinY - pad && by <= otherBom.MaxY + pad &&
                                         bz >= otherBom.MinZ - pad && bz <= otherBom.MaxZ + pad)
@@ -3870,7 +3872,7 @@ namespace A2Z
                                 // XY 평면에서 회전
                                 float newDx = cosA * d3x - sinA * d3y;
                                 float newDy = sinA * d3x + cosA * d3y;
-                                float newDist = totalDist * (1f + (attempt / 4) * 0.2f);
+                                float newDist = totalDist * (1f + (attempt / 6) * 0.1f);
 
                                 bx = bom.CenterX + newDx * newDist;
                                 by = bom.CenterY + newDy * newDist;
@@ -3883,7 +3885,7 @@ namespace A2Z
                     }
                     else
                     {
-                        // === 정사영 뷰 (X, Y, Z): 2D H-V 평면 기반 배치 ===
+                        // === 정사영 뷰 (X, Y, Z): 2D H-V 평면 기반, 부재 바로 옆에 배치 ===
                         float memberH = getCenter(bom, hAxis);
                         float memberV = getCenter(bom, vAxis);
                         float memberD = getCenter(bom, dAxis);
@@ -3904,8 +3906,11 @@ namespace A2Z
                         dirH /= dirLen;
                         dirV /= dirLen;
 
+                        // 개별 부재 크기 기반 오프셋
+                        float memberDiag2D = (float)Math.Sqrt(memberHalfH * memberHalfH + memberHalfV * memberHalfV);
+                        float memberOffset2D = Math.Max(memberDiag2D * 0.3f, 15f);
                         float edgeDist = Math.Abs(dirH) * memberHalfH + Math.Abs(dirV) * memberHalfV;
-                        float totalOffset = edgeDist + baseOffset;
+                        float totalOffset = edgeDist + memberOffset2D;
                         float bestH = memberH + dirH * totalOffset;
                         float bestV = memberV + dirV * totalOffset;
 
@@ -3923,9 +3928,10 @@ namespace A2Z
 
                             if (!collision)
                             {
-                                float pad = minBalloonDist * 0.5f;
+                                float pad = minBalloonDist * 0.3f;
                                 foreach (var otherBom in bomList)
                                 {
+                                    if (otherBom == bom) continue; // 자기 자신 부재는 충돌 제외
                                     float oMinH = getMin(otherBom, hAxis) - pad;
                                     float oMaxH = getMax(otherBom, hAxis) + pad;
                                     float oMinV = getMin(otherBom, vAxis) - pad;
@@ -3947,7 +3953,7 @@ namespace A2Z
                                 float sinA = (float)Math.Sin(rotAngle);
                                 float newDirH = cosA * dirH - sinA * dirV;
                                 float newDirV = sinA * dirH + cosA * dirV;
-                                float newOffset = totalOffset * (1f + (attempt / 6) * 0.15f);
+                                float newOffset = totalOffset * (1f + (attempt / 6) * 0.1f);
                                 bestH = memberH + newDirH * newOffset;
                                 bestV = memberV + newDirV * newOffset;
                             }
@@ -4290,13 +4296,7 @@ namespace A2Z
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
                 float dimBaseline_OuterOffset = baseOffset + (levelSpacing * maxLevelUsed);
                 // 모델 크기에 비례하여 풍선 오프셋 결정 (최소 100mm, 모델 대각 크기의 10%)
-                float modelSpanH = Math.Abs(globalMaxX - globalMinX);
-                float modelSpanV = Math.Abs(globalMaxY - globalMinY);
-                float modelSpanD = Math.Abs(globalMaxZ - globalMinZ);
-                float modelDiag = (float)Math.Sqrt(modelSpanH * modelSpanH + modelSpanV * modelSpanV + modelSpanD * modelSpanD);
-                float balloonGap = Math.Max(100f, modelDiag * 0.1f); // 모델과 충분히 떨어진 위치
-                float overlapAngleStep = 5f; // 겹침 시 5° 추가
-                float overlapLengthStep = 20f; // 겹침 시 보조선 20mm 연장
+                // (풍선 배치를 부재 옆 방식으로 변경 - 모델 외곽 배치 파라미터 제거됨)
 
                 // 뷰 방향별 축 매핑 (hAxis=수평, vAxis=수직, dAxis=깊이)
                 int bHAxis, bVAxis, bDAxis;
@@ -4447,41 +4447,26 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 풍선 일괄 배치 (Osnap 범위 바깥으로 배치, 겹침 방지) ---
+                // --- 풍선 일괄 배치 (부재/홀 바로 옆에 배치, 겹침 방지) ---
                 try
                 {
                     Func<float, float, float, int, float> getComp = (x, y, z, axis) =>
                         axis == 0 ? x : (axis == 1 ? y : z);
 
-                    // 모델 중심의 수평축 좌표 (풍선 방향 결정용)
+                    // 모델 중심 (풍선 방향 결정용)
                     float[] modelCenterArr = { modelCenterX, modelCenterY, modelCenterZ };
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    // Osnap 좌표 기반 모델 외곽 범위 계산 (2D 뷰 기준)
-                    float osnapMinH = float.MaxValue, osnapMaxH = float.MinValue;
-                    float osnapMinV = float.MaxValue, osnapMaxV = float.MinValue;
-                    if (osnapPoints != null && osnapPoints.Count > 0)
-                    {
-                        foreach (var pt in osnapPoints)
-                        {
-                            float ph = getComp(pt.X, pt.Y, pt.Z, bHAxis);
-                            float pv = getComp(pt.X, pt.Y, pt.Z, bVAxis);
-                            if (ph < osnapMinH) osnapMinH = ph;
-                            if (ph > osnapMaxH) osnapMaxH = ph;
-                            if (pv < osnapMinV) osnapMinV = pv;
-                            if (pv > osnapMaxV) osnapMaxV = pv;
-                        }
-                    }
-                    else
-                    {
-                        // Osnap 없으면 globalMin/Max 사용
-                        float[] gMinArr = { globalMinX, globalMinY, globalMinZ };
-                        float[] gMaxArr = { globalMaxX, globalMaxY, globalMaxZ };
-                        osnapMinH = gMinArr[bHAxis]; osnapMaxH = gMaxArr[bHAxis];
-                        osnapMinV = gMinArr[bVAxis]; osnapMaxV = gMaxArr[bVAxis];
-                    }
-                    float textMargin = 30f; // 모델 외곽에서 텍스트까지 최소 간격
+                    float balloonOffset = 25f; // 부재 근처 초기 오프셋
+                    float minBalloonDist = 20f; // 풍선 간 최소 거리
+                    float bomPad = 5f; // 부재 바운딩박스 패딩
+
+                    // 부재 바운딩박스를 2D(H,V) 기준으로 미리 계산
+                    Func<BOMData, int, float> getBomMin = (b, ax) =>
+                        ax == 0 ? b.MinX : (ax == 1 ? b.MinY : b.MinZ);
+                    Func<BOMData, int, float> getBomMax = (b, ax) =>
+                        ax == 0 ? b.MaxX : (ax == 1 ? b.MaxY : b.MaxZ);
 
                     // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
                     List<(float h, float v)> placedTextPositions = new List<(float, float)>();
@@ -4495,33 +4480,66 @@ namespace A2Z
                             float originV = getComp(entry.ox, entry.oy, entry.oz, bVAxis);
                             float originD = getComp(entry.ox, entry.oy, entry.oz, bDAxis);
 
-                            // 모델 중심 기준 좌/우 판단 → 풍선을 모델 바깥으로 배치
-                            bool isLeft = originH < modelCenterH;
-                            // 텍스트 H좌표: 모델 Osnap 외곽 바깥으로 배치
-                            float candidateH = isLeft
-                                ? osnapMinH - textMargin - balloonGap
-                                : osnapMaxH + textMargin + balloonGap;
-                            // 텍스트 V좌표: 홀의 V좌표를 기본으로, 모델 아래쪽 바깥으로
-                            float candidateV = osnapMinV - textMargin;
+                            // 모델 중심 → 홀 위치 방향으로 오프셋
+                            float dirH = originH - modelCenterH;
+                            float dirV = originV - modelCenterV;
+                            float dirLen = (float)Math.Sqrt(dirH * dirH + dirV * dirV);
 
-                            // 이전에 배치된 풍선과 텍스트 위치 근접도 확인 → 겹치면 아래로 이동
-                            int overlapCount = 0;
-                            bool hasOverlap = true;
-                            while (hasOverlap && overlapCount < 36)
+                            if (dirLen < 0.001f)
                             {
-                                hasOverlap = false;
+                                dirH = 1f; dirV = 0f; dirLen = 1f;
+                            }
+                            dirH /= dirLen;
+                            dirV /= dirLen;
+
+                            float candidateH = originH + dirH * balloonOffset;
+                            float candidateV = originV + dirV * balloonOffset;
+
+                            // 겹침 방지: 다른 풍선 + 부재 바운딩박스(2D 투영)와 겹치면 회전
+                            bool positionFound = false;
+                            for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
+                            {
+                                bool collision = false;
+
+                                // 다른 풍선과 겹침 검사
                                 foreach (var placed in placedTextPositions)
                                 {
                                     float dh = candidateH - placed.h;
                                     float dv = candidateV - placed.v;
-                                    float textDist = (float)Math.Sqrt(dh * dh + dv * dv);
-                                    if (textDist < 30f) // 텍스트 간 최소 30mm 간격
+                                    if (Math.Sqrt(dh * dh + dv * dv) < minBalloonDist)
+                                    { collision = true; break; }
+                                }
+
+                                // 부재 바운딩박스(2D 투영)와 겹침 검사
+                                if (!collision)
+                                {
+                                    foreach (var bom in bomList)
                                     {
-                                        hasOverlap = true;
-                                        overlapCount++;
-                                        candidateV = osnapMinV - textMargin - overlapCount * overlapLengthStep;
-                                        break;
+                                        float bMinH = getBomMin(bom, bHAxis) - bomPad;
+                                        float bMaxH = getBomMax(bom, bHAxis) + bomPad;
+                                        float bMinV = getBomMin(bom, bVAxis) - bomPad;
+                                        float bMaxV = getBomMax(bom, bVAxis) + bomPad;
+                                        if (candidateH >= bMinH && candidateH <= bMaxH &&
+                                            candidateV >= bMinV && candidateV <= bMaxV)
+                                        { collision = true; break; }
                                     }
+                                }
+
+                                if (!collision)
+                                {
+                                    positionFound = true;
+                                }
+                                else
+                                {
+                                    float rotAngle = (float)((attempt / 2 + 1) * 15 * Math.PI / 180);
+                                    if (attempt % 2 == 1) rotAngle = -rotAngle;
+                                    float cosA = (float)Math.Cos(rotAngle);
+                                    float sinA = (float)Math.Sin(rotAngle);
+                                    float newDirH = cosA * dirH - sinA * dirV;
+                                    float newDirV = sinA * dirH + cosA * dirV;
+                                    float newOffset = balloonOffset * (1f + (attempt / 4) * 0.15f);
+                                    candidateH = originH + newDirH * newOffset;
+                                    candidateV = originV + newDirV * newOffset;
                                 }
                             }
 
