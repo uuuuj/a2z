@@ -94,19 +94,13 @@ namespace A2Z
             this.tabPageBOMInfo = new System.Windows.Forms.TabPage();
             this.lvBOMInfo = new System.Windows.Forms.ListView();
             this.colBomPieceNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomL = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomST = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomStage4 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomStage5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomStage6 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomRmk = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panelBOMInfoHeader = new System.Windows.Forms.Panel();
             this.btnCollectBOMInfo = new System.Windows.Forms.Button();
             this.lblBOMInfoDesc = new System.Windows.Forms.Label();
@@ -1051,19 +1045,13 @@ namespace A2Z
             //
             this.lvBOMInfo.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.colBomPieceNo,
-            this.colBomL,
             this.colBomItem,
-            this.colBomSize,
             this.colBomMaterial,
+            this.colBomSize,
             this.colBomQty,
             this.colBomWeight,
             this.colBomMA,
-            this.colBomFA,
-            this.colBomST,
-            this.colBomStage4,
-            this.colBomStage5,
-            this.colBomStage6,
-            this.colBomRmk});
+            this.colBomFA});
             this.lvBOMInfo.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvBOMInfo.FullRowSelect = true;
             this.lvBOMInfo.GridLines = true;
@@ -1077,73 +1065,43 @@ namespace A2Z
             //
             // colBomPieceNo
             //
-            this.colBomPieceNo.Text = "No";
+            this.colBomPieceNo.Text = "No.";
             this.colBomPieceNo.Width = 40;
-            //
-            // colBomL
-            //
-            this.colBomL.Text = "L";
-            this.colBomL.Width = 30;
             //
             // colBomItem
             //
-            this.colBomItem.Text = "Item";
-            this.colBomItem.Width = 50;
-            //
-            // colBomSize
-            //
-            this.colBomSize.Text = "Size";
-            this.colBomSize.Width = 110;
+            this.colBomItem.Text = "ITEM";
+            this.colBomItem.Width = 100;
             //
             // colBomMaterial
             //
-            this.colBomMaterial.Text = "Mat'l";
-            this.colBomMaterial.Width = 70;
+            this.colBomMaterial.Text = "MATERIAL";
+            this.colBomMaterial.Width = 80;
+            //
+            // colBomSize
+            //
+            this.colBomSize.Text = "SIZE";
+            this.colBomSize.Width = 110;
             //
             // colBomQty
             //
-            this.colBomQty.Text = "Q'ty";
-            this.colBomQty.Width = 40;
+            this.colBomQty.Text = "Q'TY";
+            this.colBomQty.Width = 45;
             //
             // colBomWeight
             //
-            this.colBomWeight.Text = "Weight";
-            this.colBomWeight.Width = 55;
+            this.colBomWeight.Text = "T/W";
+            this.colBomWeight.Width = 60;
             //
             // colBomMA
             //
             this.colBomMA.Text = "MA";
-            this.colBomMA.Width = 30;
+            this.colBomMA.Width = 35;
             //
             // colBomFA
             //
             this.colBomFA.Text = "FA";
-            this.colBomFA.Width = 30;
-            //
-            // colBomST
-            //
-            this.colBomST.Text = "ST";
-            this.colBomST.Width = 30;
-            //
-            // colBomStage4
-            //
-            this.colBomStage4.Text = "";
-            this.colBomStage4.Width = 30;
-            //
-            // colBomStage5
-            //
-            this.colBomStage5.Text = "";
-            this.colBomStage5.Width = 30;
-            //
-            // colBomStage6
-            //
-            this.colBomStage6.Text = "";
-            this.colBomStage6.Width = 30;
-            //
-            // colBomRmk
-            //
-            this.colBomRmk.Text = "Rmk";
-            this.colBomRmk.Width = 60;
+            this.colBomFA.Width = 35;
             //
             // panelViewer
             //
@@ -1363,18 +1321,12 @@ namespace A2Z
         private System.Windows.Forms.Label lblBOMInfoDesc;
         private System.Windows.Forms.ListView lvBOMInfo;
         private System.Windows.Forms.ColumnHeader colBomPieceNo;
-        private System.Windows.Forms.ColumnHeader colBomL;
         private System.Windows.Forms.ColumnHeader colBomItem;
-        private System.Windows.Forms.ColumnHeader colBomSize;
         private System.Windows.Forms.ColumnHeader colBomMaterial;
+        private System.Windows.Forms.ColumnHeader colBomSize;
         private System.Windows.Forms.ColumnHeader colBomQty;
         private System.Windows.Forms.ColumnHeader colBomWeight;
         private System.Windows.Forms.ColumnHeader colBomMA;
         private System.Windows.Forms.ColumnHeader colBomFA;
-        private System.Windows.Forms.ColumnHeader colBomST;
-        private System.Windows.Forms.ColumnHeader colBomStage4;
-        private System.Windows.Forms.ColumnHeader colBomStage5;
-        private System.Windows.Forms.ColumnHeader colBomStage6;
-        private System.Windows.Forms.ColumnHeader colBomRmk;
     }
 }
