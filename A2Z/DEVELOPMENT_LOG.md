@@ -33,9 +33,10 @@ A2Z/
 | 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료  | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                                   |
 | 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료  | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시             |
 | 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 진행중 | 가공도 시트 생성 + 단일 부재 가공도 출력 완료 (Phase 15). 4개씩 묶기는 미구현                                               |
-| 7   | 2D 도면 생성 — Drawing2D Template API 전환 | 완료  | GDI+ 비트맵 방식 → VIZCore3D Drawing2D Template/GridStructure 네이티브 API 전환 (Phase 16)                                |
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14)                    |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
+| 7   | BOM정보 컬럼 재설계 + UDA 전환       | 완료  | 8컬럼(No.\|ITEM\|MATERIAL\|SIZE\|Q'TY\|T/W\|MA\|FA), SPREF/MATREF/GWEI UDA 키, 부재명 TextBox 오버레이 (Phase 16) |
+| 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 완료  | GDI+ 비트맵 방식 → VIZCore3D Drawing2D Template/GridStructure 네이티브 API 전환 (Phase 16) |
 
 
 ### 현재 구현 완료된 기능
@@ -112,7 +113,7 @@ measureStyle.FontColor = Color.Blue;
 measureStyle.FontSize = FontSizeKind.SIZE12;
 measureStyle.FontBold = true;
 measureStyle.LineColor = Color.Blue;
-measureStyle.LineWidth = 2;
+measureStyle.LineWidth = 1;
 measureStyle.ArrowSize = 10;
 measureStyle.AssistantLine = false;       // 내장 보조선 비활성화 (ShapeDrawing 사용 시)
 measureStyle.AlignDistanceText = true;
@@ -970,6 +971,66 @@ allNodes = allNodes.Where(n =>
 | `-1` | 전체 BOM 시트 |
 | `-2` | 설치도 시트 |
 | `-3` | 가공도 시트 |
+
+---
+
+### Phase 16: BOM정보 컬럼 재설계 + 부재명 TextBox + 치수선 스타일 개선
+
+**[요청 1]** "치수추출 시 선택된 부재 이름 입력 TextBox를 3D 뷰어 위에 오버레이로 표시. BOM정보 탭 컬럼을 No.|ITEM|MATERIAL|SIZE|Q'TY|T/W|MA|FA로 변경. UDA 키를 SPREF/MATREF/GWEI 기반으로 전환"
+
+**[요청 2]** "BOM 데이터 No. 컬럼 1번부터, ISO 풍선 번호를 항상 BOM No.와 일치"
+
+**[요청 3]** "보조선/치수선 굵기를 가늘게, 치수 숫자는 선명하게"
+
+**[구현 — 1. 부재명 TextBox 오버레이]**
+
+- `txtMemberNameOverlay` 필드 추가 (Form1.cs)
+- `ShowMemberNameOverlay(string)` 메서드: panelViewer에 TextBox 동적 생성
+  - Font: 맑은 고딕 12F Bold, 배경 (45,45,48), 흰색 글자
+  - 위치: panelViewer 상단 (y=5), 좌우 마진 10px, Anchor=Top|Left|Right
+- `btnExtractDimension_Click`에서 선택된 시트의 `BaseMemberName`으로 호출
+
+**[구현 — 2. BOM정보 컬럼 재설계]**
+
+Designer.cs 변경:
+- 삭제: `colBomL`, `colBomST`, `colBomStage4~6`, `colBomRmk` (6개 컬럼)
+- 남은 8개 컬럼: No.(40) | ITEM(100) | MATERIAL(80) | SIZE(110) | Q'TY(45) | T/W(60) | MA(35) | FA(35)
+
+**[구현 — 3. CollectBOMInfo() 재작성]**
+
+UDA 키 변경:
+| 기존 | 신규 | 용도 |
+|------|------|------|
+| ITEM | SPREF (split ":")[0] | ITEM |
+| SIZE | SPREF (split ":")[1] | SIZE |
+| MATL/MATERIAL | MATREF | MATERIAL |
+| WEIGHT | GWEI | T/W |
+
+SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
+
+행 구성:
+- Row 0 (요약행): ITEM="Support&Seat", T/W=전체 GWEI 합계, MA="F", FA="F"
+- Row 1~N (개별 파트): Q'TY="1", MA="L", FA="F", 그룹핑 없이 각 Part 독립 행
+
+**[구현 — 4. 풍선 번호 = BOM No. 보장]**
+
+- `ShowBalloonNumbers()`에서 `bomInfoNodeGroupMap`이 비어있으면 `CollectBOMInfo(false)` 자동 호출
+- ISO 풍선 번호가 항상 BOM정보 탭 No. 컬럼과 일치
+
+**[구현 — 5. 치수선 스타일 개선]**
+
+3곳의 MeasureStyle 설정 수정:
+| 항목 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| `LineWidth` | 2 | 1 (보조선/치수선 가늘게) |
+| `FontBold` | true | true (유지, 숫자 선명하게) |
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | txtMemberNameOverlay 필드, ShowMemberNameOverlay(), btnExtractDimension_Click 수정, CollectBOMInfo() 재작성, ShowBalloonNumbers() 자동 BOM 수집, LineWidth 2→1 |
+| `Form1.Designer.cs` | 6개 컬럼 삭제, 8개 컬럼 텍스트/너비/순서 변경 |
 
 ---
 

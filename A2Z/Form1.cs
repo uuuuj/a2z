@@ -95,6 +95,11 @@ namespace A2Z
         /// </summary>
         private System.Windows.Forms.Timer licenseRefreshTimer;
 
+        /// <summary>
+        /// 부재 이름 입력 TextBox (3D 뷰어 위 오버레이)
+        /// </summary>
+        private TextBox txtMemberNameOverlay = null;
+
         public Form1()
         {
             InitializeComponent();
@@ -1552,7 +1557,6 @@ namespace A2Z
                     DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
                     if (selectedSheet != null && selectedSheet.MemberIndices.Count > 0)
                     {
-                        // MemberIndices는 Body 인덱스 → 부모 Part 인덱스를 찾아서 필터링
                         var sheetBodySet = new HashSet<int>(selectedSheet.MemberIndices);
                         List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
                         var partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
@@ -1563,7 +1567,6 @@ namespace A2Z
                             foreach (var body in bodyNodes)
                             {
                                 if (!sheetBodySet.Contains(body.Index)) continue;
-                                // 이진탐색으로 부모 Part 찾기 (body.Index보다 작거나 같은 가장 큰 Part 인덱스)
                                 int lo = 0, hi = partIdxSorted.Count - 1;
                                 int parentPart = -1;
                                 while (lo <= hi)
@@ -1594,17 +1597,16 @@ namespace A2Z
                 }
                 catch { }
 
-                // 각 노드에서 UDA 값 수집 (UDA가 없어도 노드 이름으로 표시)
-                var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Matl, Weight, NodeIndex
+                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (그룹핑 없이 각 파트가 독립 행)
+                var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Material, Weight, NodeIndex
+                double totalWeight = 0;
 
                 foreach (var node in partNodes)
                 {
-                    string itemVal = "";
-                    string sizeVal = "";
-                    string matlVal = "";
-                    string weightVal = "";
+                    string sprefVal = "";
+                    string matrefVal = "";
+                    string gweiVal = "";
 
-                    // UDA 키가 존재하면 값 조회 시도
                     if (udaKeyList != null)
                     {
                         foreach (string key in udaKeyList)
@@ -1615,68 +1617,60 @@ namespace A2Z
                                 var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
                                 string valStr = (val != null) ? val.ToString().Trim() : "";
 
-                                if (keyUpper == "ITEM")
-                                    itemVal = valStr;
-                                else if (keyUpper == "SIZE")
-                                    sizeVal = valStr;
-                                else if (keyUpper == "MATL" || keyUpper == "MATERIAL")
-                                    matlVal = valStr;
-                                else if (keyUpper == "WEIGHT")
-                                    weightVal = valStr;
+                                if (keyUpper == "SPREF")
+                                    sprefVal = valStr;
+                                else if (keyUpper == "MATREF")
+                                    matrefVal = valStr;
+                                else if (keyUpper == "GWEI")
+                                    gweiVal = valStr;
                             }
                             catch { }
                         }
                     }
 
-                    // UDA에 Item이 없으면 노드 이름을 Item으로 사용
+                    // SPREF 파싱: 첫 글자 "/" 제거 후 ":" 기준 split → [0]=ITEM, [1]=SIZE
+                    string itemVal = "";
+                    string sizeVal = "";
+                    if (!string.IsNullOrEmpty(sprefVal))
+                    {
+                        string sprefClean = sprefVal;
+                        if (sprefClean.StartsWith("/"))
+                            sprefClean = sprefClean.Substring(1);
+                        string[] parts = sprefClean.Split(':');
+                        itemVal = parts[0].Trim();
+                        if (parts.Length > 1)
+                            sizeVal = parts[1].Trim();
+                    }
+
+                    // UDA에 SPREF가 없으면 노드 이름을 Item으로 사용
                     if (string.IsNullOrEmpty(itemVal))
                         itemVal = node.NodeName ?? "";
 
-                    // 빈 항목은 "X"로 표시
-                    if (string.IsNullOrEmpty(itemVal)) itemVal = "X";
-                    if (string.IsNullOrEmpty(sizeVal)) sizeVal = "X";
-                    if (string.IsNullOrEmpty(matlVal)) matlVal = "X";
-                    if (string.IsNullOrEmpty(weightVal)) weightVal = "X";
+                    // T/W 합계 계산
+                    double w = 0;
+                    if (!string.IsNullOrEmpty(gweiVal))
+                        double.TryParse(gweiVal, out w);
+                    totalWeight += w;
 
-                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matlVal, weightVal, node.Index));
+                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matrefVal, gweiVal, node.Index));
                 }
 
-                // Item, Size, Matl, Weight 4개 값 기준으로 그룹핑 및 Q'ty 카운팅
-                var grouped = rawBomItems
-                    .GroupBy(x => new { Item = x.Item1, Size = x.Item2, Matl = x.Item3, Weight = x.Item4 })
-                    .Select(g => new
-                    {
-                        Item = g.Key.Item,
-                        Size = g.Key.Size,
-                        Matl = g.Key.Matl,
-                        Weight = g.Key.Weight,
-                        Qty = g.Count(),
-                        NodeIndices = g.Select(x => x.Item5).ToList()
-                    })
-                    .ToList();
-
                 // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
-                // partNodes의 Index는 Part 레벨이므로, Body 노드를 가져와서 Part→Body 매핑 필요
                 bomInfoNodeGroupMap.Clear();
                 List<VIZCore3D.NET.Data.Node> bodyNodesForMap = vizcore3d.Object3D.GetPartialNode(false, false, true);
                 if (bodyNodesForMap != null && bodyNodesForMap.Count > 0)
                 {
-                    // Part 인덱스 정렬 (이진 탐색용)
                     List<int> partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
 
-                    // Part 인덱스 → groupNo 매핑
+                    // 각 Part에 순차적으로 groupNo 부여 (Row 0은 요약행이므로 1부터)
                     var partToGroup = new Dictionary<int, int>();
                     int groupNo = 1;
-                    foreach (var item in grouped)
+                    foreach (var bomItem in rawBomItems)
                     {
-                        foreach (int partIdx in item.NodeIndices)
-                        {
-                            partToGroup[partIdx] = groupNo;
-                        }
+                        partToGroup[bomItem.Item5] = groupNo;
                         groupNo++;
                     }
 
-                    // 각 Body에 대해 부모 Part를 찾아 groupNo 매핑
                     foreach (var body in bodyNodesForMap)
                     {
                         int parentPartIndex = -1;
@@ -1701,31 +1695,38 @@ namespace A2Z
                     }
                 }
 
-                // ListView에 채우기 (No는 1번부터)
+                // ListView에 채우기
                 lvBOMInfo.BeginUpdate();
+
+                // Row 0: 요약행
+                ListViewItem summaryRow = new ListViewItem("");                      // No.
+                summaryRow.SubItems.Add("Support&Seat");                             // ITEM
+                summaryRow.SubItems.Add("");                                         // MATERIAL
+                summaryRow.SubItems.Add("");                                         // SIZE
+                summaryRow.SubItems.Add("");                                         // Q'TY
+                summaryRow.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : ""); // T/W
+                summaryRow.SubItems.Add("F");                                        // MA
+                summaryRow.SubItems.Add("F");                                        // FA
+                lvBOMInfo.Items.Add(summaryRow);
+
+                // Row 1~N: 개별 파트 행
                 int no = 1;
-                foreach (var item in grouped)
+                foreach (var bomItem in rawBomItems)
                 {
-                    ListViewItem lvi = new ListViewItem(no.ToString());  // No
-                    lvi.SubItems.Add("");               // L
-                    lvi.SubItems.Add(item.Item);        // Item
-                    lvi.SubItems.Add(item.Size);        // Size
-                    lvi.SubItems.Add(item.Matl);        // Mat'l
-                    lvi.SubItems.Add(item.Qty.ToString());  // Q'ty
-                    lvi.SubItems.Add(item.Weight);      // Weight
-                    lvi.SubItems.Add("");               // MA
-                    lvi.SubItems.Add("");               // FA
-                    lvi.SubItems.Add("");               // ST
-                    lvi.SubItems.Add("");               // Stage4
-                    lvi.SubItems.Add("");               // Stage5
-                    lvi.SubItems.Add("");               // Stage6
-                    lvi.SubItems.Add("");               // Rmk
+                    ListViewItem lvi = new ListViewItem(no.ToString());   // No.
+                    lvi.SubItems.Add(bomItem.Item1);                      // ITEM
+                    lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
+                    lvi.SubItems.Add(bomItem.Item2);                      // SIZE
+                    lvi.SubItems.Add("1");                                // Q'TY
+                    lvi.SubItems.Add(bomItem.Item4);                      // T/W
+                    lvi.SubItems.Add("L");                                // MA
+                    lvi.SubItems.Add("F");                                // FA
                     lvBOMInfo.Items.Add(lvi);
                     no++;
                 }
                 lvBOMInfo.EndUpdate();
 
-                if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료 (중복 그룹핑 적용)", grouped.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -2153,7 +2154,7 @@ namespace A2Z
             measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
             measureStyle.FontBold = true;
             measureStyle.LineColor = System.Drawing.Color.Black;
-            measureStyle.LineWidth = 2;
+            measureStyle.LineWidth = 1;
             measureStyle.ArrowColor = System.Drawing.Color.Black;
             measureStyle.ArrowSize = 8;
             measureStyle.AssistantLine = true;
@@ -3508,7 +3509,7 @@ namespace A2Z
                 measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE14;
                 measureStyle.FontBold = true;
                 measureStyle.LineColor = System.Drawing.Color.Blue;      // 검은색
-                measureStyle.LineWidth = 2;
+                measureStyle.LineWidth = 1;
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;     // 검은색
                 measureStyle.ArrowSize = 8;
                 measureStyle.AlignDistanceText = true;
@@ -3705,6 +3706,12 @@ namespace A2Z
         {
             vizcore3d.Review.Note.Clear();
             if (bomList == null || bomList.Count == 0) return;
+
+            // BOM정보가 미수집이면 자동 수집 (풍선 번호를 BOM No.와 일치시키기 위해)
+            if (bomInfoNodeGroupMap.Count == 0)
+            {
+                CollectBOMInfo(false);
+            }
 
             // 뷰 방향이 변경되면 수동 오버라이드 초기화
             if (currentBalloonView != viewDirection)
@@ -4203,7 +4210,7 @@ namespace A2Z
                 measureStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
                 measureStyle.FontBold = true;
                 measureStyle.LineColor = System.Drawing.Color.Blue;
-                measureStyle.LineWidth = 2;
+                measureStyle.LineWidth = 1;
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;
                 measureStyle.ArrowSize = 5;
                 measureStyle.AssistantLine = true;
@@ -5165,6 +5172,28 @@ namespace A2Z
         private List<ChainDimensionData> chainDimensionList = new List<ChainDimensionData>();
 
         /// <summary>
+        /// 부재 이름 입력 TextBox를 3D 뷰어(panelViewer) 위에 오버레이로 표시
+        /// </summary>
+        private void ShowMemberNameOverlay(string initialName)
+        {
+            if (txtMemberNameOverlay == null)
+            {
+                txtMemberNameOverlay = new TextBox();
+                txtMemberNameOverlay.Font = new Font("맑은 고딕", 12F, FontStyle.Bold);
+                txtMemberNameOverlay.BackColor = Color.FromArgb(45, 45, 48);
+                txtMemberNameOverlay.ForeColor = Color.White;
+                txtMemberNameOverlay.BorderStyle = BorderStyle.FixedSingle;
+                txtMemberNameOverlay.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                txtMemberNameOverlay.Location = new Point(10, 5);
+                txtMemberNameOverlay.Width = panelViewer.Width - 20;
+                panelViewer.Controls.Add(txtMemberNameOverlay);
+            }
+            txtMemberNameOverlay.Text = initialName ?? "";
+            txtMemberNameOverlay.BringToFront();
+            txtMemberNameOverlay.Visible = true;
+        }
+
+        /// <summary>
         /// 체인 치수 추출 (MeasureManager API 사용)
         /// </summary>
         private void btnExtractDimension_Click(object sender, EventArgs e)
@@ -5177,6 +5206,16 @@ namespace A2Z
 
             try
             {
+                // 선택된 도면시트의 BaseMemberName을 가져와 TextBox 오버레이 표시
+                string memberName = "";
+                if (lvDrawingSheet.SelectedItems.Count > 0)
+                {
+                    DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+                    if (selectedSheet != null)
+                        memberName = selectedSheet.BaseMemberName ?? "";
+                }
+                ShowMemberNameOverlay(memberName);
+
                 // 기존 측정 항목 제거
                 vizcore3d.Review.Measure.Clear();
                 chainDimensionList.Clear();
