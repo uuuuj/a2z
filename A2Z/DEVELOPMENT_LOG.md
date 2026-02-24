@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-24
+> 최종 업데이트: 2026-02-25
 
 ---
 
@@ -36,7 +36,8 @@ A2Z/
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
 | 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
 | 7   | BOM정보 컬럼 재설계 + UDA 전환       | 완료  | 8컬럼(No.\|ITEM\|MATERIAL\|SIZE\|Q'TY\|T/W\|MA\|FA), SPREF/MATREF/GWEI UDA 키, 부재명 TextBox 오버레이 (Phase 16) |
-| 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 완료  | GDI+ 비트맵 방식 → VIZCore3D Drawing2D Template/GridStructure 네이티브 API 전환 (Phase 16) |
+| 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 보류  | Drawing2D Template API가 현재 DLL에서 미지원, 임시 비활성화 (Phase 17) |
+| 9   | 도면정보 탭 BOM 테이블 통합          | 완료  | 도면정보 탭에 BOM 정보 테이블 추가, 도면 선택 시 해당 BOM 자동 표시 (Phase 17) |
 
 
 ### 현재 구현 완료된 기능
@@ -50,14 +51,15 @@ A2Z/
 | 간섭(Clash) 검사          | 완료 | 보이는 부재 쌍 대상, Z값 기준 정렬, 비동기 실행      |
 | X-Ray 선택 보기           | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출        |
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
-| 2D 도면 생성              | 완료 | Drawing2D Template API 기반 4면도(ISO+TOP+LEFT+FRONT) + BOM 테이블 + 도면정보 템플릿 (Phase 16) |
+| 2D 도면 생성              | 보류 | Drawing2D Template API 미지원으로 임시 비활성화 (Phase 17) |
 | PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
 | 글로벌 뷰 버튼            | 완료 | 탭 공통 ISO/X/Y/Z 버튼, 줌 누적 문제 해결 (Phase 12) |
 | ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
 | 도면 시트 선택 연동       | 완료 | 도면정보 탭 시트 선택 시 기준부재+Clash 연결부재만 X-Ray 표시 (Phase 13) |
 | 치수 번호 동기화          | 완료 | ListView No.와 ChainDimensionData.No 동기화 (Phase 13) |
 | 가공도 시트 생성/출력     | 완료 | 도면시트에 가공도 자동 생성, 가공도 출력 버튼, 시트 선택 시 자동 실행 (Phase 15) |
-| Drawing2D 네이티브 2D 생성 | 완료 | Template API(BOM표+도면정보) + GridStructure(2x3) + 4분할 뷰 투영 + 번호표 연동 (Phase 16) |
+| Drawing2D 네이티브 2D 생성 | 보류 | Drawing2D Template API 미지원으로 임시 비활성화 (Phase 17) |
+| 도면정보 탭 BOM 테이블    | 완료 | SplitContainer로 도면시트/BOM 분할, 도면 선택 시 BOM 자동 표시 (Phase 17) |
 
 ---
 
@@ -1031,6 +1033,50 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 | ---- | --------- |
 | `Form1.cs` | txtMemberNameOverlay 필드, ShowMemberNameOverlay(), btnExtractDimension_Click 수정, CollectBOMInfo() 재작성, ShowBalloonNumbers() 자동 BOM 수집, LineWidth 2→1 |
 | `Form1.Designer.cs` | 6개 컬럼 삭제, 8개 컬럼 텍스트/너비/순서 변경 |
+
+---
+
+### Phase 17: 도면정보 탭 BOM 테이블 추가 + Drawing2D API 오류 수정
+
+**[요청]** "도면정보 탭에 BOM 정보 테이블을 추가하고, 도면 선택 시 해당 도면에 맞는 BOM이 보이게 해달라"
+
+**[구현 — 1. 도면정보 탭 UI 변경]**
+
+- `splitContainerDrawing` 추가 — 수평 분할 (상/하)
+- 상단 (`Panel1`): 기존 `lvDrawingSheet` (도면 시트 목록)
+- 하단 (`Panel2`): 새로운 `lvDrawingBOMInfo` (BOM 정보 테이블)
+- `panelDrawingBOMHeader` — "BOM 정보" 헤더 패널
+
+**[구현 — 2. BOM 정보 동기화]**
+
+- `CollectBOMInfo()` 수정: `lvBOMInfo`(BOM정보 탭)와 `lvDrawingBOMInfo`(도면정보 탭) 동시 업데이트
+- 도면 시트 선택 → `LvDrawingSheet_SelectedIndexChanged` → `CollectBOMInfo(false)` → 두 ListView 모두 해당 부재 BOM 표시
+
+**[구현 — 3. Drawing2D API 오류 수정]**
+
+- main에서 merge한 Drawing2D Template API 코드가 현재 VIZCore3D.NET DLL에서 미지원
+- `btnGenerate2D_Click` 메서드를 임시 비활성화 (안내 메시지 표시)
+- 추후 DLL 업데이트 후 기능 활성화 예정
+
+**[lvDrawingBOMInfo 컬럼 구조]**
+
+| 컬럼 | 너비 | 설명 |
+| ---- | ---- | ---- |
+| No. | 40 | 순번 |
+| ITEM | 100 | SPREF 파싱 결과 |
+| MATERIAL | 80 | MATREF UDA |
+| SIZE | 110 | SPREF 파싱 결과 |
+| Q'TY | 45 | 수량 (1) |
+| T/W | 60 | GWEI UDA |
+| MA | 35 | 마킹 여부 |
+| FA | 35 | 완료 여부 |
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Designer.cs` | splitContainerDrawing, panelDrawingBOMHeader, lvDrawingBOMInfo, 8개 컬럼 추가 |
+| `Form1.cs` | CollectBOMInfo()에서 두 ListView 동시 업데이트, btnGenerate2D_Click 임시 비활성화 |
 
 ---
 
