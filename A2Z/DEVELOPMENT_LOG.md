@@ -32,9 +32,10 @@ A2Z/
 | 1   | 도면 정보 X/Y/Z축 버튼 정상 작동 확인   | 완료  | 글로벌 뷰 버튼 패널로 통합 + 도면정보 탭 시트 선택 연동 (Phase 12~13)                                                   |
 | 2   | BOM 정보 탭 - 선택 부재 BOM 정보 표시 | 완료  | 도면시트 선택 시 해당 시트 포함 부재만 BOM정보 탭에 자동 수집·표시. 미선택 시 전체 부재 표시 (하위호환)                                   |
 | 3   | ISO 풍선을 BOM정보 탭 데이터로 변경    | 완료  | BOM정보 탭 그룹 기준 풍선 표시 (같은 그룹 대표 1개만, 그룹 No 표시). 미수집 시 기존 개별 순번 유지. 시트 선택 범위 내 부재만 풍선 표시             |
-| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 진행중 | 가공도 시트 생성 + 단일 부재 가공도 출력 완료 (Phase 15). 4개씩 묶기는 미구현                                              |
+| 4   | 가공도 출력 - BOM정보 기준 4개씩 묶기   | 진행중 | 가공도 시트 생성 + 단일 부재 가공도 출력 완료 (Phase 15). 4개씩 묶기는 미구현                                               |
+| 7   | 2D 도면 생성 — Drawing2D Template API 전환 | 완료  | GDI+ 비트맵 방식 → VIZCore3D Drawing2D Template/GridStructure 네이티브 API 전환 (Phase 16)                                |
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
-| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
+| 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14)                    |
 
 
 ### 현재 구현 완료된 기능
@@ -48,13 +49,14 @@ A2Z/
 | 간섭(Clash) 검사          | 완료 | 보이는 부재 쌍 대상, Z값 기준 정렬, 비동기 실행      |
 | X-Ray 선택 보기           | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출        |
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
-| 2D 도면 생성              | 완료 | 4면도(ISO+평면+정면+측면) + BOM표 + 타이틀블록       |
+| 2D 도면 생성              | 완료 | Drawing2D Template API 기반 4면도(ISO+TOP+LEFT+FRONT) + BOM 테이블 + 도면정보 템플릿 (Phase 16) |
 | PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
 | 글로벌 뷰 버튼            | 완료 | 탭 공통 ISO/X/Y/Z 버튼, 줌 누적 문제 해결 (Phase 12) |
 | ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
 | 도면 시트 선택 연동       | 완료 | 도면정보 탭 시트 선택 시 기준부재+Clash 연결부재만 X-Ray 표시 (Phase 13) |
 | 치수 번호 동기화          | 완료 | ListView No.와 ChainDimensionData.No 동기화 (Phase 13) |
 | 가공도 시트 생성/출력     | 완료 | 도면시트에 가공도 자동 생성, 가공도 출력 버튼, 시트 선택 시 자동 실행 (Phase 15) |
+| Drawing2D 네이티브 2D 생성 | 완료 | Template API(BOM표+도면정보) + GridStructure(2x3) + 4분할 뷰 투영 + 번호표 연동 (Phase 16) |
 
 ---
 
