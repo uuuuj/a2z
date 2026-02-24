@@ -1695,8 +1695,10 @@ namespace A2Z
                     }
                 }
 
-                // ListView에 채우기
+                // ListView에 채우기 (BOM정보 탭 + 도면정보 탭 BOM 테이블)
                 lvBOMInfo.BeginUpdate();
+                lvDrawingBOMInfo.BeginUpdate();
+                lvDrawingBOMInfo.Items.Clear();
 
                 // Row 0: 요약행
                 ListViewItem summaryRow = new ListViewItem("");                      // No.
@@ -1709,10 +1711,22 @@ namespace A2Z
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
 
+                // 도면정보 탭 BOM에도 요약행 추가
+                ListViewItem summaryRow2 = new ListViewItem("");
+                summaryRow2.SubItems.Add("Support&Seat");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : "");
+                summaryRow2.SubItems.Add("F");
+                summaryRow2.SubItems.Add("F");
+                lvDrawingBOMInfo.Items.Add(summaryRow2);
+
                 // Row 1~N: 개별 파트 행
                 int no = 1;
                 foreach (var bomItem in rawBomItems)
                 {
+                    // BOM정보 탭
                     ListViewItem lvi = new ListViewItem(no.ToString());   // No.
                     lvi.SubItems.Add(bomItem.Item1);                      // ITEM
                     lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
@@ -1722,9 +1736,22 @@ namespace A2Z
                     lvi.SubItems.Add("L");                                // MA
                     lvi.SubItems.Add("F");                                // FA
                     lvBOMInfo.Items.Add(lvi);
+
+                    // 도면정보 탭 BOM
+                    ListViewItem lvi2 = new ListViewItem(no.ToString());
+                    lvi2.SubItems.Add(bomItem.Item1);
+                    lvi2.SubItems.Add(bomItem.Item3);
+                    lvi2.SubItems.Add(bomItem.Item2);
+                    lvi2.SubItems.Add("1");
+                    lvi2.SubItems.Add(bomItem.Item4);
+                    lvi2.SubItems.Add("L");
+                    lvi2.SubItems.Add("F");
+                    lvDrawingBOMInfo.Items.Add(lvi2);
+
                     no++;
                 }
                 lvBOMInfo.EndUpdate();
+                lvDrawingBOMInfo.EndUpdate();
 
                 if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -1938,6 +1965,7 @@ namespace A2Z
         /// <summary>
         /// 2D 도면 생성 - VIZCore3D Drawing2D Template API 사용
         /// 템플릿(BOM 테이블 + 도면 정보) 배치 및 렌더링
+        /// [임시] Drawing2D Template API가 현재 DLL에서 지원되지 않아 비활성화
         /// </summary>
         private void btnGenerate2D_Click(object sender, EventArgs e)
         {
@@ -1947,166 +1975,11 @@ namespace A2Z
                 return;
             }
 
-            try
-            {
-                vizcore3d.View.EnableAnimation = false;
-                vizcore3d.Review.Note.Clear();
-
-                // 2D 도면 모드 활성화
-                vizcore3d.ToolbarDrawing2D.Visible = true;
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
-
-                // -------------------------------------------------------------------------
-                // 템플릿 기능을 이용한 우측 테이블 배치 (BOM 목록 및 도면 정보)
-                // -------------------------------------------------------------------------
-
-                // 도면 템플릿 생성 프로세스 시작
-                vizcore3d.Drawing2D.Template.CreateTemplate();
-
-                // 노드 인덱스와 노트 ID를 매핑하기 위한 딕셔너리
-                Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
-
-                // ==========================================================
-                // [표 1] BOM 목록 (우측 상단)
-                // ==========================================================
-                if (bomList != null && bomList.Count > 0)
-                {
-                    // 행: BOM 수 + 헤더(1), 열: 4 (번호, 부재명, 용도, 비고)
-                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(bomList.Count + 1, 4);
-                    table1.SetText(0, 0, "No.");
-                    table1.SetText(0, 1, "부재명");
-                    table1.SetText(0, 2, "용도");
-                    table1.SetText(0, 3, "비고");
-
-                    int rowIdx = 1;
-                    foreach (var bom in bomList)
-                    {
-                        // 부품의 중심점 계산 및 번호표 위치 설정
-                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 700, bom.CenterY, bom.CenterZ);
-
-                        // 3D 공간에 번호표(Note) 생성
-                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
-
-                        // 부품 Index와 번호표 ID 매핑 저장
-                        nodeToNoteMap.Add(bom.Index, id);
-
-                        // 번호표 텍스트를 고유 ID 숫자로 업데이트
-                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
-                        note.UpdateText(id.ToString());
-
-                        // 표에 BOM 정보 기입
-                        table1.SetText(rowIdx, 0, id.ToString());
-                        table1.SetText(rowIdx, 1, bom.Name);
-                        table1.SetText(rowIdx, 2, bom.Purpose ?? "");
-                        table1.SetText(rowIdx, 3, "");
-                        rowIdx++;
-                    }
-
-                    // 표를 도면 캔버스의 우측 영역(310mm 지점)에 배치
-                    table1.X = 310;
-                    table1.Y = 0;
-                    vizcore3d.Drawing2D.Template.AddTemplateItem(table1);
-                }
-
-                // ==========================================================
-                // [표 2] 도면 정보 (우측 하단)
-                // ==========================================================
-                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
-                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
-                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
-                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
-                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
-                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
-
-                table2.X = 310;
-                table2.Y = 200; // [표 1] 아래에 위치하도록 Y값 조정
-                vizcore3d.Drawing2D.Template.AddTemplateItem(table2);
-
-                // 작성된 템플릿(표, 로고 등)을 도면에 최종 렌더링 (로고 사이즈 지정)
-                vizcore3d.Drawing2D.Template.RenderTemplate(60, 80);
-
-                // -------------------------------------------------------------------------
-                // 각 그리드 셀에 모델 투영 및 배치 (Grid 2x3 구조)
-                // -------------------------------------------------------------------------
-
-                // 2D 도면을 그릴 캔버스 선택 및 크기 확인
-                int selectedCanvas = 1;
-                vizcore3d.Drawing2D.View.SetSelectCanvas(selectedCanvas);
-                float wCanvas = 0.0f, hCanvas = 0.0f;
-                vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
-
-                // 2행 3열의 그리드 구조 생성 (우측 1열은 템플릿 테이블 영역)
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(15, 15, 15, 15);
-
-                // 각 그리드 셀별로 다른 각도의 뷰를 투영
-                // [1,1] ISO View
-                RenderViewWithVisibleNotes(1, 1, VIZCore3D.NET.Data.CameraDirection.ISO_PLUS, nodeToNoteMap);
-
-                // [1,2] TOP View (Z-)
-                RenderViewWithVisibleNotes(1, 2, VIZCore3D.NET.Data.CameraDirection.Z_MINUS, nodeToNoteMap);
-
-                // [2,1] LEFT View (X-)
-                RenderViewWithVisibleNotes(2, 1, VIZCore3D.NET.Data.CameraDirection.X_MINUS, nodeToNoteMap);
-
-                // [2,2] FRONT View (Y-)
-                RenderViewWithVisibleNotes(2, 2, VIZCore3D.NET.Data.CameraDirection.Y_MINUS, nodeToNoteMap);
-
-                // 2D 도면 최종 렌더링
-                vizcore3d.Drawing2D.Render();
-
-                MessageBox.Show("2D 도면 생성 완료!\n\n" +
-                    "- ISO VIEW [1,1]\n" +
-                    "- TOP VIEW [1,2]\n" +
-                    "- LEFT VIEW [2,1]\n" +
-                    "- FRONT VIEW [2,2]\n" +
-                    "- BOM 목록 테이블 (우측 상단)\n" +
-                    "- 도면 정보 테이블 (우측 하단)",
-                    "2D 도면 생성", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// 특정 뷰 방향에서 보이는 노드만 계산하여 2D 도면에 투영하는 함수
-        /// </summary>
-        /// <param name="row">그리드 행 번호</param>
-        /// <param name="col">그리드 열 번호</param>
-        /// <param name="camDir">3D 카메라 이동 방향</param>
-        /// <param name="map">부품 인덱스-노트 ID 매핑 딕셔너리</param>
-        private void RenderViewWithVisibleNotes(int row, int col, VIZCore3D.NET.Data.CameraDirection camDir, Dictionary<int, int> map)
-        {
-            // 3D 카메라를 해당 각도로 이동
-            vizcore3d.View.MoveCamera(camDir);
-
-            vizcore3d.View.EnableBoxSelectionFrontObjectOnly = true;
-
-            // 현재 카메라 각도에서 실제로 보이는 부품 리스트 추출
-            List<VIZCore3D.NET.Data.Node> visibleNodes = vizcore3d.Object3D.FromScreen(false, VIZCore3D.NET.Data.LeafNodeKind.PART);
-
-            // 보이는 부품들 중 map에 등록된 부품의 번호표 ID만 수집
-            List<int> visibleNoteIds = new List<int>();
-            foreach (var node in visibleNodes)
-            {
-                if (map.ContainsKey(node.Index))
-                    visibleNoteIds.Add(map[node.Index]);
-            }
-
-            // 2D 모델 투영체 생성 (현재 3D 뷰 각도를 그대로 2D로 변환)
-            int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-
-            // 지정된 그리드 셀(row, col) 중앙에 모델을 꽉 차게 배치
-            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId, VIZCore3D.NET.Data.GridHorizontalAlignment.Center, VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
-
-            // 보이는 부품의 번호표들만 도면에 투영
-            if (visibleNoteIds.Count > 0)
-            {
-                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
-            }
+            // Drawing2D Template API가 현재 VIZCore3D.NET DLL에서 지원되지 않습니다.
+            // 추후 DLL 업데이트 후 기능 활성화 예정
+            MessageBox.Show("2D 도면 생성 기능은 현재 VIZCore3D.NET DLL 버전에서 지원되지 않습니다.\n\n" +
+                "Drawing2D Template API 업데이트 후 사용 가능합니다.",
+                "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
