@@ -1787,13 +1787,60 @@ namespace A2Z
                 // ListView에 채우기 (BOM정보 탭)
                 lvBOMInfo.BeginUpdate();
 
-                // Row 0: 요약행
+                // Row 0: 요약행 - 선택한 노드의 UDA 정보 표시
+                string summaryItem = drawingSheetList.Count > 0 ? drawingSheetList[0].BaseMemberName : "Support&Seat";
+                string summaryMaterial = "";
+                string summarySize = "";
+                string summaryTW = totalWeight > 0 ? totalWeight.ToString("F1") : "";
+
+                if (selectedAttributeNodeIndex != -1)
+                {
+                    try
+                    {
+                        Dictionary<string, string> summaryUda = vizcore3d.Object3D.UDA.FromIndex(selectedAttributeNodeIndex);
+                        if (summaryUda != null && summaryUda.Count > 0)
+                        {
+                            string sumSpref = "";
+                            string sumMatref = "";
+                            string sumGwei = "";
+                            foreach (var kv in summaryUda)
+                            {
+                                string keyUpper = kv.Key.Trim().ToUpper();
+                                string valStr = (kv.Value != null) ? kv.Value.Trim() : "";
+                                if (keyUpper == "SPREF") sumSpref = valStr;
+                                else if (keyUpper == "MATREF") sumMatref = valStr;
+                                else if (keyUpper == "GWEI") sumGwei = valStr;
+                            }
+
+                            // SPREF 파싱 → SIZE
+                            if (!string.IsNullOrEmpty(sumSpref))
+                            {
+                                string sprefClean = sumSpref;
+                                if (sprefClean.StartsWith("/"))
+                                    sprefClean = sprefClean.Substring(1);
+                                string[] parts = sprefClean.Split(':');
+                                if (parts.Length > 1)
+                                    summarySize = parts[1].Trim();
+                            }
+
+                            // MATREF → MATERIAL
+                            if (!string.IsNullOrEmpty(sumMatref))
+                                summaryMaterial = sumMatref;
+
+                            // GWEI → T/W (노드 자체 중량, 없으면 전체 합계 유지)
+                            if (!string.IsNullOrEmpty(sumGwei))
+                                summaryTW = sumGwei;
+                        }
+                    }
+                    catch { }
+                }
+
                 ListViewItem summaryRow = new ListViewItem("");                      // No.
-                summaryRow.SubItems.Add("Support&Seat");                             // ITEM
-                summaryRow.SubItems.Add("");                                         // MATERIAL
-                summaryRow.SubItems.Add("");                                         // SIZE
+                summaryRow.SubItems.Add(summaryItem);                                // ITEM
+                summaryRow.SubItems.Add(summaryMaterial);                             // MATERIAL
+                summaryRow.SubItems.Add(summarySize);                                // SIZE
                 summaryRow.SubItems.Add("");                                         // Q'TY
-                summaryRow.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : ""); // T/W
+                summaryRow.SubItems.Add(summaryTW);                                  // T/W
                 summaryRow.SubItems.Add("F");                                        // MA
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
@@ -6396,7 +6443,22 @@ namespace A2Z
             // Sheet 1: 전체 BOM 부재
             DrawingSheetData sheet1 = new DrawingSheetData();
             sheet1.SheetNumber = 1;
-            sheet1.BaseMemberName = "전체";
+
+            // 선택한 노드 이름 사용, 없으면 파일명 사용
+            if (selectedAttributeNodeIndex != -1)
+            {
+                var selectedNode = vizcore3d.Object3D.FromIndex(selectedAttributeNodeIndex);
+                sheet1.BaseMemberName = (selectedNode != null && !string.IsNullOrEmpty(selectedNode.NodeName))
+                    ? selectedNode.NodeName
+                    : System.IO.Path.GetFileNameWithoutExtension(currentFilePath);
+            }
+            else
+            {
+                sheet1.BaseMemberName = !string.IsNullOrEmpty(currentFilePath)
+                    ? System.IO.Path.GetFileNameWithoutExtension(currentFilePath)
+                    : "전체";
+            }
+
             sheet1.BaseMemberIndex = -1;
             foreach (var bom in bomList)
             {
