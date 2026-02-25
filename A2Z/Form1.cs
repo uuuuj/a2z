@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -135,6 +136,7 @@ namespace A2Z
         private void SetupBOMColumns()
         {
             lvBOM.Columns.Clear();
+            lvBOM.Columns.Add("No.", 40);
             lvBOM.Columns.Add("부재 이름", 120);
             lvBOM.Columns.Add("각도", 60);
             lvBOM.Columns.Add("X_Center", 80);
@@ -647,23 +649,38 @@ namespace A2Z
                     }
                     catch { }
 
-                    // UDA PURPOSE 값 수집
+                    // UDA PURPOSE 값 수집 (Dictionary 방식으로 조회)
                     bom.Purpose = "";
                     try
                     {
-                        var udaKeys = vizcore3d.Object3D.UDA.Keys;
-                        if (udaKeys != null)
+                        // Body 노드에서 UDA 조회
+                        Dictionary<string, string> bodyUda = vizcore3d.Object3D.UDA.FromIndex(node.Index);
+                        if (bodyUda != null)
                         {
-                            foreach (string key in udaKeys)
+                            foreach (var kv in bodyUda)
                             {
-                                if (key.Trim().ToUpper() == "PURPOSE")
+                                if (kv.Key.Trim().ToUpper() == "PURPOSE" && !string.IsNullOrEmpty(kv.Value))
                                 {
-                                    var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
-                                    if (val != null && !string.IsNullOrEmpty(val.ToString()))
-                                    {
-                                        bom.Purpose = val.ToString().Trim();
-                                    }
+                                    bom.Purpose = kv.Value.Trim();
                                     break;
+                                }
+                            }
+                        }
+
+                        // Body에서 못 찾으면 부모 Part 노드에서 재시도
+                        if (string.IsNullOrEmpty(bom.Purpose) && bodyToPartIndexMap.ContainsKey(node.Index))
+                        {
+                            int partIdx = bodyToPartIndexMap[node.Index];
+                            Dictionary<string, string> partUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
+                            if (partUda != null)
+                            {
+                                foreach (var kv in partUda)
+                                {
+                                    if (kv.Key.Trim().ToUpper() == "PURPOSE" && !string.IsNullOrEmpty(kv.Value))
+                                    {
+                                        bom.Purpose = kv.Value.Trim();
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -673,16 +690,88 @@ namespace A2Z
                     bomList.Add(bom);
                 }
 
+                // === UDA 디버그 정보 MessageBox ===
+                try
+                {
+                    StringBuilder udaDebug = new StringBuilder();
+                    udaDebug.AppendLine("========== UDA 디버그 정보 ==========");
+
+                    // 1. 전체 UDA Keys 목록
+                    var allUdaKeys = vizcore3d.Object3D.UDA.Keys;
+                    if (allUdaKeys != null && allUdaKeys.Count > 0)
+                    {
+                        udaDebug.AppendLine(string.Format("\n[전체 UDA Keys ({0}개)]", allUdaKeys.Count));
+                        foreach (var k in allUdaKeys)
+                            udaDebug.AppendLine("  - " + k);
+                    }
+                    else
+                    {
+                        udaDebug.AppendLine("\n[전체 UDA Keys: 없음]");
+                    }
+
+                    // 2. 첫 번째 Body 노드의 UDA
+                    if (allNodes.Count > 0)
+                    {
+                        var firstNode = allNodes[0];
+                        udaDebug.AppendLine(string.Format("\n[Body Node #{0} '{1}' UDA]", firstNode.Index, firstNode.NodeName));
+                        try
+                        {
+                            Dictionary<string, string> bodyUda = vizcore3d.Object3D.UDA.FromIndex(firstNode.Index);
+                            if (bodyUda != null && bodyUda.Count > 0)
+                            {
+                                foreach (var kv in bodyUda)
+                                    udaDebug.AppendLine(string.Format("  {0} = {1}", kv.Key, kv.Value));
+                            }
+                            else
+                            {
+                                udaDebug.AppendLine("  (Body 레벨 UDA 없음)");
+                            }
+                        }
+                        catch (Exception ex) { udaDebug.AppendLine("  오류: " + ex.Message); }
+
+                        // 3. 부모 Part 노드의 UDA
+                        if (bodyToPartIndexMap.ContainsKey(firstNode.Index))
+                        {
+                            int partIdx = bodyToPartIndexMap[firstNode.Index];
+                            string partName = bodyToPartNameMap.ContainsKey(firstNode.Index) ? bodyToPartNameMap[firstNode.Index] : "?";
+                            udaDebug.AppendLine(string.Format("\n[부모 Part Node #{0} '{1}' UDA]", partIdx, partName));
+                            try
+                            {
+                                Dictionary<string, string> partUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
+                                if (partUda != null && partUda.Count > 0)
+                                {
+                                    foreach (var kv in partUda)
+                                        udaDebug.AppendLine(string.Format("  {0} = {1}", kv.Key, kv.Value));
+                                }
+                                else
+                                {
+                                    udaDebug.AppendLine("  (Part 레벨 UDA 없음)");
+                                }
+                            }
+                            catch (Exception ex) { udaDebug.AppendLine("  오류: " + ex.Message); }
+                        }
+                        else
+                        {
+                            udaDebug.AppendLine("\n[부모 Part: 매핑 없음]");
+                        }
+                    }
+
+                    MessageBox.Show(udaDebug.ToString(), "UDA 디버그 정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch { }
+
                 // Z_Max 내림차순 정렬 (큰 값이 위로)
                 bomList.Sort((a, b) => b.MaxZ.CompareTo(a.MaxZ));
 
                 // 홀 검출 수행
                 DetectHoles();
 
-                // 정렬된 순서로 ListView 채우기
+                // 정렬된 순서로 ListView 채우기 (No. 칼럼 포함)
+                int bomNo = 1;
                 foreach (var bom in bomList)
                 {
-                    ListViewItem lvi = new ListViewItem(bom.Name);
+                    ListViewItem lvi = new ListViewItem(bomNo.ToString());  // No. 칼럼
+                    lvi.SubItems.Add(bom.Name);
                     lvi.SubItems.Add(bom.RotationAngle.ToString("F2"));
                     lvi.SubItems.Add(bom.CenterX.ToString("F2"));
                     lvi.SubItems.Add(bom.CenterY.ToString("F2"));
@@ -698,6 +787,7 @@ namespace A2Z
                     lvi.SubItems.Add(bom.HoleSize);
                     lvi.Tag = bom;
                     lvBOM.Items.Add(lvi);
+                    bomNo++;
                 }
 
                 return bomList.Count > 0;
@@ -1606,15 +1696,15 @@ namespace A2Z
                     string matrefVal = "";
                     string gweiVal = "";
 
-                    if (udaKeyList != null)
+                    try
                     {
-                        foreach (string key in udaKeyList)
+                        Dictionary<string, string> nodeUda = vizcore3d.Object3D.UDA.FromIndex(node.Index);
+                        if (nodeUda != null && nodeUda.Count > 0)
                         {
-                            string keyUpper = key.Trim().ToUpper();
-                            try
+                            foreach (var kv in nodeUda)
                             {
-                                var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
-                                string valStr = (val != null) ? val.ToString().Trim() : "";
+                                string keyUpper = kv.Key.Trim().ToUpper();
+                                string valStr = (kv.Value != null) ? kv.Value.Trim() : "";
 
                                 if (keyUpper == "SPREF")
                                     sprefVal = valStr;
@@ -1623,9 +1713,9 @@ namespace A2Z
                                 else if (keyUpper == "GWEI")
                                     gweiVal = valStr;
                             }
-                            catch { }
                         }
                     }
+                    catch { }
 
                     // SPREF 파싱: 첫 글자 "/" 제거 후 ":" 기준 split → [0]=ITEM, [1]=SIZE
                     string itemVal = "";
@@ -1694,8 +1784,10 @@ namespace A2Z
                     }
                 }
 
-                // ListView에 채우기
+                // ListView에 채우기 (BOM정보 탭 + 도면정보 탭 BOM 테이블)
                 lvBOMInfo.BeginUpdate();
+                lvDrawingBOMInfo.BeginUpdate();
+                lvDrawingBOMInfo.Items.Clear();
 
                 // Row 0: 요약행
                 ListViewItem summaryRow = new ListViewItem("");                      // No.
@@ -1708,10 +1800,22 @@ namespace A2Z
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
 
+                // 도면정보 탭 BOM에도 요약행 추가
+                ListViewItem summaryRow2 = new ListViewItem("");
+                summaryRow2.SubItems.Add("Support&Seat");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add("");
+                summaryRow2.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : "");
+                summaryRow2.SubItems.Add("F");
+                summaryRow2.SubItems.Add("F");
+                lvDrawingBOMInfo.Items.Add(summaryRow2);
+
                 // Row 1~N: 개별 파트 행
                 int no = 1;
                 foreach (var bomItem in rawBomItems)
                 {
+                    // BOM정보 탭
                     ListViewItem lvi = new ListViewItem(no.ToString());   // No.
                     lvi.SubItems.Add(bomItem.Item1);                      // ITEM
                     lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
@@ -1721,9 +1825,22 @@ namespace A2Z
                     lvi.SubItems.Add("L");                                // MA
                     lvi.SubItems.Add("F");                                // FA
                     lvBOMInfo.Items.Add(lvi);
+
+                    // 도면정보 탭 BOM
+                    ListViewItem lvi2 = new ListViewItem(no.ToString());
+                    lvi2.SubItems.Add(bomItem.Item1);
+                    lvi2.SubItems.Add(bomItem.Item3);
+                    lvi2.SubItems.Add(bomItem.Item2);
+                    lvi2.SubItems.Add("1");
+                    lvi2.SubItems.Add(bomItem.Item4);
+                    lvi2.SubItems.Add("L");
+                    lvi2.SubItems.Add("F");
+                    lvDrawingBOMInfo.Items.Add(lvi2);
+
                     no++;
                 }
                 lvBOMInfo.EndUpdate();
+                lvDrawingBOMInfo.EndUpdate();
 
                 if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -1915,7 +2032,29 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 2D 도면 생성 - 전문 제조 도면 스타일 (4분할 뷰 + BOM 테이블 + 타이틀 블록)
+        /// 모델 파일이 위치한 솔루션 폴더 경로 반환
+        /// </summary>
+        public string GetSolutionPath()
+        {
+            string startPath = AppDomain.CurrentDomain.BaseDirectory;
+            DirectoryInfo directory = new DirectoryInfo(startPath);
+
+            while (directory != null)
+            {
+                if (directory.GetFiles("*.sln").Any())
+                {
+                    return directory.FullName;
+                }
+                directory = directory.Parent;
+            }
+
+            return startPath;
+        }
+
+        /// <summary>
+        /// 2D 도면 생성 - VIZCore3D Drawing2D Template API 사용
+        /// 템플릿(BOM 테이블 + 도면 정보) 배치 및 렌더링
+        /// [임시] Drawing2D Template API가 현재 DLL에서 지원되지 않아 비활성화
         /// </summary>
         private void btnGenerate2D_Click(object sender, EventArgs e)
         {
@@ -1925,311 +2064,11 @@ namespace A2Z
                 return;
             }
 
-            try
-            {
-                // 2D 도면 모드 활성화
-                vizcore3d.ToolbarDrawing2D.Visible = true;
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
-
-                // 캡처 크기 설정
-                int captureWidth = 400;
-                int captureHeight = 300;
-
-                // 배경색 저장
-                var bgMode = vizcore3d.View.BackgroundMode;
-                var bgColor1 = vizcore3d.View.BackgroundColor1;
-                var bgColor2 = vizcore3d.View.BackgroundColor2;
-
-                // SilhouetteEdge 설정 저장
-                bool origSilhouetteEdge = vizcore3d.View.SilhouetteEdge;
-                System.Drawing.Color origSilhouetteColor = vizcore3d.View.SilhouetteEdgeColor;
-                float origEdgeWidthRatio = vizcore3d.View.EdgeWidthRatio;
-
-                // 배경색 흰색으로 변경
-                vizcore3d.View.BackgroundMode = VIZCore3D.NET.Data.BackgroundModes.COLOR_ONE;
-                vizcore3d.View.BackgroundColor1 = System.Drawing.Color.White;
-
-                // 모든 객체를 검은색으로 설정 (DASH_LINE 모드에서 내부 모서리 포함 모든 선이 검은색으로 렌더링)
-                vizcore3d.Object3D.Color.SetColor(System.Drawing.Color.Black);
-
-                // 렌더링 모드를 DASH_LINE으로 설정 (은선 점선: 보이는 모서리 실선 + 숨겨진 모서리 점선)
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-
-                // 윤곽선(SilhouetteEdge) 활성화 및 검은색으로 설정
-                vizcore3d.View.SilhouetteEdge = true;
-                vizcore3d.View.SilhouetteEdgeColor = System.Drawing.Color.FromArgb(255, 0, 0, 0);
-
-                // 모서리 굵기 비율 설정 (선명한 도면용)
-                vizcore3d.View.EdgeWidthRatio = 50;
-
-                // X-Ray 모드에서 선택된 부재가 있는지 확인
-                bool useXRaySelection = vizcore3d.View.XRay.Enable && xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0;
-
-                // 모델 BoundBox 중심을 카메라 피벗으로 설정
-                VIZCore3D.NET.Data.Vertex3D modelCenter = null;
-
-                if (useXRaySelection)
-                {
-                    // X-Ray 선택된 노드들의 바운딩박스 계산
-                    var selectedBoundBox = vizcore3d.Object3D.GetBoundBox(xraySelectedNodeIndices, false);
-                    if (selectedBoundBox != null)
-                    {
-                        float cx = (selectedBoundBox.MinX + selectedBoundBox.MaxX) / 2.0f;
-                        float cy = (selectedBoundBox.MinY + selectedBoundBox.MaxY) / 2.0f;
-                        float cz = (selectedBoundBox.MinZ + selectedBoundBox.MaxZ) / 2.0f;
-                        modelCenter = new VIZCore3D.NET.Data.Vertex3D(cx, cy, cz);
-                        vizcore3d.View.SetPivotPosition(modelCenter);
-                    }
-                }
-                else
-                {
-                    var boundBox = vizcore3d.Model.BoundBox;
-                    if (boundBox != null)
-                    {
-                        float cx = (boundBox.MinX + boundBox.MaxX) / 2.0f;
-                        float cy = (boundBox.MinY + boundBox.MaxY) / 2.0f;
-                        float cz = (boundBox.MinZ + boundBox.MaxZ) / 2.0f;
-                        modelCenter = new VIZCore3D.NET.Data.Vertex3D(cx, cy, cz);
-                        vizcore3d.View.SetPivotPosition(modelCenter);
-                    }
-                }
-
-                // ISO 뷰로 이동하여 BOM 스크린 좌표 미리 계산
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
-                if (useXRaySelection)
-                    vizcore3d.View.FlyToObject3d(xraySelectedNodeIndices, 1.0f);
-                else
-                    vizcore3d.View.FitToView(0.0f, 0.0f);
-
-                // BOM별 스크린 좌표 계산 (현재 뷰어 크기 기준)
-                Dictionary<int, PointF> bomScreenPositions = new Dictionary<int, PointF>();
-                int viewerWidth = vizcore3d.Width;
-                int viewerHeight = vizcore3d.Height;
-
-                if (bomList != null && bomList.Count > 0)
-                {
-                    for (int i = 0; i < bomList.Count; i++)
-                    {
-                        BOMData bom = bomList[i];
-                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-                        VIZCore3D.NET.Data.Vertex3D screenPos = vizcore3d.View.WorldToScreen(center, true);
-
-                        // 뷰어 좌표를 캡처 이미지 좌표로 변환
-                        float scaleX = (float)captureWidth / viewerWidth;
-                        float scaleY = (float)captureHeight / viewerHeight;
-                        bomScreenPositions[i] = new PointF(screenPos.X * scaleX, screenPos.Y * scaleY);
-                    }
-                }
-
-                // 백그라운드 렌더링 모드 시작
-                vizcore3d.View.BeginBackgroundRenderingMode(captureWidth, captureHeight);
-
-                // 4개 방향 캡처
-                Dictionary<string, System.Drawing.Image> viewImages = new Dictionary<string, System.Drawing.Image>();
-
-                // 1. ISO 뷰 - 치수 없음
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-                if (modelCenter != null) vizcore3d.View.SetPivotPosition(modelCenter);
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
-                if (useXRaySelection)
-                    vizcore3d.View.FlyToObject3d(xraySelectedNodeIndices, 1.0f);
-                else
-                    vizcore3d.View.FitToView(0.0f, 0.0f);
-                viewImages["ISO VIEW"] = vizcore3d.View.GetBackgroundRenderingImage();
-
-                // 체인 치수가 있는 경우 각 뷰에 최소 치수 표시
-                bool hasDimensions = (chainDimensionList != null && chainDimensionList.Count > 0);
-
-                // 2. Z+ (평면도) - X,Y축 치수 표시
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-                if (hasDimensions)
-                {
-                    AddDimensionsForView("Z");
-                }
-                if (modelCenter != null) vizcore3d.View.SetPivotPosition(modelCenter);
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS);
-                if (useXRaySelection)
-                    vizcore3d.View.FlyToObject3d(xraySelectedNodeIndices, 1.0f);
-                else
-                    vizcore3d.View.FitToView(0.0f, 0.0f);
-                viewImages["PLAN (Z+)"] = vizcore3d.View.GetBackgroundRenderingImage();
-
-                // 3. Y+ (정면도) - X,Z축 치수 표시
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-                if (hasDimensions)
-                {
-                    AddDimensionsForView("Y");
-                }
-                if (modelCenter != null) vizcore3d.View.SetPivotPosition(modelCenter);
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
-                if (useXRaySelection)
-                    vizcore3d.View.FlyToObject3d(xraySelectedNodeIndices, 1.0f);
-                else
-                    vizcore3d.View.FitToView(0.0f, 0.0f);
-                viewImages["FRONT (Y+)"] = vizcore3d.View.GetBackgroundRenderingImage();
-
-                // 4. X+ (측면도) - Y,Z축 치수 표시
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-                if (hasDimensions)
-                {
-                    AddDimensionsForView("X");
-                }
-                if (modelCenter != null) vizcore3d.View.SetPivotPosition(modelCenter);
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
-                if (useXRaySelection)
-                    vizcore3d.View.FlyToObject3d(xraySelectedNodeIndices, 1.0f);
-                else
-                    vizcore3d.View.FitToView(0.0f, 0.0f);
-                viewImages["SIDE (X+)"] = vizcore3d.View.GetBackgroundRenderingImage();
-
-                // 백그라운드 렌더링 모드 종료
-                vizcore3d.View.EndBackgroundRenderingMode();
-
-                // 객체 색상 복원
-                vizcore3d.Object3D.Color.RestoreColor();
-
-                // 배경색 복원
-                vizcore3d.View.BackgroundMode = bgMode;
-                vizcore3d.View.BackgroundColor1 = bgColor1;
-                vizcore3d.View.BackgroundColor2 = bgColor2;
-
-                // SilhouetteEdge 설정 복원
-                vizcore3d.View.SilhouetteEdge = origSilhouetteEdge;
-                vizcore3d.View.SilhouetteEdgeColor = origSilhouetteColor;
-                vizcore3d.View.EdgeWidthRatio = origEdgeWidthRatio;
-
-                // 렌더링 모드 복원
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH_EDGE);
-
-                // 치수 정리 후 ISO 뷰로 복귀
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
-                vizcore3d.View.FitToView();
-
-                // 도면 레이아웃 설정
-                int viewAreaWidth = captureWidth * 2 + 30;
-                int bomTableWidth = 280;
-                int titleBlockHeight = 80;
-                int totalWidth = viewAreaWidth + bomTableWidth + 20;
-                int totalHeight = captureHeight * 2 + 80 + titleBlockHeight;
-
-                using (Bitmap drawing2D = new Bitmap(totalWidth, totalHeight))
-                using (Graphics g = Graphics.FromImage(drawing2D))
-                {
-                    g.Clear(System.Drawing.Color.White);
-                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-                    Font titleFont = new Font("Arial", 10, FontStyle.Bold);
-                    Font scaleFont = new Font("Arial", 8);
-                    Font bomFont = new Font("Arial", 7);
-                    Font bomHeaderFont = new Font("Arial", 7, FontStyle.Bold);
-                    Font infoFont = new Font("Arial", 8);
-                    Font infoTitleFont = new Font("Arial", 9, FontStyle.Bold);
-                    Pen borderPen = new Pen(System.Drawing.Color.Black, 1);
-                    Pen thickPen = new Pen(System.Drawing.Color.Black, 2);
-                    int scale = 50;
-
-                    // 도면 외곽선
-                    g.DrawRectangle(thickPen, 5, 5, totalWidth - 10, totalHeight - 10);
-
-                    // 도면 제목
-                    g.DrawString("2D MANUFACTURING DRAWING", new Font("Arial", 14, FontStyle.Bold),
-                        Brushes.Black, new PointF(viewAreaWidth / 2 - 100, 10));
-
-                    int startY = 35;
-
-                    // 1. 좌상단: ISO (치수 없음) + 부재 번호
-                    if (viewImages.ContainsKey("ISO VIEW"))
-                    {
-                        g.DrawImage(viewImages["ISO VIEW"], 10, startY, captureWidth, captureHeight);
-                        g.DrawRectangle(borderPen, 10, startY, captureWidth, captureHeight);
-                        g.DrawString($"ISO VIEW (S=1:{scale})", titleFont, Brushes.Black, 15, startY + 5);
-
-                        // ISO 뷰에 부재 번호 표시
-                        DrawPartNumbersOnIsoView(g, 10, startY, captureWidth, captureHeight, bomScreenPositions);
-                    }
-
-                    // 2. 우상단 (뷰 영역): Z+ (평면도)
-                    if (viewImages.ContainsKey("PLAN (Z+)"))
-                    {
-                        g.DrawImage(viewImages["PLAN (Z+)"], captureWidth + 20, startY, captureWidth, captureHeight);
-                        g.DrawRectangle(borderPen, captureWidth + 20, startY, captureWidth, captureHeight);
-                        g.DrawString($"PLAN VIEW - Z+ (S=1:{scale})", titleFont, Brushes.Black, captureWidth + 25, startY + 5);
-                    }
-
-                    // 3. 좌하단: Y+ (정면도)
-                    if (viewImages.ContainsKey("FRONT (Y+)"))
-                    {
-                        g.DrawImage(viewImages["FRONT (Y+)"], 10, startY + captureHeight + 20, captureWidth, captureHeight);
-                        g.DrawRectangle(borderPen, 10, startY + captureHeight + 20, captureWidth, captureHeight);
-                        g.DrawString($"FRONT VIEW - Y+ (S=1:{scale})", titleFont, Brushes.Black, 15, startY + captureHeight + 25);
-                    }
-
-                    // 4. 우하단 (뷰 영역): X+ (측면도)
-                    if (viewImages.ContainsKey("SIDE (X+)"))
-                    {
-                        g.DrawImage(viewImages["SIDE (X+)"], captureWidth + 20, startY + captureHeight + 20, captureWidth, captureHeight);
-                        g.DrawRectangle(borderPen, captureWidth + 20, startY + captureHeight + 20, captureWidth, captureHeight);
-                        g.DrawString($"SIDE VIEW - X+ (S=1:{scale})", titleFont, Brushes.Black, captureWidth + 25, startY + captureHeight + 25);
-                    }
-
-                    // ========== 우측 상단: BOM 테이블 ==========
-                    int bomX = viewAreaWidth + 10;
-                    int bomY = startY;
-                    int bomHeight = captureHeight * 2 + 20 - titleBlockHeight;
-
-                    DrawBOMTable(g, bomX, bomY, bomTableWidth - 10, bomHeight, bomFont, bomHeaderFont, borderPen);
-
-                    // ========== 우측 하단: 도면 정보 칸 ==========
-                    int infoX = viewAreaWidth + 10;
-                    int infoY = startY + captureHeight * 2 + 20 - titleBlockHeight + 10;
-                    int infoWidth = bomTableWidth - 10;
-                    int infoHeight = titleBlockHeight + captureHeight - 10;
-
-                    DrawTitleBlock(g, infoX, infoY, infoWidth, infoHeight, infoFont, infoTitleFont, borderPen);
-
-                    titleFont.Dispose();
-                    scaleFont.Dispose();
-                    bomFont.Dispose();
-                    bomHeaderFont.Dispose();
-                    infoFont.Dispose();
-                    infoTitleFont.Dispose();
-                    borderPen.Dispose();
-                    thickPen.Dispose();
-
-                    // 마지막 생성된 도면 저장 (PDF 출력용)
-                    if (lastGeneratedDrawing != null)
-                    {
-                        lastGeneratedDrawing.Dispose();
-                    }
-                    lastGeneratedDrawing = (Bitmap)drawing2D.Clone();
-
-                    // 2D 도면 폼 표시
-                    Show2DDrawingForm(drawing2D);
-                }
-
-                // 이미지 리소스 해제
-                foreach (var img in viewImages.Values)
-                {
-                    img?.Dispose();
-                }
-
-                MessageBox.Show($"2D 도면 생성 완료!\n\n" +
-                    $"- ISO VIEW (좌상단) - 부재 번호 포함\n" +
-                    $"- PLAN VIEW - Z+ (우상단) - X,Y축 최소 치수 포함\n" +
-                    $"- FRONT VIEW - Y+ (좌하단) - X,Z축 최소 치수 포함\n" +
-                    $"- SIDE VIEW - X+ (우하단) - Y,Z축 최소 치수 포함\n" +
-                    $"- BOM 테이블 + 도면 정보 칸", "2D 도면 생성", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            // Drawing2D Template API가 현재 VIZCore3D.NET DLL에서 지원되지 않습니다.
+            // 추후 DLL 업데이트 후 기능 활성화 예정
+            MessageBox.Show("2D 도면 생성 기능은 현재 VIZCore3D.NET DLL 버전에서 지원되지 않습니다.\n\n" +
+                "Drawing2D Template API 업데이트 후 사용 가능합니다.",
+                "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -2578,17 +2417,17 @@ namespace A2Z
             for (int i = 0; i < lvBOM.Items.Count && i < maxRows; i++)
             {
                 ListViewItem item = lvBOM.Items[i];
-                string name = item.Text;
+                string name = item.SubItems.Count > 1 ? item.SubItems[1].Text : "";  // "No." 칼럼 추가로 Name은 SubItems[1]
                 string type = "PART";
                 string qty = "1";
 
-                g.DrawString((i + 1).ToString(), font, Brushes.Black, x + 3, rowY);
+                g.DrawString(item.Text, font, Brushes.Black, x + 3, rowY);  // No. 칼럼 값 사용
 
                 g.DrawString(TruncateString(name, 18), font, Brushes.Black, x + colWidths[0] + 3, rowY);
 
-                if (item.SubItems.Count > 1)
+                if (item.SubItems.Count > 2)
                 {
-                    string angle = item.SubItems[1].Text;
+                    string angle = item.SubItems[2].Text;  // "No." 칼럼 추가로 Angle은 SubItems[2]
                     type = string.IsNullOrEmpty(angle) || angle == "0" ? "PART" : "ASSEMBLY";
                 }
                 g.DrawString(type, font, Brushes.Black, x + colWidths[0] + colWidths[1] + 3, rowY);
@@ -3914,6 +3753,27 @@ namespace A2Z
                     for (int i = 0; i < bomList.Count; i++)
                     {
                         balloonDisplayNumbers[i] = i + 1;
+                    }
+                }
+
+                // ===== 4-1. lvBOM "No." 칼럼을 풍선번호와 일치시키기 =====
+                for (int i = 0; i < bomList.Count && i < lvBOM.Items.Count; i++)
+                {
+                    int nodeIdx = bomList[i].Index;
+                    if (balloonDisplayNumbers.ContainsKey(i))
+                    {
+                        // 풍선이 표시되는 대표 부재: 풍선번호 사용
+                        lvBOM.Items[i].Text = balloonDisplayNumbers[i].ToString();
+                    }
+                    else if (bomInfoNodeGroupMap.TryGetValue(nodeIdx, out int grpNo))
+                    {
+                        // 같은 그룹의 비대표 부재: 그룹번호 사용
+                        lvBOM.Items[i].Text = grpNo.ToString();
+                    }
+                    else
+                    {
+                        // 매핑 없는 경우: 순번 유지
+                        lvBOM.Items[i].Text = (i + 1).ToString();
                     }
                 }
 
