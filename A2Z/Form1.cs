@@ -1784,10 +1784,8 @@ namespace A2Z
                     }
                 }
 
-                // ListView에 채우기 (BOM정보 탭 + 도면정보 탭 BOM 테이블)
+                // ListView에 채우기 (BOM정보 탭)
                 lvBOMInfo.BeginUpdate();
-                lvDrawingBOMInfo.BeginUpdate();
-                lvDrawingBOMInfo.Items.Clear();
 
                 // Row 0: 요약행
                 ListViewItem summaryRow = new ListViewItem("");                      // No.
@@ -1800,22 +1798,10 @@ namespace A2Z
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
 
-                // 도면정보 탭 BOM에도 요약행 추가
-                ListViewItem summaryRow2 = new ListViewItem("");
-                summaryRow2.SubItems.Add("Support&Seat");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : "");
-                summaryRow2.SubItems.Add("F");
-                summaryRow2.SubItems.Add("F");
-                lvDrawingBOMInfo.Items.Add(summaryRow2);
-
                 // Row 1~N: 개별 파트 행
                 int no = 1;
                 foreach (var bomItem in rawBomItems)
                 {
-                    // BOM정보 탭
                     ListViewItem lvi = new ListViewItem(no.ToString());   // No.
                     lvi.SubItems.Add(bomItem.Item1);                      // ITEM
                     lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
@@ -1826,21 +1812,9 @@ namespace A2Z
                     lvi.SubItems.Add("F");                                // FA
                     lvBOMInfo.Items.Add(lvi);
 
-                    // 도면정보 탭 BOM
-                    ListViewItem lvi2 = new ListViewItem(no.ToString());
-                    lvi2.SubItems.Add(bomItem.Item1);
-                    lvi2.SubItems.Add(bomItem.Item3);
-                    lvi2.SubItems.Add(bomItem.Item2);
-                    lvi2.SubItems.Add("1");
-                    lvi2.SubItems.Add(bomItem.Item4);
-                    lvi2.SubItems.Add("L");
-                    lvi2.SubItems.Add("F");
-                    lvDrawingBOMInfo.Items.Add(lvi2);
-
                     no++;
                 }
                 lvBOMInfo.EndUpdate();
-                lvDrawingBOMInfo.EndUpdate();
 
                 if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
