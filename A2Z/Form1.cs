@@ -1626,53 +1626,28 @@ namespace A2Z
             {
                 lvBOMInfo.Items.Clear();
 
-                // Part 노드 가져오기 (Part 레벨에서 UDA 조회)
-                List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
-                if (partNodes == null || partNodes.Count == 0)
+                // Body 노드 우선 가져오기 (Body 레벨에서 UDA 조회, 없으면 Part 폴백)
+                List<VIZCore3D.NET.Data.Node> bomNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (bomNodes == null || bomNodes.Count == 0)
                 {
-                    // Part가 없으면 Body 노드로 시도
-                    partNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                    // Body가 없으면 Part 노드로 시도
+                    bomNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
                 }
 
-                if (partNodes == null || partNodes.Count == 0)
+                if (bomNodes == null || bomNodes.Count == 0)
                 {
                     if (showAlert) MessageBox.Show("로드된 모델이 없거나 노드를 찾을 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                // ★ 도면시트 선택 시 해당 시트 부재만 필터링
+                // ★ 도면시트 선택 시 해당 시트 부재만 필터링 (Body 인덱스 직접 매칭)
                 if (lvDrawingSheet.SelectedItems.Count > 0)
                 {
                     DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
                     if (selectedSheet != null && selectedSheet.MemberIndices.Count > 0)
                     {
                         var sheetBodySet = new HashSet<int>(selectedSheet.MemberIndices);
-                        List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                        var partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
-                        var allowedPartIndices = new HashSet<int>();
-
-                        if (bodyNodes != null)
-                        {
-                            foreach (var body in bodyNodes)
-                            {
-                                if (!sheetBodySet.Contains(body.Index)) continue;
-                                int lo = 0, hi = partIdxSorted.Count - 1;
-                                int parentPart = -1;
-                                while (lo <= hi)
-                                {
-                                    int mid = (lo + hi) / 2;
-                                    if (partIdxSorted[mid] <= body.Index)
-                                    {
-                                        parentPart = partIdxSorted[mid];
-                                        lo = mid + 1;
-                                    }
-                                    else hi = mid - 1;
-                                }
-                                if (parentPart >= 0) allowedPartIndices.Add(parentPart);
-                            }
-                        }
-
-                        partNodes = partNodes.Where(p => allowedPartIndices.Contains(p.Index)).ToList();
+                        bomNodes = bomNodes.Where(b => sheetBodySet.Contains(b.Index)).ToList();
                     }
                 }
 
@@ -1686,11 +1661,11 @@ namespace A2Z
                 }
                 catch { }
 
-                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (그룹핑 없이 각 파트가 독립 행)
+                // 각 Body 노드에서 SPREF/MATREF/GWEI 값 수집 (Body 우선, Part 폴백)
                 var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Material, Weight, NodeIndex
                 double totalWeight = 0;
 
-                foreach (var node in partNodes)
+                foreach (var node in bomNodes)
                 {
                     string sprefVal = "";
                     string matrefVal = "";
@@ -1698,7 +1673,16 @@ namespace A2Z
 
                     try
                     {
+                        // 1차: Body(현재 노드) 레벨에서 UDA 조회
                         Dictionary<string, string> nodeUda = vizcore3d.Object3D.UDA.FromIndex(node.Index);
+
+                        // 2차: Body에 UDA가 없으면 부모 Part에서 조회 (bodyToPartIndexMap 활용)
+                        if ((nodeUda == null || nodeUda.Count == 0) && bodyToPartIndexMap.ContainsKey(node.Index))
+                        {
+                            int partIdx = bodyToPartIndexMap[node.Index];
+                            nodeUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
+                        }
+
                         if (nodeUda != null && nodeUda.Count > 0)
                         {
                             foreach (var kv in nodeUda)
@@ -1744,43 +1728,14 @@ namespace A2Z
                     rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matrefVal, gweiVal, node.Index));
                 }
 
-                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
+                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 직접 매핑
                 bomInfoNodeGroupMap.Clear();
-                List<VIZCore3D.NET.Data.Node> bodyNodesForMap = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                if (bodyNodesForMap != null && bodyNodesForMap.Count > 0)
                 {
-                    List<int> partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
-
-                    // 각 Part에 순차적으로 groupNo 부여 (Row 0은 요약행이므로 1부터)
-                    var partToGroup = new Dictionary<int, int>();
                     int groupNo = 1;
                     foreach (var bomItem in rawBomItems)
                     {
-                        partToGroup[bomItem.Item5] = groupNo;
+                        bomInfoNodeGroupMap[bomItem.Item5] = groupNo;
                         groupNo++;
-                    }
-
-                    foreach (var body in bodyNodesForMap)
-                    {
-                        int parentPartIndex = -1;
-                        int lo = 0, hi = partIdxSorted.Count - 1;
-                        while (lo <= hi)
-                        {
-                            int mid = (lo + hi) / 2;
-                            if (partIdxSorted[mid] <= body.Index)
-                            {
-                                parentPartIndex = partIdxSorted[mid];
-                                lo = mid + 1;
-                            }
-                            else
-                            {
-                                hi = mid - 1;
-                            }
-                        }
-                        if (parentPartIndex >= 0 && partToGroup.ContainsKey(parentPartIndex))
-                        {
-                            bomInfoNodeGroupMap[body.Index] = partToGroup[parentPartIndex];
-                        }
                     }
                 }
 
