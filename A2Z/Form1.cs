@@ -136,6 +136,7 @@ namespace A2Z
         private void SetupBOMColumns()
         {
             lvBOM.Columns.Clear();
+            lvBOM.Columns.Add("No.", 40);
             lvBOM.Columns.Add("부재 이름", 120);
             lvBOM.Columns.Add("각도", 60);
             lvBOM.Columns.Add("X_Center", 80);
@@ -680,10 +681,12 @@ namespace A2Z
                 // 홀 검출 수행
                 DetectHoles();
 
-                // 정렬된 순서로 ListView 채우기
+                // 정렬된 순서로 ListView 채우기 (No. 칼럼 포함)
+                int bomNo = 1;
                 foreach (var bom in bomList)
                 {
-                    ListViewItem lvi = new ListViewItem(bom.Name);
+                    ListViewItem lvi = new ListViewItem(bomNo.ToString());  // No. 칼럼
+                    lvi.SubItems.Add(bom.Name);
                     lvi.SubItems.Add(bom.RotationAngle.ToString("F2"));
                     lvi.SubItems.Add(bom.CenterX.ToString("F2"));
                     lvi.SubItems.Add(bom.CenterY.ToString("F2"));
@@ -699,6 +702,7 @@ namespace A2Z
                     lvi.SubItems.Add(bom.HoleSize);
                     lvi.Tag = bom;
                     lvBOM.Items.Add(lvi);
+                    bomNo++;
                 }
 
                 return bomList.Count > 0;
@@ -2533,17 +2537,17 @@ namespace A2Z
             for (int i = 0; i < lvBOM.Items.Count && i < maxRows; i++)
             {
                 ListViewItem item = lvBOM.Items[i];
-                string name = item.Text;
+                string name = item.SubItems.Count > 1 ? item.SubItems[1].Text : "";  // No. 칼럼 추가로 Name은 SubItems[1]
                 string type = "PART";
                 string qty = "1";
 
-                g.DrawString((i + 1).ToString(), font, Brushes.Black, x + 3, rowY);
+                g.DrawString(item.Text, font, Brushes.Black, x + 3, rowY);  // No. 칼럼 값 사용
 
                 g.DrawString(TruncateString(name, 18), font, Brushes.Black, x + colWidths[0] + 3, rowY);
 
-                if (item.SubItems.Count > 1)
+                if (item.SubItems.Count > 2)
                 {
-                    string angle = item.SubItems[1].Text;
+                    string angle = item.SubItems[2].Text;  // No. 칼럼 추가로 Angle은 SubItems[2]
                     type = string.IsNullOrEmpty(angle) || angle == "0" ? "PART" : "ASSEMBLY";
                 }
                 g.DrawString(type, font, Brushes.Black, x + colWidths[0] + colWidths[1] + 3, rowY);
@@ -3869,6 +3873,27 @@ namespace A2Z
                     for (int i = 0; i < bomList.Count; i++)
                     {
                         balloonDisplayNumbers[i] = i + 1;
+                    }
+                }
+
+                // ===== 4-1. lvBOM "No." 칼럼을 풍선번호와 일치시키기 =====
+                for (int i = 0; i < bomList.Count && i < lvBOM.Items.Count; i++)
+                {
+                    int nodeIdx = bomList[i].Index;
+                    if (balloonDisplayNumbers.ContainsKey(i))
+                    {
+                        // 풍선이 표시되는 대표 부재: 풍선번호 사용
+                        lvBOM.Items[i].Text = balloonDisplayNumbers[i].ToString();
+                    }
+                    else if (bomInfoNodeGroupMap.TryGetValue(nodeIdx, out int grpNo))
+                    {
+                        // 같은 그룹의 비대표 부재: 그룹번호 사용
+                        lvBOM.Items[i].Text = grpNo.ToString();
+                    }
+                    else
+                    {
+                        // 매핑 없는 경우: 순번 유지
+                        lvBOM.Items[i].Text = (i + 1).ToString();
                     }
                 }
 
@@ -6517,7 +6542,21 @@ namespace A2Z
             // Sheet 1: 전체 BOM 부재
             DrawingSheetData sheet1 = new DrawingSheetData();
             sheet1.SheetNumber = 1;
-            sheet1.BaseMemberName = "전체";
+
+            // 선택한 노드 이름 사용, 없으면 파일명 사용
+            if (selectedAttributeNodeIndex != -1)
+            {
+                var selectedNode = vizcore3d.Object3D.FromIndex(selectedAttributeNodeIndex);
+                sheet1.BaseMemberName = (selectedNode != null && !string.IsNullOrEmpty(selectedNode.NodeName))
+                    ? selectedNode.NodeName
+                    : System.IO.Path.GetFileNameWithoutExtension(currentFilePath);
+            }
+            else
+            {
+                sheet1.BaseMemberName = !string.IsNullOrEmpty(currentFilePath)
+                    ? System.IO.Path.GetFileNameWithoutExtension(currentFilePath)
+                    : "전체";
+            }
             sheet1.BaseMemberIndex = -1;
             foreach (var bom in bomList)
             {
