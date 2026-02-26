@@ -2136,9 +2136,8 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
 
                 // 2행 3열의 그리드 구조 생성 (우측 1열은 템플릿 테이블 영역)
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
+                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas, 1, 1);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(1, 1, 1, 1);
-                vizcore3d.Drawing2D.GridStructure.SetGap(1, 1);
 
                 // 각 그리드 셀별로 다른 각도의 뷰를 투영
                 // [1,1] ISO View
