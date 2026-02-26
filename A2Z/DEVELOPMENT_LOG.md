@@ -43,6 +43,7 @@ A2Z/
 | 12  | lvBOM No.열 + 풍선번호 동기화       | 완료  | BOM데이터 No.칼럼 추가, 풍선번호↔lvBOM No. 동기화, 도면시트 부재명 반영 (Phase 19) |
 | 13  | X-Ray 모드 선택 노드 필터링         | 완료  | CollectBOMData/DetectClash/CollectBOMInfo에 X-Ray 필터링 적용, 선택 모델만 처리 (Phase 20) |
 | 14  | BOM T/W 소수점 반올림              | 완료  | GWEI 값 소수점 둘째자리 반올림 표시, 요약행 totalWeight도 F2 포맷 (Phase 20) |
+| 15  | BOM정보 탭 제거                    | 완료  | 도면정보 탭에 동일 BOM 테이블 존재하므로 중복 탭 제거, 2D 생성도 lvDrawingBOMInfo 참조로 전환 (Phase 20) |
 
 
 ### 현재 구현 완료된 기능
@@ -1157,6 +1158,20 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 | 파일 | 변경 내용 |
 | ---- | --------- |
 | `Form1.cs` | CollectBOMData/DetectClash/CollectBOMInfo X-Ray 필터링, GWEI 반올림 F2 포맷 |
+
+**[구현 — 3. BOM정보 탭 제거]**
+
+- 도면정보 탭의 `lvDrawingBOMInfo`에 동일 데이터가 이미 표시되므로 중복 `tabPageBOMInfo` 탭 삭제
+- `CollectBOMInfo()`: `lvBOMInfo` 중복 채우기 로직 제거, `lvDrawingBOMInfo`만 유지
+- `btnGenerate2D_Click()`: `lvBOMInfo` → `lvDrawingBOMInfo` 참조로 전환
+- Designer: `tabPageBOMInfo`, `lvBOMInfo`, `panelBOMInfoHeader`, `btnCollectBOMInfo` 등 UI 컨트롤 및 필드 선언 완전 제거
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | lvBOMInfo 참조 → lvDrawingBOMInfo 전환, btnCollectBOMInfo_Click 제거, 중복 ListView 채우기 제거 |
+| `Form1.Designer.cs` | tabPageBOMInfo 탭 + 하위 컨트롤(lvBOMInfo, panelBOMInfoHeader, btnCollectBOMInfo, 라벨, 컬럼헤더) 전부 제거 |
 
 ---
 

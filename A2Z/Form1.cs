@@ -1539,20 +1539,10 @@ namespace A2Z
             }
         }
 
-        /// <summary>
-        /// BOM 정보 수집 버튼 클릭 - UDA에서 Item, Size, Matl, Weight를 가져와 그룹핑
-        /// </summary>
-        private void btnCollectBOMInfo_Click(object sender, EventArgs e)
-        {
-            CollectBOMInfo(true);
-        }
-
         private void CollectBOMInfo(bool showAlert = true)
         {
             try
             {
-                lvBOMInfo.Items.Clear();
-
                 // Part 노드 가져오기 (Part 레벨에서 UDA 조회)
                 List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
                 if (partNodes == null || partNodes.Count == 0)
@@ -1778,8 +1768,7 @@ namespace A2Z
                     }
                 }
 
-                // ListView에 채우기 (BOM정보 탭 + 도면정보 탭 BOM 테이블)
-                lvBOMInfo.BeginUpdate();
+                // ListView에 채우기 (도면정보 탭 BOM 테이블)
                 lvDrawingBOMInfo.BeginUpdate();
                 lvDrawingBOMInfo.Items.Clear();
 
@@ -1792,24 +1781,12 @@ namespace A2Z
                 summaryRow.SubItems.Add(totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : ""); // T/W
                 summaryRow.SubItems.Add("F");                                        // MA
                 summaryRow.SubItems.Add("F");                                        // FA
-                lvBOMInfo.Items.Add(summaryRow);
-
-                // 도면정보 탭 BOM에도 요약행 추가
-                ListViewItem summaryRow2 = new ListViewItem("");
-                summaryRow2.SubItems.Add("Support&Seat");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add(totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "");
-                summaryRow2.SubItems.Add("F");
-                summaryRow2.SubItems.Add("F");
-                lvDrawingBOMInfo.Items.Add(summaryRow2);
+                lvDrawingBOMInfo.Items.Add(summaryRow);
 
                 // Row 1~N: 개별 파트 행
                 int no = 1;
                 foreach (var bomItem in rawBomItems)
                 {
-                    // BOM정보 탭
                     ListViewItem lvi = new ListViewItem(no.ToString());   // No.
                     lvi.SubItems.Add(bomItem.Item1);                      // ITEM
                     lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
@@ -1818,22 +1795,10 @@ namespace A2Z
                     lvi.SubItems.Add(bomItem.Item4);                      // T/W
                     lvi.SubItems.Add("L");                                // MA
                     lvi.SubItems.Add("F");                                // FA
-                    lvBOMInfo.Items.Add(lvi);
-
-                    // 도면정보 탭 BOM
-                    ListViewItem lvi2 = new ListViewItem(no.ToString());
-                    lvi2.SubItems.Add(bomItem.Item1);
-                    lvi2.SubItems.Add(bomItem.Item3);
-                    lvi2.SubItems.Add(bomItem.Item2);
-                    lvi2.SubItems.Add("1");
-                    lvi2.SubItems.Add(bomItem.Item4);
-                    lvi2.SubItems.Add("L");
-                    lvi2.SubItems.Add("F");
-                    lvDrawingBOMInfo.Items.Add(lvi2);
+                    lvDrawingBOMInfo.Items.Add(lvi);
 
                     no++;
                 }
-                lvBOMInfo.EndUpdate();
                 lvDrawingBOMInfo.EndUpdate();
 
                 if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -2089,18 +2054,18 @@ namespace A2Z
                 Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
 
                 // BOM정보가 미수집이면 자동 수집
-                if (lvBOMInfo.Items.Count == 0)
+                if (lvDrawingBOMInfo.Items.Count == 0)
                 {
                     CollectBOMInfo(false);
                 }
 
                 // ==========================================================
-                // [표 1] BOM 정보 테이블 (우측 상단) — lvBOMInfo 기반
+                // [표 1] BOM 정보 테이블 (우측 상단) — lvDrawingBOMInfo 기반
                 // ==========================================================
-                if (lvBOMInfo.Items.Count > 0)
+                if (lvDrawingBOMInfo.Items.Count > 0)
                 {
-                    // 행: lvBOMInfo 항목 수 + 헤더(1), 열: 8 (No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)
-                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvBOMInfo.Items.Count + 1, 8);
+                    // 행: lvDrawingBOMInfo 항목 수 + 헤더(1), 열: 8 (No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvDrawingBOMInfo.Items.Count + 1, 8);
                     table1.SetText(0, 0, "No.");
                     table1.SetText(0, 1, "ITEM");
                     table1.SetText(0, 2, "MATERIAL");
@@ -2110,9 +2075,9 @@ namespace A2Z
                     table1.SetText(0, 6, "MA");
                     table1.SetText(0, 7, "FA");
 
-                    for (int i = 0; i < lvBOMInfo.Items.Count; i++)
+                    for (int i = 0; i < lvDrawingBOMInfo.Items.Count; i++)
                     {
-                        ListViewItem item = lvBOMInfo.Items[i];
+                        ListViewItem item = lvDrawingBOMInfo.Items[i];
                         for (int col = 0; col < 8 && col < item.SubItems.Count; col++)
                         {
                             table1.SetText(i + 1, col, item.SubItems[col].Text);
