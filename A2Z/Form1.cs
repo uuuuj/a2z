@@ -2049,6 +2049,9 @@ namespace A2Z
                 // 도면 템플릿 생성 프로세스 시작
                 vizcore3d.Drawing2D.Template.CreateTemplate();
 
+                // 캔버스 크기를 A4 가로 비율로 설정 (297mm x 210mm)
+                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
+
                 // 노드 인덱스와 노트 ID를 매핑하기 위한 딕셔너리
                 Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
 
@@ -2134,7 +2137,8 @@ namespace A2Z
 
                 // 2행 3열의 그리드 구조 생성 (우측 1열은 템플릿 테이블 영역)
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(15, 15, 15, 15);
+                vizcore3d.Drawing2D.GridStructure.SetMargins(1, 1, 1, 1);
+                vizcore3d.Drawing2D.GridStructure.SetGap(1, 1);
 
                 // 각 그리드 셀별로 다른 각도의 뷰를 투영
                 // [1,1] ISO View
