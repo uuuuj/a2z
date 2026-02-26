@@ -39,6 +39,8 @@ A2Z/
 | 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 보류  | Drawing2D Template API가 현재 DLL에서 미지원, 임시 비활성화 (Phase 17) |
 | 9   | 도면정보 탭 BOM 테이블 통합          | 완료  | 도면정보 탭에 BOM 정보 테이블 추가, 도면 선택 시 해당 BOM 자동 표시 (Phase 17) |
 | 10  | 2D 템플릿 BOM 테이블 전환           | 완료  | 2D 도면 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼으로 전환, BOM 미수집 시 자동 수집 (Phase 18) |
+| 11  | UDA 부모 탐색 + MATREF 파싱         | 완료  | Part→부모 방향 UDA 조회(최대 10단계), MATREF "/" 제거 (Phase 18) |
+| 12  | lvBOM No.열 + 풍선번호 동기화       | 완료  | BOM데이터 No.칼럼 추가, 풍선번호↔lvBOM No. 동기화, 도면시트 부재명 반영 (Phase 19) |
 
 
 ### 현재 구현 완료된 기능
@@ -54,6 +56,8 @@ A2Z/
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
 | 2D 도면 생성              | 보류 | Drawing2D Template API 미지원으로 임시 비활성화 (Phase 17) |
 | 2D 템플릿 BOM 테이블      | 완료 | 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼(No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)으로 전환 (Phase 18) |
+| UDA 부모 탐색             | 완료 | Part→부모 방향 UDA 조회(최대 10단계), MATREF "/" 제거 (Phase 18) |
+| lvBOM No.열 + 풍선 동기화 | 완료 | BOM데이터 No.칼럼 추가, 풍선번호↔No. 동기화, 도면시트 부재명 반영 (Phase 19) |
 | PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
 | 글로벌 뷰 버튼            | 완료 | 탭 공통 ISO/X/Y/Z 버튼, 줌 누적 문제 해결 (Phase 12) |
 | ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
@@ -1099,6 +1103,34 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 | 파일 | 변경 내용 |
 | ---- | --------- |
 | `Form1.cs` | btnGenerate2D_Click: [표 1] bomList→lvBOMInfo 전환, 자동 BOM 수집 추가 |
+
+---
+
+### Phase 19: lvBOM No.열 추가 + 풍선번호 동기화 + 도면시트 부재명
+
+**[요청]** "KSH 브랜치의 BOM No.열 + 풍선번호 매칭, 도면시트 첫 항목 부재명 가져오기 기능을 이식"
+
+**[구현 — 1. lvBOM No. 칼럼 추가]**
+
+- `SetupBOMColumns()`에 `No.` 칼럼을 첫 번째 열로 추가 (너비 40)
+- BOM 데이터 채우기 시 `new ListViewItem(bomNo.ToString())` → Name은 `SubItems[1]`로 이동
+- SubItems 인덱스 보정: Name→[1], Angle→[2]
+
+**[구현 — 2. 풍선번호 ↔ lvBOM No. 동기화]**
+
+- 풍선 배치 후 `lvBOM.Items[i].Text`(No. 칼럼)를 풍선번호로 업데이트
+- 대표 부재: 풍선번호, 비대표 부재: 그룹번호, 매핑 없음: 순번
+
+**[구현 — 3. Sheet 1 BaseMemberName 동적 결정]**
+
+- 선택된 노드 이름 → 파일명 → `"전체"` 순으로 우선순위 결정
+- `selectedAttributeNodeIndex`로 현재 선택 노드 확인
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | SetupBOMColumns No.열 추가, BOM 채우기 bomNo 포함, 풍선→lvBOM 동기화, SubItems 인덱스 보정, Sheet1 BaseMemberName 동적 결정 |
 
 ---
 
