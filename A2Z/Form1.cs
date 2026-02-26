@@ -2086,8 +2086,8 @@ namespace A2Z
                         }
                     }
 
-                    // 표를 도면 캔버스의 우측 영역(310mm 지점)에 배치
-                    table1.X = 310;
+                    // BOM 테이블은 열이 많으므로 왼쪽으로 더 확장 배치
+                    table1.X = 200;
                     table1.Y = 0;
                     vizcore3d.Drawing2D.Template.AddTemplateItem(table1);
                 }
@@ -2135,17 +2135,15 @@ namespace A2Z
                 float wCanvas = 0.0f, hCanvas = 0.0f;
                 vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
 
-                // 2행 5열의 그리드 구조 생성 (좌측 2열에 모델, 우측 3열은 테이블 영역)
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 5, wCanvas, hCanvas, 1, 1);
+                // 4행 2열의 그리드 구조 생성 (상단 2행에 모델, 하단 2행은 테이블 영역)
+                vizcore3d.Drawing2D.GridStructure.AddGridStructure(4, 2, wCanvas, hCanvas, 1, 1);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(1, 1, 1, 1);
 
-                // 셀 내부 패딩 설정 (좌/우/상/하 순서)
-                // 1행: 아래쪽 패딩 15
-                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 1, 0, 0, 15, 0);
-                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, 0, 0, 15, 0);
-                // 2행: 위쪽 패딩 15
-                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 0, 0, 0, 15);
-                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 0, 0, 0, 15);
+                // 셀 내부 패딩 설정 (좌/우/상/하 순서) — 25로 모델 축소
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 1, 25, 25, 25, 25);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, 25, 25, 25, 25);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 25, 25, 25, 25);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 25, 25, 25, 25);
 
                 // 각 그리드 셀별로 다른 각도의 뷰를 투영
                 // [1,1] ISO View
