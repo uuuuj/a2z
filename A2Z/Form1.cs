@@ -1993,47 +1993,57 @@ namespace A2Z
                 // 노드 인덱스와 노트 ID를 매핑하기 위한 딕셔너리
                 Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
 
-                // ==========================================================
-                // [표 1] BOM 목록 (우측 상단)
-                // ==========================================================
-                if (bomList != null && bomList.Count > 0)
+                // BOM정보가 미수집이면 자동 수집
+                if (lvBOMInfo.Items.Count == 0)
                 {
-                    // 행: BOM 수 + 헤더(1), 열: 4 (번호, 부재명, 용도, 비고)
-                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(bomList.Count + 1, 4);
+                    CollectBOMInfo(false);
+                }
+
+                // ==========================================================
+                // [표 1] BOM 정보 테이블 (우측 상단) — lvBOMInfo 기반
+                // ==========================================================
+                if (lvBOMInfo.Items.Count > 0)
+                {
+                    // 행: lvBOMInfo 항목 수 + 헤더(1), 열: 8 (No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvBOMInfo.Items.Count + 1, 8);
                     table1.SetText(0, 0, "No.");
-                    table1.SetText(0, 1, "부재명");
-                    table1.SetText(0, 2, "용도");
-                    table1.SetText(0, 3, "비고");
+                    table1.SetText(0, 1, "ITEM");
+                    table1.SetText(0, 2, "MATERIAL");
+                    table1.SetText(0, 3, "SIZE");
+                    table1.SetText(0, 4, "Q'TY");
+                    table1.SetText(0, 5, "T/W");
+                    table1.SetText(0, 6, "MA");
+                    table1.SetText(0, 7, "FA");
 
-                    int rowIdx = 1;
-                    foreach (var bom in bomList)
+                    for (int i = 0; i < lvBOMInfo.Items.Count; i++)
                     {
-                        // 부품의 중심점 계산 및 번호표 위치 설정
-                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
-
-                        // 3D 공간에 번호표(Note) 생성
-                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
-
-                        // 부품 Index와 번호표 ID 매핑 저장
-                        nodeToNoteMap.Add(bom.Index, id);
-
-                        // 번호표 텍스트를 고유 ID 숫자로 업데이트
-                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
-                        note.UpdateText(id.ToString());
-
-                        // 표에 BOM 정보 기입
-                        table1.SetText(rowIdx, 0, id.ToString());
-                        table1.SetText(rowIdx, 1, bom.Name);
-                        table1.SetText(rowIdx, 2, bom.Purpose ?? "");
-                        table1.SetText(rowIdx, 3, "");
-                        rowIdx++;
+                        ListViewItem item = lvBOMInfo.Items[i];
+                        for (int col = 0; col < 8 && col < item.SubItems.Count; col++)
+                        {
+                            table1.SetText(i + 1, col, item.SubItems[col].Text);
+                        }
                     }
 
                     // 표를 도면 캔버스의 우측 영역(310mm 지점)에 배치
                     table1.X = 310;
                     table1.Y = 0;
                     vizcore3d.Drawing2D.Template.AddTemplateItem(table1);
+                }
+
+                // 풍선 번호표 생성 (bomList 기반)
+                if (bomList != null && bomList.Count > 0)
+                {
+                    foreach (var bom in bomList)
+                    {
+                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
+
+                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
+                        nodeToNoteMap.Add(bom.Index, id);
+
+                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
+                        note.UpdateText(id.ToString());
+                    }
                 }
 
                 // ==========================================================
