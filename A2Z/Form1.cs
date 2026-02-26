@@ -2139,6 +2139,13 @@ namespace A2Z
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas, 1, 1);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(1, 1, 1, 1);
 
+                // 각 셀 내부 패딩 설정 (모델이 템플릿 밖으로 넘어가지 않도록)
+                float cellPadding = 15;
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 1, cellPadding, cellPadding, cellPadding, cellPadding);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, cellPadding, cellPadding, cellPadding, cellPadding);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, cellPadding, cellPadding, cellPadding, cellPadding);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, cellPadding, cellPadding, cellPadding, cellPadding);
+
                 // 각 그리드 셀별로 다른 각도의 뷰를 투영
                 // [1,1] ISO View
                 RenderViewWithVisibleNotes(1, 1, VIZCore3D.NET.Data.CameraDirection.ISO_PLUS, nodeToNoteMap);
