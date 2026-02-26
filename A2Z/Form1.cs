@@ -1597,13 +1597,9 @@ namespace A2Z
                 }
                 catch { }
 
-                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (Part에 없으면 하위 Body에서 재조회)
+                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (현재 노드에 없으면 부모로 올라가며 재조회)
                 var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Material, Weight, NodeIndex
                 double totalWeight = 0;
-
-                // Body 노드 목록을 미리 조회 (Part→Body fallback용)
-                List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                var partIdxSortedForBody = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
 
                 foreach (var node in partNodes)
                 {
@@ -1611,63 +1607,45 @@ namespace A2Z
                     string matrefVal = "";
                     string gweiVal = "";
 
-                    // 1차: Part 노드에서 UDA 조회
-                    if (udaKeyList != null)
+                    // 현재 노드부터 부모로 올라가며 UDA 조회 (최대 10단계)
+                    int currentIdx = node.Index;
+                    for (int depth = 0; depth < 10; depth++)
                     {
-                        foreach (string key in udaKeyList)
+                        if (currentIdx < 0) break;
+
+                        if (udaKeyList != null)
                         {
-                            string keyUpper = key.Trim().ToUpper();
-                            try
+                            foreach (string key in udaKeyList)
                             {
-                                var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
-                                string valStr = (val != null) ? val.ToString().Trim() : "";
-
-                                if (keyUpper == "SPREF" && !string.IsNullOrEmpty(valStr))
-                                    sprefVal = valStr;
-                                else if (keyUpper == "MATREF" && !string.IsNullOrEmpty(valStr))
-                                    matrefVal = valStr;
-                                else if (keyUpper == "GWEI" && !string.IsNullOrEmpty(valStr))
-                                    gweiVal = valStr;
-                            }
-                            catch { }
-                        }
-                    }
-
-                    // 2차: Part에 값이 없으면 하위 Body 노드에서 조회
-                    if (string.IsNullOrEmpty(sprefVal) || string.IsNullOrEmpty(matrefVal) || string.IsNullOrEmpty(gweiVal))
-                    {
-                        if (udaKeyList != null && allBodyNodes != null)
-                        {
-                            foreach (var body in allBodyNodes)
-                            {
-                                // 이 Body가 현재 Part의 하위인지 확인 (body.Index > node.Index이고, 다음 Part 이전)
-                                if (body.Index <= node.Index) continue;
-                                int nextPartIdx = partIdxSortedForBody.Find(p => p > node.Index);
-                                if (nextPartIdx > 0 && body.Index >= nextPartIdx) break;
-
-                                foreach (string key in udaKeyList)
+                                string keyUpper = key.Trim().ToUpper();
+                                try
                                 {
-                                    string keyUpper = key.Trim().ToUpper();
-                                    try
-                                    {
-                                        var val = vizcore3d.Object3D.UDA.FromIndex(body.Index, key);
-                                        string valStr = (val != null) ? val.ToString().Trim() : "";
+                                    var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
+                                    string valStr = (val != null) ? val.ToString().Trim() : "";
 
-                                        if (keyUpper == "SPREF" && string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(valStr))
-                                            sprefVal = valStr;
-                                        else if (keyUpper == "MATREF" && string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(valStr))
-                                            matrefVal = valStr;
-                                        else if (keyUpper == "GWEI" && string.IsNullOrEmpty(gweiVal) && !string.IsNullOrEmpty(valStr))
-                                            gweiVal = valStr;
-                                    }
-                                    catch { }
+                                    if (keyUpper == "SPREF" && string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(valStr))
+                                        sprefVal = valStr;
+                                    else if (keyUpper == "MATREF" && string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(valStr))
+                                        matrefVal = valStr;
+                                    else if (keyUpper == "GWEI" && string.IsNullOrEmpty(gweiVal) && !string.IsNullOrEmpty(valStr))
+                                        gweiVal = valStr;
                                 }
-
-                                // 3개 값 모두 찾으면 중단
-                                if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal))
-                                    break;
+                                catch { }
                             }
                         }
+
+                        // 3개 값 모두 찾으면 중단
+                        if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal))
+                            break;
+
+                        // 부모 노드로 이동
+                        try
+                        {
+                            VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                            if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
+                            currentIdx = parentNode.ParentIndex;
+                        }
+                        catch { break; }
                     }
 
                     // SPREF 파싱: 첫 글자 "/" 제거 후 ":" 기준 split → [0]=ITEM, [1]=SIZE
