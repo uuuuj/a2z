@@ -38,6 +38,7 @@ A2Z/
 | 7   | BOM정보 컬럼 재설계 + UDA 전환       | 완료  | 8컬럼(No.\|ITEM\|MATERIAL\|SIZE\|Q'TY\|T/W\|MA\|FA), SPREF/MATREF/GWEI UDA 키, 부재명 TextBox 오버레이 (Phase 16) |
 | 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 보류  | Drawing2D Template API가 현재 DLL에서 미지원, 임시 비활성화 (Phase 17) |
 | 9   | 도면정보 탭 BOM 테이블 통합          | 완료  | 도면정보 탭에 BOM 정보 테이블 추가, 도면 선택 시 해당 BOM 자동 표시 (Phase 17) |
+| 10  | 2D 템플릿 BOM 테이블 전환           | 완료  | 2D 도면 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼으로 전환, BOM 미수집 시 자동 수집 (Phase 18) |
 
 
 ### 현재 구현 완료된 기능
@@ -52,6 +53,7 @@ A2Z/
 | X-Ray 선택 보기           | 완료 | Clash 부재만 X-Ray 표시, 자동 Osnap/치수 추출        |
 | X/Y/Z축 방향 보기         | 완료 | 은선점선 모드 + 카메라 방향 전환 + 해당 축 치수 표시 |
 | 2D 도면 생성              | 보류 | Drawing2D Template API 미지원으로 임시 비활성화 (Phase 17) |
+| 2D 템플릿 BOM 테이블      | 완료 | 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼(No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)으로 전환 (Phase 18) |
 | PDF/이미지 출력           | 완료 | PNG/JPEG 저장 + Microsoft Print to PDF               |
 | 글로벌 뷰 버튼            | 완료 | 탭 공통 ISO/X/Y/Z 버튼, 줌 누적 문제 해결 (Phase 12) |
 | ISO 풍선 BOM정보 기준     | 완료 | BOM정보 탭 그룹 기준 풍선 표시, 같은 그룹 대표 1개만 (Phase 11) |
@@ -1077,6 +1079,26 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 | ---- | --------- |
 | `Form1.Designer.cs` | splitContainerDrawing, panelDrawingBOMHeader, lvDrawingBOMInfo, 8개 컬럼 추가 |
 | `Form1.cs` | CollectBOMInfo()에서 두 ListView 동시 업데이트, btnGenerate2D_Click 임시 비활성화 |
+
+---
+
+### Phase 18: 2D 템플릿 BOM 테이블 전환
+
+**[요청]** "2D 도면 우측 상단 테이블에 BOM정보 테이블을 넣을 수 없나?"
+
+**[구현]**
+
+- 기존 `bomList` 기반 4컬럼(No./부재명/용도/비고) → `lvBOMInfo` 기반 8컬럼(No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)으로 전환
+- `TemplateTableData` 생성 시 `lvBOMInfo.Items`를 순회하여 테이블 데이터 채우기
+- Row 0 요약행(Support&Seat + T/W 합계) 포함
+- BOM정보 미수집 시 자동 `CollectBOMInfo(false)` 호출
+- 풍선 번호표 생성은 3D 좌표가 필요하므로 `bomList` 기반 유지
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | btnGenerate2D_Click: [표 1] bomList→lvBOMInfo 전환, 자동 BOM 수집 추가 |
 
 ---
 
