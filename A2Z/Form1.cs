@@ -6435,7 +6435,7 @@ namespace A2Z
                             holeStyle.ArrowColor = Color.FromArgb(0, 160, 0);
                             holeStyle.ArrowWidth = 3;
 
-                            vizcore3d.Review.Note.AddNoteSurface(holeText, holeCenter, holeTextPos, holeStyle);
+                            vizcore3d.Review.Note.AddNoteSurface(holeText, holeTextPos, holeCenter, holeStyle);
                             balloonIdx++;
                         }
                     }
