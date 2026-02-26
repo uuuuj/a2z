@@ -1726,7 +1726,16 @@ namespace A2Z
                         double.TryParse(gweiVal, out w);
                     totalWeight += w;
 
-                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, materialVal, gweiVal, node.Index));
+                    // GWEI 소수점 둘째자리 반올림
+                    string gweiDisplay = gweiVal;
+                    if (!string.IsNullOrEmpty(gweiVal))
+                    {
+                        double gw;
+                        if (double.TryParse(gweiVal, out gw))
+                            gweiDisplay = Math.Round(gw, 2).ToString("F2");
+                    }
+
+                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, materialVal, gweiDisplay, node.Index));
                 }
 
                 // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
@@ -1780,7 +1789,7 @@ namespace A2Z
                 summaryRow.SubItems.Add("");                                         // MATERIAL
                 summaryRow.SubItems.Add("");                                         // SIZE
                 summaryRow.SubItems.Add("");                                         // Q'TY
-                summaryRow.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : ""); // T/W
+                summaryRow.SubItems.Add(totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : ""); // T/W
                 summaryRow.SubItems.Add("F");                                        // MA
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
@@ -1791,7 +1800,7 @@ namespace A2Z
                 summaryRow2.SubItems.Add("");
                 summaryRow2.SubItems.Add("");
                 summaryRow2.SubItems.Add("");
-                summaryRow2.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : "");
+                summaryRow2.SubItems.Add(totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "");
                 summaryRow2.SubItems.Add("F");
                 summaryRow2.SubItems.Add("F");
                 lvDrawingBOMInfo.Items.Add(summaryRow2);

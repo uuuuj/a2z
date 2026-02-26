@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-25
+> 최종 업데이트: 2026-02-26
 
 ---
 
@@ -41,6 +41,8 @@ A2Z/
 | 10  | 2D 템플릿 BOM 테이블 전환           | 완료  | 2D 도면 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼으로 전환, BOM 미수집 시 자동 수집 (Phase 18) |
 | 11  | UDA 부모 탐색 + MATREF 파싱         | 완료  | Part→부모 방향 UDA 조회(최대 10단계), MATREF "/" 제거 (Phase 18) |
 | 12  | lvBOM No.열 + 풍선번호 동기화       | 완료  | BOM데이터 No.칼럼 추가, 풍선번호↔lvBOM No. 동기화, 도면시트 부재명 반영 (Phase 19) |
+| 13  | X-Ray 모드 선택 노드 필터링         | 완료  | CollectBOMData/DetectClash/CollectBOMInfo에 X-Ray 필터링 적용, 선택 모델만 처리 (Phase 20) |
+| 14  | BOM T/W 소수점 반올림              | 완료  | GWEI 값 소수점 둘째자리 반올림 표시, 요약행 totalWeight도 F2 포맷 (Phase 20) |
 
 
 ### 현재 구현 완료된 기능
@@ -1131,6 +1133,30 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 | 파일 | 변경 내용 |
 | ---- | --------- |
 | `Form1.cs` | SetupBOMColumns No.열 추가, BOM 채우기 bomNo 포함, 풍선→lvBOM 동기화, SubItems 인덱스 보정, Sheet1 BaseMemberName 동적 결정 |
+
+---
+
+### Phase 20: X-Ray 선택 노드 필터링 + BOM T/W 반올림
+
+**[요청]** "특정 모델만 띄우고 치수추출 누르면 BOM데이터가 엄청 느린데 다 가져오는 거 같다" + "T/W 값을 소수점 둘째자리에서 반올림"
+
+**[구현 — 1. X-Ray 모드 선택 노드 필터링]**
+
+- `CollectBOMData()`: X-Ray 모드 시 `xraySelectedNodeIndices` 기반 Body 노드 필터링 추가
+- `DetectClash()`: 동일한 X-Ray 필터링 적용, `allNodes` → `targetNodes`로 Clash 대상 축소
+- `CollectBOMInfo()`: X-Ray 선택 Body의 부모 Part만 허용하는 필터링 추가
+- 기존 `CollectAllOsnap()`과 동일한 패턴 적용 (이전에는 Osnap만 필터링됨)
+
+**[구현 — 2. BOM T/W 소수점 둘째자리 반올림]**
+
+- GWEI 값 파싱 후 `Math.Round(gw, 2).ToString("F2")` 적용
+- 요약행 totalWeight도 `F1` → `F2` 포맷으로 변경
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | CollectBOMData/DetectClash/CollectBOMInfo X-Ray 필터링, GWEI 반올림 F2 포맷 |
 
 ---
 
