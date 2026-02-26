@@ -1710,20 +1710,19 @@ namespace A2Z
                     if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
                         materialVal = materialVal.Substring(1);
 
-                    // T/W 합계 계산
+                    // T/W 합계 계산 + 소수점 둘째자리 반올림
                     double w = 0;
-                    if (!string.IsNullOrEmpty(gweiVal))
-                        double.TryParse(gweiVal, out w);
-                    totalWeight += w;
-
-                    // GWEI 소수점 둘째자리 반올림
                     string gweiDisplay = gweiVal;
                     if (!string.IsNullOrEmpty(gweiVal))
                     {
-                        double gw;
-                        if (double.TryParse(gweiVal, out gw))
-                            gweiDisplay = Math.Round(gw, 2).ToString("F2");
+                        // 숫자 외 문자 제거 (단위 등), 소수점/부호/숫자만 남김
+                        string numStr = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray());
+                        // 쉼표를 소수점으로 변환 (로케일 대응)
+                        numStr = numStr.Replace(',', '.');
+                        if (double.TryParse(numStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out w))
+                            gweiDisplay = Math.Round(w, 2).ToString("F2");
                     }
+                    totalWeight += w;
 
                     rawBomItems.Add(Tuple.Create(itemVal, sizeVal, materialVal, gweiDisplay, node.Index));
                 }
