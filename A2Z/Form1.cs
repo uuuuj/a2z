@@ -2059,7 +2059,12 @@ namespace A2Z
 
                 // ==========================================================
                 // [표 1] BOM 정보 테이블 (우측 상단) — lvDrawingBOMInfo 기반
-                // ===================================================                    table1.SetText(0, 0, "No.");
+                // ==========================================================
+                if (lvDrawingBOMInfo.Items.Count > 0)
+                {
+                    // 행: lvDrawingBOMInfo 항목 수 + 헤더(1), 열: 8 (No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvDrawingBOMInfo.Items.Count + 1, 8);
+                    table1.SetText(0, 0, "No.");
                     table1.SetText(0, 1, "ITEM");
                     table1.SetText(0, 2, "MATERIAL");
                     table1.SetText(0, 3, "SIZE");
