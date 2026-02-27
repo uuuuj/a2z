@@ -1248,6 +1248,30 @@ Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
 
 ---
 
+### Phase 23: 가공도 은선 점선 + 2D 생성 캔버스 초기화
+
+**[요청 1]** "가공도 행을 눌렀을 때 은선 점선이 안 보인다"
+
+**[원인]**: `ExecuteMfgDrawing()`에서 `SetRenderMode(DASH_LINE)` 호출이 누락됨. 일반/설치도 시트는 `ApplyDrawingSheetView()`에서 설정하지만, 가공도는 별도 함수에서 처리.
+
+**[해결]**: `ExecuteMfgDrawing()` 카메라 설정 전에 `SetRenderMode(DASH_LINE)` 추가
+
+**[요청 2]** "2D 생성 버튼을 다시 눌렀을 때 이전 템플릿이 남아있다"
+
+**[해결]**: `btnGenerate2D_Click()`에서 템플릿 생성 전 초기화 로직 추가:
+1. `ViewMode = Model3D`로 전환
+2. `GetCanvasCountBy2DView()`로 기존 캔버스 수 조회
+3. `RemoveCanvasBy2DView()`로 기존 캔버스 전부 제거
+4. `ViewMode = Both`로 다시 전환 후 새로 생성
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | ExecuteMfgDrawing에 DASH_LINE 렌더 모드 추가, btnGenerate2D_Click에 기존 캔버스 초기화 로직 추가 |
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
