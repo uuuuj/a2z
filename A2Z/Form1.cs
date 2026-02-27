@@ -6437,6 +6437,11 @@ namespace A2Z
                 string viewDirection = "Y";
                 vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
 
+                // 6. 화면 맞춤 먼저 (FitToView가 카메라 회전을 리셋하므로 반드시 회전 전에 수행)
+                vizcore3d.View.FitToView();
+
+                // Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
+                // FitToView 이후에 적용해야 회전이 유지됨
                 if (longestAxis == "Z")
                 {
                     bool originalLockZ = vizcore3d.View.ScreenAxisRotation.LockZAxis;
@@ -6444,9 +6449,6 @@ namespace A2Z
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = originalLockZ;
                 }
-
-                // 6. 화면 맞춤
-                vizcore3d.View.FitToView();
 
                 // 은선 표시 - 카메라/화면맞춤 이후 적용 (Object3D.Show/FitToView가 렌더모드를 초기화할 수 있음)
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
