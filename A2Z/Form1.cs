@@ -6429,31 +6429,16 @@ namespace A2Z
                 else
                     longestAxis = "Z";
 
-                // 5. 카메라: 항상 Y 방향(정면)에서 보기
-                //    Y_PLUS 뷰 기준 수평축=X, 수직축=Z
-                //    - X가 최장: X가 이미 수평 → 회전 불필요
-                //    - Z가 최장: Z가 세로(수직)이므로 90° 회전 → Z를 수평으로
-                //    - Y가 최장: Y는 깊이 방향이므로 단면 표시 → 회전 불필요
+                // 5. 카메라: Y 방향(정면)에서 보기
                 string viewDirection = "Y";
                 vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
 
-                // 6. 화면 맞춤 먼저 (FitToView가 카메라 회전을 리셋하므로 반드시 회전 전에 수행)
+                // 6. 화면 맞춤 + 은선 모드 (모든 조작 전에 기본 설정 완료)
                 vizcore3d.View.FitToView();
-
-                // Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
-                // FitToView 이후에 적용해야 회전이 유지됨
-                if (longestAxis == "Z")
-                {
-                    bool originalLockZ = vizcore3d.View.ScreenAxisRotation.LockZAxis;
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = originalLockZ;
-                }
-
-                // 은선 표시 - 카메라/화면맞춤 이후 적용 (Object3D.Show/FitToView가 렌더모드를 초기화할 수 있음)
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+                // ※ Z 최장축 90° 회전은 모든 drawing 완료 후 마지막에 적용 (아래 참조)
 
                 // 7. 해당 부재의 Osnap 수집
                 var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
@@ -6485,14 +6470,22 @@ namespace A2Z
                     return;
                 }
 
-                // 좌표 병합 + 치수 추출
-                float tolerance = 5.0f;
+                // 8. 좌표 병합 + 뷰 방향 기준 visible 축만 체인치수 추출
+                //    (X/Y/Z 버튼과 동일 로직 / 부재별 Osnap 1개 필터링 없음)
+                float tolerance = 0.5f;
                 List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(mfgOsnapWithNames, tolerance);
 
+                List<string> mfgVisibleAxes = new List<string>();
+                switch (viewDirection)
+                {
+                    case "X": mfgVisibleAxes.Add("Y"); mfgVisibleAxes.Add("Z"); break;
+                    case "Y": mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Z"); break;
+                    default:  mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Y"); break;
+                }
+
                 var mfgDimensions = new List<ChainDimensionData>();
-                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "X", tolerance));
-                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "Y", tolerance));
-                mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, "Z", tolerance));
+                foreach (var ax in mfgVisibleAxes)
+                    mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
 
                 if (mfgDimensions.Count == 0)
                 {
@@ -6500,19 +6493,84 @@ namespace A2Z
                     return;
                 }
 
-                // 전역 상태 임시 교체 후 치수 표시
-                var savedChainDimList = new List<ChainDimensionData>(chainDimensionList);
-                var savedXrayIndices = new List<int>(xraySelectedNodeIndices);
+                // 9. 치수 그리기 (X/Y/Z 버튼 동일 방식: 파란색, 체인100mm, 전체150mm)
+                vizcore3d.BeginUpdate();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
 
-                chainDimensionList.Clear();
-                chainDimensionList.AddRange(mfgDimensions);
-                xraySelectedNodeIndices = new List<int>(targetIndices);
+                VIZCore3D.NET.Data.MeasureStyle mfgStyle = vizcore3d.Review.Measure.GetStyle();
+                mfgStyle.Prefix = false;
+                mfgStyle.Unit = false;
+                mfgStyle.NumberOfDecimalPlaces = 0;
+                mfgStyle.DX_DY_DZ = false;
+                mfgStyle.Frame = false;
+                mfgStyle.ContinuousDistance = false;
+                mfgStyle.BackgroundTransparent = true;
+                mfgStyle.FontColor = System.Drawing.Color.Blue;
+                mfgStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                mfgStyle.FontBold = true;
+                mfgStyle.LineColor = System.Drawing.Color.Blue;
+                mfgStyle.LineWidth = 1;
+                mfgStyle.ArrowColor = System.Drawing.Color.Blue;
+                mfgStyle.ArrowSize = 5;
+                mfgStyle.AssistantLine = false;
+                mfgStyle.AlignDistanceText = true;
+                mfgStyle.AlignDistanceTextPosition = 0;
+                mfgStyle.AlignDistanceTextMargine = 3;
+                vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
-                AddDimensionsForView(viewDirection);
+                float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
+                float mfgGlobalMaxX = bom.MaxX, mfgGlobalMaxY = bom.MaxY, mfgGlobalMaxZ = bom.MaxZ;
+                float mfgCenterX = (mfgGlobalMinX + mfgGlobalMaxX) / 2f;
+                float mfgCenterY = (mfgGlobalMinY + mfgGlobalMaxY) / 2f;
+                float mfgCenterZ = (mfgGlobalMinZ + mfgGlobalMaxZ) / 2f;
 
-                chainDimensionList.Clear();
-                chainDimensionList.AddRange(savedChainDimList);
-                xraySelectedNodeIndices = new List<int>(savedXrayIndices);
+                // 축별 치수선 방향 결정 (모델 중심 기준 - 바깥쪽으로)
+                var mfgAxisPosOff = new Dictionary<string, bool>();
+                foreach (var grp in mfgDimensions.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
+                {
+                    string offAxis = GetRemainingAxis(viewDirection, grp.Key);
+                    float sumV = 0; int cnt = 0;
+                    foreach (var d in grp)
+                    {
+                        sumV += GetAxisValue(d.StartPoint, offAxis);
+                        sumV += GetAxisValue(d.EndPoint, offAxis);
+                        cnt += 2;
+                    }
+                    float avg = cnt > 0 ? sumV / cnt : 0;
+                    float center = offAxis == "X" ? mfgCenterX : offAxis == "Y" ? mfgCenterY : mfgCenterZ;
+                    mfgAxisPosOff[grp.Key] = avg >= center;
+                }
+
+                var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
+                const float mfgChainOff = 100.0f;   // 체인치수 보조선 100mm
+                const float mfgTotalOff = 150.0f;   // 전체길이 보조선 150mm
+
+                foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
+                {
+                    bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff,
+                        mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                        mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                }
+                foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
+                {
+                    bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff,
+                        mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                        mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                }
+                foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
+                {
+                    bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
+                        mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                        mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                }
+                if (mfgExtLines.Count > 0)
+                    vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.FromArgb(120, 120, 200), 0.5f, true);
+
+                vizcore3d.EndUpdate();
 
                 // 풍선 배치
                 float modelDiag = (float)Math.Sqrt(sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ);
@@ -6651,6 +6709,15 @@ namespace A2Z
                         }
                     }
                     catch { }
+                }
+
+                // 10. Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
+                //     반드시 모든 drawing 완료 후 마지막에 적용해야 유지됨
+                //     LockZAxis를 false로 유지 (true로 복원하면 렌더링 엔진이 회전을 리셋)
+                if (longestAxis == "Z")
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                 }
             }
             catch (Exception ex)
