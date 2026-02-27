@@ -4964,14 +4964,33 @@ namespace A2Z
 
             }
 
-            // 보조선 추가 (원본 → baseline 오프셋 위치) - 항상 표시
+            // 보조선 추가 (모델 표면 baseline → 치수선 위치)
+            // 뷰 방향 기준 모델 표면(baseline)에서 치수선까지 단순 연장선 그리기
+            VIZCore3D.NET.Data.Vertex3D surfaceStart;
+            VIZCore3D.NET.Data.Vertex3D surfaceEnd;
+            switch (offsetDir)
+            {
+                case "X":
+                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(baseline, startPoint.Y, startPoint.Z);
+                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(baseline, endPoint.Y,   endPoint.Z);
+                    break;
+                case "Y":
+                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, baseline, startPoint.Z);
+                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(endPoint.X,   baseline, endPoint.Z);
+                    break;
+                default: // "Z"
+                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, baseline);
+                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(endPoint.X,   endPoint.Y,   baseline);
+                    break;
+            }
+
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(originalStart);
+            extLine1.Add(surfaceStart);
             extLine1.Add(startVertex);
             extensionLines.Add(extLine1);
 
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(originalEnd);
+            extLine2.Add(surfaceEnd);
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
         }
@@ -6388,11 +6407,6 @@ namespace A2Z
                 if (vizcore3d.View.XRay.Enable)
                     vizcore3d.View.XRay.Enable = false;
 
-                // 은선(은면) 표시 - 가공도는 DASH_LINE 모드 (모서리 실선, 은선 파선)
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-                vizcore3d.View.SilhouetteEdge = true;
-                vizcore3d.View.SilhouetteEdgeColor = Color.Black;
-
                 // 3. 선택된 부재만 보이도록
                 List<int> allIndices = new List<int>();
                 foreach (BOMData b in bomList)
@@ -6402,12 +6416,11 @@ namespace A2Z
                 List<int> targetIndices = new List<int> { bom.Index };
                 vizcore3d.Object3D.Show(targetIndices, true);
 
-                // 4. 바운딩 박스로 가장 긴 축 / 가장 짧은 축 판별
+                // 4. 바운딩 박스로 가장 긴 축 판별
                 float sizeX = bom.MaxX - bom.MinX;
                 float sizeY = bom.MaxY - bom.MinY;
                 float sizeZ = bom.MaxZ - bom.MinZ;
 
-                // 최장축 = 수평으로 표시할 축
                 string longestAxis;
                 if (sizeX >= sizeY && sizeX >= sizeZ)
                     longestAxis = "X";
@@ -6416,49 +6429,15 @@ namespace A2Z
                 else
                     longestAxis = "Z";
 
-                // 최단축 = 정면에서 바라볼 방향 (두께가 가장 얇은 면이 정면)
-                string shortestAxis;
-                if (sizeX <= sizeY && sizeX <= sizeZ)
-                    shortestAxis = "X";
-                else if (sizeY <= sizeX && sizeY <= sizeZ)
-                    shortestAxis = "Y";
-                else
-                    shortestAxis = "Z";
+                // 5. 카메라: 항상 Y 방향(정면)에서 보기
+                //    Y_PLUS 뷰 기준 수평축=X, 수직축=Z
+                //    - X가 최장: X가 이미 수평 → 회전 불필요
+                //    - Z가 최장: Z가 세로(수직)이므로 90° 회전 → Z를 수평으로
+                //    - Y가 최장: Y는 깊이 방향이므로 단면 표시 → 회전 불필요
+                string viewDirection = "Y";
+                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
 
-                // 5. 카메라 방향: 최단축 방향에서 정면 보기
-                //    각 카메라에서 수평으로 보이는 축:
-                //      X_PLUS → Y가 수평, Z가 수직
-                //      Y_PLUS → X가 수평, Z가 수직
-                //      Z_PLUS → X가 수평, Y가 수직
-                VIZCore3D.NET.Data.CameraDirection camDir;
-                string viewDirection;
-                bool needRotate90 = false;
-
-                switch (shortestAxis)
-                {
-                    case "X":
-                        camDir = VIZCore3D.NET.Data.CameraDirection.X_PLUS;
-                        viewDirection = "X";
-                        // X_PLUS 뷰: Y 수평, Z 수직 → 최장이 Z면 90° 회전
-                        needRotate90 = (longestAxis == "Z");
-                        break;
-                    case "Y":
-                        camDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS;
-                        viewDirection = "Y";
-                        // Y_PLUS 뷰: X 수평, Z 수직 → 최장이 Z면 90° 회전
-                        needRotate90 = (longestAxis == "Z");
-                        break;
-                    default: // Z
-                        camDir = VIZCore3D.NET.Data.CameraDirection.Z_PLUS;
-                        viewDirection = "Z";
-                        // Z_PLUS 뷰: X 수평, Y 수직 → 최장이 Y면 90° 회전
-                        needRotate90 = (longestAxis == "Y");
-                        break;
-                }
-
-                vizcore3d.View.MoveCamera(camDir);
-
-                if (needRotate90)
+                if (longestAxis == "Z")
                 {
                     bool originalLockZ = vizcore3d.View.ScreenAxisRotation.LockZAxis;
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
@@ -6468,6 +6447,11 @@ namespace A2Z
 
                 // 6. 화면 맞춤
                 vizcore3d.View.FitToView();
+
+                // 은선 표시 - 카메라/화면맞춤 이후 적용 (Object3D.Show/FitToView가 렌더모드를 초기화할 수 있음)
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
 
                 // 7. 해당 부재의 Osnap 수집
                 var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
