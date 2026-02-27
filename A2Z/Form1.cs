@@ -2209,8 +2209,7 @@ namespace A2Z
             measureStyle.LineWidth = 1;
             measureStyle.ArrowColor = System.Drawing.Color.Black;
             measureStyle.ArrowSize = 8;
-            measureStyle.AssistantLine = true;
-            measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
+            measureStyle.AssistantLine = false;  // 커스텀 보조선(Osnap→치수선)만 사용
             measureStyle.AlignDistanceText = true;
             measureStyle.AlignDistanceTextPosition = 0;
             measureStyle.AlignDistanceTextMargine = 3;
@@ -6389,6 +6388,11 @@ namespace A2Z
                 if (vizcore3d.View.XRay.Enable)
                     vizcore3d.View.XRay.Enable = false;
 
+                // 은선(은면) 표시 - 가공도는 DASH_LINE 모드 (모서리 실선, 은선 파선)
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Black;
+
                 // 3. 선택된 부재만 보이도록
                 List<int> allIndices = new List<int>();
                 foreach (BOMData b in bomList)
@@ -6398,11 +6402,12 @@ namespace A2Z
                 List<int> targetIndices = new List<int> { bom.Index };
                 vizcore3d.Object3D.Show(targetIndices, true);
 
-                // 4. 바운딩 박스로 가장 긴 축 판별
+                // 4. 바운딩 박스로 가장 긴 축 / 가장 짧은 축 판별
                 float sizeX = bom.MaxX - bom.MinX;
                 float sizeY = bom.MaxY - bom.MinY;
                 float sizeZ = bom.MaxZ - bom.MinZ;
 
+                // 최장축 = 수평으로 표시할 축
                 string longestAxis;
                 if (sizeX >= sizeY && sizeX >= sizeZ)
                     longestAxis = "X";
@@ -6411,25 +6416,43 @@ namespace A2Z
                 else
                     longestAxis = "Z";
 
-                // 5. 카메라 방향 설정
+                // 최단축 = 정면에서 바라볼 방향 (두께가 가장 얇은 면이 정면)
+                string shortestAxis;
+                if (sizeX <= sizeY && sizeX <= sizeZ)
+                    shortestAxis = "X";
+                else if (sizeY <= sizeX && sizeY <= sizeZ)
+                    shortestAxis = "Y";
+                else
+                    shortestAxis = "Z";
+
+                // 5. 카메라 방향: 최단축 방향에서 정면 보기
+                //    각 카메라에서 수평으로 보이는 축:
+                //      X_PLUS → Y가 수평, Z가 수직
+                //      Y_PLUS → X가 수평, Z가 수직
+                //      Z_PLUS → X가 수평, Y가 수직
                 VIZCore3D.NET.Data.CameraDirection camDir;
                 string viewDirection;
                 bool needRotate90 = false;
 
-                switch (longestAxis)
+                switch (shortestAxis)
                 {
                     case "X":
-                        camDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS;
-                        viewDirection = "Y";
-                        break;
-                    case "Y":
                         camDir = VIZCore3D.NET.Data.CameraDirection.X_PLUS;
                         viewDirection = "X";
+                        // X_PLUS 뷰: Y 수평, Z 수직 → 최장이 Z면 90° 회전
+                        needRotate90 = (longestAxis == "Z");
                         break;
-                    default:
+                    case "Y":
                         camDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS;
                         viewDirection = "Y";
-                        needRotate90 = true;
+                        // Y_PLUS 뷰: X 수평, Z 수직 → 최장이 Z면 90° 회전
+                        needRotate90 = (longestAxis == "Z");
+                        break;
+                    default: // Z
+                        camDir = VIZCore3D.NET.Data.CameraDirection.Z_PLUS;
+                        viewDirection = "Z";
+                        // Z_PLUS 뷰: X 수평, Y 수직 → 최장이 Y면 90° 회전
+                        needRotate90 = (longestAxis == "Y");
                         break;
                 }
 
