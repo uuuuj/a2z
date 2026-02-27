@@ -6429,9 +6429,23 @@ namespace A2Z
                 else
                     longestAxis = "Z";
 
-                // 5. 카메라: Y 방향(정면)에서 보기
-                string viewDirection = "Y";
-                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
+                // 5. 카메라: 최장축이 수평으로 보이는 방향으로 설정
+                //    각 카메라에서 수평으로 보이는 축:
+                //      Y_PLUS → X 수평, Z 수직  (X/Z 최장에 적합)
+                //      X_PLUS → Y 수평, Z 수직  (Y 최장에 적합)
+                //    Z 최장: Y_PLUS + 마지막에 90° 회전 → Z 수평
+                string viewDirection;
+                switch (longestAxis)
+                {
+                    case "Y":
+                        viewDirection = "X";
+                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
+                        break;
+                    default: // X 또는 Z (Z는 나중에 90° 회전)
+                        viewDirection = "Y";
+                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
+                        break;
+                }
 
                 // 6. 화면 맞춤 + 은선 모드 (모든 조작 전에 기본 설정 완료)
                 vizcore3d.View.FitToView();
