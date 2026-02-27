@@ -532,12 +532,7 @@ namespace A2Z
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
-                                    if (osnap.Center != null)
-                                    {
-                                        var centerVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
-                                        osnapPoints.Add(centerVertex);
-                                        osnapPointsWithNames.Add((centerVertex, partName));
-                                    }
+                                    // 곡면/원형: 치수에서 제외
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.POINT:
@@ -649,38 +644,23 @@ namespace A2Z
                     }
                     catch { }
 
-                    // UDA PURPOSE 값 수집 (Dictionary 방식으로 조회)
+                    // UDA PURPOSE 값 수집
                     bom.Purpose = "";
                     try
                     {
-                        // Body 노드에서 UDA 조회
-                        Dictionary<string, string> bodyUda = vizcore3d.Object3D.UDA.FromIndex(node.Index);
-                        if (bodyUda != null)
+                        var udaKeys = vizcore3d.Object3D.UDA.Keys;
+                        if (udaKeys != null)
                         {
-                            foreach (var kv in bodyUda)
+                            foreach (string key in udaKeys)
                             {
-                                if (kv.Key.Trim().ToUpper() == "PURPOSE" && !string.IsNullOrEmpty(kv.Value))
+                                if (key.Trim().ToUpper() == "PURPOSE")
                                 {
-                                    bom.Purpose = kv.Value.Trim();
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Body에서 못 찾으면 부모 Part 노드에서 재시도
-                        if (string.IsNullOrEmpty(bom.Purpose) && bodyToPartIndexMap.ContainsKey(node.Index))
-                        {
-                            int partIdx = bodyToPartIndexMap[node.Index];
-                            Dictionary<string, string> partUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
-                            if (partUda != null)
-                            {
-                                foreach (var kv in partUda)
-                                {
-                                    if (kv.Key.Trim().ToUpper() == "PURPOSE" && !string.IsNullOrEmpty(kv.Value))
+                                    var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, key);
+                                    if (val != null && !string.IsNullOrEmpty(val.ToString()))
                                     {
-                                        bom.Purpose = kv.Value.Trim();
-                                        break;
+                                        bom.Purpose = val.ToString().Trim();
                                     }
+                                    break;
                                 }
                             }
                         }
@@ -689,76 +669,6 @@ namespace A2Z
 
                     bomList.Add(bom);
                 }
-
-                // === UDA 디버그 정보 MessageBox ===
-                try
-                {
-                    StringBuilder udaDebug = new StringBuilder();
-                    udaDebug.AppendLine("========== UDA 디버그 정보 ==========");
-
-                    // 1. 전체 UDA Keys 목록
-                    var allUdaKeys = vizcore3d.Object3D.UDA.Keys;
-                    if (allUdaKeys != null && allUdaKeys.Count > 0)
-                    {
-                        udaDebug.AppendLine(string.Format("\n[전체 UDA Keys ({0}개)]", allUdaKeys.Count));
-                        foreach (var k in allUdaKeys)
-                            udaDebug.AppendLine("  - " + k);
-                    }
-                    else
-                    {
-                        udaDebug.AppendLine("\n[전체 UDA Keys: 없음]");
-                    }
-
-                    // 2. 첫 번째 Body 노드의 UDA
-                    if (allNodes.Count > 0)
-                    {
-                        var firstNode = allNodes[0];
-                        udaDebug.AppendLine(string.Format("\n[Body Node #{0} '{1}' UDA]", firstNode.Index, firstNode.NodeName));
-                        try
-                        {
-                            Dictionary<string, string> bodyUda = vizcore3d.Object3D.UDA.FromIndex(firstNode.Index);
-                            if (bodyUda != null && bodyUda.Count > 0)
-                            {
-                                foreach (var kv in bodyUda)
-                                    udaDebug.AppendLine(string.Format("  {0} = {1}", kv.Key, kv.Value));
-                            }
-                            else
-                            {
-                                udaDebug.AppendLine("  (Body 레벨 UDA 없음)");
-                            }
-                        }
-                        catch (Exception ex) { udaDebug.AppendLine("  오류: " + ex.Message); }
-
-                        // 3. 부모 Part 노드의 UDA
-                        if (bodyToPartIndexMap.ContainsKey(firstNode.Index))
-                        {
-                            int partIdx = bodyToPartIndexMap[firstNode.Index];
-                            string partName = bodyToPartNameMap.ContainsKey(firstNode.Index) ? bodyToPartNameMap[firstNode.Index] : "?";
-                            udaDebug.AppendLine(string.Format("\n[부모 Part Node #{0} '{1}' UDA]", partIdx, partName));
-                            try
-                            {
-                                Dictionary<string, string> partUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
-                                if (partUda != null && partUda.Count > 0)
-                                {
-                                    foreach (var kv in partUda)
-                                        udaDebug.AppendLine(string.Format("  {0} = {1}", kv.Key, kv.Value));
-                                }
-                                else
-                                {
-                                    udaDebug.AppendLine("  (Part 레벨 UDA 없음)");
-                                }
-                            }
-                            catch (Exception ex) { udaDebug.AppendLine("  오류: " + ex.Message); }
-                        }
-                        else
-                        {
-                            udaDebug.AppendLine("\n[부모 Part: 매핑 없음]");
-                        }
-                    }
-
-                    MessageBox.Show(udaDebug.ToString(), "UDA 디버그 정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch { }
 
                 // Z_Max 내림차순 정렬 (큰 값이 위로)
                 bomList.Sort((a, b) => b.MaxZ.CompareTo(a.MaxZ));
@@ -1626,28 +1536,53 @@ namespace A2Z
             {
                 lvBOMInfo.Items.Clear();
 
-                // Body 노드 우선 가져오기 (Body 레벨에서 UDA 조회, 없으면 Part 폴백)
-                List<VIZCore3D.NET.Data.Node> bomNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                if (bomNodes == null || bomNodes.Count == 0)
+                // Part 노드 가져오기 (Part 레벨에서 UDA 조회)
+                List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
+                if (partNodes == null || partNodes.Count == 0)
                 {
-                    // Body가 없으면 Part 노드로 시도
-                    bomNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
+                    // Part가 없으면 Body 노드로 시도
+                    partNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
                 }
 
-                if (bomNodes == null || bomNodes.Count == 0)
+                if (partNodes == null || partNodes.Count == 0)
                 {
                     if (showAlert) MessageBox.Show("로드된 모델이 없거나 노드를 찾을 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                // ★ 도면시트 선택 시 해당 시트 부재만 필터링 (Body 인덱스 직접 매칭)
+                // ★ 도면시트 선택 시 해당 시트 부재만 필터링
                 if (lvDrawingSheet.SelectedItems.Count > 0)
                 {
                     DrawingSheetData selectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
                     if (selectedSheet != null && selectedSheet.MemberIndices.Count > 0)
                     {
                         var sheetBodySet = new HashSet<int>(selectedSheet.MemberIndices);
-                        bomNodes = bomNodes.Where(b => sheetBodySet.Contains(b.Index)).ToList();
+                        List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                        var partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
+                        var allowedPartIndices = new HashSet<int>();
+
+                        if (bodyNodes != null)
+                        {
+                            foreach (var body in bodyNodes)
+                            {
+                                if (!sheetBodySet.Contains(body.Index)) continue;
+                                int lo = 0, hi = partIdxSorted.Count - 1;
+                                int parentPart = -1;
+                                while (lo <= hi)
+                                {
+                                    int mid = (lo + hi) / 2;
+                                    if (partIdxSorted[mid] <= body.Index)
+                                    {
+                                        parentPart = partIdxSorted[mid];
+                                        lo = mid + 1;
+                                    }
+                                    else hi = mid - 1;
+                                }
+                                if (parentPart >= 0) allowedPartIndices.Add(parentPart);
+                            }
+                        }
+
+                        partNodes = partNodes.Where(p => allowedPartIndices.Contains(p.Index)).ToList();
                     }
                 }
 
@@ -1661,45 +1596,56 @@ namespace A2Z
                 }
                 catch { }
 
-                // 각 Body 노드에서 SPREF/MATREF/GWEI 값 수집 (Body 우선, Part 폴백)
+                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (현재 노드에 없으면 부모로 올라가며 재조회)
                 var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Material, Weight, NodeIndex
                 double totalWeight = 0;
 
-                foreach (var node in bomNodes)
+                foreach (var node in partNodes)
                 {
                     string sprefVal = "";
                     string matrefVal = "";
                     string gweiVal = "";
 
-                    try
+                    // 현재 노드부터 부모로 올라가며 UDA 조회 (최대 10단계)
+                    int currentIdx = node.Index;
+                    for (int depth = 0; depth < 10; depth++)
                     {
-                        // 1차: Body(현재 노드) 레벨에서 UDA 조회
-                        Dictionary<string, string> nodeUda = vizcore3d.Object3D.UDA.FromIndex(node.Index);
+                        if (currentIdx < 0) break;
 
-                        // 2차: Body에 UDA가 없으면 부모 Part에서 조회 (bodyToPartIndexMap 활용)
-                        if ((nodeUda == null || nodeUda.Count == 0) && bodyToPartIndexMap.ContainsKey(node.Index))
+                        if (udaKeyList != null)
                         {
-                            int partIdx = bodyToPartIndexMap[node.Index];
-                            nodeUda = vizcore3d.Object3D.UDA.FromIndex(partIdx);
-                        }
-
-                        if (nodeUda != null && nodeUda.Count > 0)
-                        {
-                            foreach (var kv in nodeUda)
+                            foreach (string key in udaKeyList)
                             {
-                                string keyUpper = kv.Key.Trim().ToUpper();
-                                string valStr = (kv.Value != null) ? kv.Value.Trim() : "";
+                                string keyUpper = key.Trim().ToUpper();
+                                try
+                                {
+                                    var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
+                                    string valStr = (val != null) ? val.ToString().Trim() : "";
 
-                                if (keyUpper == "SPREF")
-                                    sprefVal = valStr;
-                                else if (keyUpper == "MATREF")
-                                    matrefVal = valStr;
-                                else if (keyUpper == "GWEI")
-                                    gweiVal = valStr;
+                                    if (keyUpper == "SPREF" && string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(valStr))
+                                        sprefVal = valStr;
+                                    else if (keyUpper == "MATREF" && string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(valStr))
+                                        matrefVal = valStr;
+                                    else if (keyUpper == "GWEI" && string.IsNullOrEmpty(gweiVal) && !string.IsNullOrEmpty(valStr))
+                                        gweiVal = valStr;
+                                }
+                                catch { }
                             }
                         }
+
+                        // 3개 값 모두 찾으면 중단
+                        if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal))
+                            break;
+
+                        // 부모 노드로 이동
+                        try
+                        {
+                            VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                            if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
+                            currentIdx = parentNode.ParentIndex;
+                        }
+                        catch { break; }
                     }
-                    catch { }
 
                     // SPREF 파싱: 첫 글자 "/" 제거 후 ":" 기준 split → [0]=ITEM, [1]=SIZE
                     string itemVal = "";
@@ -1719,83 +1665,70 @@ namespace A2Z
                     if (string.IsNullOrEmpty(itemVal))
                         itemVal = node.NodeName ?? "";
 
+                    // MATREF 파싱: 첫 글자 "/" 제거 → MATERIAL 값
+                    string materialVal = matrefVal;
+                    if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
+                        materialVal = materialVal.Substring(1);
+
                     // T/W 합계 계산
                     double w = 0;
                     if (!string.IsNullOrEmpty(gweiVal))
                         double.TryParse(gweiVal, out w);
                     totalWeight += w;
 
-                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, matrefVal, gweiVal, node.Index));
+                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, materialVal, gweiVal, node.Index));
                 }
 
-                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 직접 매핑
+                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
                 bomInfoNodeGroupMap.Clear();
+                List<VIZCore3D.NET.Data.Node> bodyNodesForMap = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (bodyNodesForMap != null && bodyNodesForMap.Count > 0)
                 {
+                    List<int> partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
+
+                    // 각 Part에 순차적으로 groupNo 부여 (Row 0은 요약행이므로 1부터)
+                    var partToGroup = new Dictionary<int, int>();
                     int groupNo = 1;
                     foreach (var bomItem in rawBomItems)
                     {
-                        bomInfoNodeGroupMap[bomItem.Item5] = groupNo;
+                        partToGroup[bomItem.Item5] = groupNo;
                         groupNo++;
+                    }
+
+                    foreach (var body in bodyNodesForMap)
+                    {
+                        int parentPartIndex = -1;
+                        int lo = 0, hi = partIdxSorted.Count - 1;
+                        while (lo <= hi)
+                        {
+                            int mid = (lo + hi) / 2;
+                            if (partIdxSorted[mid] <= body.Index)
+                            {
+                                parentPartIndex = partIdxSorted[mid];
+                                lo = mid + 1;
+                            }
+                            else
+                            {
+                                hi = mid - 1;
+                            }
+                        }
+                        if (parentPartIndex >= 0 && partToGroup.ContainsKey(parentPartIndex))
+                        {
+                            bomInfoNodeGroupMap[body.Index] = partToGroup[parentPartIndex];
+                        }
                     }
                 }
 
                 // ListView에 채우기 (BOM정보 탭)
                 lvBOMInfo.BeginUpdate();
 
-                // Row 0: 요약행 - 선택한 노드의 UDA 정보 표시
-                string summaryItem = drawingSheetList.Count > 0 ? drawingSheetList[0].BaseMemberName : "Support&Seat";
-                string summaryMaterial = "";
-                string summarySize = "";
-                string summaryTW = totalWeight > 0 ? totalWeight.ToString("F1") : "";
-
-                if (selectedAttributeNodeIndex != -1)
-                {
-                    try
-                    {
-                        Dictionary<string, string> summaryUda = vizcore3d.Object3D.UDA.FromIndex(selectedAttributeNodeIndex);
-                        if (summaryUda != null && summaryUda.Count > 0)
-                        {
-                            string sumSpref = "";
-                            string sumMatref = "";
-                            string sumGwei = "";
-                            foreach (var kv in summaryUda)
-                            {
-                                string keyUpper = kv.Key.Trim().ToUpper();
-                                string valStr = (kv.Value != null) ? kv.Value.Trim() : "";
-                                if (keyUpper == "SPREF") sumSpref = valStr;
-                                else if (keyUpper == "MATREF") sumMatref = valStr;
-                                else if (keyUpper == "GWEI") sumGwei = valStr;
-                            }
-
-                            // SPREF 파싱 → SIZE
-                            if (!string.IsNullOrEmpty(sumSpref))
-                            {
-                                string sprefClean = sumSpref;
-                                if (sprefClean.StartsWith("/"))
-                                    sprefClean = sprefClean.Substring(1);
-                                string[] parts = sprefClean.Split(':');
-                                if (parts.Length > 1)
-                                    summarySize = parts[1].Trim();
-                            }
-
-                            // MATREF → MATERIAL
-                            if (!string.IsNullOrEmpty(sumMatref))
-                                summaryMaterial = sumMatref;
-
-                            // GWEI → T/W (노드 자체 중량, 없으면 전체 합계 유지)
-                            if (!string.IsNullOrEmpty(sumGwei))
-                                summaryTW = sumGwei;
-                        }
-                    }
-                    catch { }
-                }
-
+                // Row 0: 요약행
                 ListViewItem summaryRow = new ListViewItem("");                      // No.
-                summaryRow.SubItems.Add(summaryItem);                                // ITEM
-                summaryRow.SubItems.Add(summaryMaterial);                             // MATERIAL
-                summaryRow.SubItems.Add(summarySize);                                // SIZE
+                summaryRow.SubItems.Add("Support&Seat");                             // ITEM
+                summaryRow.SubItems.Add("");                                         // MATERIAL
+                summaryRow.SubItems.Add("");                                         // SIZE
                 summaryRow.SubItems.Add("");                                         // Q'TY
-                summaryRow.SubItems.Add(summaryTW);                                  // T/W
+                summaryRow.SubItems.Add(totalWeight > 0 ? totalWeight.ToString("F1") : ""); // T/W
                 summaryRow.SubItems.Add("F");                                        // MA
                 summaryRow.SubItems.Add("F");                                        // FA
                 lvBOMInfo.Items.Add(summaryRow);
@@ -1804,6 +1737,7 @@ namespace A2Z
                 int no = 1;
                 foreach (var bomItem in rawBomItems)
                 {
+                    // BOM정보 탭
                     ListViewItem lvi = new ListViewItem(no.ToString());   // No.
                     lvi.SubItems.Add(bomItem.Item1);                      // ITEM
                     lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
@@ -2030,7 +1964,6 @@ namespace A2Z
         /// <summary>
         /// 2D 도면 생성 - VIZCore3D Drawing2D Template API 사용
         /// 템플릿(BOM 테이블 + 도면 정보) 배치 및 렌더링
-        /// [임시] Drawing2D Template API가 현재 DLL에서 지원되지 않아 비활성화
         /// </summary>
         private void btnGenerate2D_Click(object sender, EventArgs e)
         {
@@ -2040,11 +1973,192 @@ namespace A2Z
                 return;
             }
 
-            // Drawing2D Template API가 현재 VIZCore3D.NET DLL에서 지원되지 않습니다.
-            // 추후 DLL 업데이트 후 기능 활성화 예정
-            MessageBox.Show("2D 도면 생성 기능은 현재 VIZCore3D.NET DLL 버전에서 지원되지 않습니다.\n\n" +
-                "Drawing2D Template API 업데이트 후 사용 가능합니다.",
-                "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            try
+            {
+                vizcore3d.View.EnableAnimation = false;
+                vizcore3d.Review.Note.Clear();
+
+                // 2D 도면 모드 활성화
+                vizcore3d.ToolbarDrawing2D.Visible = true;
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+
+                // -------------------------------------------------------------------------
+                // 템플릿 기능을 이용한 우측 테이블 배치 (BOM 목록 및 도면 정보)
+                // -------------------------------------------------------------------------
+
+                // 도면 템플릿 생성 프로세스 시작
+                vizcore3d.Drawing2D.Template.CreateTemplate();
+
+                // 노드 인덱스와 노트 ID를 매핑하기 위한 딕셔너리
+                Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
+
+                // BOM정보가 미수집이면 자동 수집
+                if (lvBOMInfo.Items.Count == 0)
+                {
+                    CollectBOMInfo(false);
+                }
+
+                // ==========================================================
+                // [표 1] BOM 정보 테이블 (우측 상단) — lvBOMInfo 기반
+                // ==========================================================
+                if (lvBOMInfo.Items.Count > 0)
+                {
+                    // 행: lvBOMInfo 항목 수 + 헤더(1), 열: 8 (No./ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA)
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvBOMInfo.Items.Count + 1, 8);
+                    table1.SetText(0, 0, "No.");
+                    table1.SetText(0, 1, "ITEM");
+                    table1.SetText(0, 2, "MATERIAL");
+                    table1.SetText(0, 3, "SIZE");
+                    table1.SetText(0, 4, "Q'TY");
+                    table1.SetText(0, 5, "T/W");
+                    table1.SetText(0, 6, "MA");
+                    table1.SetText(0, 7, "FA");
+
+                    for (int i = 0; i < lvBOMInfo.Items.Count; i++)
+                    {
+                        ListViewItem item = lvBOMInfo.Items[i];
+                        for (int col = 0; col < 8 && col < item.SubItems.Count; col++)
+                        {
+                            table1.SetText(i + 1, col, item.SubItems[col].Text);
+                        }
+                    }
+
+                    // 표를 도면 캔버스의 우측 영역(310mm 지점)에 배치
+                    table1.X = 310;
+                    table1.Y = 0;
+                    vizcore3d.Drawing2D.Template.AddTemplateItem(table1);
+                }
+
+                // 풍선 번호표 생성 (bomList 기반)
+                if (bomList != null && bomList.Count > 0)
+                {
+                    foreach (var bom in bomList)
+                    {
+                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
+
+                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
+                        nodeToNoteMap.Add(bom.Index, id);
+
+                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
+                        note.UpdateText(id.ToString());
+                    }
+                }
+
+                // ==========================================================
+                // [표 2] 도면 정보 (우측 하단)
+                // ==========================================================
+                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
+                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
+                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
+                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
+                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
+                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
+
+                table2.X = 310;
+                table2.Y = 200; // [표 1] 아래에 위치하도록 Y값 조정
+                vizcore3d.Drawing2D.Template.AddTemplateItem(table2);
+
+                // 작성된 템플릿(표, 로고 등)을 도면에 최종 렌더링 (로고 사이즈 지정)
+                vizcore3d.Drawing2D.Template.RenderTemplate(60, 80);
+
+                // -------------------------------------------------------------------------
+                // 각 그리드 셀에 모델 투영 및 배치 (Grid 2x3 구조)
+                // -------------------------------------------------------------------------
+
+                // 2D 도면을 그릴 캔버스 선택 및 크기 확인
+                int selectedCanvas = 1;
+                vizcore3d.Drawing2D.View.SetSelectCanvas(selectedCanvas);
+                float wCanvas = 0.0f, hCanvas = 0.0f;
+                vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
+
+                // 2행 3열의 그리드 구조 생성 (우측 1열은 템플릿 테이블 영역)
+                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
+                vizcore3d.Drawing2D.GridStructure.SetMargins(15, 15, 15, 15);
+
+                // 각 그리드 셀별로 다른 각도의 뷰를 투영
+                // [1,1] ISO View
+                RenderViewWithVisibleNotes(1, 1, VIZCore3D.NET.Data.CameraDirection.ISO_PLUS, nodeToNoteMap);
+
+                // [1,2] TOP View (Z-)
+                RenderViewWithVisibleNotes(1, 2, VIZCore3D.NET.Data.CameraDirection.Z_MINUS, nodeToNoteMap);
+
+                // [2,1] LEFT View (X-)
+                RenderViewWithVisibleNotes(2, 1, VIZCore3D.NET.Data.CameraDirection.X_MINUS, nodeToNoteMap);
+
+                // [2,2] FRONT View (Y-)
+                RenderViewWithVisibleNotes(2, 2, VIZCore3D.NET.Data.CameraDirection.Y_MINUS, nodeToNoteMap);
+
+                // 2D 도면 최종 렌더링
+                vizcore3d.Drawing2D.Render();
+
+                MessageBox.Show("2D 도면 생성 완료!\n\n" +
+                    "- ISO VIEW [1,1]\n" +
+                    "- TOP VIEW [1,2]\n" +
+                    "- LEFT VIEW [2,1]\n" +
+                    "- FRONT VIEW [2,2]\n" +
+                    "- BOM 목록 테이블 (우측 상단)\n" +
+                    "- 도면 정보 테이블 (우측 하단)",
+                    "2D 도면 생성", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 특정 뷰 방향에서 보이는 노드만 계산하여 2D 도면에 투영하는 함수
+        /// </summary>
+        /// <param name="row">그리드 행 번호</param>
+        /// <param name="col">그리드 열 번호</param>
+        /// <param name="camDir">3D 카메라 이동 방향</param>
+        /// <param name="map">부품 인덱스-노트 ID 매핑 딕셔너리</param>
+        private void RenderViewWithVisibleNotes(int row, int col, VIZCore3D.NET.Data.CameraDirection camDir, Dictionary<int, int> map)
+        {
+            // 3D 카메라를 해당 각도로 이동
+            vizcore3d.View.MoveCamera(camDir);
+
+            vizcore3d.View.EnableBoxSelectionFrontObjectOnly = true;
+
+            // 현재 카메라 각도에서 실제로 보이는 부품 리스트 추출
+            List<VIZCore3D.NET.Data.Node> visibleNodes = vizcore3d.Object3D.FromScreen(false, VIZCore3D.NET.Data.LeafNodeKind.BODY);
+
+            // 보이는 부품들 중 map에 등록된 부품의 번호표 ID만 수집
+            List<int> visibleNoteIds = new List<int>();
+            foreach (var node in visibleNodes)
+            {
+                if (map.ContainsKey(node.Index) || map.ContainsKey(node.ParentIndex))
+                {
+                    visibleNoteIds.Add(map[node.Index]);
+                }
+            }
+
+            // 2D 모델 투영체 생성 (현재 3D 뷰 각도를 그대로 2D로 변환)
+            int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+
+            // 지정된 그리드 셀(row, col) 중앙에 모델을 꽉 차게 배치
+            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId, VIZCore3D.NET.Data.GridHorizontalAlignment.Center, VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
+
+            // 보이는 부품의 번호표들만 도면에 투영
+            if (visibleNoteIds.Count > 0)
+            {
+                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+            }
+
+            //측정이 표기가 필요한경우 (X/Y/Z 축 뷰에서만 치수 표시)
+            if(camDir != VIZCore3D.NET.Data.CameraDirection.ISO_PLUS)
+            {
+                List<int> visibleMeasureIds = new List<int>();
+
+                List<VIZCore3D.NET.Data.MeasureItem> listMeasure = vizcore3d.Review.Measure.Items;
+                foreach(var measure in listMeasure)
+                {
+                    if(measure.Visible)
+                        visibleMeasureIds.Add(measure.ID);
+                }
+                vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(visibleMeasureIds.ToArray());
+            }
         }
 
         /// <summary>
@@ -2229,7 +2343,7 @@ namespace A2Z
             // 보조선(Extension Line) 그리기 - 검은색(인쇄용)
             if (extensionLines.Count > 0)
             {
-                vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.Black, 1.0f, true);
+                vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.Black, 0.5f, true);
             }
         }
 
@@ -2393,7 +2507,7 @@ namespace A2Z
             for (int i = 0; i < lvBOM.Items.Count && i < maxRows; i++)
             {
                 ListViewItem item = lvBOM.Items[i];
-                string name = item.SubItems.Count > 1 ? item.SubItems[1].Text : "";  // "No." 칼럼 추가로 Name은 SubItems[1]
+                string name = item.SubItems.Count > 1 ? item.SubItems[1].Text : "";  // No. 칼럼 추가로 Name은 SubItems[1]
                 string type = "PART";
                 string qty = "1";
 
@@ -2403,7 +2517,7 @@ namespace A2Z
 
                 if (item.SubItems.Count > 2)
                 {
-                    string angle = item.SubItems[2].Text;  // "No." 칼럼 추가로 Angle은 SubItems[2]
+                    string angle = item.SubItems[2].Text;  // No. 칼럼 추가로 Angle은 SubItems[2]
                     type = string.IsNullOrEmpty(angle) || angle == "0" ? "PART" : "ASSEMBLY";
                 }
                 g.DrawString(type, font, Brushes.Black, x + colWidths[0] + colWidths[1] + 3, rowY);
@@ -2703,13 +2817,7 @@ namespace A2Z
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
-                                    // 원: 중심점 추가
-                                    if (osnap.Center != null)
-                                    {
-                                        var centerVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
-                                        osnapPoints.Add(centerVertex);
-                                        osnapPointsWithNames.Add((centerVertex, node.NodeName));
-                                    }
+                                    // 곡면/원형: 치수에서 제외
                                     circleCount++;
                                     break;
 
@@ -3014,13 +3122,7 @@ namespace A2Z
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
-                                    // 원: 중심점 추가
-                                    if (osnap.Center != null)
-                                    {
-                                        var centerVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
-                                        osnapPoints.Add(centerVertex);
-                                        osnapPointsWithNames.Add((centerVertex, nodeName));
-                                    }
+                                    // 곡면/원형: 치수에서 제외 (곡면 Osnap은 체인치수에 불필요)
                                     circleCount++;
                                     break;
 
@@ -3640,10 +3742,18 @@ namespace A2Z
         /// 부재별 겹치지 않는 위치에 번호가 있는 원형 마커를 배치
         /// viewDirection: "X", "Y", "Z", "ISO"
         /// </summary>
-        private void ShowBalloonNumbers(string viewDirection)
+        /// <summary>
+        /// 현재 풍선 표시 대상 부재 인덱스 (풍선 조정 다이얼로그 재호출 시 사용)
+        /// </summary>
+        private List<int> currentBalloonMemberIndices = null;
+
+        private void ShowBalloonNumbers(string viewDirection, List<int> sheetMemberIndices = null)
         {
             vizcore3d.Review.Note.Clear();
             if (bomList == null || bomList.Count == 0) return;
+
+            // 시트 부재 인덱스 저장 (풍선 조정 다이얼로그 재호출용)
+            currentBalloonMemberIndices = sheetMemberIndices;
 
             // BOM정보가 미수집이면 자동 수집 (풍선 번호를 BOM No.와 일치시키기 위해)
             if (bomInfoNodeGroupMap.Count == 0)
@@ -3703,55 +3813,32 @@ namespace A2Z
 
                 List<float[]> placed = new List<float[]>();
 
-                // ===== 4. 표시할 풍선 결정 (BOM정보 탭 그룹 기준) =====
-                // balloonDisplayNumbers: key=bomList인덱스, value=표시할 번호
+                // ===== 4. 표시할 풍선 결정 (시트 포함부재만, BOM No. 순번 사용) =====
+                // balloonDisplayNumbers: key=bomList인덱스, value=BOM No. 순번
                 var balloonDisplayNumbers = new Dictionary<int, int>();
-                if (bomInfoNodeGroupMap.Count > 0)
+                if (sheetMemberIndices != null && sheetMemberIndices.Count > 0)
                 {
-                    // BOM정보 탭 그룹 기준: 같은 그룹에서 첫 번째만 표시
-                    var shownGroups = new HashSet<int>();
+                    // 시트 포함부재 인덱스로 정확히 필터링
+                    var sheetMemberSet = new HashSet<int>(sheetMemberIndices);
                     for (int i = 0; i < bomList.Count; i++)
                     {
                         int nodeIdx = bomList[i].Index;
-                        if (bomInfoNodeGroupMap.TryGetValue(nodeIdx, out int grpNo))
+                        if (sheetMemberSet.Contains(nodeIdx))
                         {
-                            if (!shownGroups.Contains(grpNo))
-                            {
-                                shownGroups.Add(grpNo);
-                                balloonDisplayNumbers[i] = grpNo;
-                            }
+                            balloonDisplayNumbers[i] = i + 1; // BOM No. 순번 사용
                         }
                     }
                 }
                 else
                 {
-                    // BOM정보 미수집: 기존처럼 개별 순번
+                    // 시트 미선택: 전체 부재에 개별 순번
                     for (int i = 0; i < bomList.Count; i++)
                     {
                         balloonDisplayNumbers[i] = i + 1;
                     }
                 }
 
-                // ===== 4-1. lvBOM "No." 칼럼을 풍선번호와 일치시키기 =====
-                for (int i = 0; i < bomList.Count && i < lvBOM.Items.Count; i++)
-                {
-                    int nodeIdx = bomList[i].Index;
-                    if (balloonDisplayNumbers.ContainsKey(i))
-                    {
-                        // 풍선이 표시되는 대표 부재: 풍선번호 사용
-                        lvBOM.Items[i].Text = balloonDisplayNumbers[i].ToString();
-                    }
-                    else if (bomInfoNodeGroupMap.TryGetValue(nodeIdx, out int grpNo))
-                    {
-                        // 같은 그룹의 비대표 부재: 그룹번호 사용
-                        lvBOM.Items[i].Text = grpNo.ToString();
-                    }
-                    else
-                    {
-                        // 매핑 없는 경우: 순번 유지
-                        lvBOM.Items[i].Text = (i + 1).ToString();
-                    }
-                }
+                // ===== 4-1. lvBOM "No." 칼럼은 변경하지 않음 (원래 순번 유지) =====
 
                 // ===== 5. 각 부재별 풍선 배치 =====
                 for (int i = 0; i < bomList.Count; i++)
@@ -3939,7 +4026,12 @@ namespace A2Z
                     placed.Add(new float[] { bx, by, bz });
 
                     VIZCore3D.NET.Data.Vertex3D balloonPos = new VIZCore3D.NET.Data.Vertex3D(bx, by, bz);
-                    VIZCore3D.NET.Data.Vertex3D memberCenter = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+
+                    // 풍선 방향의 부재 바운딩박스 표면 점 계산 (부재에서 시작)
+                    float anchorX = Math.Max(bom.MinX, Math.Min(bx, bom.MaxX));
+                    float anchorY = Math.Max(bom.MinY, Math.Min(by, bom.MaxY));
+                    float anchorZ = Math.Max(bom.MinZ, Math.Min(bz, bom.MaxZ));
+                    VIZCore3D.NET.Data.Vertex3D memberAnchor = new VIZCore3D.NET.Data.Vertex3D(anchorX, anchorY, anchorZ);
 
                     VIZCore3D.NET.Data.NoteStyle style = vizcore3d.Review.Note.GetStyle();
                     style.UseSymbol = true;
@@ -3955,7 +4047,7 @@ namespace A2Z
                     style.BackgroudTransparent = true;
                     style.FontBold = false;
 
-                    vizcore3d.Review.Note.AddNoteSurface(" ", memberCenter, balloonPos, style);
+                    vizcore3d.Review.Note.AddNoteSurface(" ", memberAnchor, balloonPos, style);
                 }
             }
             catch (Exception ex)
@@ -4068,7 +4160,7 @@ namespace A2Z
                 }
 
                 nudX.Value = 0; nudY.Value = 0; nudZ.Value = 0;
-                ShowBalloonNumbers(currentBalloonView);
+                ShowBalloonNumbers(currentBalloonView, currentBalloonMemberIndices);
                 updateCurrentPos();
             };
 
@@ -4079,7 +4171,7 @@ namespace A2Z
                 balloonOverrides.Clear();
                 string savedView = currentBalloonView;
                 currentBalloonView = ""; // 강제 재계산
-                ShowBalloonNumbers(savedView);
+                ShowBalloonNumbers(savedView, currentBalloonMemberIndices);
                 updateCurrentPos();
             };
 
@@ -4105,12 +4197,18 @@ namespace A2Z
         /// </summary>
         private void ShowAllDimensions(string viewDirection = null)
         {
-            if (chainDimensionList == null || chainDimensionList.Count == 0) return;
-
             // 표시할 치수 필터링
             List<ChainDimensionData> displayList;
-            if (viewDirection != null)
+            bool useDirectChain = false; // Osnap 재추출 모드 (순차 체인 + 스마트 필터링 혼합)
+            bool isInstallationMode = false; // 설치도 모드 (필터링 우회)
+            if (viewDirection != null && osnapPointsWithNames != null && osnapPointsWithNames.Count > 0)
             {
+                // 뷰 방향에 따라 Osnap 필터링을 재적용하여 체인치수 재추출
+                // 왼쪽아래 Osnap부터 순차적으로 다음 Osnap까지 체인치수 표시
+                float tolerance = 0.5f;
+                var mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
+                displayList = new List<ChainDimensionData>();
+
                 List<string> visibleAxes = new List<string>();
                 switch (viewDirection)
                 {
@@ -4118,11 +4216,131 @@ namespace A2Z
                     case "Y": visibleAxes.Add("X"); visibleAxes.Add("Z"); break;
                     case "Z": visibleAxes.Add("X"); visibleAxes.Add("Y"); break;
                 }
-                displayList = chainDimensionList.Where(d => visibleAxes.Contains(d.Axis)).ToList();
+
+                foreach (var axis in visibleAxes)
+                {
+                    displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
+                }
+                useDirectChain = true; // Osnap 재추출 모드: 순차 체인 + 스마트 필터링
+            }
+            else if (viewDirection != null && chainDimensionList != null && chainDimensionList.Count > 0)
+            {
+                // 설치도 모드: 치수추출과 동일한 방식 (Osnap 수집 → MergeCoordinates → AddChainDimensionByAxis)
+                List<string> visibleAxes = new List<string>();
+                switch (viewDirection)
+                {
+                    case "X": visibleAxes.Add("Y"); visibleAxes.Add("Z"); break;
+                    case "Y": visibleAxes.Add("X"); visibleAxes.Add("Z"); break;
+                    case "Z": visibleAxes.Add("X"); visibleAxes.Add("Y"); break;
+                }
+
+                // 선택된 부재들의 Osnap 수집 (노드별 그룹 → 끝단만 유지)
+                var nodeOsnapMap = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>>();
+                if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                {
+                    List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                    if (allBodyNodes != null)
+                    {
+                        HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
+                        var bodyNodes = allBodyNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
+                        foreach (var node in bodyNodes)
+                        {
+                            string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
+                            var pts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                            try
+                            {
+                                var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
+                                if (osnapList != null)
+                                {
+                                    foreach (var osnap in osnapList)
+                                    {
+                                        switch (osnap.Kind)
+                                        {
+                                            case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                                if (osnap.Start != null)
+                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), partName));
+                                                if (osnap.End != null)
+                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), partName));
+                                                break;
+                                            case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                                if (osnap.Center != null)
+                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), partName));
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                            if (pts.Count > 0)
+                                nodeOsnapMap[node.Index] = pts;
+                        }
+                    }
+                }
+
+                // 부재별 끝단 Osnap만 유지 (각 보이는 축의 min/max 포인트만 남기기)
+                var instOsnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                foreach (var kvp in nodeOsnapMap)
+                {
+                    var pts = kvp.Value;
+                    if (pts.Count <= 2)
+                    {
+                        instOsnapPoints.AddRange(pts);
+                        continue;
+                    }
+
+                    var keepIndices = new HashSet<int>();
+                    foreach (var axis in visibleAxes)
+                    {
+                        float minVal = float.MaxValue, maxVal = float.MinValue;
+                        int minIdx = -1, maxIdx = -1;
+                        for (int i = 0; i < pts.Count; i++)
+                        {
+                            float val;
+                            switch (axis)
+                            {
+                                case "X": val = pts[i].point.X; break;
+                                case "Y": val = pts[i].point.Y; break;
+                                default: val = pts[i].point.Z; break;
+                            }
+                            if (val < minVal) { minVal = val; minIdx = i; }
+                            if (val > maxVal) { maxVal = val; maxIdx = i; }
+                        }
+                        if (minIdx >= 0) keepIndices.Add(minIdx);
+                        if (maxIdx >= 0) keepIndices.Add(maxIdx);
+                    }
+
+                    foreach (int idx in keepIndices)
+                    {
+                        instOsnapPoints.Add(pts[idx]);
+                    }
+                }
+
+                if (instOsnapPoints.Count >= 2)
+                {
+                    // MergeCoordinates + AddChainDimensionByAxis (치수추출과 동일)
+                    float tolerance = 0.5f;
+                    var mergedPoints = MergeCoordinates(instOsnapPoints, tolerance);
+                    displayList = new List<ChainDimensionData>();
+                    isInstallationMode = true;
+
+                    foreach (var axis in visibleAxes)
+                    {
+                        displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
+                    }
+                }
+                else
+                {
+                    // Osnap 부족: 기존 chainDimensionList에서 해당 축만 필터링
+                    displayList = chainDimensionList.Where(d => visibleAxes.Contains(d.Axis)).ToList();
+                }
+            }
+            else if (chainDimensionList != null && chainDimensionList.Count > 0)
+            {
+                displayList = chainDimensionList;
             }
             else
             {
-                displayList = chainDimensionList;
+                return;
             }
 
             if (displayList.Count == 0) return;
@@ -4146,9 +4364,24 @@ namespace A2Z
                     }
                 }
 
-                // ========== Smart Dimension Filtering 적용 ==========
-                // 우선순위 기반 필터링 + 짧은 치수 병합 + 레벨 배치
-                var filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
+                // ========== Dimension Filtering (순차 체인 + 스마트 필터링 혼합) ==========
+                List<ChainDimensionData> filteredDims;
+                if (isInstallationMode)
+                {
+                    // 설치도 모드: 필터링 우회 (이미 필요한 치수만 구성됨)
+                    filteredDims = displayList;
+                }
+                else if (useDirectChain)
+                {
+                    // Osnap 재추출 순차 체인 + 스마트 필터링 혼합
+                    // 순차 체인에서 추출된 치수 중 필요한 치수만 선택
+                    filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 12, minTextSpace: 15.0f);
+                }
+                else
+                {
+                    // 일반 모드: 스마트 필터링 적용
+                    filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
+                }
 
                 if (filteredDims.Count == 0)
                 {
@@ -4172,7 +4405,7 @@ namespace A2Z
                 measureStyle.LineWidth = 1;
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;
                 measureStyle.ArrowSize = 5;
-                measureStyle.AssistantLine = true;
+                measureStyle.AssistantLine = false;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
                 measureStyle.AlignDistanceText = true;
                 measureStyle.AlignDistanceTextPosition = 0;
@@ -4221,40 +4454,85 @@ namespace A2Z
 
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
+                // ========== 축별 체인치수 방향 결정 (중심에서 체인치수 위치 방향) ==========
+                Dictionary<string, bool> axisPositiveOffset = new Dictionary<string, bool>();
+                if (viewDirection != null)
+                {
+                    var axisGroups = filteredDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis);
+                    foreach (var grp in axisGroups)
+                    {
+                        string dimAxis = grp.Key;
+                        string offsetAxis = GetRemainingAxis(viewDirection, dimAxis);
+
+                        // 체인 포인트들의 오프셋축 평균값 계산
+                        float sumOffsetVal = 0;
+                        int count = 0;
+                        foreach (var dim in grp)
+                        {
+                            sumOffsetVal += GetAxisValue(dim.StartPoint, offsetAxis);
+                            sumOffsetVal += GetAxisValue(dim.EndPoint, offsetAxis);
+                            count += 2;
+                        }
+                        float avgOffsetVal = count > 0 ? sumOffsetVal / count : 0;
+
+                        // 모델 중심과 비교하여 방향 결정
+                        float modelCenterOffset = 0;
+                        switch (offsetAxis)
+                        {
+                            case "X": modelCenterOffset = modelCenterX; break;
+                            case "Y": modelCenterOffset = modelCenterY; break;
+                            case "Z": modelCenterOffset = modelCenterZ; break;
+                        }
+                        axisPositiveOffset[dimAxis] = avgOffsetVal >= modelCenterOffset;
+                    }
+                }
+
                 // ========== Level-Based Layout ==========
                 var level0Dims = filteredDims.Where(d => d.IsTotal && d.IsVisible).ToList();
                 var level1Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0).ToList();
                 var level2Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0).ToList();
 
-                // Level 1 치수 (가장 안쪽)
+                // 설치도 모드: Osnap 체인치수 100mm, 전체 길이 150mm 고정
+                // 일반 모드: baseOffset(100) + levelSpacing(60) 기반
+                float level1Offset = isInstallationMode ? 100.0f : baseOffset;
+                float level2Offset = isInstallationMode ? 100.0f : baseOffset + levelSpacing;
+
+                // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 foreach (var dim in level1Dims)
                 {
+                    bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        baseOffset, globalMinX, globalMinY, globalMinZ,
-                        viewDirection, extensionLines);
+                        level1Offset, globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines,
+                        globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
                 // Level 2 치수 (중간)
                 foreach (var dim in level2Dims)
                 {
+                    bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        baseOffset + levelSpacing, globalMinX, globalMinY, globalMinZ,
-                        viewDirection, extensionLines);
+                        level2Offset, globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines,
+                        globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
-                // Level 0 전체 치수 (가장 바깥)
+                // Level 0 전체 치수 (가장 바깥 - 전체 길이)
                 int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
+                float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
+                    bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        baseOffset + (levelSpacing * maxLevelUsed), globalMinX, globalMinY, globalMinZ,
-                        viewDirection, extensionLines);
+                        level0Offset, globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines,
+                        globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
                 // 보조선 그리기 (연한 색상)
                 if (extensionLines.Count > 0)
                 {
-                    vizcore3d.ShapeDrawing.AddLine(extensionLines, 0, System.Drawing.Color.FromArgb(80, 80, 200), 1.5f, true);
+                    vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.FromArgb(120, 120, 200), 0.5f, true);
                 }
 
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
@@ -4560,7 +4838,11 @@ namespace A2Z
             float globalMinY,
             float globalMinZ,
             string viewDirection,
-            List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines)
+            List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines,
+            float globalMaxX = 0,
+            float globalMaxY = 0,
+            float globalMaxZ = 0,
+            bool positiveOffset = false)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -4576,30 +4858,30 @@ namespace A2Z
             {
                 switch (axis)
                 {
-                    case "Z": offsetDir = "Y"; baseline = globalMinY; break;
-                    case "Y": offsetDir = "Z"; baseline = globalMinZ; break;
-                    case "X": offsetDir = "Y"; baseline = globalMinY; break;
+                    case "Z": offsetDir = "Y"; baseline = positiveOffset ? globalMaxY : globalMinY; break;
+                    case "Y": offsetDir = "Z"; baseline = positiveOffset ? globalMaxZ : globalMinZ; break;
+                    case "X": offsetDir = "Y"; baseline = positiveOffset ? globalMaxY : globalMinY; break;
                 }
             }
             else if (viewDirection == "Y")
             {
                 switch (axis)
                 {
-                    case "Z": offsetDir = "X"; baseline = globalMinX; break;
-                    case "X": offsetDir = "Z"; baseline = globalMinZ; break;
+                    case "Z": offsetDir = "X"; baseline = positiveOffset ? globalMaxX : globalMinX; break;
+                    case "X": offsetDir = "Z"; baseline = positiveOffset ? globalMaxZ : globalMinZ; break;
                 }
             }
             else if (viewDirection == "Z")
             {
                 switch (axis)
                 {
-                    case "Y": offsetDir = "X"; baseline = globalMinX; break;
-                    case "X": offsetDir = "Y"; baseline = globalMinY; break;
+                    case "Y": offsetDir = "X"; baseline = positiveOffset ? globalMaxX : globalMinX; break;
+                    case "X": offsetDir = "Y"; baseline = positiveOffset ? globalMaxY : globalMinY; break;
                 }
             }
 
-            // baseline에서 -offset 방향으로 치수 위치 계산
-            float offsetValue = baseline - offset;
+            // baseline에서 오프셋 방향으로 치수 위치 계산 (중심에서 체인치수 방향)
+            float offsetValue = positiveOffset ? (baseline + offset) : (baseline - offset);
             VIZCore3D.NET.Data.Vertex3D startVertex;
             VIZCore3D.NET.Data.Vertex3D endVertex;
 
@@ -4633,8 +4915,6 @@ namespace A2Z
             if (distance > 0.1f)
             {
                 // === 모든 치수: AddCustomAxisDistance 사용 ===
-                // AlignDistanceTextPosition = 0 (치수선 중앙 위 배치) 설정으로
-                // 텍스트가 치수선 위 모델 반대 방향에 표시
                 switch (axis)
                 {
                     case "X":
@@ -4647,6 +4927,7 @@ namespace A2Z
                         vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
                         break;
                 }
+
             }
 
             // 보조선 추가 (원본 → baseline 오프셋 위치) - 항상 표시
@@ -5291,39 +5572,55 @@ namespace A2Z
         /// 2. 큰 값에서 작은 값 순서로 순차 치수
         /// 3. 마지막에 전체 치수 (처음~끝)
         /// </summary>
-        private List<ChainDimensionData> AddChainDimensionByAxis(List<VIZCore3D.NET.Data.Vector3D> points, string axis, float tolerance)
+        /// <summary>
+        /// 뷰 방향과 치수축에서 나머지 보이는 축 반환 (필터축 결정용)
+        /// 예: viewDir=X, dimAxis=Y → 나머지=Z (아래쪽 우선 필터)
+        /// </summary>
+        private string GetRemainingAxis(string viewDirection, string dimAxis)
+        {
+            string[] all = { "X", "Y", "Z" };
+            foreach (var a in all)
+            {
+                if (a != viewDirection && a != dimAxis) return a;
+            }
+            return "X";
+        }
+
+        private List<ChainDimensionData> AddChainDimensionByAxis(
+            List<VIZCore3D.NET.Data.Vector3D> points, string axis, float tolerance,
+            string viewDirection = null)
         {
             List<ChainDimensionData> dimensions = new List<ChainDimensionData>();
 
             if (points == null || points.Count < 2) return dimensions;
 
-            // Step 1: 측정축 값으로 그룹화하고, 같은 값이면 필터축 최소값만 남김
-            // Z치수 → 같은 Z면 min Y만 남김
-            // Y치수 → 같은 Y면 min X만 남김
-            // X치수 → 같은 X면 min Z만 남김
-            var grouped = new Dictionary<string, VIZCore3D.NET.Data.Vector3D>();
-
-            foreach (var pt in points)
+            // Step 1: 뷰 방향에 따른 필터축 결정 ("제일 아래 왼쪽" 우선)
+            // 뷰에서 보이는 축 중 치수축이 아닌 축을 필터축으로 사용
+            string filterAxisName;
+            if (viewDirection != null)
             {
-                float dimValue = 0;
-                float filterValue = 0;
-
+                // X뷰(Y-Z보임): Y치수→필터Z, Z치수→필터Y
+                // Y뷰(X-Z보임): X치수→필터Z, Z치수→필터X
+                // Z뷰(X-Y보임): X치수→필터Y, Y치수→필터X
+                filterAxisName = GetRemainingAxis(viewDirection, axis);
+            }
+            else
+            {
+                // 기본: X→Z, Y→X, Z→Y
                 switch (axis)
                 {
-                    case "X":
-                        dimValue = RoundToTolerance(pt.X, tolerance);
-                        filterValue = pt.Z;
-                        break;
-                    case "Y":
-                        dimValue = RoundToTolerance(pt.Y, tolerance);
-                        filterValue = pt.X;
-                        break;
-                    case "Z":
-                        dimValue = RoundToTolerance(pt.Z, tolerance);
-                        filterValue = pt.Y;
-                        break;
+                    case "X": filterAxisName = "Z"; break;
+                    case "Y": filterAxisName = "X"; break;
+                    default: filterAxisName = "Y"; break;
                 }
+            }
 
+            // 같은 치수축 값의 포인트 중 필터축 최소값만 남김 (아래 왼쪽 우선)
+            var grouped = new Dictionary<string, VIZCore3D.NET.Data.Vector3D>();
+            foreach (var pt in points)
+            {
+                float dimValue = RoundToTolerance(GetAxisValue(pt, axis), tolerance);
+                float filterValue = GetAxisValue(pt, filterAxisName);
                 string key = dimValue.ToString("F1");
 
                 if (!grouped.ContainsKey(key))
@@ -5332,15 +5629,7 @@ namespace A2Z
                 }
                 else
                 {
-                    // 기존 포인트의 필터축 값과 비교하여 더 작은 것만 유지
-                    float existingFilterValue = 0;
-                    switch (axis)
-                    {
-                        case "X": existingFilterValue = grouped[key].Z; break;
-                        case "Y": existingFilterValue = grouped[key].X; break;
-                        case "Z": existingFilterValue = grouped[key].Y; break;
-                    }
-
+                    float existingFilterValue = GetAxisValue(grouped[key], filterAxisName);
                     if (filterValue < existingFilterValue)
                     {
                         grouped[key] = pt;
@@ -5348,36 +5637,19 @@ namespace A2Z
                 }
             }
 
-            // Step 2: 측정축 값 기준 내림차순 정렬 (큰 값부터)
-            List<VIZCore3D.NET.Data.Vector3D> sortedPoints;
-            switch (axis)
-            {
-                case "X":
-                    sortedPoints = grouped.Values.OrderByDescending(p => p.X).ToList();
-                    break;
-                case "Y":
-                    sortedPoints = grouped.Values.OrderByDescending(p => p.Y).ToList();
-                    break;
-                case "Z":
-                    sortedPoints = grouped.Values.OrderByDescending(p => p.Z).ToList();
-                    break;
-                default:
-                    sortedPoints = grouped.Values.ToList();
-                    break;
-            }
+            // Step 2: 측정축 값 기준 오름차순 정렬 (중심에서 Osnap 위치 방향으로)
+            var sortedPoints = grouped.Values
+                .OrderBy(p => GetAxisValue(p, axis))
+                .ToList();
 
             if (sortedPoints.Count < 2) return dimensions;
 
-            // Step 3: 큰 값에서 작은 값으로 순차 치수 그리기
+            // Step 3: 순차 치수 (인접 포인트 간 거리)
             for (int i = 0; i < sortedPoints.Count - 1; i++)
             {
-                float distance = 0;
-                switch (axis)
-                {
-                    case "X": distance = Math.Abs(sortedPoints[i].X - sortedPoints[i + 1].X); break;
-                    case "Y": distance = Math.Abs(sortedPoints[i].Y - sortedPoints[i + 1].Y); break;
-                    case "Z": distance = Math.Abs(sortedPoints[i].Z - sortedPoints[i + 1].Z); break;
-                }
+                float distance = Math.Abs(
+                    GetAxisValue(sortedPoints[i], axis) -
+                    GetAxisValue(sortedPoints[i + 1], axis));
 
                 if (distance > tolerance)
                 {
@@ -5395,19 +5667,13 @@ namespace A2Z
                 }
             }
 
-            // Step 4: 전체 치수 (처음 포인트 ~ 끝 포인트) - 순차 치수가 2개 이상일 때
+            // Step 4: 축방향 전체 치수 (처음 ~ 끝) - 순차 치수가 2개 이상일 때
             if (sortedPoints.Count > 2)
             {
                 var first = sortedPoints[0];
                 var last = sortedPoints[sortedPoints.Count - 1];
-
-                float totalDistance = 0;
-                switch (axis)
-                {
-                    case "X": totalDistance = Math.Abs(first.X - last.X); break;
-                    case "Y": totalDistance = Math.Abs(first.Y - last.Y); break;
-                    case "Z": totalDistance = Math.Abs(first.Z - last.Z); break;
-                }
+                float totalDistance = Math.Abs(
+                    GetAxisValue(first, axis) - GetAxisValue(last, axis));
 
                 if (totalDistance > tolerance)
                 {
@@ -6413,7 +6679,6 @@ namespace A2Z
                     ? System.IO.Path.GetFileNameWithoutExtension(currentFilePath)
                     : "전체";
             }
-
             sheet1.BaseMemberIndex = -1;
             foreach (var bom in bomList)
             {
@@ -6679,14 +6944,11 @@ namespace A2Z
                 {
                     ExecuteMfgDrawing(sheet.MemberIndices[0]);
                 }
-                else if (sheet.BaseMemberIndex == -2) // 설치도
-                {
-                    ExtractInstallationDimensions(sheet.MemberIndices);
-                }
                 else
                 {
-                    CollectOsnapForSelectedNodes(sheet.MemberIndices);
-                    ExtractDimensionForSelectedNodes();
+                    // 설치도 개념: 부재 바운딩박스 기반 설치 치수 추출
+                    // (부재 전체 길이 + 부재간 설치 위치 정보)
+                    ExtractInstallationDimensions(sheet.MemberIndices);
                 }
             }
             catch (Exception ex)
@@ -6737,21 +6999,14 @@ namespace A2Z
 
                     vizcore3d.EndUpdate();
 
-                    if (sheet.BaseMemberIndex == -2)
-                    {
-                        ExtractInstallationDimensions(sheet.MemberIndices);
-                    }
-                    else
-                    {
-                        CollectOsnapForSelectedNodes(sheet.MemberIndices);
-                        ExtractDimensionForSelectedNodes();
-                    }
+                    // 설치도 개념: 부재 바운딩박스 기반 설치 치수 추출
+                    ExtractInstallationDimensions(sheet.MemberIndices);
 
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     // 선택된 부재에 맞춰 화면 조정 (반복 호출 시 줌 누적 방지)
                     vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.0f);
-                    ShowBalloonNumbers("ISO");
+                    ShowBalloonNumbers("ISO", sheet.MemberIndices);
                 }
                 else
                 {
@@ -6931,7 +7186,7 @@ namespace A2Z
             // ISO는 풍선 표시, X/Y/Z는 치수 표시
             if (viewDirection == "ISO")
             {
-                ShowBalloonNumbers("ISO");
+                ShowBalloonNumbers("ISO", xraySelectedNodeIndices);
             }
             else
             {
@@ -7003,6 +7258,11 @@ namespace A2Z
             chainDimensionList.Clear();
             lvDimension.Items.Clear();
 
+            // Osnap 데이터 클리어 (바운딩박스 기반 치수 사용)
+            osnapPoints.Clear();
+            osnapPointsWithNames.Clear();
+            lvOsnap.Items.Clear();
+
             // 포함된 부재의 BOM 데이터 수집
             List<BOMData> members = new List<BOMData>();
             foreach (int idx in memberIndices)
@@ -7011,7 +7271,7 @@ namespace A2Z
                 if (bom != null) members.Add(bom);
             }
 
-            if (members.Count < 2) return;
+            if (members.Count == 0) return;
 
             float tolerance = 1.0f;
 
@@ -7019,8 +7279,8 @@ namespace A2Z
             string[] axes = { "X", "Y", "Z" };
             foreach (string axis in axes)
             {
-                // 각 부재의 Min, Max 경계값 수집
-                List<float> boundaries = new List<float>();
+                // 경계값과 해당 부재 정보를 함께 수집 (보조선 시작점 = 부재 바운딩박스 모서리)
+                var boundaryEntries = new List<(float value, BOMData member)>();
                 foreach (var m in members)
                 {
                     float minVal = 0, maxVal = 0;
@@ -7030,56 +7290,41 @@ namespace A2Z
                         case "Y": minVal = m.MinY; maxVal = m.MaxY; break;
                         case "Z": minVal = m.MinZ; maxVal = m.MaxZ; break;
                     }
-                    boundaries.Add(minVal);
-                    boundaries.Add(maxVal);
+                    boundaryEntries.Add((minVal, m));
+                    boundaryEntries.Add((maxVal, m));
                 }
 
-                // 중복 제거 후 정렬 (큰 값부터)
-                List<float> unique = new List<float>();
-                boundaries.Sort();
-                foreach (float v in boundaries)
+                // 오름차순 정렬 후 중복 제거
+                boundaryEntries.Sort((a, b) => a.value.CompareTo(b.value));
+                var uniqueEntries = new List<(float value, BOMData member)>();
+                foreach (var entry in boundaryEntries)
                 {
-                    if (unique.Count == 0 || Math.Abs(v - unique[unique.Count - 1]) > tolerance)
-                        unique.Add(v);
+                    if (uniqueEntries.Count == 0 || Math.Abs(entry.value - uniqueEntries[uniqueEntries.Count - 1].value) > tolerance)
+                        uniqueEntries.Add(entry);
                 }
-                unique.Reverse(); // 큰 값부터 (체인치수 방식)
 
-                if (unique.Count < 2) continue;
+                if (uniqueEntries.Count < 2) continue;
 
-                // 기준선 좌표 생성 (다른 축의 최소값 사용)
-                float refVal1 = float.MaxValue, refVal2 = float.MaxValue;
-                foreach (var m in members)
+                // 부재 바운딩박스 모서리 좌표로 치수 포인트 생성
+                // 보조선이 부재 표면에서 시작하도록 부재의 실제 위치 사용
+                Func<float, BOMData, VIZCore3D.NET.Data.Vector3D> makePoint = (val, m) =>
                 {
                     switch (axis)
                     {
-                        case "X": refVal1 = Math.Min(refVal1, m.MinY); refVal2 = Math.Min(refVal2, m.MinZ); break;
-                        case "Y": refVal1 = Math.Min(refVal1, m.MinX); refVal2 = Math.Min(refVal2, m.MinZ); break;
-                        case "Z": refVal1 = Math.Min(refVal1, m.MinX); refVal2 = Math.Min(refVal2, m.MinY); break;
+                        case "X": return new VIZCore3D.NET.Data.Vector3D(val, m.MinY, m.MinZ);
+                        case "Y": return new VIZCore3D.NET.Data.Vector3D(m.MinX, val, m.MinZ);
+                        default:  return new VIZCore3D.NET.Data.Vector3D(m.MinX, m.MinY, val);
                     }
-                }
+                };
 
-                // 순차 체인 치수 (인접 경계 간)
-                for (int i = 0; i < unique.Count - 1; i++)
+                // ===== 설치 위치 체인 치수 (인접 경계 간 순차) =====
+                for (int i = 0; i < uniqueEntries.Count - 1; i++)
                 {
-                    float dist = Math.Abs(unique[i] - unique[i + 1]);
+                    float dist = Math.Abs(uniqueEntries[i].value - uniqueEntries[i + 1].value);
                     if (dist <= tolerance) continue;
 
-                    VIZCore3D.NET.Data.Vector3D startPt, endPt;
-                    switch (axis)
-                    {
-                        case "X":
-                            startPt = new VIZCore3D.NET.Data.Vector3D(unique[i], refVal1, refVal2);
-                            endPt = new VIZCore3D.NET.Data.Vector3D(unique[i + 1], refVal1, refVal2);
-                            break;
-                        case "Y":
-                            startPt = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[i], refVal2);
-                            endPt = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[i + 1], refVal2);
-                            break;
-                        default: // Z
-                            startPt = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[i]);
-                            endPt = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[i + 1]);
-                            break;
-                    }
+                    var startPt = makePoint(uniqueEntries[i].value, uniqueEntries[i].member);
+                    var endPt = makePoint(uniqueEntries[i + 1].value, uniqueEntries[i + 1].member);
 
                     chainDimensionList.Add(new ChainDimensionData
                     {
@@ -7093,26 +7338,75 @@ namespace A2Z
                     });
                 }
 
-                // 전체 치수 (처음~끝, 순차가 2개 이상일 때)
-                if (unique.Count > 2)
+                // ===== 개별 부재 전체 길이 치수 (설치 참조용) =====
+                // 전체 조립 치수 범위 미리 계산 (중복 방지용)
+                float totalRangeMin = uniqueEntries[0].value;
+                float totalRangeMax = uniqueEntries[uniqueEntries.Count - 1].value;
+
+                foreach (var m in members)
                 {
-                    float totalDist = Math.Abs(unique[0] - unique[unique.Count - 1]);
-                    VIZCore3D.NET.Data.Vector3D totalStart, totalEnd;
+                    float mMin = 0, mMax = 0;
                     switch (axis)
                     {
-                        case "X":
-                            totalStart = new VIZCore3D.NET.Data.Vector3D(unique[0], refVal1, refVal2);
-                            totalEnd = new VIZCore3D.NET.Data.Vector3D(unique[unique.Count - 1], refVal1, refVal2);
-                            break;
-                        case "Y":
-                            totalStart = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[0], refVal2);
-                            totalEnd = new VIZCore3D.NET.Data.Vector3D(refVal1, unique[unique.Count - 1], refVal2);
-                            break;
-                        default: // Z
-                            totalStart = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[0]);
-                            totalEnd = new VIZCore3D.NET.Data.Vector3D(refVal1, refVal2, unique[unique.Count - 1]);
-                            break;
+                        case "X": mMin = m.MinX; mMax = m.MaxX; break;
+                        case "Y": mMin = m.MinY; mMax = m.MaxY; break;
+                        case "Z": mMin = m.MinZ; mMax = m.MaxZ; break;
                     }
+                    float memberLen = Math.Abs(mMax - mMin);
+                    if (memberLen <= tolerance) continue;
+
+                    // 전체 조립 치수와 동일 범위면 스킵 (이중 표시 방지)
+                    if (uniqueEntries.Count > 2 &&
+                        Math.Abs(mMin - totalRangeMin) < tolerance &&
+                        Math.Abs(mMax - totalRangeMax) < tolerance)
+                        continue;
+
+                    // 이미 동일한 범위의 체인치수가 있으면 스킵 (중복 방지)
+                    bool isDuplicate = false;
+                    foreach (var existing in chainDimensionList)
+                    {
+                        if (existing.Axis != axis || existing.IsTotal) continue;
+                        float eStart = 0, eEnd = 0;
+                        switch (axis)
+                        {
+                            case "X": eStart = existing.StartPoint.X; eEnd = existing.EndPoint.X; break;
+                            case "Y": eStart = existing.StartPoint.Y; eEnd = existing.EndPoint.Y; break;
+                            case "Z": eStart = existing.StartPoint.Z; eEnd = existing.EndPoint.Z; break;
+                        }
+                        float eMin = Math.Min(eStart, eEnd);
+                        float eMax = Math.Max(eStart, eEnd);
+                        if (Math.Abs(eMin - mMin) < tolerance && Math.Abs(eMax - mMax) < tolerance)
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if (isDuplicate) continue;
+
+                    var memberStart = makePoint(mMin, m);
+                    var memberEnd = makePoint(mMax, m);
+
+                    chainDimensionList.Add(new ChainDimensionData
+                    {
+                        Axis = axis,
+                        ViewName = GetViewNameByAxis(axis),
+                        Distance = memberLen,
+                        StartPoint = memberStart,
+                        EndPoint = memberEnd,
+                        StartPointStr = $"({memberStart.X:F1}, {memberStart.Y:F1}, {memberStart.Z:F1})",
+                        EndPointStr = $"({memberEnd.X:F1}, {memberEnd.Y:F1}, {memberEnd.Z:F1})"
+                    });
+                }
+
+                // ===== 전체 조립 치수 (처음~끝, 순차가 2개 이상일 때) =====
+                if (uniqueEntries.Count > 2)
+                {
+                    var first = uniqueEntries[0];
+                    var last = uniqueEntries[uniqueEntries.Count - 1];
+                    float totalDist = Math.Abs(first.value - last.value);
+
+                    var totalStart = makePoint(first.value, first.member);
+                    var totalEnd = makePoint(last.value, last.member);
 
                     chainDimensionList.Add(new ChainDimensionData
                     {
@@ -7132,7 +7426,7 @@ namespace A2Z
             int no = 1;
             foreach (var dim in chainDimensionList)
             {
-                dim.No = no;  // 치수 데이터에 번호 저장
+                dim.No = no;
                 ListViewItem lvi = new ListViewItem(no.ToString());
                 lvi.SubItems.Add(dim.Axis);
                 lvi.SubItems.Add(dim.ViewName);

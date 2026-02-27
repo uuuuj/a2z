@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-24
+> 최종 업데이트: 2026-02-27
 
 ---
 
@@ -16,7 +16,7 @@
 
 ```
 A2Z/
-├── Form1.cs              # 전체 비즈니스 로직 (약 3,440줄)
+├── Form1.cs              # 전체 비즈니스 로직 (약 7,500줄)
 ├── Form1.Designer.cs     # UI 레이아웃 (WinForms Designer)
 ├── Form1.resx            # 리소스
 ├── Program.cs            # 진입점
@@ -1032,6 +1032,125 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 
 ---
 
+### Phase 17: 도면시트 설치도 치수 — Osnap 기반 체인치수 재작성 + 끝단 필터링
+
+**[요청 1]** "도면시트목록을 선택하고 X축 버튼을 눌렀을때 축별 Osnap별 체인치수를 100mm 보조선으로, 전체 길이를 150mm 보조선으로 표현. 치수추출 버튼과 동일한 방식으로 치수 표현"
+
+**[요청 2]** "하위 부재별 Osnap은 제일끝단 하나만 남겨두기"
+
+**[문제점 분석]**
+
+1. **기존 설치도 모드**: 부재별 참조 Osnap(상단-왼쪽) 1개만 선택 → 부재간 거리만 측정 → 치수추출과 완전히 다른 방식
+2. **치수 겹침**: 부재간 치수와 전체 길이 체인치수가 겹쳐서 표시됨
+3. **파란 원 제거 시도**: `ArrowSize = 0` → 화살표까지 함께 사라짐
+4. **빌드 미배포**: A2Z.exe 실행 중 → MSB3027 에러 → 코드 변경이 바이너리에 반영 안 됨
+
+**[해결 — 1. 설치도 모드 Osnap 수집 재작성]**
+
+기존 커스텀 로직(부재별 참조 Osnap → 부재간/전체 길이)을 **치수추출과 동일한 방식**으로 전면 교체:
+
+```csharp
+// 기존 (삭제됨)
+// - 부재별 Osnap 수집 → memberOsnaps Dictionary
+// - 상단-왼쪽 기준점 선택 → memberRefOsnap Dictionary
+// - 부재간 거리 + 부재 전체 길이 수동 계산
+
+// 변경 (치수추출과 동일)
+// 1. 선택된 부재들의 전체 Osnap 수집 (CollectAllOsnap과 동일 방식)
+var nodeOsnapMap = new Dictionary<int, List<(Vertex3D point, string nodeName)>>();
+// LINE Start/End, POINT Center 수집 (CIRCLE 제외)
+
+// 2. 부재별 끝단 Osnap만 유지 (각 축의 min/max)
+// 3. MergeCoordinates (0.5mm tolerance)
+// 4. AddChainDimensionByAxis (축별 순차 + 전체치수)
+```
+
+**[해결 — 2. 부재별 끝단 Osnap 필터링]**
+
+각 부재(노드)에서 보이는 축별 min/max 포인트만 유지, 중간 Osnap 제거:
+
+```csharp
+foreach (var kvp in nodeOsnapMap)
+{
+    var pts = kvp.Value;
+    if (pts.Count <= 2) { /* 모두 유지 */ continue; }
+
+    var keepIndices = new HashSet<int>();
+    foreach (var axis in visibleAxes)  // X뷰 → Y, Z축
+    {
+        // 각 축의 min/max 인덱스만 선별
+        float minVal = float.MaxValue, maxVal = float.MinValue;
+        for (int i = 0; i < pts.Count; i++)
+        {
+            float val = GetAxisValue(pts[i].point, axis);
+            if (val < minVal) { minVal = val; minIdx = i; }
+            if (val > maxVal) { maxVal = val; maxIdx = i; }
+        }
+        keepIndices.Add(minIdx);
+        keepIndices.Add(maxIdx);
+    }
+    // keepIndices에 포함된 포인트만 instOsnapPoints에 추가
+}
+```
+
+**효과**: 부재 내부의 홀/볼트구멍 등 중간 Osnap 제거 → 부재 경계만 체인치수에 반영
+
+**[해결 — 3. 보조선 길이 100mm / 150mm 고정]**
+
+```csharp
+// Level-Based Layout 오프셋
+float level1Offset = isInstallationMode ? 100.0f : baseOffset;      // Osnap 간 체인치수
+float level2Offset = isInstallationMode ? 100.0f : baseOffset + levelSpacing;
+float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * maxLevelUsed);  // 전체 길이
+```
+
+| 레벨 | 설치도 모드 | 일반 모드 | 용도 |
+| ---- | ----------- | --------- | ---- |
+| Level 1 (안쪽) | 100mm | baseOffset (100mm) | Osnap 간 순차 체인치수 |
+| Level 2 (중간) | 100mm | baseOffset + 60mm | 보조 치수 |
+| Level 0 (바깥) | 150mm | baseOffset + levelSpacing × maxLevel | 전체 길이 |
+
+**[해결 — 4. ArrowSize 복원 + 틱마크 제거]**
+
+- `ArrowSize = 5` 복원 (화살표 정상 표시)
+- 수동 틱마크 코드 제거 (ArrowSize=0일 때 추가했던 대체 코드)
+- `AssistantLine = false` 유지 (ShapeDrawing으로 보조선 직접 관리)
+
+**[해결 — 5. 빌드 미배포 문제]**
+
+- **원인**: A2Z.exe가 실행 중 → VIZCore3D+.NET.dll 파일 잠금 → MSB3027 에러 → Exit code 1
+- **이전 빌드 검증**: `grep -i "error CS"`만 확인 → MSB3027 파일 잠금 에러 감지 못함
+- **해결**: 빌드 전 `taskkill //PID //F`로 A2Z.exe 강제 종료 후 빌드
+
+**[코드 흐름 — 설치도 치수 표시]**
+
+```
+[도면시트 선택] → LvDrawingSheet_SelectedIndexChanged()
+    ├→ X-Ray 모드 활성화 (sheet.MemberIndices)
+    ├→ xraySelectedNodeIndices 저장
+    └→ ExtractInstallationDimensions() → chainDimensionList 설정
+                │
+[X/Y/Z 버튼] → ApplyGlobalView() → ApplyDrawingSheetView(axis)
+    └→ ShowAllDimensions(viewDirection)
+        └→ 두 번째 분기 (chainDimensionList 있고 osnapPointsWithNames 없음)
+            ├→ 1. 부재별 Osnap 수집 (LINE Start/End, POINT Center)
+            ├→ 2. 부재별 끝단 필터링 (축별 min/max만 유지)
+            ├→ 3. MergeCoordinates (0.5mm tolerance 좌표 병합)
+            ├→ 4. AddChainDimensionByAxis (축별 순차 + 전체치수)
+            ├→ 5. isInstallationMode = true (스마트 필터링 우회)
+            └→ 6. Level Layout (100mm 체인 / 150mm 전체)
+```
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | ShowAllDimensions 설치도 분기 전면 재작성 (Osnap 수집→끝단 필터→MergeCoordinates→AddChainDimensionByAxis), Level Layout 100/150mm 고정, ArrowSize 5 복원, 틱마크 코드 제거 |
+
+**[변경 통계]**: +374줄, -213줄
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1061,7 +1180,7 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
                     │
 [2D 도면] ──→ 4면도 캡처 → 치수 오버레이 → BOM표 + 타이틀블록 → PNG/PDF 출력
                     │
-[도면시트] ──→ 일반 시트: Osnap 치수 / 설치도: 경계 치수 / 가공도: 단일 부재 치수+풍선
+[도면시트] ──→ 일반 시트: Osnap 치수 / 설치도: 부재별 끝단 Osnap 체인치수(100mm)+전체(150mm) / 가공도: 단일 부재 치수+풍선
 ```
 
 ### 4.2 BOM 추출 (CollectBOMData)
@@ -1110,23 +1229,36 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 ### 4.5 치수 표시 (ShowAllDimensions → DrawDimension)
 
 ```
+ShowAllDimensions(viewDirection) 3가지 분기:
+
+분기 1: Osnap 모드 (viewDirection + osnapPointsWithNames 있음)
+   - MergeCoordinates → AddChainDimensionByAxis → 순차 체인 + 전체치수
+
+분기 2: 설치도 모드 (viewDirection + chainDimensionList 있음, osnapPointsWithNames 없음)
+   - 선택 부재의 Osnap 수집 (LINE Start/End, POINT Center)
+   - 부재별 끝단 필터링 (축별 min/max만 유지)
+   - MergeCoordinates → AddChainDimensionByAxis (치수추출과 동일)
+   - isInstallationMode = true (스마트 필터링 우회)
+
+분기 3: 기본 모드 (viewDirection 없음)
+   - chainDimensionList 그대로 표시
+
+공통 표시 흐름:
 1. viewDirection에 따라 표시할 축 필터링
    - "X" 방향 보기 → Y, Z축 치수만
    - "Y" 방향 보기 → X, Z축 치수만
    - "Z" 방향 보기 → X, Y축 치수만
-2. Smart Filtering (ApplySmartFiltering)
-   - 축당 최대 5개, 텍스트 간격 30mm
-3. MeasureStyle 설정 (파란색, Bold, 정수표시)
-4. globalMin 기준선 계산 (X-Ray 선택 노드 또는 치수 좌표)
+2. Filtering (설치도 모드: 우회 / 일반: Smart Filtering)
+3. MeasureStyle 설정 (파란색, Bold, 정수표시, ArrowSize=5, AssistantLine=false)
+4. globalMin/Max 기준선 계산
 5. Level-Based Layout으로 DrawDimension 호출:
-   - Level 1 (안쪽): baseOffset (500mm)
-   - Level 2 (중간): baseOffset + levelSpacing (700mm)
-   - Level 0 전체치수 (바깥): baseOffset + levelSpacing * maxLevel
+   - 설치도 모드: Level 1=100mm / Level 0(전체)=150mm
+   - 일반 모드: Level 1=baseOffset(100) / Level 0=baseOffset + levelSpacing*maxLevel
 6. DrawDimension 내부:
-   a. 오프셋 좌표 계산 (globalMin - offset)
+   a. 오프셋 좌표 계산 (baseline ± offset)
    b. AddCustomAxisDistance로 치수 생성
    c. 보조선 데이터 수집 (extensionLines)
-7. ShapeDrawing.AddLine으로 보조선 일괄 렌더링
+7. ShapeDrawing.AddLine(extensionLines, -1, Color(120,120,200), 0.5f, true)
 ```
 
 ### 4.6 Clash 검사 (DetectClash → Clash_OnClashTestFinishedEvent)
@@ -1290,6 +1422,7 @@ float ZValue;          // 충돌 지점 Z좌표
 | 브랜치 | 용도                    |
 | ------ | ----------------------- |
 | `main` | 메인 브랜치             |
-| `HYI`  | 현재 개발 브랜치 (활성) |
+| `HYI`  | 개발 브랜치             |
+| `KSH`  | 현재 개발 브랜치 (활성) |
 
 커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함.
