@@ -91,20 +91,6 @@ namespace A2Z
             this.btnOpen = new System.Windows.Forms.Button();
             this.tabPageAttribute = new System.Windows.Forms.TabPage();
             this.tabPageDrawing = new System.Windows.Forms.TabPage();
-            this.tabPageBOMInfo = new System.Windows.Forms.TabPage();
-            this.lvBOMInfo = new System.Windows.Forms.ListView();
-            this.colBomPieceNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.panelBOMInfoHeader = new System.Windows.Forms.Panel();
-            this.btnCollectBOMInfo = new System.Windows.Forms.Button();
-            this.lblBOMInfoDesc = new System.Windows.Forms.Label();
-            this.lblBOMInfoTitle = new System.Windows.Forms.Label();
             this.lvDrawingSheet = new System.Windows.Forms.ListView();
             this.colSheetNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colSheetBase = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -163,8 +149,6 @@ namespace A2Z
             this.splitContainerDrawing.SuspendLayout();
             this.panelDrawingHeader.SuspendLayout();
             this.panelDrawingBOMHeader.SuspendLayout();
-            this.tabPageBOMInfo.SuspendLayout();
-            this.panelBOMInfoHeader.SuspendLayout();
             this.panelDrawingButtons.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).BeginInit();
             this.panelAttributeButtons.SuspendLayout();
@@ -197,7 +181,6 @@ namespace A2Z
             this.tabControlLeft.Controls.Add(this.tabPageWork);
             this.tabControlLeft.Controls.Add(this.tabPageAttribute);
             this.tabControlLeft.Controls.Add(this.tabPageDrawing);
-            this.tabControlLeft.Controls.Add(this.tabPageBOMInfo);
             this.tabControlLeft.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControlLeft.Location = new System.Drawing.Point(0, 42);
             this.tabControlLeft.Name = "tabControlLeft";
@@ -1099,130 +1082,6 @@ namespace A2Z
             this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
             this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
             //
-            // tabPageBOMInfo
-            //
-            this.tabPageBOMInfo.Controls.Add(this.lvBOMInfo);
-            this.tabPageBOMInfo.Controls.Add(this.panelBOMInfoHeader);
-            this.tabPageBOMInfo.Location = new System.Drawing.Point(4, 25);
-            this.tabPageBOMInfo.Name = "tabPageBOMInfo";
-            this.tabPageBOMInfo.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageBOMInfo.Size = new System.Drawing.Size(449, 971);
-            this.tabPageBOMInfo.TabIndex = 3;
-            this.tabPageBOMInfo.Text = "BOM정보";
-            this.tabPageBOMInfo.UseVisualStyleBackColor = true;
-            //
-            // panelBOMInfoHeader
-            //
-            this.panelBOMInfoHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
-            this.panelBOMInfoHeader.Controls.Add(this.btnCollectBOMInfo);
-            this.panelBOMInfoHeader.Controls.Add(this.lblBOMInfoDesc);
-            this.panelBOMInfoHeader.Controls.Add(this.lblBOMInfoTitle);
-            this.panelBOMInfoHeader.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelBOMInfoHeader.Location = new System.Drawing.Point(3, 3);
-            this.panelBOMInfoHeader.Name = "panelBOMInfoHeader";
-            this.panelBOMInfoHeader.Size = new System.Drawing.Size(443, 55);
-            this.panelBOMInfoHeader.TabIndex = 0;
-            //
-            // lblBOMInfoTitle
-            //
-            this.lblBOMInfoTitle.AutoSize = true;
-            this.lblBOMInfoTitle.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
-            this.lblBOMInfoTitle.ForeColor = System.Drawing.Color.White;
-            this.lblBOMInfoTitle.Location = new System.Drawing.Point(10, 8);
-            this.lblBOMInfoTitle.Name = "lblBOMInfoTitle";
-            this.lblBOMInfoTitle.Size = new System.Drawing.Size(150, 25);
-            this.lblBOMInfoTitle.TabIndex = 0;
-            this.lblBOMInfoTitle.Text = "BILL OF MATERIAL";
-            //
-            // btnCollectBOMInfo
-            //
-            this.btnCollectBOMInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnCollectBOMInfo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(130)))), ((int)(((byte)(180)))));
-            this.btnCollectBOMInfo.FlatAppearance.BorderSize = 0;
-            this.btnCollectBOMInfo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCollectBOMInfo.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnCollectBOMInfo.ForeColor = System.Drawing.Color.White;
-            this.btnCollectBOMInfo.Location = new System.Drawing.Point(333, 12);
-            this.btnCollectBOMInfo.Name = "btnCollectBOMInfo";
-            this.btnCollectBOMInfo.Size = new System.Drawing.Size(100, 30);
-            this.btnCollectBOMInfo.TabIndex = 2;
-            this.btnCollectBOMInfo.Text = "BOM 수집";
-            this.btnCollectBOMInfo.UseVisualStyleBackColor = false;
-            this.btnCollectBOMInfo.Click += new System.EventHandler(this.btnCollectBOMInfo_Click);
-            //
-            // lblBOMInfoDesc
-            //
-            this.lblBOMInfoDesc.AutoSize = true;
-            this.lblBOMInfoDesc.Font = new System.Drawing.Font("맑은 고딕", 9F);
-            this.lblBOMInfoDesc.ForeColor = System.Drawing.Color.LightGray;
-            this.lblBOMInfoDesc.Location = new System.Drawing.Point(10, 32);
-            this.lblBOMInfoDesc.Name = "lblBOMInfoDesc";
-            this.lblBOMInfoDesc.Size = new System.Drawing.Size(200, 20);
-            this.lblBOMInfoDesc.TabIndex = 1;
-            this.lblBOMInfoDesc.Text = "부재별 BOM 정보";
-            //
-            // lvBOMInfo
-            //
-            this.lvBOMInfo.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colBomPieceNo,
-            this.colBomItem,
-            this.colBomMaterial,
-            this.colBomSize,
-            this.colBomQty,
-            this.colBomWeight,
-            this.colBomMA,
-            this.colBomFA});
-            this.lvBOMInfo.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvBOMInfo.FullRowSelect = true;
-            this.lvBOMInfo.GridLines = true;
-            this.lvBOMInfo.HideSelection = false;
-            this.lvBOMInfo.Location = new System.Drawing.Point(3, 58);
-            this.lvBOMInfo.Name = "lvBOMInfo";
-            this.lvBOMInfo.Size = new System.Drawing.Size(443, 910);
-            this.lvBOMInfo.TabIndex = 1;
-            this.lvBOMInfo.UseCompatibleStateImageBehavior = false;
-            this.lvBOMInfo.View = System.Windows.Forms.View.Details;
-            //
-            // colBomPieceNo
-            //
-            this.colBomPieceNo.Text = "No.";
-            this.colBomPieceNo.Width = 40;
-            //
-            // colBomItem
-            //
-            this.colBomItem.Text = "ITEM";
-            this.colBomItem.Width = 100;
-            //
-            // colBomMaterial
-            //
-            this.colBomMaterial.Text = "MATERIAL";
-            this.colBomMaterial.Width = 80;
-            //
-            // colBomSize
-            //
-            this.colBomSize.Text = "SIZE";
-            this.colBomSize.Width = 110;
-            //
-            // colBomQty
-            //
-            this.colBomQty.Text = "Q'TY";
-            this.colBomQty.Width = 45;
-            //
-            // colBomWeight
-            //
-            this.colBomWeight.Text = "T/W";
-            this.colBomWeight.Width = 60;
-            //
-            // colBomMA
-            //
-            this.colBomMA.Text = "MA";
-            this.colBomMA.Width = 35;
-            //
-            // colBomFA
-            //
-            this.colBomFA.Text = "FA";
-            this.colBomFA.Width = 35;
-            //
             // panelViewer
             //
             this.panelViewer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -1341,9 +1200,6 @@ namespace A2Z
             this.panelDrawingBOMHeader.ResumeLayout(false);
             this.panelDrawingBOMHeader.PerformLayout();
             this.panelDrawingButtons.ResumeLayout(false);
-            this.tabPageBOMInfo.ResumeLayout(false);
-            this.panelBOMInfoHeader.ResumeLayout(false);
-            this.panelBOMInfoHeader.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).EndInit();
             this.panelAttributeButtons.ResumeLayout(false);
             this.panelAttributeHeader.ResumeLayout(false);
@@ -1447,24 +1303,10 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colDrawingBomWeight;
         private System.Windows.Forms.ColumnHeader colDrawingBomMA;
         private System.Windows.Forms.ColumnHeader colDrawingBomFA;
-        private System.Windows.Forms.TabPage tabPageBOMInfo;
         private System.Windows.Forms.Panel panelGlobalViewButtons;
         private System.Windows.Forms.Button btnGlobalISO;
         private System.Windows.Forms.Button btnGlobalAxisX;
         private System.Windows.Forms.Button btnGlobalAxisY;
         private System.Windows.Forms.Button btnGlobalAxisZ;
-        private System.Windows.Forms.Panel panelBOMInfoHeader;
-        private System.Windows.Forms.Button btnCollectBOMInfo;
-        private System.Windows.Forms.Label lblBOMInfoTitle;
-        private System.Windows.Forms.Label lblBOMInfoDesc;
-        private System.Windows.Forms.ListView lvBOMInfo;
-        private System.Windows.Forms.ColumnHeader colBomPieceNo;
-        private System.Windows.Forms.ColumnHeader colBomItem;
-        private System.Windows.Forms.ColumnHeader colBomMaterial;
-        private System.Windows.Forms.ColumnHeader colBomSize;
-        private System.Windows.Forms.ColumnHeader colBomQty;
-        private System.Windows.Forms.ColumnHeader colBomWeight;
-        private System.Windows.Forms.ColumnHeader colBomMA;
-        private System.Windows.Forms.ColumnHeader colBomFA;
     }
 }
