@@ -1038,6 +1038,8 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 
 **[요청 2]** "하위 부재별 Osnap은 제일끝단 하나만 남겨두기"
 
+**[요청 3]** "부재별 Osnap을 1개만 남도록 — Z축 체인은 위쪽 Osnap, Y축 체인은 왼쪽 Osnap 유지. 모든축에서 Min/Max는 남겨두고 전체거리 체인치수 유지"
+
 **[문제점 분석]**
 
 1. **기존 설치도 모드**: 부재별 참조 Osnap(상단-왼쪽) 1개만 선택 → 부재간 거리만 측정 → 치수추출과 완전히 다른 방식
@@ -1065,35 +1067,46 @@ var nodeOsnapMap = new Dictionary<int, List<(Vertex3D point, string nodeName)>>(
 // 4. AddChainDimensionByAxis (축별 순차 + 전체치수)
 ```
 
-**[해결 — 2. 부재별 끝단 Osnap 필터링]**
+**[해결 — 2. 축별 부재당 대표 Osnap 1개 선택 + 전체 Min/Max 보존]**
 
-각 부재(노드)에서 보이는 축별 min/max 포인트만 유지, 중간 Osnap 제거:
+축별로 부재당 1개 대표 Osnap만 선택하되, 전체 Min/Max는 보존하여 전체거리 체인치수 유지:
+
+- **수직축 → 위쪽(max) 선택**: Z축 체인(X/Y뷰), Y축 체인(Z뷰)
+- **수평축 → 왼쪽(min) 선택**: Y축 체인(X뷰), X축 체인(Y/Z뷰)
 
 ```csharp
-foreach (var kvp in nodeOsnapMap)
+foreach (var axis in visibleAxes)
 {
-    var pts = kvp.Value;
-    if (pts.Count <= 2) { /* 모두 유지 */ continue; }
-
-    var keepIndices = new HashSet<int>();
-    foreach (var axis in visibleAxes)  // X뷰 → Y, Z축
+    // 수직축 → max(위쪽), 수평축 → min(왼쪽) 결정
+    bool keepMax;
+    switch (viewDirection)
     {
-        // 각 축의 min/max 인덱스만 선별
-        float minVal = float.MaxValue, maxVal = float.MinValue;
-        for (int i = 0; i < pts.Count; i++)
-        {
-            float val = GetAxisValue(pts[i].point, axis);
-            if (val < minVal) { minVal = val; minIdx = i; }
-            if (val > maxVal) { maxVal = val; maxIdx = i; }
-        }
-        keepIndices.Add(minIdx);
-        keepIndices.Add(maxIdx);
+        case "X": keepMax = (axis == "Z"); break; // Z=수직(위쪽), Y=수평(왼쪽)
+        case "Y": keepMax = (axis == "Z"); break; // Z=수직(위쪽), X=수평(왼쪽)
+        case "Z": keepMax = (axis == "Y"); break; // Y=수직(위쪽), X=수평(왼쪽)
     }
-    // keepIndices에 포함된 포인트만 instOsnapPoints에 추가
+
+    foreach (var kvp in nodeOsnapMap)
+    {
+        // 부재별 대표 Osnap 1개 (keepMax ? max : min)
+        // + 전체 Min/Max 추적 (전체거리 보존)
+    }
+
+    // 전체 Min/Max 포인트가 대표에 없으면 추가
+    // MergeCoordinates → AddChainDimensionByAxis
 }
 ```
 
-**효과**: 부재 내부의 홀/볼트구멍 등 중간 Osnap 제거 → 부재 경계만 체인치수에 반영
+| 뷰 방향 | 체인 축 | 화면 방향 | 선택 기준 |
+|---------|---------|----------|----------|
+| X뷰 | Z축 | 수직 | 위쪽 (max Z) |
+| X뷰 | Y축 | 수평 | 왼쪽 (min Y) |
+| Y뷰 | Z축 | 수직 | 위쪽 (max Z) |
+| Y뷰 | X축 | 수평 | 왼쪽 (min X) |
+| Z뷰 | Y축 | 수직 | 위쪽 (max Y) |
+| Z뷰 | X축 | 수평 | 왼쪽 (min X) |
+
+**효과**: 부재 내부 중간 Osnap 제거 + 뷰 방향에 맞는 대표점 선택 + 전체거리 보존
 
 **[해결 — 3. 보조선 길이 100mm / 150mm 고정]**
 
@@ -1133,10 +1146,10 @@ float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * 
 [X/Y/Z 버튼] → ApplyGlobalView() → ApplyDrawingSheetView(axis)
     └→ ShowAllDimensions(viewDirection)
         └→ 두 번째 분기 (chainDimensionList 있고 osnapPointsWithNames 없음)
-            ├→ 1. 부재별 Osnap 수집 (LINE Start/End, POINT Center)
-            ├→ 2. 부재별 끝단 필터링 (축별 min/max만 유지)
-            ├→ 3. MergeCoordinates (0.5mm tolerance 좌표 병합)
-            ├→ 4. AddChainDimensionByAxis (축별 순차 + 전체치수)
+            ├→ 1. 부재별 Osnap 수집 (LINE Start/End, POINT Center) → nodeOsnapMap
+            ├→ 2. 축별 루프: 부재당 대표 Osnap 1개 선택 (수직=위쪽max / 수평=왼쪽min)
+            ├→ 3. 전체 Min/Max 포인트 보존 (전체거리 체인치수용)
+            ├→ 4. MergeCoordinates → AddChainDimensionByAxis (축별)
             ├→ 5. isInstallationMode = true (스마트 필터링 우회)
             └→ 6. Level Layout (100mm 체인 / 150mm 전체)
 ```
@@ -1145,9 +1158,7 @@ float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * 
 
 | 파일 | 변경 내용 |
 | ---- | --------- |
-| `Form1.cs` | ShowAllDimensions 설치도 분기 전면 재작성 (Osnap 수집→끝단 필터→MergeCoordinates→AddChainDimensionByAxis), Level Layout 100/150mm 고정, ArrowSize 5 복원, 틱마크 코드 제거 |
-
-**[변경 통계]**: +374줄, -213줄
+| `Form1.cs` | ShowAllDimensions 설치도 분기 전면 재작성, 축별 부재당 대표 Osnap 1개 선택(수직=위쪽max/수평=왼쪽min) + 전체 Min/Max 보존, Level Layout 100/150mm 고정, ArrowSize 5 복원, 틱마크 코드 제거, C# 7.0 호환성(default→명시적 초기화) |
 
 ---
 
