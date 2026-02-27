@@ -4342,54 +4342,89 @@ namespace A2Z
                     }
                 }
 
-                // 부재별 끝단 Osnap만 유지 (각 보이는 축의 min/max 포인트만 남기기)
-                var instOsnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-                foreach (var kvp in nodeOsnapMap)
+                // 축별 부재당 대표 Osnap 1개 선택 + 전체 Min/Max 보존
+                // 수직축(Z→X/Y뷰, Y→Z뷰) → 위쪽(max) 선택
+                // 수평축(Y→X뷰, X→Y/Z뷰) → 왼쪽(min) 선택
+                int totalOsnapCount = nodeOsnapMap.Values.Sum(p => p.Count);
+                if (totalOsnapCount >= 2)
                 {
-                    var pts = kvp.Value;
-                    if (pts.Count <= 2)
-                    {
-                        instOsnapPoints.AddRange(pts);
-                        continue;
-                    }
-
-                    var keepIndices = new HashSet<int>();
-                    foreach (var axis in visibleAxes)
-                    {
-                        float minVal = float.MaxValue, maxVal = float.MinValue;
-                        int minIdx = -1, maxIdx = -1;
-                        for (int i = 0; i < pts.Count; i++)
-                        {
-                            float val;
-                            switch (axis)
-                            {
-                                case "X": val = pts[i].point.X; break;
-                                case "Y": val = pts[i].point.Y; break;
-                                default: val = pts[i].point.Z; break;
-                            }
-                            if (val < minVal) { minVal = val; minIdx = i; }
-                            if (val > maxVal) { maxVal = val; maxIdx = i; }
-                        }
-                        if (minIdx >= 0) keepIndices.Add(minIdx);
-                        if (maxIdx >= 0) keepIndices.Add(maxIdx);
-                    }
-
-                    foreach (int idx in keepIndices)
-                    {
-                        instOsnapPoints.Add(pts[idx]);
-                    }
-                }
-
-                if (instOsnapPoints.Count >= 2)
-                {
-                    // MergeCoordinates + AddChainDimensionByAxis (치수추출과 동일)
-                    float tolerance = 0.5f;
-                    var mergedPoints = MergeCoordinates(instOsnapPoints, tolerance);
                     displayList = new List<ChainDimensionData>();
                     isInstallationMode = true;
+                    float tolerance = 0.5f;
 
                     foreach (var axis in visibleAxes)
                     {
+                        // 축별 값 추출 함수
+                        Func<VIZCore3D.NET.Data.Vertex3D, float> getVal;
+                        switch (axis)
+                        {
+                            case "X": getVal = p => p.X; break;
+                            case "Y": getVal = p => p.Y; break;
+                            default: getVal = p => p.Z; break;
+                        }
+
+                        // 위쪽(max) / 왼쪽(min) 결정
+                        // X뷰: Z=수직→위쪽(max), Y=수평→왼쪽(min)
+                        // Y뷰: Z=수직→위쪽(max), X=수평→왼쪽(min)
+                        // Z뷰: Y=수직→위쪽(max), X=수평→왼쪽(min)
+                        bool keepMax;
+                        switch (viewDirection)
+                        {
+                            case "X": keepMax = (axis == "Z"); break;
+                            case "Y": keepMax = (axis == "Z"); break;
+                            case "Z": keepMax = (axis == "Y"); break;
+                            default: keepMax = false; break;
+                        }
+
+                        var axisPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                        float gMin = float.MaxValue, gMax = float.MinValue;
+                        (VIZCore3D.NET.Data.Vertex3D point, string nodeName) gMinPt = (null, null);
+                        (VIZCore3D.NET.Data.Vertex3D point, string nodeName) gMaxPt = (null, null);
+
+                        foreach (var kvp in nodeOsnapMap)
+                        {
+                            var pts = kvp.Value;
+                            if (pts.Count == 0) continue;
+
+                            // 부재별 대표 Osnap 1개 선택 (위쪽=max / 왼쪽=min)
+                            int bestIdx = 0;
+                            float bestVal = keepMax ? float.MinValue : float.MaxValue;
+                            for (int i = 0; i < pts.Count; i++)
+                            {
+                                float v = getVal(pts[i].point);
+                                if (keepMax ? (v > bestVal) : (v < bestVal))
+                                {
+                                    bestVal = v;
+                                    bestIdx = i;
+                                }
+                            }
+                            axisPoints.Add(pts[bestIdx]);
+
+                            // 전체 Min/Max 추적 (전체거리 체인치수 보존용)
+                            for (int i = 0; i < pts.Count; i++)
+                            {
+                                float v = getVal(pts[i].point);
+                                if (v < gMin) { gMin = v; gMinPt = pts[i]; }
+                                if (v > gMax) { gMax = v; gMaxPt = pts[i]; }
+                            }
+                        }
+
+                        // 전체 Min 포인트 추가 (대표 포인트와 중복 아닌 경우)
+                        if (gMinPt.point != null)
+                        {
+                            float minV = getVal(gMinPt.point);
+                            bool exists = axisPoints.Any(p => Math.Abs(getVal(p.point) - minV) < tolerance);
+                            if (!exists) axisPoints.Add(gMinPt);
+                        }
+                        // 전체 Max 포인트 추가 (대표 포인트와 중복 아닌 경우)
+                        if (gMaxPt.point != null)
+                        {
+                            float maxV = getVal(gMaxPt.point);
+                            bool exists = axisPoints.Any(p => Math.Abs(getVal(p.point) - maxV) < tolerance);
+                            if (!exists) axisPoints.Add(gMaxPt);
+                        }
+
+                        var mergedPoints = MergeCoordinates(axisPoints, tolerance);
                         displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
                     }
                 }

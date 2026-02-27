@@ -1224,6 +1224,30 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 
 ---
 
+### Phase 22: 축별 부재당 대표 Osnap 1개 선택 + 전체 Min/Max 보존
+
+**[요청]** "설치도 시트 선택 시 부재당 대표 Osnap 1개만 선택하되, 전체 Min/Max는 보존"
+
+**[구현]**
+
+Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
+
+- **부재당 대표 Osnap 1개 선택**: 축 방향에 따라 max 또는 min 1개만 선택
+  - 수직축 (Z→X/Y뷰, Y→Z뷰) → 위쪽(max) Osnap 선택
+  - 수평축 (Y→X뷰, X→Y/Z뷰) → 왼쪽(min) Osnap 선택
+- **전체 Min/Max 포인트 보존**: 전체거리 체인치수 유지를 위해 대표 포인트에 없는 전체 min/max를 추가
+- 축별로 독립적으로 MergeCoordinates → AddChainDimensionByAxis 수행
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | ShowAllDimensions 설치도 분기: 부재별 끝단 min/max → 축별 대표 1개 + 전체 Min/Max 보존으로 교체 |
+
+**[변경 통계]**: KSH 커밋 b3ef1d3 기반 적용
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
