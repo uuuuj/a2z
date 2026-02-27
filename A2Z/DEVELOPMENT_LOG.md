@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-26
+> 최종 업데이트: 2026-02-27
 
 ---
 
@@ -1175,6 +1175,55 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
 
 ---
 
+### Phase 21: 설치도 치수 Osnap 기반 재작성 + 부재별 끝단 필터링
+
+**[요청]** "도면시트 설치도 선택 시 치수추출과 동일한 방식으로 Osnap 기반 체인치수 표시, 부재별 끝단 Osnap만 유지"
+
+**[구현 — 1. ShowAllDimensions 설치도 분기 전면 재작성]**
+
+기존 설치도 모드(바운딩박스 기반 경계 치수)를 **치수추출과 동일한 Osnap 기반 체인치수** 방식으로 전면 교체:
+
+- `useDirectChain`: Osnap 재추출 모드 (순차 체인 + 스마트 필터링 혼합)
+- `isInstallationMode`: 설치도 모드 (필터링 우회, 100mm/150mm 고정 오프셋)
+- 3단계 분기: ① Osnap 모드 ② 설치도 모드 ③ 기본 모드
+
+**[구현 — 2. 부재별 끝단 Osnap 필터링]**
+
+- 선택된 부재별 Osnap 수집 (LINE Start/End, POINT Center)
+- `nodeOsnapMap`: 노드별 Osnap 그룹핑
+- 각 보이는 축(visibleAxes)의 min/max 포인트만 유지, 중간 Osnap 제거
+- `MergeCoordinates` → `AddChainDimensionByAxis`로 치수추출과 동일 흐름
+
+**[구현 — 3. 보조선 길이 100mm / 150mm 고정]**
+
+| 레벨 | 설치도 모드 | 일반 모드 | 용도 |
+| ---- | ----------- | --------- | ---- |
+| Level 1 (안쪽) | 100mm | baseOffset (100mm) | Osnap 간 순차 체인치수 |
+| Level 2 (중간) | 100mm | baseOffset + 60mm | 보조 치수 |
+| Level 0 (바깥) | 150mm | baseOffset + levelSpacing × maxLevel | 전체 길이 |
+
+**[구현 — 4. DrawDimension 양방향 오프셋]**
+
+- `positiveOffset` 파라미터 추가: 모델 중심 대비 체인치수 위치 방향 결정
+- `axisPositiveOffset` Dictionary로 축별 방향 자동 계산
+- `AssistantLine = false`, 보조선을 ShapeDrawing으로 직접 관리
+
+**[구현 — 5. ExtractInstallationDimensions 간소화]**
+
+- 부재별 개별 전체 길이 치수 제거 (중복 방지)
+- 경계값 기반 순차 체인 + 전체 치수만 생성
+- 기준선 좌표를 다른 축의 최소값으로 통일
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | ShowAllDimensions 설치도 분기 재작성, 부재별 끝단 Osnap 필터링, DrawDimension 양방향 오프셋, ExtractInstallationDimensions 간소화, 보조선 100/150mm 고정 |
+
+**[변경 통계]**: +404줄, -232줄 (KSH 커밋 5e3b995 기반 선별 적용)
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1204,7 +1253,7 @@ SPREF 파싱: 첫 글자 "/" 제거 → ":" split → [0]=ITEM, [1]=SIZE
                     │
 [2D 도면] ──→ 4면도 캡처 → 치수 오버레이 → BOM표 + 타이틀블록 → PNG/PDF 출력
                     │
-[도면시트] ──→ 일반 시트: Osnap 치수 / 설치도: 경계 치수 / 가공도: 단일 부재 치수+풍선
+[도면시트] ──→ 일반 시트: Osnap 치수 / 설치도: 부재별 끝단 Osnap 체인치수(100mm)+전체(150mm) / 가공도: 단일 부재 치수+풍선
 ```
 
 ### 4.2 BOM 추출 (CollectBOMData)
