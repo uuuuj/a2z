@@ -4974,33 +4974,15 @@ namespace A2Z
 
             }
 
-            // 보조선 추가 (모델 표면 baseline → 치수선 위치)
-            // 뷰 방향 기준 모델 표면(baseline)에서 치수선까지 단순 연장선 그리기
-            VIZCore3D.NET.Data.Vertex3D surfaceStart;
-            VIZCore3D.NET.Data.Vertex3D surfaceEnd;
-            switch (offsetDir)
-            {
-                case "X":
-                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(baseline, startPoint.Y, startPoint.Z);
-                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(baseline, endPoint.Y,   endPoint.Z);
-                    break;
-                case "Y":
-                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, baseline, startPoint.Z);
-                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(endPoint.X,   baseline, endPoint.Z);
-                    break;
-                default: // "Z"
-                    surfaceStart = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, baseline);
-                    surfaceEnd   = new VIZCore3D.NET.Data.Vertex3D(endPoint.X,   endPoint.Y,   baseline);
-                    break;
-            }
-
+            // 보조선 추가 (Osnap 위치 → 치수선 위치)
+            // 실제 Osnap 좌표에서 치수선까지 직선으로 연결
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(surfaceStart);
+            extLine1.Add(originalStart);
             extLine1.Add(startVertex);
             extensionLines.Add(extLine1);
 
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(surfaceEnd);
+            extLine2.Add(originalEnd);
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
         }
