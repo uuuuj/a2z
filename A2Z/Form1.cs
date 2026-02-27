@@ -1978,9 +1978,19 @@ namespace A2Z
                 vizcore3d.View.EnableAnimation = false;
                 vizcore3d.Review.Note.Clear();
 
-                // 2D 도면 모드 활성화
-                vizcore3d.ToolbarDrawing2D.Visible = true;
+                // 기존 2D 도면 초기화 (재생성 시 이전 캔버스/템플릿 제거)
+                // 1) 2D 모드에서 캔버스 제거 (Model3D에서는 2D 접근 불가)
                 vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+                int canvasCount = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView();
+                for (int c = canvasCount; c >= 1; c--)
+                {
+                    vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(c);
+                }
+                // 2) Drawing2D 툴바 토글로 템플릿 레이어 완전 초기화
+                vizcore3d.ToolbarDrawing2D.Visible = false;
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+                vizcore3d.ToolbarDrawing2D.Visible = true;
 
                 // -------------------------------------------------------------------------
                 // 템플릿 기능을 이용한 우측 테이블 배치 (BOM 목록 및 도면 정보)
