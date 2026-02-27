@@ -2034,6 +2034,14 @@ namespace A2Z
                 vizcore3d.View.EnableAnimation = false;
                 vizcore3d.Review.Note.Clear();
 
+                // 기존 2D 도면 초기화 (재생성 시 이전 캔버스 제거)
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
+                int canvasCount = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView();
+                for (int c = canvasCount; c >= 1; c--)
+                {
+                    vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(c);
+                }
+
                 // 2D 도면 모드 활성화
                 vizcore3d.ToolbarDrawing2D.Visible = true;
                 vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
@@ -6498,6 +6506,7 @@ namespace A2Z
                         break;
                 }
 
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.MoveCamera(camDir);
 
                 if (needRotate90)
@@ -6702,7 +6711,7 @@ namespace A2Z
                             slotStyle.ArrowColor = Color.FromArgb(180, 0, 180);
                             slotStyle.ArrowWidth = 3;
 
-                            vizcore3d.Review.Note.AddNoteSurface(slotText, slotCenter, slotTextPos, slotStyle);
+                            vizcore3d.Review.Note.AddNoteSurface(slotText, slotTextPos, slotCenter, slotStyle);
                             balloonIdx++;
                         }
                     }
