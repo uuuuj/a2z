@@ -1258,11 +1258,15 @@ Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
 
 **[요청 2]** "2D 생성 버튼을 다시 눌렀을 때 이전 템플릿이 남아있다"
 
-**[해결]**: `btnGenerate2D_Click()`에서 템플릿 생성 전 초기화 로직 추가:
-1. `ViewMode = Model3D`로 전환
+**[원인]**: 기존 코드에서 `ViewMode = Model3D`로 전환 후 캔버스 제거를 시도했으나, Model3D 모드에서는 2D 뷰가 비활성화되어 `GetCanvasCountBy2DView()`가 0을 반환하여 실제로 캔버스가 제거되지 않음. 또한 렌더링된 템플릿은 캔버스와 별도 레이어이므로 캔버스 제거만으로는 초기화 불가.
+
+**[해결]**: `btnGenerate2D_Click()`에서 템플릿 생성 전 초기화 로직 개선:
+1. `ViewMode = Both`로 전환 (2D 뷰 활성 상태에서 접근)
 2. `GetCanvasCountBy2DView()`로 기존 캔버스 수 조회
 3. `RemoveCanvasBy2DView()`로 기존 캔버스 전부 제거
-4. `ViewMode = Both`로 다시 전환 후 새로 생성
+4. `ToolbarDrawing2D.Visible = false`로 Drawing2D 레이어 완전 해제
+5. `ViewMode = Model3D` → `Both` 전환으로 2D 뷰 재초기화
+6. `ToolbarDrawing2D.Visible = true`로 재활성화 후 새로 생성
 
 **[파일 변경]**
 
