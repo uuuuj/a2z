@@ -4204,7 +4204,7 @@ namespace A2Z
         ///
         /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
         /// </summary>
-        private void ShowAllDimensions(string viewDirection = null)
+        private void ShowAllDimensions(string viewDirection = null, bool forDrawing2D = false)
         {
             // 표시할 치수 필터링
             List<ChainDimensionData> displayList;
@@ -4573,10 +4573,19 @@ namespace A2Z
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
-                // 보조선 그리기 (연한 색상)
+                // 보조선 그리기
                 if (extensionLines.Count > 0)
                 {
-                    vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.FromArgb(120, 120, 200), 0.5f, true);
+                    if (forDrawing2D)
+                    {
+                        // 2D 모드: 검은색 가는 선 (2D 투영 시 ShapeDrawing이 캡처됨)
+                        vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.Black, 0.3f, true);
+                    }
+                    else
+                    {
+                        // 3D 모드: 연한 파란색
+                        vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.FromArgb(120, 120, 200), 0.5f, true);
+                    }
                 }
 
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
@@ -4602,7 +4611,11 @@ namespace A2Z
                 List<(float ox, float oy, float oz, string text, Color color)> balloonEntries =
                     new List<(float, float, float, string, Color)>();
 
-                // --- EBOS 풍선 수집 ---
+                // 선택된 노드 집합 (EBOS/CIRCLE/Hole/SlotHole 공통 필터링용)
+                HashSet<int> xraySelectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                    ? new HashSet<int>(xraySelectedNodeIndices) : null;
+
+                // --- EBOS 풍선 수집 (선택된 시트 부재만) ---
                 try
                 {
                     string purposeKey = null;
@@ -4623,6 +4636,9 @@ namespace A2Z
                             {
                                 try
                                 {
+                                    // 선택된 시트 부재만 필터링
+                                    if (xraySelectedSet != null && !xraySelectedSet.Contains(node.Index)) continue;
+
                                     var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, purposeKey);
                                     if (val == null || val.ToString().Trim().ToUpper() != "EBOS") continue;
                                     var bboxI = new List<int> { node.Index };
@@ -4641,7 +4657,7 @@ namespace A2Z
                 }
                 catch { }
 
-                // --- 원형(CIRCLE) 풍선 수집 (홀로 매칭된 원기둥은 제외) ---
+                // --- 원형(CIRCLE) 풍선 수집 (선택된 시트 부재만, 홀로 매칭된 원기둥은 제외) ---
                 try
                 {
                     // 홀로 매칭된 원기둥 Body Index 수집
@@ -4656,6 +4672,8 @@ namespace A2Z
                     {
                         if (bom.CircleRadius <= 0) continue;
                         if (holeCylinderIndices.Contains(bom.Index)) continue; // 홀 원기둥은 스킵
+                        // 선택된 시트 부재만 필터링
+                        if (xraySelectedSet != null && !xraySelectedSet.Contains(bom.Index)) continue;
 
                         // 바운딩박스 형태가 원기둥이 아닌 body는 원형 풍선 제외 (Angle 등)
                         float diameter = bom.CircleRadius * 2f;
@@ -4678,15 +4696,11 @@ namespace A2Z
                 // --- 홀(Hole) 풍선 수집 (BOM 부재별 같은 직경 그룹핑, 선택 노드만) ---
                 try
                 {
-                    // 선택된 노드 집합 (필터링용)
-                    HashSet<int> selectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
-                        ? new HashSet<int>(xraySelectedNodeIndices) : null;
-
                     foreach (var bom in bomList)
                     {
                         if (bom.Holes == null || bom.Holes.Count == 0) continue;
-                        // 선택된 노드가 있으면 해당 노드의 홀만 표시
-                        if (selectedSet != null && !selectedSet.Contains(bom.Index)) continue;
+                        // 선택된 시트 부재만 필터링
+                        if (xraySelectedSet != null && !xraySelectedSet.Contains(bom.Index)) continue;
                         // BOM별로 같은 직경 홀 그룹핑
                         var holeGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
                         foreach (var grp in holeGroups)
@@ -4707,13 +4721,10 @@ namespace A2Z
                 // --- 슬롯홀(SlotHole) 풍선 수집 (같은 사이즈 그룹핑, 1풍선/사이즈) ---
                 try
                 {
-                    HashSet<int> slotSelectedSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
-                        ? new HashSet<int>(xraySelectedNodeIndices) : null;
-
                     foreach (var bom in bomList)
                     {
                         if (bom.SlotHoles == null || bom.SlotHoles.Count == 0) continue;
-                        if (slotSelectedSet != null && !slotSelectedSet.Contains(bom.Index)) continue;
+                        if (xraySelectedSet != null && !xraySelectedSet.Contains(bom.Index)) continue;
 
                         // 같은 사이즈(반지름+길이+깊이) 슬롯홀 그룹핑
                         var slotGroups = bom.SlotHoles.GroupBy(s =>
@@ -7188,6 +7199,344 @@ namespace A2Z
         private void btnDrawingAxisZ_Click(object sender, EventArgs e)
         {
             ApplyDrawingSheetView("Z");
+        }
+
+        /// <summary>
+        /// "2D 출력" 버튼 클릭 — 선택된 도면시트의 3D 뷰 상태를 2D 도면으로 생성
+        /// </summary>
+        private void btnGenerateSheet2D_Click(object sender, EventArgs e)
+        {
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (lvDrawingSheet.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("도면 시트를 선택해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DrawingSheetData sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            if (sheet == null || sheet.MemberIndices.Count == 0)
+            {
+                MessageBox.Show("유효한 시트 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            GenerateSheetDrawing2D(sheet);
+        }
+
+        /// <summary>
+        /// "PDF 출력" 버튼 클릭 — 2D 도면 캔버스(테두리 내부)만 PDF로 저장
+        /// VIZCore3D 내장 Export2PDFBy2DView API 사용
+        /// </summary>
+        private void btnExportSheet2DPDF_Click(object sender, EventArgs e)
+        {
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (vizcore3d.ViewMode != VIZCore3D.NET.Data.ViewKind.Both)
+            {
+                MessageBox.Show("먼저 '2D 출력' 버튼으로 2D 도면을 생성해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            SaveFileDialog dlg = new SaveFileDialog();
+            dlg.Filter = "PDF 파일 (*.pdf)|*.pdf";
+            dlg.FilterIndex = 1;
+            dlg.FileName = $"Sheet2D_{DateTime.Now:yyyyMMdd_HHmmss}";
+
+            if (dlg.ShowDialog() != DialogResult.OK)
+                return;
+
+            try
+            {
+                // 노란색 선택 테두리 제거
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+
+                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(dlg.FileName);
+
+                MessageBox.Show($"PDF 파일로 저장되었습니다.\n\n{dlg.FileName}", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"PDF 저장 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 선택된 시트 부재만 대상으로 2D 도면 생성
+        /// (ISO 풍선번호 + X/Y/Z 치수선 + BOM 테이블 + 도면정보)
+        /// </summary>
+        private void GenerateSheetDrawing2D(DrawingSheetData sheet)
+        {
+            try
+            {
+                vizcore3d.View.EnableAnimation = false;
+
+                // ── 0. 기존 3D 어노테이션 모두 초기화 ──
+                vizcore3d.Review.Note.Clear();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+
+                // ── 1. 2D 초기화 (기존 캔버스/템플릿 완전 제거) ──
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+                int canvasCount = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView();
+                for (int c = canvasCount; c >= 1; c--)
+                {
+                    vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(c);
+                }
+                vizcore3d.ToolbarDrawing2D.Visible = false;
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
+                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+                vizcore3d.ToolbarDrawing2D.Visible = true;
+
+                // 3D/2D 뷰어 반반 크기로 설정
+                if (vizcore3d.SplitContainer != null)
+                {
+                    vizcore3d.SplitContainer.SplitterDistance = vizcore3d.SplitContainer.Width / 2;
+                }
+
+                // ── 2. 시트 부재 설정 (ApplyDrawingSheetView("ISO")와 동일한 흐름) ──
+                vizcore3d.BeginUpdate();
+
+                if (!vizcore3d.View.XRay.Enable)
+                    vizcore3d.View.XRay.Enable = true;
+
+                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+                vizcore3d.View.XRay.Clear();
+                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+
+                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                vizcore3d.Clash.ClearResultSymbol();
+
+                vizcore3d.EndUpdate();
+
+                // 설치도 치수 데이터 추출 (ApplyDrawingSheetView("ISO") 동일)
+                ExtractInstallationDimensions(sheet.MemberIndices);
+
+                // BOM 자동 수집
+                CollectBOMInfo(false);
+
+                // ── 3. 템플릿 생성 ──
+                vizcore3d.Drawing2D.Template.CreateTemplate();
+
+                // [표1] BOM 테이블 (우측 상단)
+                if (lvBOMInfo.Items.Count > 0)
+                {
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvBOMInfo.Items.Count + 1, 8);
+                    table1.SetText(0, 0, "No.");
+                    table1.SetText(0, 1, "ITEM");
+                    table1.SetText(0, 2, "MATERIAL");
+                    table1.SetText(0, 3, "SIZE");
+                    table1.SetText(0, 4, "Q'TY");
+                    table1.SetText(0, 5, "T/W");
+                    table1.SetText(0, 6, "MA");
+                    table1.SetText(0, 7, "FA");
+
+                    for (int i = 0; i < lvBOMInfo.Items.Count; i++)
+                    {
+                        ListViewItem item = lvBOMInfo.Items[i];
+                        for (int col = 0; col < 8 && col < item.SubItems.Count; col++)
+                        {
+                            table1.SetText(i + 1, col, item.SubItems[col].Text);
+                        }
+                    }
+
+                    table1.X = 310;
+                    table1.Y = 0;
+                    vizcore3d.Drawing2D.Template.AddTemplateItem(table1);
+                }
+
+                // [표2] 도면정보 (우측 하단)
+                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
+                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
+                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
+                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
+                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
+                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
+
+                table2.X = 310;
+                table2.Y = 200;
+                vizcore3d.Drawing2D.Template.AddTemplateItem(table2);
+
+                vizcore3d.Drawing2D.Template.RenderTemplate(60, 80);
+
+                // ── 4. 그리드 구조 (2행 × 3열, 6등분) ──
+                int selectedCanvas = 1;
+                vizcore3d.Drawing2D.View.SetSelectCanvas(selectedCanvas);
+                float wCanvas = 0.0f, hCanvas = 0.0f;
+                vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
+
+                vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
+                vizcore3d.Drawing2D.GridStructure.SetMargins(15, 15, 15, 15);
+
+                // 2D 라인 두께 설정: 모델 실선 굵게, 치수선/보조선 가늘게
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
+
+                // ── 5. 4개 뷰 투영 (3D에서 보이는 것과 동일하게) ──
+                // [1,1] ISO — 풍선번호 (ApplyDrawingSheetView("ISO") 동일)
+                RenderSheetViewForDrawing(1, 1, "ISO", sheet);
+
+                // [1,2] Z축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("Z") 동일)
+                RenderSheetViewForDrawing(1, 2, "Z", sheet);
+
+                // [2,1] Y축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("Y") 동일)
+                RenderSheetViewForDrawing(2, 1, "Y", sheet);
+
+                // [2,2] X축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("X") 동일)
+                RenderSheetViewForDrawing(2, 2, "X", sheet);
+
+                // ── 6. 최종 렌더링 ──
+                vizcore3d.Drawing2D.Render();
+
+                // 2D 뷰에서 마지막 생성된 객체의 선택(활성화) 해제
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+
+                MessageBox.Show("2D 도면 생성 완료!\n\n" +
+                    "- ISO VIEW [1,1] (풍선번호)\n" +
+                    "- Z축 VIEW [1,2] (치수선)\n" +
+                    "- Y축 VIEW [2,1] (치수선)\n" +
+                    "- X축 VIEW [2,2] (치수선)\n" +
+                    "- BOM 목록 테이블 (우측 상단)\n" +
+                    "- 도면 정보 테이블 (우측 하단)",
+                    "2D 출력", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 각 그리드 셀별로 3D 상태를 ApplyDrawingSheetView와 동일하게 적용 → 2D 투영
+        /// ISO: 풍선번호(ShowBalloonNumbers), X/Y/Z: 치수선+보조선+풍선(ShowAllDimensions)
+        /// 각 셀 크기의 90% 비율로 중앙 배치
+        /// </summary>
+        private void RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet)
+        {
+            // 1. 3D 어노테이션 초기화 (매 뷰마다 새로 그리기)
+            vizcore3d.Review.Note.Clear();
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+
+            // 2. 시트 부재만 표시
+            vizcore3d.BeginUpdate();
+
+            // 모든 오브젝트 숨기기 → 시트 부재만 보이기 (2D 캡처 시 선택 부재만 포함 → 중앙 정렬)
+            if (vizcore3d.View.XRay.Enable)
+                vizcore3d.View.XRay.Enable = false;
+            vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+            vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+            xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+
+            vizcore3d.EndUpdate();
+
+            // 3. 렌더 모드 + 카메라 이동
+            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+
+            if (viewDirection == "ISO")
+            {
+                vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
+            }
+            else
+            {
+                switch (viewDirection)
+                {
+                    case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
+                    case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
+                    case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
+                }
+            }
+
+            // 셀 크기의 80%로 표시 (줌팩터 1.25 = 1/0.8)
+            vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.25f);
+
+            // 4. 뷰별 3D 어노테이션 추가
+            if (viewDirection == "ISO")
+            {
+                // ISO: 풍선번호 — AddNoteSurface에 X-Ray 표면이 필요하므로 임시 복원
+                vizcore3d.BeginUpdate();
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
+                vizcore3d.View.XRay.Enable = true;
+                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                vizcore3d.View.XRay.Clear();
+                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                vizcore3d.EndUpdate();
+
+                ShowBalloonNumbers("ISO", sheet.MemberIndices);
+
+                // 풍선 생성 후 다시 시트 부재만 보이기 (2D 캡처용)
+                vizcore3d.BeginUpdate();
+                vizcore3d.View.XRay.Enable = false;
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                vizcore3d.EndUpdate();
+            }
+            else
+            {
+                // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선은 ShapeDrawing으로 가늘게 그림)
+                ShowAllDimensions(viewDirection, true);
+            }
+
+            // 5. 은선 포함 2D 투영 (현재 3D 뷰를 은선 점선 포함하여 2D로 변환)
+            int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+
+            // 6등분 셀 중앙에 배치
+            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
+                VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
+                VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
+
+            // 6. 3D→2D 변환 (노트 + 측정 모두 변환)
+            // 풍선번호(Note) → 2D
+            List<int> noteIds = new List<int>();
+            List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
+            foreach (var note in notes)
+            {
+                noteIds.Add(note.ID);
+            }
+            if (noteIds.Count > 0)
+            {
+                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+            }
+
+            // 치수선(Measure) → 2D
+            List<int> measureIds = new List<int>();
+            List<VIZCore3D.NET.Data.MeasureItem> measures = vizcore3d.Review.Measure.Items;
+            foreach (var measure in measures)
+            {
+                if (measure.Visible)
+                    measureIds.Add(measure.ID);
+            }
+            if (measureIds.Count > 0)
+            {
+                vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
+            }
+
+            // 7. 시트 부재 표시 복원 (X-Ray 모드로 되돌리기)
+            vizcore3d.BeginUpdate();
+            vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
+            vizcore3d.View.XRay.Enable = true;
+            vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+            vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+            vizcore3d.View.XRay.Clear();
+            vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+            vizcore3d.EndUpdate();
         }
 
         #region 글로벌 뷰 버튼 핸들러 (탭 공통)

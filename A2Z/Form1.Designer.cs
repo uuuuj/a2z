@@ -115,6 +115,8 @@ namespace A2Z
             this.lblDrawingTitle = new System.Windows.Forms.Label();
             this.panelDrawingButtons = new System.Windows.Forms.Panel();
             this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
+            this.btnGenerateSheet2D = new System.Windows.Forms.Button();
+            this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
@@ -951,6 +953,8 @@ namespace A2Z
             //
             // panelDrawingButtons
             //
+            this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
+            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
             this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
             this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -963,7 +967,7 @@ namespace A2Z
             //
             this.btnGenerateSheets.Location = new System.Drawing.Point(6, 5);
             this.btnGenerateSheets.Name = "btnGenerateSheets";
-            this.btnGenerateSheets.Size = new System.Drawing.Size(120, 30);
+            this.btnGenerateSheets.Size = new System.Drawing.Size(100, 30);
             this.btnGenerateSheets.TabIndex = 0;
             this.btnGenerateSheets.Text = "도면 생성";
             this.btnGenerateSheets.UseVisualStyleBackColor = true;
@@ -971,13 +975,33 @@ namespace A2Z
             //
             // btnMfgDrawingSheet
             //
-            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(132, 5);
+            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(112, 5);
             this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
-            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(120, 30);
+            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
             this.btnMfgDrawingSheet.TabIndex = 1;
             this.btnMfgDrawingSheet.Text = "가공도 출력";
             this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
             this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
+            //
+            // btnGenerateSheet2D
+            //
+            this.btnGenerateSheet2D.Location = new System.Drawing.Point(218, 5);
+            this.btnGenerateSheet2D.Name = "btnGenerateSheet2D";
+            this.btnGenerateSheet2D.Size = new System.Drawing.Size(100, 30);
+            this.btnGenerateSheet2D.TabIndex = 2;
+            this.btnGenerateSheet2D.Text = "2D 출력";
+            this.btnGenerateSheet2D.UseVisualStyleBackColor = true;
+            this.btnGenerateSheet2D.Click += new System.EventHandler(this.btnGenerateSheet2D_Click);
+            //
+            // btnExportSheet2DPDF
+            //
+            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(324, 5);
+            this.btnExportSheet2DPDF.Name = "btnExportSheet2DPDF";
+            this.btnExportSheet2DPDF.Size = new System.Drawing.Size(100, 30);
+            this.btnExportSheet2DPDF.TabIndex = 3;
+            this.btnExportSheet2DPDF.Text = "PDF 출력";
+            this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
+            this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
             //
             // tabPageBOMInfo
             //
@@ -1309,6 +1333,8 @@ namespace A2Z
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnGenerateSheets;
         private System.Windows.Forms.Button btnMfgDrawingSheet;
+        private System.Windows.Forms.Button btnGenerateSheet2D;
+        private System.Windows.Forms.Button btnExportSheet2DPDF;
         private System.Windows.Forms.TabPage tabPageBOMInfo;
         private System.Windows.Forms.Panel panelGlobalViewButtons;
         private System.Windows.Forms.Button btnGlobalISO;
