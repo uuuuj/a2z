@@ -44,11 +44,9 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="VIZCore3D+.NET">
-      <HintPath>..\..\..\..\..\..\softhills\03.VIZCore3D+.NET\VIZCore3D+.NET.dll</HintPath>
-    </Reference>
-    <Reference Include="VIZCore3DX.NET">
-      <HintPath>..\..\04.VIZCore3DX.NET\VIZCore3DX.NET.dll</HintPath>
+    <Reference Include="VIZCore3D+.NET, Version=1.0.26.224, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\VIZCore3DPlus.NET_V.1.0.26.227 (1)\VIZCore3D+.NET.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

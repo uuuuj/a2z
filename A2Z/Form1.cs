@@ -4204,7 +4204,7 @@ namespace A2Z
         ///
         /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
         /// </summary>
-        private void ShowAllDimensions(string viewDirection = null, bool forDrawing2D = false)
+        private List<int> ShowAllDimensions(string viewDirection = null, bool forDrawing2D = false)
         {
             // 표시할 치수 필터링
             List<ChainDimensionData> displayList;
@@ -4384,10 +4384,12 @@ namespace A2Z
             }
             else
             {
-                return;
+                return new List<int>();
             }
 
-            if (displayList.Count == 0) return;
+            if (displayList.Count == 0) return new List<int>();
+
+            List<int> shapeDrawingIds = new List<int>();
 
             try
             {
@@ -4430,7 +4432,7 @@ namespace A2Z
                 if (filteredDims.Count == 0)
                 {
                     vizcore3d.EndUpdate();
-                    return;
+                    return new List<int>();
                 }
 
                 // 측정 스타일 설정 (가독성 향상)
@@ -4492,7 +4494,7 @@ namespace A2Z
                 float modelCenterY = (globalMinY + globalMaxY) / 2f;
                 float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
-                // 동적 오프셋 (치수 개수에 따라 조정)
+                // 오프셋 (고정값)
                 float baseOffset = 100.0f;
                 float levelSpacing = 60.0f;
 
@@ -4573,13 +4575,14 @@ namespace A2Z
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
-                // 보조선 그리기
+                // 보조선 그리기 — ShapeDrawing ID 수집
                 if (extensionLines.Count > 0)
                 {
                     if (forDrawing2D)
                     {
-                        // 2D 모드: 검은색 가는 선 (2D 투영 시 ShapeDrawing이 캡처됨)
-                        vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.Black, 0.3f, true);
+                        // 2D 모드: 검은색 가는 선 + ID 수집 (Add2DObjectFromShapeDrawing용)
+                        int shapeId = vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.Black, 0.15f, true);
+                        shapeDrawingIds.Add(shapeId);
                     }
                     else
                     {
@@ -4879,6 +4882,8 @@ namespace A2Z
             {
                 System.Diagnostics.Debug.WriteLine($"치수 표시 오류: {ex.Message}");
             }
+
+            return shapeDrawingIds;
         }
 
         /// <summary>
@@ -7285,22 +7290,32 @@ namespace A2Z
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
-                // ── 1. 2D 초기화 (기존 캔버스/템플릿 완전 제거) ──
+                // ── 1. 2D 초기화 (기존 도면 완전 삭제 후 새로 생성) ──
                 vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+
+                // 기존 2D 도면 개체 모두 삭제
+                vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView();
+
+                // 기존 캔버스 모두 제거
                 int canvasCount = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView();
                 for (int c = canvasCount; c >= 1; c--)
                 {
                     vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(c);
                 }
+
+                // ViewMode 리셋으로 2D 뷰 완전 초기화
                 vizcore3d.ToolbarDrawing2D.Visible = false;
                 vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
                 vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
                 vizcore3d.ToolbarDrawing2D.Visible = true;
 
-                // 3D/2D 뷰어 반반 크기로 설정
-                if (vizcore3d.SplitContainer != null)
+                // 2D 패널 크기 조정 (초기화 직후 설정 — 오른쪽 2D 패널을 크게)
+                Application.DoEvents();
+                if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
                 {
-                    vizcore3d.SplitContainer.SplitterDistance = vizcore3d.SplitContainer.Width / 2;
+                    vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
+                    Application.DoEvents();
                 }
 
                 // ── 2. 시트 부재 설정 (ApplyDrawingSheetView("ISO")와 동일한 흐름) ──
@@ -7371,7 +7386,7 @@ namespace A2Z
                 table2.Y = 200;
                 vizcore3d.Drawing2D.Template.AddTemplateItem(table2);
 
-                vizcore3d.Drawing2D.Template.RenderTemplate(60, 80);
+                vizcore3d.Drawing2D.Template.RenderTemplate(30, 40);
 
                 // ── 4. 그리드 구조 (2행 × 3열, 6등분) ──
                 int selectedCanvas = 1;
@@ -7380,24 +7395,85 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
 
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(15, 15, 15, 15);
+                vizcore3d.Drawing2D.GridStructure.SetMargins(30, 30, 30, 30);
 
                 // 2D 라인 두께 설정: 모델 실선 굵게, 치수선/보조선 가늘게
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
 
+                // 2D 치수 텍스트 크기 설정 (기본값의 70%)
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(7f);
+
                 // ── 5. 4개 뷰 투영 (3D에서 보이는 것과 동일하게) ──
                 // [1,1] ISO — 풍선번호 (ApplyDrawingSheetView("ISO") 동일)
-                RenderSheetViewForDrawing(1, 1, "ISO", sheet);
+                int objIdISO = RenderSheetViewForDrawing(1, 1, "ISO", sheet);
 
                 // [1,2] Z축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("Z") 동일)
-                RenderSheetViewForDrawing(1, 2, "Z", sheet);
+                int objIdZ = RenderSheetViewForDrawing(1, 2, "Z", sheet);
 
                 // [2,1] Y축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("Y") 동일)
-                RenderSheetViewForDrawing(2, 1, "Y", sheet);
+                int objIdY = RenderSheetViewForDrawing(2, 1, "Y", sheet);
 
                 // [2,2] X축 — 치수선+보조선+풍선 (ApplyDrawingSheetView("X") 동일)
-                RenderSheetViewForDrawing(2, 2, "X", sheet);
+                int objIdX = RenderSheetViewForDrawing(2, 2, "X", sheet);
+
+                // 4개 축 2D 오브젝트 크기 저장 (가로, 세로)
+                float isoW = 0f, isoH = 0f;
+                float zW = 0f, zH = 0f;
+                float yW = 0f, yH = 0f;
+                float xW = 0f, xH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objIdISO, ref isoW, ref isoH);
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objIdZ, ref zW, ref zH);
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objIdY, ref yW, ref yH);
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objIdX, ref xW, ref xH);
+
+                MessageBox.Show(
+                    $"ISO: {isoW:F1} x {isoH:F1}\n" +
+                    $"Z축: {zW:F1} x {zH:F1}\n" +
+                    $"Y축: {yW:F1} x {yH:F1}\n" +
+                    $"X축: {xW:F1} x {xH:F1}",
+                    "2D 오브젝트 크기 (가로 x 세로)",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                // 세로 40 초과 시 목표 사이즈 기준 축소
+                float maxHeight = 40f;
+                if (isoH > maxHeight)
+                {
+                    float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objIdISO);
+                    float newScale = curScale * (maxHeight / isoH);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objIdISO, newScale);
+                }
+                if (zH > maxHeight)
+                {
+                    float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objIdZ);
+                    float newScale = curScale * (maxHeight / zH);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objIdZ, newScale);
+                }
+                if (yH > maxHeight)
+                {
+                    float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objIdY);
+                    float newScale = curScale * (maxHeight / yH);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objIdY, newScale);
+                }
+                if (xH > maxHeight)
+                {
+                    float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objIdX);
+                    float newScale = curScale * (maxHeight / xH);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objIdX, newScale);
+                }
+
+                // 4개 축 오브젝트 5% 확대
+                //vizcore3d.Drawing2D.Object2D.RescaleObject(objIdISO, 0.05f);
+                //vizcore3d.Drawing2D.Object2D.RescaleObject(objIdZ, 0.05f);
+                //vizcore3d.Drawing2D.Object2D.RescaleObject(objIdY, 0.05f);
+                //vizcore3d.Drawing2D.Object2D.RescaleObject(objIdX, 0.05f);
+
+                // 4개 축 위치 미세 조정
+                vizcore3d.Drawing2D.Object2D.MoveObject(objIdISO, 0, -5);
+                vizcore3d.Drawing2D.Object2D.MoveObject(objIdZ, -15, -5);
+                vizcore3d.Drawing2D.Object2D.MoveObject(objIdY, 0, 5);
+                vizcore3d.Drawing2D.Object2D.MoveObject(objIdX, -15, 5);
 
                 // ── 6. 최종 렌더링 ──
                 vizcore3d.Drawing2D.Render();
@@ -7406,14 +7482,19 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                 vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
-                MessageBox.Show("2D 도면 생성 완료!\n\n" +
-                    "- ISO VIEW [1,1] (풍선번호)\n" +
-                    "- Z축 VIEW [1,2] (치수선)\n" +
-                    "- Y축 VIEW [2,1] (치수선)\n" +
-                    "- X축 VIEW [2,2] (치수선)\n" +
-                    "- BOM 목록 테이블 (우측 상단)\n" +
-                    "- 도면 정보 테이블 (우측 하단)",
-                    "2D 출력", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // ── 7. 뷰어 크기 조정 (도면 완성 후 마지막에 수행) ──
+                this.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // 3D=20%, 2D=80% — 오른쪽 2D 패널을 크게
+                        if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
+                        {
+                            vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.1);
+                        }
+                    }
+                    catch { }
+                }));
             }
             catch (Exception ex)
             {
@@ -7426,8 +7507,10 @@ namespace A2Z
         /// ISO: 풍선번호(ShowBalloonNumbers), X/Y/Z: 치수선+보조선+풍선(ShowAllDimensions)
         /// 각 셀 크기의 90% 비율로 중앙 배치
         /// </summary>
-        private void RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet)
+        private int RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet)
         {
+            List<int> shapeDrawingIds = null;
+
             // 1. 3D 어노테이션 초기화 (매 뷰마다 새로 그리기)
             vizcore3d.Review.Note.Clear();
             vizcore3d.Review.Measure.Clear();
@@ -7489,20 +7572,59 @@ namespace A2Z
             }
             else
             {
-                // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선은 ShapeDrawing으로 가늘게 그림)
-                ShowAllDimensions(viewDirection, true);
+                // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선 ShapeDrawing ID 수집)
+                shapeDrawingIds = ShowAllDimensions(viewDirection, true);
             }
 
             // 5. 은선 포함 2D 투영 (현재 3D 뷰를 은선 점선 포함하여 2D로 변환)
             int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
 
-            // 6등분 셀 중앙에 배치
+            // 6등분 셀 중앙에 배치 후, 콘텐츠 영역의 80%에 맞도록 스케일 조정
             vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
                 VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
                 VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
 
-            // 6. 3D→2D 변환 (노트 + 측정 모두 변환)
+            {
+                float cellW = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
+                float cellH = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
+                float marginL = vizcore3d.Drawing2D.GridStructure.GetGridCellLeftMargin(row, col);
+                float marginR = vizcore3d.Drawing2D.GridStructure.GetGridCellRightMargin(row, col);
+                float marginT = vizcore3d.Drawing2D.GridStructure.GetGridCellTopMargin(row, col);
+                float marginB = vizcore3d.Drawing2D.GridStructure.GetGridCellBottomMargin(row, col);
+
+                float contentW = cellW - marginL - marginR;
+                float contentH = cellH - marginT - marginB;
+
+                float objW = 0f, objH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+
+                if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
+                {
+                    // 콘텐츠 영역의 80%에 오브젝트가 맞도록 목표 스케일 계산
+                    float targetW = contentW * 0.04f;
+                    float targetH = contentH * 0.04f;
+                    float scaleW = targetW / objW;
+                    float scaleH = targetH / objH;
+                    float fitScale = Math.Min(scaleW, scaleH);
+
+                    if (fitScale > 0 && Math.Abs(fitScale - 1.0f) > 0.01f)
+                    {
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, fitScale);
+                    }
+                }
+            }
+
+            // 6. 3D→2D 변환
+
+            // 보조선(ShapeDrawing) → 2D 개체로 추가 (모델 실선보다 가늘게)
+            if (shapeDrawingIds != null && shapeDrawingIds.Count > 0)
+            {
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.3f);
+                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
+            }
+
             // 풍선번호(Note) → 2D
             List<int> noteIds = new List<int>();
             List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
@@ -7515,7 +7637,7 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
             }
 
-            // 치수선(Measure) → 2D
+            // 치수선(Measure) → 2D (위치 이동 후 변환)
             List<int> measureIds = new List<int>();
             List<VIZCore3D.NET.Data.MeasureItem> measures = vizcore3d.Review.Measure.Items;
             foreach (var measure in measures)
@@ -7537,6 +7659,8 @@ namespace A2Z
             vizcore3d.View.XRay.Clear();
             vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
             vizcore3d.EndUpdate();
+
+            return objId;
         }
 
         #region 글로벌 뷰 버튼 핸들러 (탭 공통)
