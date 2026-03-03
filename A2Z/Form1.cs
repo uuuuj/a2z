@@ -501,16 +501,21 @@ namespace A2Z
                     return false;
                 }
 
-                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                // 가시성 필터링: 프로그래밍 선택 또는 FromIndex().Visible
                 List<VIZCore3D.NET.Data.Node> bodyNodes;
-                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                if (xraySelectedNodeIndices.Count > 0)
                 {
                     HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
                     bodyNodes = allBodyNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
                 }
                 else
                 {
-                    bodyNodes = allBodyNodes;
+                    bodyNodes = allBodyNodes.Where(n =>
+                    {
+                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
+                        return realNode != null && realNode.Visible;
+                    }).ToList();
+                    if (bodyNodes.Count == 0) bodyNodes = allBodyNodes;
                 }
 
                 foreach (var node in bodyNodes)
@@ -602,16 +607,21 @@ namespace A2Z
                     return false;
                 }
 
-                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                // X-Ray 필터링: 프로그래밍 선택 → 수동 X-Ray → 전체
                 List<VIZCore3D.NET.Data.Node> targetNodes;
-                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                if (xraySelectedNodeIndices.Count > 0)
                 {
                     HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
                     targetNodes = allNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
                 }
                 else
                 {
-                    targetNodes = allNodes;
+                    targetNodes = allNodes.Where(n =>
+                    {
+                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
+                        return realNode != null && realNode.Visible;
+                    }).ToList();
+                    if (targetNodes.Count == 0) targetNodes = allNodes;
                 }
 
                 foreach (var node in targetNodes)
@@ -1851,16 +1861,21 @@ namespace A2Z
                     return false;
                 }
 
-                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                // 가시성 필터링: 프로그래밍 선택 또는 FromIndex().Visible
                 List<VIZCore3D.NET.Data.Node> targetNodes;
-                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                if (xraySelectedNodeIndices.Count > 0)
                 {
                     HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
                     targetNodes = allNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
                 }
                 else
                 {
-                    targetNodes = allNodes;
+                    targetNodes = allNodes.Where(n =>
+                    {
+                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
+                        return realNode != null && realNode.Visible;
+                    }).ToList();
+                    if (targetNodes.Count == 0) targetNodes = allNodes;
                 }
 
                 vizcore3d.Clash.Clear();
@@ -2843,20 +2858,24 @@ namespace A2Z
                     return;
                 }
 
-                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                // X-Ray 필터링: 프로그래밍 선택 → 수동 X-Ray → 전체
                 List<VIZCore3D.NET.Data.Node> bodyNodes;
-                bool isFilteredMode = vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0;
+                bool isFilteredMode;
 
-
-
-                if (isFilteredMode)
+                if (xraySelectedNodeIndices.Count > 0)
                 {
-                    // X-Ray 모드에서 선택된 노드만 필터링
                     bodyNodes = allBodyNodes.Where(n => xraySelectedNodeIndices.Contains(n.Index)).ToList();
+                    isFilteredMode = true;
                 }
                 else
                 {
-                    bodyNodes = allBodyNodes;
+                    bodyNodes = allBodyNodes.Where(n =>
+                    {
+                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
+                        return realNode != null && realNode.Visible;
+                    }).ToList();
+                    isFilteredMode = bodyNodes.Count < allBodyNodes.Count && bodyNodes.Count > 0;
+                    if (bodyNodes.Count == 0) bodyNodes = allBodyNodes;
                 }
 
 

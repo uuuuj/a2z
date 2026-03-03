@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-27
+> 최종 업데이트: 2026-03-04
 
 ---
 
@@ -36,6 +36,10 @@ A2Z/
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
 | 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
 | 7   | BOM정보 컬럼 재설계 + UDA 전환       | 완료  | 8컬럼(No.\|ITEM\|MATERIAL\|SIZE\|Q'TY\|T/W\|MA\|FA), SPREF/MATREF/GWEI UDA 키, 부재명 TextBox 오버레이 (Phase 16) |
+| 8   | 도면정보/BOM정보 탭 통일             | 완료  | BOM정보 탭 제거, 도면정보 탭에 SplitContainer로 통합 (Phase 18) |
+| 9   | ISO 풍선 정상화 + R값 인수 스왑      | 완료  | ISO 뷰에서만 풍선 표시, TryGetValue 버그 수정, R값 AddNoteSurface 인수 순서 교정 (Phase 18) |
+| 10  | 2D출력 ISO 풍선 + 홀/슬롯 인수 스왑  | 완료  | RenderSheetViewForDrawing bomList 기반 풍선, 홀/슬롯 AddNoteSurface 인수 교정 (Phase 19) |
+| 11  | 가시성 기반 필터링 (FromIndex)        | 완료  | xraySelectedNodeIndices 우선, else FromIndex().Visible로 4개 함수 통일 (Phase 20) |
 
 
 ### 현재 구현 완료된 기능
@@ -56,6 +60,11 @@ A2Z/
 | 도면 시트 선택 연동       | 완료 | 도면정보 탭 시트 선택 시 기준부재+Clash 연결부재만 X-Ray 표시 (Phase 13) |
 | 치수 번호 동기화          | 완료 | ListView No.와 ChainDimensionData.No 동기화 (Phase 13) |
 | 가공도 시트 생성/출력     | 완료 | 도면시트에 가공도 자동 생성, 가공도 출력 버튼, 시트 선택 시 자동 실행 (Phase 15) |
+| 홀/슬롯홀 자동 검출      | 완료 | 원기둥 매칭 + GetCircleData + IsCompleteCircle + 슬롯 HasSlotConnectingLines |
+| 부재 속성/UDA 관리       | 완료 | 선택 부재 속성 표시, UDA CRUD, CSV 가져오기/내보내기 |
+| 도면정보/BOM정보 탭 통일  | 완료 | SplitContainer로 도면정보 탭에 BOM정보 통합 (Phase 18) |
+| 2D출력 ISO 풍선          | 완료 | bomList 기반 AddNoteSurface + FromScreen 가시성 필터링 (Phase 19) |
+| 가시성 기반 필터링        | 완료 | FromIndex().Visible로 BOM/Osnap/Clash/수동Osnap 4개 함수 통일 (Phase 20) |
 
 ---
 
@@ -1162,6 +1171,335 @@ float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * 
 
 ---
 
+### Phase 18: HYI 코드 3가지 수정 통합 (도면탭 통일 + ISO 풍선 + R값 인수)
+
+**[요청]** 동료(HYI)의 코드에서 검증된 3가지 수정사항을 KSH 코드에 적용
+
+---
+
+**[Fix 1 — 도면정보와 BOM정보 탭 통일]**
+
+| 항목 | 변경 전 (KSH) | 변경 후 |
+|------|--------------|---------|
+| 탭 구조 | 4탭: 작업/데이터, 부재정보, 도면정보, **BOM정보** | 3탭: 작업/데이터, 부재정보, **도면정보** (통합) |
+| 도면정보 탭 | `lvDrawingSheet`만 직접 배치 | `splitContainerDrawing`으로 상하 분할 |
+| BOM ListView | `lvBOMInfo` (별도 탭) | `lvDrawingBOMInfo` (도면정보 탭 하단) |
+
+Designer.cs 수정 (8개 구간):
+1. 컴포넌트 선언: `tabPageBOMInfo`/`lvBOMInfo` → `splitContainerDrawing`/`panelDrawingBOMHeader`/`lvDrawingBOMInfo`
+2. SuspendLayout: `tabPageBOMInfo` → `splitContainerDrawing.BeginInit()`
+3. `tabControlLeft.Controls`: `tabPageBOMInfo` 제거
+4. `tabPageDrawing`: `lvDrawingSheet` → `splitContainerDrawing` 배치
+5. `splitContainerDrawing` 설정 삽입 (Panel1=lvDrawingSheet, Panel2=lvDrawingBOMInfo+Header)
+6. `tabPageBOMInfo` 블록 → `panelDrawingBOMHeader`/`lblDrawingBOMTitle`/`btnCollectBOMInfo`/`lvDrawingBOMInfo` 블록으로 교체
+7. ResumeLayout: `tabPageBOMInfo` → `splitContainerDrawing.EndInit()`
+8. 필드 선언: 전체 이름 변경
+
+Form1.cs 수정:
+- `lvBOMInfo` → `lvDrawingBOMInfo` 전체 치환 (18개소)
+- `CollectBOMInfo` T/W 파싱 개선:
+  ```csharp
+  string numStr = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray());
+  numStr = numStr.Replace(',', '.');
+  double.TryParse(numStr, NumberStyles.Float, CultureInfo.InvariantCulture, out w);
+  gweiDisplay = Math.Round(w, 2).ToString("F2");
+  ```
+
+---
+
+**[Fix 2 — 2D 도면 ISO 풍선 정상화]**
+
+메서드: `RenderViewWithVisibleNotes`
+
+수정 1 — ISO 뷰에서만 풍선 표시:
+```csharp
+// 변경 전
+if (visibleNoteIds.Count > 0)
+// 변경 후
+if (camDir == VIZCore3D.NET.Data.CameraDirection.ISO_PLUS && visibleNoteIds.Count > 0)
+```
+
+수정 2 — 노드 매칭 버그 수정 (KeyNotFoundException 방지):
+```csharp
+// 변경 전
+if (map.ContainsKey(node.Index) || map.ContainsKey(node.ParentIndex))
+    visibleNoteIds.Add(map[node.Index]);  // ParentIndex만 매칭 시 예외
+
+// 변경 후
+int noteId;
+if (map.TryGetValue(node.Index, out noteId) || map.TryGetValue(node.ParentIndex, out noteId))
+    visibleNoteIds.Add(noteId);
+```
+
+---
+
+**[Fix 3 — R값 AddNoteSurface 인수 스왑]**
+
+`AddNoteSurface(text, pos1, pos2, style)` — pos1=텍스트 위치, pos2=화살표 대상
+
+2곳 수정:
+```csharp
+// 변경 전: 화살표가 텍스트 위치를 가리킴
+AddNoteSurface($"R{bom.CircleRadius:F1}", center, textPos, circleStyle)
+// 변경 후: 텍스트가 화살표 끝에 표시 (홀 풍선과 동일)
+AddNoteSurface($"R{bom.CircleRadius:F1}", textPos, center, circleStyle)
+```
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Designer.cs` | tabPageBOMInfo 제거, splitContainerDrawing 추가, lvBOMInfo→lvDrawingBOMInfo, 8개 구간 수정 |
+| `Form1.cs` | lvBOMInfo→lvDrawingBOMInfo 18개소, CollectBOMInfo T/W 파싱 개선(F1→F2, 로캘대응), RenderViewWithVisibleNotes ISO 조건+TryGetValue, R값 인수 스왑 2곳 |
+
+---
+
+### Phase 19: 2D출력 ISO 풍선 + 홀/슬롯 풍선 인수 스왑
+
+**[요청 1]** "작업/데이터 탭의 2D생성은 ISO 풍선이 잘 나오는데, 도면정보의 2D출력에서는 안 나옴. 2D생성의 풍선 로직을 2D출력에 반영"
+
+**[원인 분석]**
+
+`RenderSheetViewForDrawing` (도면정보 2D출력)은 `ShowBalloonNumbers` → 객체 숨김 순서로 동작하여 **풍선이 표면 참조를 잃음** → `Add2DNoteFrom3DNote` 실패
+
+**[해결 — bomList 기반 AddNoteSurface + FromScreen 가시성 필터링]**
+
+`btnGenerate2D_Click`의 방식을 `RenderSheetViewForDrawing`에 적용:
+
+```csharp
+// 1. visibleNoteIds 선언 (메서드 시작)
+List<int> visibleNoteIds = null;
+
+// 2. ISO 블록: bomList 기반 AddNoteSurface
+Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
+foreach (var bom in bomList)
+{
+    Vertex3D center = new Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+    Vertex3D notePos = new Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
+    int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
+    nodeToNoteMap[bom.Index] = id;
+}
+
+// 3. FromScreen 가시성 필터링
+List<Node> visibleNodes = vizcore3d.Object3D.FromScreen(false, LeafNodeKind.BODY);
+visibleNoteIds = new List<int>();
+foreach (var node in visibleNodes)
+{
+    int noteId;
+    if (nodeToNoteMap.TryGetValue(node.Index, out noteId) ||
+        nodeToNoteMap.TryGetValue(node.ParentIndex, out noteId))
+        if (!visibleNoteIds.Contains(noteId)) visibleNoteIds.Add(noteId);
+}
+
+// 4. 라벨 노트 ID 캡처
+int labelNoteId = vizcore3d.Review.Note.AddNote3D(viewLabel, lx, ly, lz, labelStyle);
+if (visibleNoteIds != null) visibleNoteIds.Add(labelNoteId);
+
+// 5. notes→2D 변환: ISO는 visibleNoteIds, 비-ISO는 전체
+if (visibleNoteIds != null && visibleNoteIds.Count > 0)
+    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+else
+    // 기존 방식: 전체 노트
+```
+
+---
+
+**[요청 2]** "홀/슬롯 풍선도 R풍선처럼 AddNoteSurface 인수 위치 교환"
+
+| 대상 | 수정 전 | 수정 후 | 개소 |
+|------|---------|---------|------|
+| 홀(원형) 풍선 | `AddNoteSurface(text, center, textPos, style)` | `AddNoteSurface(text, textPos, center, style)` | 4곳 |
+| 슬롯 풍선 | `AddNoteSurface(text, center, textPos, style)` | `AddNoteSurface(text, textPos, center, style)` | 4곳 |
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | RenderSheetViewForDrawing ISO 풍선 bomList+FromScreen 방식으로 교체, 홀 풍선 인수 스왑 4곳, 슬롯 풍선 인수 스왑 4곳 |
+
+---
+
+### Phase 20: 치수추출 안정성 + FromIndex().Visible 가시성 필터링
+
+**[요청 1]** "부재 선택 후 치수추출 버튼 누르면 전체 데이터를 처리해서 프로그램 다운"
+
+**[원인]** `btnExtractDimension_Click`이 `CollectAllOsnap()`을 호출하지 않아 이전 전체 데이터로 체인 치수 계산 → 조합 폭발
+
+**[해결]**
+```csharp
+private void btnExtractDimension_Click(object sender, EventArgs e)
+{
+    try
+    {
+        CollectAllOsnap();  // 현재 가시성에 맞게 Osnap 재수집
+        if (osnapPointsWithNames == null || osnapPointsWithNames.Count == 0)
+        {
+            MessageBox.Show("먼저 Osnap 좌표를 수집해주세요.");
+            return;
+        }
+        // ... 치수 추출 진행
+```
+
+---
+
+**[요청 2]** "X-Ray 모드가 모델트리에서 비활성화시키는건데 왜 필터링이 안 되지?"
+
+**[원인 분석]**
+
+`xraySelectedNodeIndices`는 **코드 내부에서만 설정** (Clash 선택, 도면시트 선택 등):
+- `btnClashShowSelected_Click` → `xraySelectedNodeIndices = new List<int>(selectedIndices)`
+- `LvDrawingSheet_SelectedIndexChanged` → `xraySelectedNodeIndices = new List<int>(sheet.MemberIndices)`
+- 사용자가 모델트리 UI에서 직접 X-Ray 조작 시 → **리스트가 비어있어 필터링 미작동**
+
+**[VIZCore3D API 발견사항 (추가)]**
+
+- `Node.Visible` (read-only) — 트리뷰 체크 상태 + X-Ray 선택 상태 모두 반영
+- `GetPartialNode()` — 대량 조회 시 Visible이 스냅샷 (실시간 미반영)
+- `FromIndex(int)` → `Node` — 개별 노드 실시간 상태 조회 (Body 노드에서 정확)
+- 부모(Part) 노드의 Visible은 X-Ray에서도 항상 true → **Body 노드만 체크해야 함**
+
+**[해결 — 3단계 필터링 (최종)]**
+
+4개 함수 (`CollectAllOsnap`, `CollectBOMData`, `DetectClash`, 수동 Osnap 수집)에 동일 패턴 적용:
+
+```csharp
+List<VIZCore3D.NET.Data.Node> targetNodes;
+if (xraySelectedNodeIndices.Count > 0)
+{
+    // 1순위: 프로그래밍 선택 (Clash, 도면시트)
+    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
+    targetNodes = allNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
+}
+else
+{
+    // 2순위: Body 노드의 실시간 Visible 체크
+    targetNodes = allNodes.Where(n =>
+    {
+        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
+        return realNode != null && realNode.Visible;
+    }).ToList();
+    if (targetNodes.Count == 0) targetNodes = allNodes;  // 안전장치
+}
+```
+
+**[필터링 동작 요약]**
+
+| 상황 | 1순위 (xraySelectedNodeIndices) | 2순위 (FromIndex().Visible) | 결과 |
+|------|--------------------------------|----------------------------|------|
+| Clash 선택 보기 | ✓ (indices 있음) | - | 선택 부재만 |
+| 도면시트 선택 | ✓ (sheet.MemberIndices) | - | 시트 부재만 |
+| 수동 X-Ray (모델트리) | ✗ (비어있음) | ✓ (Body.Visible) | 보이는 부재만 |
+| Show/Hide (모델트리) | ✗ (비어있음) | ✓ (Body.Visible) | 보이는 부재만 |
+| 전체 표시 (기본) | ✗ (비어있음) | ✓ (모두 Visible) | 전체 부재 |
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | btnExtractDimension_Click에 CollectAllOsnap() 추가, CollectAllOsnap/CollectBOMData/DetectClash/수동Osnap 4개 함수에 FromIndex().Visible 필터링 적용 |
+
+---
+
+### 미문서화 기능 보완: 홀/슬롯홀 자동 검출 시스템
+
+**[기능 설명]** BOM 수집 시 원기둥 Body를 홀로 자동 검출하여 판재에 할당하는 다단계 검출 시스템.
+
+**[1단계: 원기둥 매칭 (DetectHoles)]**
+
+```
+bomList 순회 → CircleRadius > 0인 Body를 원기둥/판재로 분류
+├→ 바운딩박스 치수 중 지름과 유사한 축 2개 이상 → 원기둥 (cylinderBodies)
+└→ 나머지 → 판재 (plateBodies)
+
+각 원기둥에 대해:
+├→ GetCircleData() API로 정확한 지름/중심 산출
+├→ 두 원 중심 사이 거리로 높이 재계산
+├→ 원기둥 높이 ≤ 판재 두께 + tolerance → 홀 후보
+├→ 원기둥 중심이 판재 바운딩박스 안에 위치 → 확정
+└→ 가장 작은 bbox 부피의 판재에 HoleInfo 할당
+```
+
+**[2단계: 보조 홀 검출 (Osnap CIRCLE 기반)]**
+
+```
+원기둥 매칭 실패한 판재에 대해:
+├→ GetOsnapPoint()로 CIRCLE 종류만 추출
+├→ 같은 반지름 + 동축(1축만 거리 있음) → 홀 쌍 후보
+├→ IsCompleteCircle(): 8+ 포인트가 360° 분포 → 완전한 원 확인 (곡면/필렛 제외)
+├→ 홀 깊이 ≤ 판재 최소 치수 + tolerance → HoleInfo 생성
+└→ 판재 bom.Holes에 추가
+```
+
+**[3단계: 슬롯홀 검출 (HasSlotConnectingLines)]**
+
+```
+원형 쌍 중 홀로 안 잡힌 것에서:
+├→ 2개 원형 + 연결 직선 4개 → 슬롯 후보
+├→ HasSlotConnectingLines(): 직사각형 프리즘 라인 검증
+├→ 슬롯 길이 = 두 원 중심 거리 + 2 × 반지름
+└→ SlotHoleInfo 생성 → bom.SlotHoles에 추가
+```
+
+**[데이터 클래스]**
+
+```csharp
+class HoleInfo { float Diameter, CenterX/Y/Z; int CylinderBodyIndex; }
+class SlotHoleInfo { float Radius, SlotLength, Depth, CenterX/Y/Z; }
+```
+
+**[관련 메서드]**
+| 메서드 | 역할 |
+|--------|------|
+| `DetectHoles(float tolerance)` | 원기둥 매칭 + Osnap 보조검출 + 슬롯 검출 통합 |
+| `IsCompleteCircle()` | 8+ 포인트 360° 분포 확인 (곡면/필렛 필터) |
+| `HasSlotConnectingLines()` | 슬롯 직사각형 프리즘 라인 검증 |
+| `GetHoleOrSlotForPoint()` | 좌표 → 홀/슬롯 근접도 분류 |
+
+---
+
+### 미문서화 기능 보완: 부재 속성/UDA 관리 시스템
+
+**[기능 설명]** 3D 뷰어에서 부재 클릭 시 속성 표시 + UDA(User Defined Attribute) CRUD + CSV 가져오기/내보내기
+
+**[이벤트 흐름]**
+
+```
+[3D 뷰어에서 부재 클릭]
+  └→ Object3D_OnObject3DSelected 이벤트
+      └→ UpdateAttributeTable(nodeIndex)
+          ├→ AddBasicNodeInfo(): Index, Name, Type, ParentPath
+          ├→ AddBoundingBoxInfo(): Min/Max/Size/Center 좌표
+          ├→ AddUDAInfo(): 전체 UDA 키-값 표시
+          └→ AddGeometryPropertyInfo(): GeometryProperty API 리플렉션
+```
+
+**[UDA CRUD 기능]**
+
+| 버튼 | 메서드 | 동작 |
+|------|--------|------|
+| UDA 추가 | `btnUdaAdd_Click` | InputBox로 Key/Value 입력 → `Object3D.UDA.Write(index, key, value)` |
+| UDA 편집 | `btnUdaEdit_Click` | 선택 행의 Key/Value 수정 → UDA 재작성 |
+| UDA 삭제 | `btnUdaDelete_Click` | 확인 후 `Object3D.UDA.Delete(index, key)` |
+| CSV 가져오기 | `btnUdaImportCSV_Click` | CSV(Key,Value) 파싱 → 선택 부재에 일괄 UDA 쓰기 |
+| CSV 내보내기 | `btnExportAttributeCSV_Click` | 선택 부재 속성 전체를 CSV 저장 |
+
+**[CSV 파서]** `ParseCsvLine()` — 따옴표 이스케이프 처리, 쉼표 내 따옴표 지원
+
+---
+
+### 미문서화 기능 보완: 기타
+
+**[라이선스 갱신 타이머]**
+- `LicenseRefreshTimer_Tick` — 5분 간격으로 `vizcore3d.License.LicenseServer("127.0.0.1", 8901)` 재호출
+- 장시간 작업 시 라이선스 타임아웃 방지
+
+**[풍선 위치 수동 조정 다이얼로그]**
+- `btnBalloonAdjust_Click` — X/Y/Z 오프셋 SpinBox 다이얼로그
+- `balloonOverrides` Dictionary에 저장 (bomIndex → float[3])
+- `ShowBalloonNumbers()`에서 오프셋 적용
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1198,15 +1536,21 @@ float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * 
 
 ```
 1. vizcore3d.Object3D.GetPartialNode(false, false, true) 로 전체 Body 노드 가져오기
-2. FromIndex()로 각 노드의 실시간 Visible 상태 조회 → 보이는 노드만 필터링
+2. 가시성 필터링 (Phase 20):
+   a. xraySelectedNodeIndices.Count > 0 → 프로그래밍 선택 인덱스로 필터
+   b. else → FromIndex(n.Index).Visible로 Body 노드 실시간 가시성 체크
+   c. 필터 결과 0개면 전체 노드 fallback
 3. 각 노드별:
    a. Name, Index 추출
    b. BoundBox → MinX/Y/Z, MaxX/Y/Z 계산
    c. Center = (Min + Max) / 2
-   d. BOMData 객체 생성 → bomList 추가
-4. ListView에 표시 (이름, 각도, 좌표)
-※ 호출 시점: btnMainDimension_Click (치수 추출 버튼)
-※ 보이는 노드 없으면 "보이는 모델이 없습니다" 경고 + return
+   d. Osnap CIRCLE 반지름 계산 (CircleRadius)
+   e. UDA PURPOSE 값 수집
+   f. BOMData 객체 생성 → bomList 추가
+4. Z_Max 내림차순 정렬
+5. DetectHoles() — 홀/슬롯홀 자동 검출
+6. ListView에 표시 (No, 이름, 각도, 좌표, 반지름, 용도, 홀크기)
+※ 호출 시점: btnMainDimension_Click (치수 추출 버튼), bomList.Count==0일 때만
 ```
 
 ### 4.3 Osnap 좌표 수집 (CollectAllOsnap / btnCollectOsnap_Click)
@@ -1373,7 +1717,7 @@ bool IsVisible;        // 필터링 후 표시 여부
 bool IsMerged;         // 병합 치수 여부
 ```
 
-### BOMData (Line ~3412)
+### BOMData
 
 ```csharp
 int Index;             // 노드 인덱스
@@ -1382,6 +1726,40 @@ float RotationAngle;   // 회전 각도 (기본 0.0f)
 float CenterX/Y/Z;    // 중심 좌표
 float MinX/Y/Z;       // 바운딩박스 최소값
 float MaxX/Y/Z;       // 바운딩박스 최대값
+float CircleRadius;    // Osnap CIRCLE 최대 반지름
+string Purpose;        // UDA PURPOSE 값
+string HoleSize;       // 검출된 홀 크기 문자열
+List<HoleInfo> Holes;  // 검출된 홀 목록
+string SlotHoleSize;   // 검출된 슬롯 크기 문자열
+List<SlotHoleInfo> SlotHoles;  // 검출된 슬롯 목록
+```
+
+### HoleInfo
+
+```csharp
+float Diameter;        // 홀 지름
+float CenterX/Y/Z;    // 홀 중심 좌표
+int CylinderBodyIndex; // 원기둥 Body 인덱스
+```
+
+### SlotHoleInfo
+
+```csharp
+float Radius;          // 슬롯 반원 반지름
+float SlotLength;      // 슬롯 전체 길이
+float Depth;           // 슬롯 깊이
+float CenterX/Y/Z;    // 슬롯 중심 좌표
+```
+
+### DrawingSheetData
+
+```csharp
+int SheetNumber;              // 시트 번호
+string BaseMemberName;        // 기준 부재 이름
+int BaseMemberIndex;          // 기준 부재 인덱스 (-1:전체, -2:설치도, -3:가공도)
+List<int> MemberIndices;      // 포함 부재 인덱스 목록
+List<string> MemberNames;     // 포함 부재 이름 목록
+int MfgDrawingNo;             // 가공도 번호 (가공도 시트용)
 ```
 
 ### ClashData (Line ~3431)
