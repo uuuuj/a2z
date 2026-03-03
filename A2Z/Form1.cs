@@ -5564,14 +5564,17 @@ namespace A2Z
         /// </summary>
         private void btnExtractDimension_Click(object sender, EventArgs e)
         {
-            if (osnapPointsWithNames == null || osnapPointsWithNames.Count == 0)
-            {
-                MessageBox.Show("먼저 Osnap 좌표를 수집해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
             try
             {
+                // 현재 X-Ray/보이는 상태에 맞게 Osnap 재수집
+                CollectAllOsnap();
+
+                if (osnapPointsWithNames == null || osnapPointsWithNames.Count == 0)
+                {
+                    MessageBox.Show("먼저 Osnap 좌표를 수집해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 // 선택된 도면시트의 BaseMemberName을 가져와 TextBox 오버레이 표시
                 string memberName = "";
                 if (lvDrawingSheet.SelectedItems.Count > 0)
