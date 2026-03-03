@@ -416,15 +416,12 @@ namespace A2Z
 
             try
             {
-                // 0. BOM 데이터가 없으면 먼저 수집
+                // 0. BOM 데이터 수집 (매번 재수집하여 현재 가시성 반영)
+                CollectBOMData();
                 if (bomList.Count == 0)
                 {
-                    CollectBOMData();
-                    if (bomList.Count == 0)
-                    {
-                        MessageBox.Show("BOM 데이터를 수집할 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
+                    MessageBox.Show("BOM 데이터를 수집할 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
 
                 // 1. Osnap 수집 (전체)

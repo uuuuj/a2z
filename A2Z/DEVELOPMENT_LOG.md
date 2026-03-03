@@ -40,6 +40,7 @@ A2Z/
 | 9   | ISO 풍선 정상화 + R값 인수 스왑      | 완료  | ISO 뷰에서만 풍선 표시, TryGetValue 버그 수정, R값 AddNoteSurface 인수 순서 교정 (Phase 18) |
 | 10  | 2D출력 ISO 풍선 + 홀/슬롯 인수 스왑  | 완료  | RenderSheetViewForDrawing bomList 기반 풍선, 홀/슬롯 AddNoteSurface 인수 교정 (Phase 19) |
 | 11  | 가시성 기반 필터링 (FromIndex)        | 완료  | xraySelectedNodeIndices 우선, else FromIndex().Visible로 4개 함수 통일 (Phase 20) |
+| 12  | BOM 매번 재수집 (캐싱 제거)           | 완료  | btnMainDimension_Click에서 bomList.Count==0 조건 제거, 매번 CollectBOMData() 호출 (Phase 21) |
 
 
 ### 현재 구현 완료된 기능
@@ -954,7 +955,7 @@ allNodes = allNodes.Where(n =>
    - 기존 설치도(`-2`)/일반 시트 로직과 분기 처리
 
 5. **BOM 수집 로직 개선**
-   - `btnMainDimension_Click`에서 `bomList.Count == 0`일 때만 `CollectBOMData()` 호출 (조건부)
+   - `btnMainDimension_Click`에서 `CollectBOMData()` 매번 호출 (Phase 21에서 캐싱 조건 제거)
    - `btnCollectBOMInfo_Click` → `CollectBOMInfo(bool showAlert)` 분리, 알람 제어 가능
    - 도면시트 선택 시 `CollectBOMInfo(false)` — 알람 없이 자동 수집
 
@@ -1400,6 +1401,55 @@ else
 
 ---
 
+### Phase 21: BOM 매번 재수집 — 캐싱 조건 제거
+
+**[문제]** 특정 부재 2개만 선택(X-Ray/Show·Hide)하여 치수추출 시, Osnap/치수/Clash는 2개만 정상 추출되지만 BOM 데이터와 도면시트 리스트는 전체 부재가 표시됨.
+
+**[원인 분석]**
+
+```
+btnMainDimension_Click 플로우:
+├→ if (bomList.Count == 0)    ← 최초 1회만 수집 (캐싱)
+│   └→ CollectBOMData()
+├→ CollectAllOsnap()          ← 매번 재수집 (FromIndex().Visible 적용)
+├→ AddChainDimension...       ← 매번 재수집
+└→ DetectClash()              ← 매번 재수집 (FromIndex().Visible 적용)
+```
+
+- Phase 20에서 `CollectBOMData` 내부에 `FromIndex().Visible` 필터를 추가했으나, `btnMainDimension_Click`의 `if (bomList.Count == 0)` 조건에 의해 2회차부터는 `CollectBOMData()` 자체가 호출되지 않음
+- 1회차 전체 모델로 수집 → 2회차 부재 변경 후 재실행 → 캐싱된 전체 BOM 재사용
+
+**[해결]**
+
+```csharp
+// 변경 전:
+if (bomList.Count == 0)
+{
+    CollectBOMData();
+    ...
+}
+
+// 변경 후:
+CollectBOMData();  // 매번 재수집하여 현재 가시성 반영
+if (bomList.Count == 0)
+{
+    MessageBox.Show("BOM 데이터를 수집할 수 없습니다.");
+    return;
+}
+```
+
+- `CollectBOMData()`를 조건 없이 매번 호출 → 현재 가시성 상태 반영
+- 수집 결과가 비어있으면 경고 후 중단
+- 도면시트: `Clash_OnClashTestFinishedEvent` → `GenerateDrawingSheets()`가 재수집된 `bomList` 기반으로 자동 생성되므로 함께 해결
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | btnMainDimension_Click에서 `if (bomList.Count == 0)` 조건 제거, CollectBOMData() 무조건 호출로 변경 |
+
+---
+
 ### 미문서화 기능 보완: 홀/슬롯홀 자동 검출 시스템
 
 **[기능 설명]** BOM 수집 시 원기둥 Body를 홀로 자동 검출하여 판재에 할당하는 다단계 검출 시스템.
@@ -1550,7 +1600,7 @@ class SlotHoleInfo { float Radius, SlotLength, Depth, CenterX/Y/Z; }
 4. Z_Max 내림차순 정렬
 5. DetectHoles() — 홀/슬롯홀 자동 검출
 6. ListView에 표시 (No, 이름, 각도, 좌표, 반지름, 용도, 홀크기)
-※ 호출 시점: btnMainDimension_Click (치수 추출 버튼), bomList.Count==0일 때만
+※ 호출 시점: btnMainDimension_Click (치수 추출 버튼), 매번 재수집 (Phase 21에서 캐싱 조건 제거)
 ```
 
 ### 4.3 Osnap 좌표 수집 (CollectAllOsnap / btnCollectOsnap_Click)
