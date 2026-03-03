@@ -8259,6 +8259,7 @@ namespace A2Z
         private int RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet, string viewLabel = "")
         {
             List<int> shapeDrawingIds = null;
+            List<int> visibleNoteIds = null;  // ISO 뷰 풍선 가시성 필터링용
 
             // 1. 3D 어노테이션 초기화 (매 뷰마다 새로 그리기)
             vizcore3d.Review.Note.Clear();
@@ -8300,7 +8301,7 @@ namespace A2Z
             // 4. 뷰별 3D 어노테이션 추가
             if (viewDirection == "ISO")
             {
-                // ISO: 풍선번호 — AddNoteSurface에 X-Ray 표면이 필요하므로 임시 복원
+                // ISO: btnGenerate2D_Click 동일 방식 — bomList 기반 AddNoteSurface + 가시성 필터링
                 vizcore3d.BeginUpdate();
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
                 vizcore3d.View.XRay.Enable = true;
@@ -8310,7 +8311,34 @@ namespace A2Z
                 vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
                 vizcore3d.EndUpdate();
 
-                ShowBalloonNumbers("ISO", sheet.MemberIndices);
+                // bomList 기반 풍선 노트 생성 (btnGenerate2D_Click과 동일)
+                Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
+                if (bomList != null && bomList.Count > 0)
+                {
+                    foreach (var bom in bomList)
+                    {
+                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
+                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
+                        nodeToNoteMap[bom.Index] = id;
+                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
+                        note.UpdateText(id.ToString());
+                    }
+                }
+
+                // 현재 카메라에서 보이는 노드 추출 + 보이는 풍선만 필터링
+                vizcore3d.View.EnableBoxSelectionFrontObjectOnly = true;
+                List<VIZCore3D.NET.Data.Node> visibleNodes = vizcore3d.Object3D.FromScreen(false, VIZCore3D.NET.Data.LeafNodeKind.BODY);
+                visibleNoteIds = new List<int>();
+                foreach (var node in visibleNodes)
+                {
+                    int noteId;
+                    if (nodeToNoteMap.TryGetValue(node.Index, out noteId) || nodeToNoteMap.TryGetValue(node.ParentIndex, out noteId))
+                    {
+                        if (!visibleNoteIds.Contains(noteId))
+                            visibleNoteIds.Add(noteId);
+                    }
+                }
 
                 // 풍선 생성 후 다시 시트 부재만 보이기 (2D 캡처용)
                 vizcore3d.BeginUpdate();
@@ -8374,7 +8402,10 @@ namespace A2Z
                     labelStyle.LineColor = Color.Black;
                     labelStyle.ArrowColor = Color.Black;
 
-                    vizcore3d.Review.Note.AddNote3D(viewLabel, lx, ly, lz, labelStyle);
+                    int labelNoteId = vizcore3d.Review.Note.AddNote3D(viewLabel, lx, ly, lz, labelStyle);
+                    // ISO 뷰: 라벨도 visibleNoteIds에 포함하여 2D 투영 대상에 추가
+                    if (visibleNoteIds != null)
+                        visibleNoteIds.Add(labelNoteId);
                 }
             }
 
@@ -8428,15 +8459,27 @@ namespace A2Z
             }
 
             // 풍선번호(Note) → 2D
-            List<int> noteIds = new List<int>();
-            List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
-            foreach (var note in notes)
+            if (visibleNoteIds != null)
             {
-                noteIds.Add(note.ID);
+                // ISO: 가시성 필터링된 풍선 + 라벨만 2D로 변환
+                if (visibleNoteIds.Count > 0)
+                {
+                    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+                }
             }
-            if (noteIds.Count > 0)
+            else
             {
-                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+                // 비-ISO 뷰: 기존 방식 (라벨 등 모든 노트 변환)
+                List<int> noteIds = new List<int>();
+                List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
+                foreach (var note in notes)
+                {
+                    noteIds.Add(note.ID);
+                }
+                if (noteIds.Count > 0)
+                {
+                    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+                }
             }
 
             // 치수선(Measure) → 2D (위치 이동 후 변환)
