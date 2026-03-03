@@ -602,7 +602,19 @@ namespace A2Z
                     return false;
                 }
 
-                foreach (var node in allNodes)
+                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                List<VIZCore3D.NET.Data.Node> targetNodes;
+                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                {
+                    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
+                    targetNodes = allNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
+                }
+                else
+                {
+                    targetNodes = allNodes;
+                }
+
+                foreach (var node in targetNodes)
                 {
                     BOMData bom = new BOMData();
                     bom.Name = GetPartNameFromBodyIndex(node.Index, node.NodeName);
@@ -1839,15 +1851,27 @@ namespace A2Z
                     return false;
                 }
 
+                // X-Ray 모드가 활성화되어 있고 선택된 노드가 있으면 해당 노드만 사용
+                List<VIZCore3D.NET.Data.Node> targetNodes;
+                if (vizcore3d.View.XRay.Enable && xraySelectedNodeIndices.Count > 0)
+                {
+                    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
+                    targetNodes = allNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
+                }
+                else
+                {
+                    targetNodes = allNodes;
+                }
+
                 vizcore3d.Clash.Clear();
                 int clashCount = 0;
 
-                for (int i = 0; i < allNodes.Count; i++)
+                for (int i = 0; i < targetNodes.Count; i++)
                 {
-                    for (int j = i + 1; j < allNodes.Count; j++)
+                    for (int j = i + 1; j < targetNodes.Count; j++)
                     {
                         VIZCore3D.NET.Data.ClashTest pairClash = new VIZCore3D.NET.Data.ClashTest();
-                        pairClash.Name = $"간섭검사_{allNodes[i].NodeName}_vs_{allNodes[j].NodeName}";
+                        pairClash.Name = $"간섭검사_{targetNodes[i].NodeName}_vs_{targetNodes[j].NodeName}";
                         pairClash.TestKind = VIZCore3D.NET.Data.ClashTest.ClashTestKind.GROUP_VS_GROUP;
                         pairClash.UseClearanceValue = true;
                         pairClash.ClearanceValue = 1.0f;
@@ -1857,8 +1881,8 @@ namespace A2Z
                         pairClash.PenetrationTolerance = 1.0f;
                         pairClash.VisibleOnly = false;
                         pairClash.BottomLevel = 0;
-                        pairClash.GroupA = new List<VIZCore3D.NET.Data.Node> { allNodes[i] };
-                        pairClash.GroupB = new List<VIZCore3D.NET.Data.Node> { allNodes[j] };
+                        pairClash.GroupA = new List<VIZCore3D.NET.Data.Node> { targetNodes[i] };
+                        pairClash.GroupB = new List<VIZCore3D.NET.Data.Node> { targetNodes[j] };
 
                         if (vizcore3d.Clash.Add(pairClash))
                         {
