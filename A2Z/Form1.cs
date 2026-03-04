@@ -745,6 +745,70 @@ namespace A2Z
         {
             try
             {
+                // [DEBUG] GetNodeHoleInfo API 속성 확인
+                try
+                {
+                    if (bomList.Count > 0)
+                    {
+                        var testBom = bomList[0];
+                        var holeItems = vizcore3d.GeometryUtility.GetNodeHoleInfo(testBom.Index);
+                        string debugMsg = $"부재: {testBom.Name} (Index: {testBom.Index})\nGetNodeHoleInfo 결과: {holeItems.Count}개\n\n";
+
+                        if (holeItems.Count > 0)
+                        {
+                            // 첫 번째 항목의 모든 속성을 리플렉션으로 출력
+                            var firstItem = holeItems[0];
+                            var itemType = firstItem.GetType();
+                            debugMsg += $"Type: {itemType.FullName}\n\n[Properties]\n";
+                            foreach (var prop in itemType.GetProperties())
+                            {
+                                try
+                                {
+                                    var val = prop.GetValue(firstItem);
+                                    debugMsg += $"  {prop.PropertyType.Name} {prop.Name} = {val}\n";
+                                }
+                                catch { debugMsg += $"  {prop.PropertyType.Name} {prop.Name} = (error)\n"; }
+                            }
+                            debugMsg += "\n[Fields]\n";
+                            foreach (var field in itemType.GetFields())
+                            {
+                                try
+                                {
+                                    var val = field.GetValue(firstItem);
+                                    debugMsg += $"  {field.FieldType.Name} {field.Name} = {val}\n";
+                                }
+                                catch { debugMsg += $"  {field.FieldType.Name} {field.Name} = (error)\n"; }
+                            }
+                        }
+                        else
+                        {
+                            // 홀이 없는 부재일 수 있으니 다른 부재도 시도
+                            for (int i = 1; i < Math.Min(bomList.Count, 10); i++)
+                            {
+                                var tryItems = vizcore3d.GeometryUtility.GetNodeHoleInfo(bomList[i].Index);
+                                debugMsg += $"부재[{i}] {bomList[i].Name}: {tryItems.Count}개\n";
+                                if (tryItems.Count > 0)
+                                {
+                                    var item = tryItems[0];
+                                    var t = item.GetType();
+                                    debugMsg += $"\nType: {t.FullName}\n[Properties]\n";
+                                    foreach (var prop in t.GetProperties())
+                                    {
+                                        try { debugMsg += $"  {prop.PropertyType.Name} {prop.Name} = {prop.GetValue(item)}\n"; }
+                                        catch { debugMsg += $"  {prop.PropertyType.Name} {prop.Name} = (error)\n"; }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        MessageBox.Show(debugMsg, "GetNodeHoleInfo DEBUG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                catch (Exception debugEx)
+                {
+                    MessageBox.Show($"GetNodeHoleInfo 호출 실패:\n{debugEx.Message}\n\n{debugEx.StackTrace}", "DEBUG ERROR");
+                }
+
                 // 모든 BOM 항목의 홀 정보 초기화
                 foreach (var bom in bomList)
                 {
