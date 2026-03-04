@@ -4861,8 +4861,7 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    float balloonOffset = 40f; // 부재 근처 초기 오프셋
-                    float minBalloonDist = 20f; // 풍선 간 최소 거리
+                    float balloonOffset = 50f; // 부재 근처 초기 오프셋
                     float bomPad = 5f; // 부재 바운딩박스 패딩
 
                     // 부재 바운딩박스를 2D(H,V) 기준으로 미리 계산
@@ -4871,8 +4870,16 @@ namespace A2Z
                     Func<BOMData, int, float> getBomMax = (b, ax) =>
                         ax == 0 ? b.MaxX : (ax == 1 ? b.MaxY : b.MaxZ);
 
-                    // 배치된 풍선 텍스트 위치 목록 (겹침 판정용)
-                    List<(float h, float v)> placedTextPositions = new List<(float, float)>();
+                    // 텍스트 크기 추정 (SIZE12 폰트 기준, mm 단위)
+                    Func<string, (float w, float h)> estimateTextSize = (text) =>
+                    {
+                        float charWidth = 6f;
+                        float lineHeight = 14f;
+                        return (text.Length * charWidth, lineHeight);
+                    };
+
+                    // 배치된 풍선 텍스트 AABB 목록 (겹침 판정용)
+                    List<(float h, float v, float halfW, float halfH)> placedTextBoxes = new List<(float, float, float, float)>();
 
                     foreach (var entry in balloonEntries)
                     {
@@ -4904,12 +4911,14 @@ namespace A2Z
                             {
                                 bool collision = false;
 
-                                // 다른 풍선과 겹침 검사
-                                foreach (var placed in placedTextPositions)
+                                // 다른 풍선과 AABB 겹침 검사
+                                var candSize = estimateTextSize(entry.text);
+                                float candHalfW = candSize.w / 2f;
+                                float candHalfH = candSize.h / 2f;
+                                foreach (var placed in placedTextBoxes)
                                 {
-                                    float dh = candidateH - placed.h;
-                                    float dv = candidateV - placed.v;
-                                    if (Math.Sqrt(dh * dh + dv * dv) < minBalloonDist)
+                                    if (Math.Abs(candidateH - placed.h) < (candHalfW + placed.halfW) &&
+                                        Math.Abs(candidateV - placed.v) < (candHalfH + placed.halfH))
                                     { collision = true; break; }
                                 }
 
@@ -4971,7 +4980,8 @@ namespace A2Z
 
                             // 보조선 없는 풍선 (AddNote3D: 리더선 없이 텍스트만 배치)
                             vizcore3d.Review.Note.AddNote3D(entry.text, textXYZ[0], textXYZ[1], textXYZ[2], style);
-                            placedTextPositions.Add((candidateH, candidateV));
+                            var placedSize = estimateTextSize(entry.text);
+                            placedTextBoxes.Add((candidateH, candidateV, placedSize.w / 2f, placedSize.h / 2f));
                         }
                         catch { }
                     }
@@ -5220,6 +5230,14 @@ namespace A2Z
 
                 // 4단계: Greedy 선택 - 겹침 방지하면서 우선순위 높은 순으로 선택
                 var placedPositions = new List<(float start, float end)>();
+                var level1Positions = new List<(float start, float end)>();
+
+                // 텍스트 폭 추정: 치수 자릿수 기반 동적 계산
+                Func<float, float> estimateDimTextWidth = (distance) =>
+                {
+                    int digits = Math.Max(1, distance.ToString("F0").Length);
+                    return Math.Max(minTextSpace, digits * 5f + 10f);
+                };
 
                 foreach (var dim in mergedDims.OrderByDescending(d => d.Priority).ThenByDescending(d => d.Distance))
                 {
@@ -5233,15 +5251,18 @@ namespace A2Z
 
                     // 텍스트 중앙 위치 계산
                     float dimCenter = (dimMin + dimMax) / 2;
+                    float dimTextWidth = estimateDimTextWidth(dim.Distance);
 
-                    // 기존 배치된 치수와 텍스트 겹침 체크
+                    // 기존 배치된 치수와 텍스트 겹침 체크 (동적 폭)
                     bool hasOverlap = false;
                     foreach (var placed in placedPositions)
                     {
                         float placedCenter = (placed.start + placed.end) / 2;
+                        float placedDist = placed.end - placed.start;
+                        float placedTextWidth = estimateDimTextWidth(placedDist);
+                        float minGap = (dimTextWidth + placedTextWidth) / 2f;
 
-                        // 텍스트 간 최소 거리 확인
-                        if (Math.Abs(dimCenter - placedCenter) < minTextSpace)
+                        if (Math.Abs(dimCenter - placedCenter) < minGap)
                         {
                             hasOverlap = true;
                             break;
@@ -5257,12 +5278,31 @@ namespace A2Z
                     }
                     else
                     {
-                        // 겹치면 다음 레벨로 배정 (최대 2레벨까지)
+                        // 겹치면 Level 1로 배정 (Level 1 내부에서도 2차 겹침 검사)
                         if (dim.Priority >= 5 && dim.DisplayLevel < 2)
                         {
-                            dim.DisplayLevel = 1;
-                            dim.IsVisible = true;
-                            selectedDims.Add(dim);
+                            bool level1Overlap = false;
+                            foreach (var placed in level1Positions)
+                            {
+                                float placedCenter = (placed.start + placed.end) / 2;
+                                float placedDist = placed.end - placed.start;
+                                float placedTextWidth = estimateDimTextWidth(placedDist);
+                                float minGap = (dimTextWidth + placedTextWidth) / 2f;
+                                if (Math.Abs(dimCenter - placedCenter) < minGap)
+                                { level1Overlap = true; break; }
+                            }
+
+                            if (!level1Overlap)
+                            {
+                                dim.DisplayLevel = 1;
+                                dim.IsVisible = true;
+                                selectedDims.Add(dim);
+                                level1Positions.Add((dimMin, dimMax));
+                            }
+                            else
+                            {
+                                dim.IsVisible = false;
+                            }
                         }
                         else
                         {
@@ -7239,15 +7279,12 @@ namespace A2Z
                 }
             }
 
-            // 8. 풍선 배치 — 45° 4방향(NE/NW/SE/SW) 중 원점에 가장 가까운 방향 선택
-            //    전체길이 보조선 오프셋 + 20mm
-            float dimMaxOffset = mfgTotalOff + 20.0f; // 전체길이 보조선(250 or 300) + 20mm
+            // 8. 풍선 배치 — 수집 후 일괄 배치 (AABB 겹침 방지)
+            float dimMaxOffset = mfgTotalOff + 20.0f;
             float lineSpacing = Math.Max(sizeX * 0.05f, 15f);
             float cos45 = 0.707f;
-            int balloonIdx = 0;
 
             // 뷰 방향별 축 매핑 (hAxis=화면 수평, vAxis=화면 수직)
-            //   X뷰: H=Y, V=Z  |  Y뷰: H=X, V=Z  |  Z뷰: H=X, V=Y
             float hMin, hMax, vMin, vMax, hCenter, vCenter;
             switch (viewDirection)
             {
@@ -7259,40 +7296,26 @@ namespace A2Z
                           hCenter = bom.CenterX; vCenter = bom.CenterY; break;
             }
 
-            // 4방향 후보: (수평부호, 수직부호) → NE(+,+) NW(-,+) SE(+,-) SW(-,-)
+            // 4방향 후보: NE(+,+) NW(-,+) SE(+,-) SW(-,-)
             float[][] dirs45 = new float[][] {
-                new float[] { +1f, +1f },  // NE (우상)
-                new float[] { -1f, +1f },  // NW (좌상)
-                new float[] { +1f, -1f },  // SE (우하)
-                new float[] { -1f, -1f }   // SW (좌하)
+                new float[] { +1f, +1f },
+                new float[] { -1f, +1f },
+                new float[] { +1f, -1f },
+                new float[] { -1f, -1f }
             };
 
-            // 풍선 텍스트 위치를 45° 4방향 중 원점에 가장 가까운 곳에 배치하는 헬퍼
-            Func<float, float, float, float, float, float, VIZCore3D.NET.Data.Vertex3D> pickBestDir45 =
-                (originH, originV, originD, dist, dAxis, dVal) =>
+            // 텍스트 크기 추정 (SIZE8 폰트 기준, mm 단위)
+            Func<string, (float w, float h)> mfgEstTextSize = (text) =>
             {
-                float bestDistSq = float.MaxValue;
-                float bestH = 0, bestV = 0;
-                foreach (var d in dirs45)
-                {
-                    float cH = (d[0] > 0 ? hMax : hMin) + d[0] * dist * cos45;
-                    float cV = (d[1] > 0 ? vMax : vMin) + d[1] * dist * cos45;
-                    float dh = cH - originH;
-                    float dv = cV - originV;
-                    float dsq = dh * dh + dv * dv;
-                    if (dsq < bestDistSq) { bestDistSq = dsq; bestH = cH; bestV = cV; }
-                }
-                float[] xyz = new float[3];
-                switch (viewDirection)
-                {
-                    case "X": xyz[0] = dVal; xyz[1] = bestH; xyz[2] = bestV; break;
-                    case "Y": xyz[0] = bestH; xyz[1] = dVal; xyz[2] = bestV; break;
-                    default:  xyz[0] = bestH; xyz[1] = bestV; xyz[2] = dVal; break;
-                }
-                return new VIZCore3D.NET.Data.Vertex3D(xyz[0], xyz[1], xyz[2]);
+                return (text.Length * 5f, 10f);
             };
 
-            // 반지름 풍선
+            // --- 풍선 항목 수집 (배치는 아래에서 일괄) ---
+            List<(float originH, float originV, float depthVal, string text, Color color,
+                  float arrowX, float arrowY, float arrowZ)> mfgBalloonEntries =
+                new List<(float, float, float, string, Color, float, float, float)>();
+
+            // 반지름 풍선 수집
             bool isTrueCylinder = false;
             if (bom.CircleRadius > 0)
             {
@@ -7309,32 +7332,13 @@ namespace A2Z
             }
             if (isTrueCylinder)
             {
-                try
-                {
-                    float oH = hCenter, oV = vCenter;
-                    float dist = dimMaxOffset + balloonIdx * lineSpacing;
-                    float depthVal = viewDirection == "X" ? bom.CenterX : viewDirection == "Y" ? bom.CenterY : bom.CenterZ;
-                    VIZCore3D.NET.Data.Vertex3D textPos = pickBestDir45(oH, oV, 0, dist, 0, depthVal);
-
-                    VIZCore3D.NET.Data.Vertex3D balloonCenter = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-                    VIZCore3D.NET.Data.NoteStyle circleStyle = vizcore3d.Review.Note.GetStyle();
-                    circleStyle.UseSymbol = false;
-                    circleStyle.BackgroudTransparent = true;
-                    circleStyle.FontBold = true;
-                    circleStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                    circleStyle.FontColor = Color.Red;
-                    circleStyle.LineColor = Color.Red;
-                    circleStyle.LineWidth = 1;
-                    circleStyle.ArrowColor = Color.Red;
-                    circleStyle.ArrowWidth = 2;
-
-                    vizcore3d.Review.Note.AddNoteSurface($"R{bom.CircleRadius:F1}", textPos, balloonCenter, circleStyle);
-                    balloonIdx++;
-                }
-                catch { }
+                float depthVal = viewDirection == "X" ? bom.CenterX : viewDirection == "Y" ? bom.CenterY : bom.CenterZ;
+                mfgBalloonEntries.Add((hCenter, vCenter, depthVal,
+                    $"R{bom.CircleRadius:F1}", Color.Red,
+                    bom.CenterX, bom.CenterY, bom.CenterZ));
             }
 
-            // 홀 풍선
+            // 홀 풍선 수집
             if (bom.Holes != null && bom.Holes.Count > 0)
             {
                 try
@@ -7345,33 +7349,17 @@ namespace A2Z
                         int hCount = grp.Count();
                         string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
                         var hole = grp.First();
-
                         float oH = viewDirection == "X" ? hole.CenterY : hole.CenterX;
                         float oV = viewDirection == "Z" ? hole.CenterY : hole.CenterZ;
-                        float dist = dimMaxOffset + balloonIdx * lineSpacing;
                         float depthVal = viewDirection == "X" ? hole.CenterX : viewDirection == "Y" ? hole.CenterY : hole.CenterZ;
-                        VIZCore3D.NET.Data.Vertex3D holeTextPos = pickBestDir45(oH, oV, 0, dist, 0, depthVal);
-
-                        VIZCore3D.NET.Data.Vertex3D holeCenter = new VIZCore3D.NET.Data.Vertex3D(hole.CenterX, hole.CenterY, hole.CenterZ);
-                        VIZCore3D.NET.Data.NoteStyle holeStyle = vizcore3d.Review.Note.GetStyle();
-                        holeStyle.UseSymbol = false;
-                        holeStyle.BackgroudTransparent = true;
-                        holeStyle.FontBold = true;
-                        holeStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                        holeStyle.FontColor = Color.FromArgb(0, 160, 0);
-                        holeStyle.LineColor = Color.FromArgb(0, 160, 0);
-                        holeStyle.LineWidth = 1;
-                        holeStyle.ArrowColor = Color.FromArgb(0, 160, 0);
-                        holeStyle.ArrowWidth = 2;
-
-                        vizcore3d.Review.Note.AddNoteSurface(holeText, holeTextPos, holeCenter, holeStyle);
-                        balloonIdx++;
+                        mfgBalloonEntries.Add((oH, oV, depthVal, holeText, Color.FromArgb(0, 160, 0),
+                            hole.CenterX, hole.CenterY, hole.CenterZ));
                     }
                 }
                 catch { }
             }
 
-            // 슬롯홀 풍선
+            // 슬롯홀 풍선 수집
             if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
             {
                 try
@@ -7386,28 +7374,103 @@ namespace A2Z
                         string slotText = sCount > 1
                             ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
                             : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
-
                         float oH = viewDirection == "X" ? slot.CenterY : slot.CenterX;
                         float oV = viewDirection == "Z" ? slot.CenterY : slot.CenterZ;
-                        float dist = dimMaxOffset + balloonIdx * lineSpacing;
                         float depthVal = viewDirection == "X" ? slot.CenterX : viewDirection == "Y" ? slot.CenterY : slot.CenterZ;
-                        VIZCore3D.NET.Data.Vertex3D slotTextPos = pickBestDir45(oH, oV, 0, dist, 0, depthVal);
-
-                        VIZCore3D.NET.Data.Vertex3D slotCenter = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ);
-                        VIZCore3D.NET.Data.NoteStyle slotStyle = vizcore3d.Review.Note.GetStyle();
-                        slotStyle.UseSymbol = false;
-                        slotStyle.BackgroudTransparent = true;
-                        slotStyle.FontBold = true;
-                        slotStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                        slotStyle.FontColor = Color.FromArgb(180, 0, 180);
-                        slotStyle.LineColor = Color.FromArgb(180, 0, 180);
-                        slotStyle.LineWidth = 1;
-                        slotStyle.ArrowColor = Color.FromArgb(180, 0, 180);
-                        slotStyle.ArrowWidth = 2;
-
-                        vizcore3d.Review.Note.AddNoteSurface(slotText, slotTextPos, slotCenter, slotStyle);
-                        balloonIdx++;
+                        mfgBalloonEntries.Add((oH, oV, depthVal, slotText, Color.FromArgb(180, 0, 180),
+                            slot.CenterX, slot.CenterY, slot.CenterZ));
                     }
+                }
+                catch { }
+            }
+
+            // --- 풍선 일괄 배치 (4방향 × 여러 거리, AABB 겹침 방지) ---
+            List<(float h, float v, float halfW, float halfH)> mfgPlacedBoxes =
+                new List<(float, float, float, float)>();
+
+            int mfgBalloonIdx = 0;
+            foreach (var entry in mfgBalloonEntries)
+            {
+                try
+                {
+                    float baseDist = dimMaxOffset + mfgBalloonIdx * lineSpacing;
+                    var textSz = mfgEstTextSize(entry.text);
+                    float halfW = textSz.w / 2f;
+                    float halfH = textSz.h / 2f;
+
+                    float bestH = 0, bestV = 0;
+                    float bestScore = float.MaxValue;
+                    bool found = false;
+
+                    // 4방향 × 5단계 거리 중 비충돌 + 원점 최근접 선택
+                    for (int distMult = 0; distMult < 5 && !found; distMult++)
+                    {
+                        float tryDist = baseDist + distMult * lineSpacing;
+                        foreach (var d in dirs45)
+                        {
+                            float cH = (d[0] > 0 ? hMax : hMin) + d[0] * tryDist * cos45;
+                            float cV = (d[1] > 0 ? vMax : vMin) + d[1] * tryDist * cos45;
+
+                            // AABB 겹침 검사
+                            bool collision = false;
+                            foreach (var placed in mfgPlacedBoxes)
+                            {
+                                if (Math.Abs(cH - placed.h) < (halfW + placed.halfW + 3f) &&
+                                    Math.Abs(cV - placed.v) < (halfH + placed.halfH + 3f))
+                                { collision = true; break; }
+                            }
+
+                            if (!collision)
+                            {
+                                float dh = cH - entry.originH;
+                                float dv = cV - entry.originV;
+                                float score = dh * dh + dv * dv;
+                                if (score < bestScore)
+                                {
+                                    bestScore = score;
+                                    bestH = cH;
+                                    bestV = cV;
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // 모든 시도 실패 시 기본 위치
+                    if (!found)
+                    {
+                        float fallDist = baseDist;
+                        bestH = hMax + fallDist * cos45;
+                        bestV = vMax + fallDist * cos45;
+                    }
+
+                    // 3D 좌표 복원
+                    float[] xyz = new float[3];
+                    switch (viewDirection)
+                    {
+                        case "X": xyz[0] = entry.depthVal; xyz[1] = bestH; xyz[2] = bestV; break;
+                        case "Y": xyz[0] = bestH; xyz[1] = entry.depthVal; xyz[2] = bestV; break;
+                        default:  xyz[0] = bestH; xyz[1] = bestV; xyz[2] = entry.depthVal; break;
+                    }
+
+                    VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(xyz[0], xyz[1], xyz[2]);
+                    VIZCore3D.NET.Data.Vertex3D arrowPos = new VIZCore3D.NET.Data.Vertex3D(
+                        entry.arrowX, entry.arrowY, entry.arrowZ);
+
+                    VIZCore3D.NET.Data.NoteStyle mfgStyle = vizcore3d.Review.Note.GetStyle();
+                    mfgStyle.UseSymbol = false;
+                    mfgStyle.BackgroudTransparent = true;
+                    mfgStyle.FontBold = true;
+                    mfgStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                    mfgStyle.FontColor = entry.color;
+                    mfgStyle.LineColor = entry.color;
+                    mfgStyle.LineWidth = 1;
+                    mfgStyle.ArrowColor = entry.color;
+                    mfgStyle.ArrowWidth = 2;
+
+                    vizcore3d.Review.Note.AddNoteSurface(entry.text, textPos, arrowPos, mfgStyle);
+                    mfgPlacedBoxes.Add((bestH, bestV, halfW, halfH));
+                    mfgBalloonIdx++;
                 }
                 catch { }
             }
@@ -8354,14 +8417,69 @@ namespace A2Z
                 vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
                 vizcore3d.EndUpdate();
 
-                // bomList 기반 풍선 노트 생성 (btnGenerate2D_Click과 동일)
+                // bomList 기반 풍선 노트 생성 (등각 투영 근사 + 회전 겹침 방지)
                 Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
                 if (bomList != null && bomList.Count > 0)
                 {
+                    // ISO_PLUS 등각 투영 2D 근사: 화면H = 0.707*(x-y), 화면V = 0.408*(x+y)+0.816*z
+                    Func<float, float, float, (float h, float v)> isoProject = (px, py, pz) =>
+                    {
+                        return (0.707f * (px - py), 0.408f * (px + py) + 0.816f * pz);
+                    };
+
+                    float isoMinDist = 30f; // 풍선 간 최소 2D 투영 거리
+                    float baseOffsetDist = 400f;
+                    List<(float h, float v)> placedIsoPositions = new List<(float, float)>();
+
+                    // 시트 부재만 필터링
+                    HashSet<int> sheetMemberSet = new HashSet<int>(sheet.MemberIndices);
+
                     foreach (var bom in bomList)
                     {
+                        if (!sheetMemberSet.Contains(bom.Index)) continue;
+
                         VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX + 400, bom.CenterY, bom.CenterZ);
+
+                        // 초기 후보: 기존과 동일한 X+400
+                        float noteX = bom.CenterX + baseOffsetDist;
+                        float noteY = bom.CenterY;
+                        float noteZ = bom.CenterZ;
+                        var projNote = isoProject(noteX, noteY, noteZ);
+
+                        // 겹침 방지: 2D 투영 좌표에서 거리 검사, 겹치면 XY 평면 회전
+                        bool positionFound = false;
+                        for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
+                        {
+                            bool collision = false;
+                            foreach (var placed in placedIsoPositions)
+                            {
+                                float dh = projNote.h - placed.h;
+                                float dv = projNote.v - placed.v;
+                                if (Math.Sqrt(dh * dh + dv * dv) < isoMinDist)
+                                { collision = true; break; }
+                            }
+
+                            if (!collision)
+                            {
+                                positionFound = true;
+                            }
+                            else
+                            {
+                                float rotAngle = (float)((attempt / 2 + 1) * 15 * Math.PI / 180);
+                                if (attempt % 2 == 1) rotAngle = -rotAngle;
+                                float cosA = (float)Math.Cos(rotAngle);
+                                float sinA = (float)Math.Sin(rotAngle);
+                                float newOffset = baseOffsetDist * (1f + (attempt / 4) * 0.15f);
+                                noteX = bom.CenterX + cosA * newOffset;
+                                noteY = bom.CenterY + sinA * newOffset;
+                                noteZ = bom.CenterZ;
+                                projNote = isoProject(noteX, noteY, noteZ);
+                            }
+                        }
+
+                        placedIsoPositions.Add(projNote);
+
+                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(noteX, noteY, noteZ);
                         int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
                         nodeToNoteMap[bom.Index] = id;
                         VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
