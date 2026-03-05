@@ -91,6 +91,19 @@ namespace A2Z
             this.btnOpen = new System.Windows.Forms.Button();
             this.tabPageAttribute = new System.Windows.Forms.TabPage();
             this.tabPageDrawing = new System.Windows.Forms.TabPage();
+            this.splitContainerDrawing = new System.Windows.Forms.SplitContainer();
+            this.panelDrawingBOMHeader = new System.Windows.Forms.Panel();
+            this.lblDrawingBOMTitle = new System.Windows.Forms.Label();
+            this.btnCollectBOMInfo = new System.Windows.Forms.Button();
+            this.lvDrawingBOMInfo = new System.Windows.Forms.ListView();
+            this.colDrawingBomNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.lvDrawingSheet = new System.Windows.Forms.ListView();
             this.colSheetNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.colSheetBase = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -101,19 +114,9 @@ namespace A2Z
             this.lblDrawingTitle = new System.Windows.Forms.Label();
             this.panelDrawingButtons = new System.Windows.Forms.Panel();
             this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
+            this.btnGenerateSheet2D = new System.Windows.Forms.Button();
+            this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
-            this.splitContainerDrawing = new System.Windows.Forms.SplitContainer();
-            this.panelDrawingBOMHeader = new System.Windows.Forms.Panel();
-            this.lblDrawingBOMTitle = new System.Windows.Forms.Label();
-            this.lvDrawingBOMInfo = new System.Windows.Forms.ListView();
-            this.colDrawingBomNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
             this.btnUdaImportCSV = new System.Windows.Forms.Button();
@@ -143,11 +146,11 @@ namespace A2Z
             this.groupBox1.SuspendLayout();
             this.tabPageAttribute.SuspendLayout();
             this.tabPageDrawing.SuspendLayout();
+            this.panelDrawingHeader.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).BeginInit();
             this.splitContainerDrawing.Panel1.SuspendLayout();
             this.splitContainerDrawing.Panel2.SuspendLayout();
             this.splitContainerDrawing.SuspendLayout();
-            this.panelDrawingHeader.SuspendLayout();
             this.panelDrawingBOMHeader.SuspendLayout();
             this.panelDrawingButtons.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).BeginInit();
@@ -866,7 +869,7 @@ namespace A2Z
             this.lblAttributeTitle.Text = "부재 속성 (Attributes)";
             //
             // tabPageDrawing
-            // (SplitContainer를 사용하여 도면시트/BOM정보를 상하 분할)
+            // (Dock 순서: Fill 먼저 추가, Top/Bottom 나중 추가 = Fill이 마지막에 처리됨)
             this.tabPageDrawing.Controls.Add(this.splitContainerDrawing);
             this.tabPageDrawing.Controls.Add(this.panelDrawingButtons);
             this.tabPageDrawing.Controls.Add(this.panelDrawingHeader);
@@ -911,6 +914,44 @@ namespace A2Z
             this.lblDrawingDesc.TabIndex = 1;
             this.lblDrawingDesc.Text = "Clash 기반 BFS 탐색으로 시트를 생성합니다";
             //
+            // lvDrawingSheet
+            //
+            this.lvDrawingSheet.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.colSheetNo,
+            this.colSheetBase,
+            this.colSheetMembers,
+            this.colSheetCount});
+            this.lvDrawingSheet.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvDrawingSheet.FullRowSelect = true;
+            this.lvDrawingSheet.GridLines = true;
+            this.lvDrawingSheet.HideSelection = false;
+            this.lvDrawingSheet.Location = new System.Drawing.Point(3, 58);
+            this.lvDrawingSheet.Name = "lvDrawingSheet";
+            this.lvDrawingSheet.Size = new System.Drawing.Size(443, 870);
+            this.lvDrawingSheet.TabIndex = 1;
+            this.lvDrawingSheet.UseCompatibleStateImageBehavior = false;
+            this.lvDrawingSheet.View = System.Windows.Forms.View.Details;
+            //
+            // colSheetNo
+            //
+            this.colSheetNo.Text = "도면번호";
+            this.colSheetNo.Width = 70;
+            //
+            // colSheetBase
+            //
+            this.colSheetBase.Text = "기준부재";
+            this.colSheetBase.Width = 100;
+            //
+            // colSheetMembers
+            //
+            this.colSheetMembers.Text = "포함부재";
+            this.colSheetMembers.Width = 180;
+            //
+            // colSheetCount
+            //
+            this.colSheetCount.Text = "부재수";
+            this.colSheetCount.Width = 60;
+            //
             // splitContainerDrawing
             //
             this.splitContainerDrawing.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -931,27 +972,62 @@ namespace A2Z
             this.splitContainerDrawing.SplitterWidth = 5;
             this.splitContainerDrawing.TabIndex = 3;
             //
-            // lvDrawingSheet
+            // panelDrawingButtons
             //
-            this.lvDrawingSheet.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colSheetNo,
-            this.colSheetBase,
-            this.colSheetMembers,
-            this.colSheetCount});
-            this.lvDrawingSheet.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvDrawingSheet.FullRowSelect = true;
-            this.lvDrawingSheet.GridLines = true;
-            this.lvDrawingSheet.HideSelection = false;
-            this.lvDrawingSheet.Location = new System.Drawing.Point(0, 0);
-            this.lvDrawingSheet.Name = "lvDrawingSheet";
-            this.lvDrawingSheet.Size = new System.Drawing.Size(443, 400);
-            this.lvDrawingSheet.TabIndex = 0;
-            this.lvDrawingSheet.UseCompatibleStateImageBehavior = false;
-            this.lvDrawingSheet.View = System.Windows.Forms.View.Details;
+            this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
+            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
+            this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
+            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
+            this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 928);
+            this.panelDrawingButtons.Name = "panelDrawingButtons";
+            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 40);
+            this.panelDrawingButtons.TabIndex = 2;
+            //
+            // btnGenerateSheets
+            //
+            this.btnGenerateSheets.Location = new System.Drawing.Point(6, 5);
+            this.btnGenerateSheets.Name = "btnGenerateSheets";
+            this.btnGenerateSheets.Size = new System.Drawing.Size(100, 30);
+            this.btnGenerateSheets.TabIndex = 0;
+            this.btnGenerateSheets.Text = "도면 생성";
+            this.btnGenerateSheets.UseVisualStyleBackColor = true;
+            this.btnGenerateSheets.Click += new System.EventHandler(this.btnGenerateSheets_Click);
+            //
+            // btnMfgDrawingSheet
+            //
+            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(112, 5);
+            this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
+            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
+            this.btnMfgDrawingSheet.TabIndex = 1;
+            this.btnMfgDrawingSheet.Text = "가공도 출력";
+            this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
+            this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
+            //
+            // btnGenerateSheet2D
+            //
+            this.btnGenerateSheet2D.Location = new System.Drawing.Point(218, 5);
+            this.btnGenerateSheet2D.Name = "btnGenerateSheet2D";
+            this.btnGenerateSheet2D.Size = new System.Drawing.Size(100, 30);
+            this.btnGenerateSheet2D.TabIndex = 2;
+            this.btnGenerateSheet2D.Text = "2D 출력";
+            this.btnGenerateSheet2D.UseVisualStyleBackColor = true;
+            this.btnGenerateSheet2D.Click += new System.EventHandler(this.btnGenerateSheet2D_Click);
+            //
+            // btnExportSheet2DPDF
+            //
+            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(324, 5);
+            this.btnExportSheet2DPDF.Name = "btnExportSheet2DPDF";
+            this.btnExportSheet2DPDF.Size = new System.Drawing.Size(100, 30);
+            this.btnExportSheet2DPDF.TabIndex = 3;
+            this.btnExportSheet2DPDF.Text = "PDF 출력";
+            this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
+            this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
             //
             // panelDrawingBOMHeader
             //
             this.panelDrawingBOMHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
+            this.panelDrawingBOMHeader.Controls.Add(this.btnCollectBOMInfo);
             this.panelDrawingBOMHeader.Controls.Add(this.lblDrawingBOMTitle);
             this.panelDrawingBOMHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelDrawingBOMHeader.Location = new System.Drawing.Point(0, 0);
@@ -969,6 +1045,22 @@ namespace A2Z
             this.lblDrawingBOMTitle.Size = new System.Drawing.Size(140, 20);
             this.lblDrawingBOMTitle.TabIndex = 0;
             this.lblDrawingBOMTitle.Text = "BOM 정보";
+            //
+            // btnCollectBOMInfo
+            //
+            this.btnCollectBOMInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCollectBOMInfo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(130)))), ((int)(((byte)(180)))));
+            this.btnCollectBOMInfo.FlatAppearance.BorderSize = 0;
+            this.btnCollectBOMInfo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCollectBOMInfo.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnCollectBOMInfo.ForeColor = System.Drawing.Color.White;
+            this.btnCollectBOMInfo.Location = new System.Drawing.Point(333, 2);
+            this.btnCollectBOMInfo.Name = "btnCollectBOMInfo";
+            this.btnCollectBOMInfo.Size = new System.Drawing.Size(100, 26);
+            this.btnCollectBOMInfo.TabIndex = 1;
+            this.btnCollectBOMInfo.Text = "BOM 수집";
+            this.btnCollectBOMInfo.UseVisualStyleBackColor = false;
+            this.btnCollectBOMInfo.Click += new System.EventHandler(this.btnCollectBOMInfo_Click);
             //
             // lvDrawingBOMInfo
             //
@@ -1031,56 +1123,6 @@ namespace A2Z
             //
             this.colDrawingBomFA.Text = "FA";
             this.colDrawingBomFA.Width = 35;
-            //
-            // colSheetNo
-            //
-            this.colSheetNo.Text = "도면번호";
-            this.colSheetNo.Width = 70;
-            //
-            // colSheetBase
-            //
-            this.colSheetBase.Text = "기준부재";
-            this.colSheetBase.Width = 100;
-            //
-            // colSheetMembers
-            //
-            this.colSheetMembers.Text = "포함부재";
-            this.colSheetMembers.Width = 180;
-            //
-            // colSheetCount
-            //
-            this.colSheetCount.Text = "부재수";
-            this.colSheetCount.Width = 60;
-            //
-            // panelDrawingButtons
-            //
-            this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
-            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
-            this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 928);
-            this.panelDrawingButtons.Name = "panelDrawingButtons";
-            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 40);
-            this.panelDrawingButtons.TabIndex = 2;
-            //
-            // btnGenerateSheets
-            //
-            this.btnGenerateSheets.Location = new System.Drawing.Point(6, 5);
-            this.btnGenerateSheets.Name = "btnGenerateSheets";
-            this.btnGenerateSheets.Size = new System.Drawing.Size(120, 30);
-            this.btnGenerateSheets.TabIndex = 0;
-            this.btnGenerateSheets.Text = "도면 생성";
-            this.btnGenerateSheets.UseVisualStyleBackColor = true;
-            this.btnGenerateSheets.Click += new System.EventHandler(this.btnGenerateSheets_Click);
-            //
-            // btnMfgDrawingSheet
-            //
-            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(132, 5);
-            this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
-            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(120, 30);
-            this.btnMfgDrawingSheet.TabIndex = 1;
-            this.btnMfgDrawingSheet.Text = "가공도 출력";
-            this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
-            this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
             //
             // panelViewer
             //
@@ -1191,15 +1233,15 @@ namespace A2Z
             this.groupBox1.ResumeLayout(false);
             this.tabPageAttribute.ResumeLayout(false);
             this.tabPageDrawing.ResumeLayout(false);
+            this.panelDrawingHeader.ResumeLayout(false);
+            this.panelDrawingHeader.PerformLayout();
+            this.panelDrawingButtons.ResumeLayout(false);
             this.splitContainerDrawing.Panel1.ResumeLayout(false);
             this.splitContainerDrawing.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).EndInit();
             this.splitContainerDrawing.ResumeLayout(false);
-            this.panelDrawingHeader.ResumeLayout(false);
-            this.panelDrawingHeader.PerformLayout();
             this.panelDrawingBOMHeader.ResumeLayout(false);
             this.panelDrawingBOMHeader.PerformLayout();
-            this.panelDrawingButtons.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).EndInit();
             this.panelAttributeButtons.ResumeLayout(false);
             this.panelAttributeHeader.ResumeLayout(false);
@@ -1291,9 +1333,12 @@ namespace A2Z
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnGenerateSheets;
         private System.Windows.Forms.Button btnMfgDrawingSheet;
+        private System.Windows.Forms.Button btnGenerateSheet2D;
+        private System.Windows.Forms.Button btnExportSheet2DPDF;
         private System.Windows.Forms.SplitContainer splitContainerDrawing;
         private System.Windows.Forms.Panel panelDrawingBOMHeader;
         private System.Windows.Forms.Label lblDrawingBOMTitle;
+        private System.Windows.Forms.Button btnCollectBOMInfo;
         private System.Windows.Forms.ListView lvDrawingBOMInfo;
         private System.Windows.Forms.ColumnHeader colDrawingBomNo;
         private System.Windows.Forms.ColumnHeader colDrawingBomItem;
