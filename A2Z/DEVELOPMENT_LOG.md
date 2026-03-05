@@ -57,6 +57,7 @@ A2Z/
 | 17  | 도면정보 탭 버튼 복원               | 완료  | HYI Designer.cs 복원, 2D출력/PDF출력/BOM수집 버튼 3개 복원 (Phase 25) |
 | 18  | 작업/데이터 탭 구버전→신버전 교체    | 완료  | btnGenerate2D_Click→GenerateSheetDrawing2D, btnExportPDF_Click→Export2PDFBy2DView, 구버전 10개 메서드 삭제 (Phase 26) |
 | 19  | Osnap 필터링 통합 + 3D 뷰 복원      | 완료  | FilterOsnapForDimAxis 공통함수, 4 필수점(A/B/C/D), Part 기준 부재 필터링, 2D 출력 후 3D 뷰 복원 (Phase 28) |
+| 20  | 풍선 2D 변환 + 겹침 방지 개선       | 완료  | AddNote3D→AddNoteSurface, balloonOffset 모델대각비례, bomList 시트부재 필터링, ISO 방향 개선 (Phase 29) |
 
 
 ### 현재 구현 완료된 기능
@@ -1498,6 +1499,34 @@ ShowAllDimensions (❷분기)
 
 ---
 
+### Phase 29: 풍선 2D 변환 수정 + 겹침 방지 개선
+
+**[변경 파일]**
+- `Form1.Dimensions.cs` — X/Y/Z 풍선 수정
+- `Form1.DrawingSheets.cs` — ISO 풍선 수정
+
+**[핵심 변경사항]**
+
+1. **X/Y/Z 풍선 2D 변환 수정**
+   - `AddNote3D` → `AddNoteSurface` 변경
+   - `Add2DNoteFrom3DNote`는 `AddNoteSurface`로 생성된 노트만 2D 변환 가능
+   - 홀/슬롯홀/R/EBOS 풍선이 2D 도면에 정상 출력
+
+2. **X/Y/Z 풍선 오프셋 개선**
+   - `balloonOffset`: `50f` 고정 → `Math.Max(100f, modelDiag * 0.35f)` (모델 대각 비례)
+   - 부재 바운딩박스 바깥으로 확실히 배치
+
+3. **X/Y/Z bomList 충돌 검사 필터링**
+   - 충돌 검사 대상: `bomList` 전체 → `xraySelectedNodeIndices` (시트 부재만)
+   - 화면에 안 보이는 부재의 바운딩박스를 충돌로 판정하는 문제 해결
+
+4. **ISO 풍선 방향 개선**
+   - 초기 방향: `X+400 고정` → 모델 중심 → 부재 중심 방향
+   - `baseOffsetDist`: `400f 고정` → `Math.Max(200f, isoDiag * 0.35f)` (시트 부재 대각 비례)
+   - 모든 풍선이 오른쪽 상단 45°로 몰리는 현상 해결
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1762,6 +1791,6 @@ float ZValue;          // 충돌 지점 Z좌표
 | `main` | 리팩토링 완료 버전 (partial class 분리 + 신버전 2D/PDF) |
 | `HYI`  | 리팩토링 전 단일 Form1.cs 버전 (보존용) |
 
-- `main`: Phase 24~28 적용 (10개 파일 분리 + 구버전 코드 삭제 + Osnap 필터링 통합)
+- `main`: Phase 24~29 적용 (10개 파일 분리 + 구버전 코드 삭제 + Osnap 필터링 통합 + 풍선 2D 변환 개선)
 - `HYI`: 리팩토링 전 상태 유지 (만약의 경우를 위한 백업)
 - 커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함

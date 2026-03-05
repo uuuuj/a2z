@@ -1176,8 +1176,17 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    float balloonOffset = 50f; // 부재 근처 초기 오프셋
+                    // 모델 대각 크기 비례 오프셋 (부재 바운딩박스 바깥으로 확실히 배치)
+                    float modelDiag = (float)Math.Sqrt(
+                        (globalMaxX - globalMinX) * (globalMaxX - globalMinX) +
+                        (globalMaxY - globalMinY) * (globalMaxY - globalMinY) +
+                        (globalMaxZ - globalMinZ) * (globalMaxZ - globalMinZ));
+                    float balloonOffset = Math.Max(100f, modelDiag * 0.35f);
                     float bomPad = 5f; // 부재 바운딩박스 패딩
+
+                    // 시트 부재만 필터링 (화면에 보이지 않는 부재는 충돌 검사 제외)
+                    HashSet<int> visibleBomSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                        ? new HashSet<int>(xraySelectedNodeIndices) : null;
 
                     // 부재 바운딩박스를 2D(H,V) 기준으로 미리 계산
                     Func<BOMData, int, float> getBomMin = (b, ax) =>
@@ -1237,11 +1246,14 @@ namespace A2Z
                                     { collision = true; break; }
                                 }
 
-                                // 부재 바운딩박스(2D 투영)와 겹침 검사
+                                // 부재 바운딩박스(2D 투영)와 겹침 검사 (시트 부재만)
                                 if (!collision)
                                 {
                                     foreach (var bom in bomList)
                                     {
+                                        // 시트 부재가 아니면 충돌 검사 스킵
+                                        if (visibleBomSet != null && !visibleBomSet.Contains(bom.Index)) continue;
+
                                         float bMinH = getBomMin(bom, bHAxis) - bomPad;
                                         float bMaxH = getBomMax(bom, bHAxis) + bomPad;
                                         float bMinV = getBomMin(bom, bVAxis) - bomPad;
@@ -1293,8 +1305,8 @@ namespace A2Z
                             style.ArrowColor = entry.color;
                             style.ArrowWidth = 0;
 
-                            // 보조선 없는 풍선 (AddNote3D: 리더선 없이 텍스트만 배치)
-                            vizcore3d.Review.Note.AddNote3D(entry.text, textXYZ[0], textXYZ[1], textXYZ[2], style);
+                            // AddNoteSurface: 2D 변환(Add2DNoteFrom3DNote) 호환
+                            vizcore3d.Review.Note.AddNoteSurface(entry.text, textPos, arrowPos, style);
                             var placedSize = estimateTextSize(entry.text);
                             placedTextBoxes.Add((candidateH, candidateV, placedSize.w / 2f, placedSize.h / 2f));
                         }

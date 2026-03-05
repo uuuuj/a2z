@@ -859,7 +859,7 @@ namespace A2Z
                 vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
                 vizcore3d.EndUpdate();
 
-                // bomList 기반 풍선 노트 생성 (등각 투영 근사 + 회전 겹침 방지)
+                // bomList 기반 풍선 노트 생성 (모델 중심 기반 방향 + 겹침 방지)
                 Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
                 if (bomList != null && bomList.Count > 0)
                 {
@@ -870,11 +870,33 @@ namespace A2Z
                     };
 
                     float isoMinDist = 30f; // 풍선 간 최소 2D 투영 거리
-                    float baseOffsetDist = 400f;
-                    List<(float h, float v)> placedIsoPositions = new List<(float, float)>();
 
                     // 시트 부재만 필터링
                     HashSet<int> sheetMemberSet = new HashSet<int>(sheet.MemberIndices);
+
+                    // 시트 부재 기준 모델 중심 + 대각 크기 계산
+                    float mCenterX = 0, mCenterY = 0, mCenterZ = 0;
+                    float mMinX = float.MaxValue, mMinY = float.MaxValue, mMinZ = float.MaxValue;
+                    float mMaxX = float.MinValue, mMaxY = float.MinValue, mMaxZ = float.MinValue;
+                    int memberCount = 0;
+                    foreach (var bom in bomList)
+                    {
+                        if (!sheetMemberSet.Contains(bom.Index)) continue;
+                        mMinX = Math.Min(mMinX, bom.MinX); mMinY = Math.Min(mMinY, bom.MinY); mMinZ = Math.Min(mMinZ, bom.MinZ);
+                        mMaxX = Math.Max(mMaxX, bom.MaxX); mMaxY = Math.Max(mMaxY, bom.MaxY); mMaxZ = Math.Max(mMaxZ, bom.MaxZ);
+                        mCenterX += bom.CenterX; mCenterY += bom.CenterY; mCenterZ += bom.CenterZ;
+                        memberCount++;
+                    }
+                    if (memberCount > 0) { mCenterX /= memberCount; mCenterY /= memberCount; mCenterZ /= memberCount; }
+                    float isoDiag = (float)Math.Sqrt(
+                        (mMaxX - mMinX) * (mMaxX - mMinX) +
+                        (mMaxY - mMinY) * (mMaxY - mMinY) +
+                        (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
+                    float baseOffsetDist = Math.Max(200f, isoDiag * 0.35f);
+
+                    // 모델 중심의 2D 투영
+                    var projCenter = isoProject(mCenterX, mCenterY, mCenterZ);
+                    List<(float h, float v)> placedIsoPositions = new List<(float, float)>();
 
                     foreach (var bom in bomList)
                     {
@@ -882,9 +904,29 @@ namespace A2Z
 
                         VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
 
-                        // 초기 후보: 기존과 동일한 X+400
-                        float noteX = bom.CenterX + baseOffsetDist;
-                        float noteY = bom.CenterY;
+                        // 모델 중심 → 부재 중심 방향으로 초기 오프셋 (X+고정 대신)
+                        var projBom = isoProject(bom.CenterX, bom.CenterY, bom.CenterZ);
+                        float dirH = projBom.h - projCenter.h;
+                        float dirV = projBom.v - projCenter.v;
+                        float dirLen = (float)Math.Sqrt(dirH * dirH + dirV * dirV);
+                        if (dirLen < 0.001f) { dirH = 1f; dirV = 0f; dirLen = 1f; }
+                        dirH /= dirLen;
+                        dirV /= dirLen;
+
+                        // 초기 후보: 2D 투영 공간에서 방향 × 오프셋
+                        float candidateH = projBom.h + dirH * baseOffsetDist;
+                        float candidateV = projBom.v + dirV * baseOffsetDist;
+
+                        // 3D 좌표 역산 (2D 후보 → 3D): XY 평면에서 방향 적용
+                        float initDirX = bom.CenterX - mCenterX;
+                        float initDirY = bom.CenterY - mCenterY;
+                        float initDirLen = (float)Math.Sqrt(initDirX * initDirX + initDirY * initDirY);
+                        if (initDirLen < 0.001f) { initDirX = 1f; initDirY = 0f; initDirLen = 1f; }
+                        initDirX /= initDirLen;
+                        initDirY /= initDirLen;
+
+                        float noteX = bom.CenterX + initDirX * baseOffsetDist;
+                        float noteY = bom.CenterY + initDirY * baseOffsetDist;
                         float noteZ = bom.CenterZ;
                         var projNote = isoProject(noteX, noteY, noteZ);
 
@@ -912,8 +954,8 @@ namespace A2Z
                                 float cosA = (float)Math.Cos(rotAngle);
                                 float sinA = (float)Math.Sin(rotAngle);
                                 float newOffset = baseOffsetDist * (1f + (attempt / 4) * 0.15f);
-                                noteX = bom.CenterX + cosA * newOffset;
-                                noteY = bom.CenterY + sinA * newOffset;
+                                noteX = bom.CenterX + (cosA * initDirX - sinA * initDirY) * newOffset;
+                                noteY = bom.CenterY + (sinA * initDirX + cosA * initDirY) * newOffset;
                                 noteZ = bom.CenterZ;
                                 projNote = isoProject(noteX, noteY, noteZ);
                             }
