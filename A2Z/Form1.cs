@@ -64,11 +64,6 @@ namespace A2Z
         private string currentFilePath = "";
 
         /// <summary>
-        /// 마지막으로 생성된 2D 도면 이미지
-        /// </summary>
-        private System.Drawing.Bitmap lastGeneratedDrawing = null;
-
-        /// <summary>
         /// 현재 선택된 노드 인덱스 (부재 정보 탭용)
         /// </summary>
         private int selectedAttributeNodeIndex = -1;
