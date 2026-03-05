@@ -1205,6 +1205,14 @@ namespace A2Z
                     // 배치된 풍선 텍스트 AABB 목록 (겹침 판정용)
                     List<(float h, float v, float halfW, float halfH)> placedTextBoxes = new List<(float, float, float, float)>();
 
+                    // 모델 전체 바운딩박스의 2D 경계 (풍선 시작점 계산용)
+                    float[] globalMinArr2 = { globalMinX, globalMinY, globalMinZ };
+                    float[] globalMaxArr2 = { globalMaxX, globalMaxY, globalMaxZ };
+                    float modelMinH = globalMinArr2[bHAxis];
+                    float modelMaxH = globalMaxArr2[bHAxis];
+                    float modelMinV = globalMinArr2[bVAxis];
+                    float modelMaxV = globalMaxArr2[bVAxis];
+
                     foreach (var entry in balloonEntries)
                     {
                         try
@@ -1226,8 +1234,26 @@ namespace A2Z
                             dirH /= dirLen;
                             dirV /= dirLen;
 
-                            float candidateH = originH + dirH * balloonOffset;
-                            float candidateV = originV + dirV * balloonOffset;
+                            // 시작점: 홀 중심이 아닌 모델 바운딩박스 경계에서 출발
+                            float edgeH = dirH >= 0 ? modelMaxH : modelMinH;
+                            float edgeV = dirV >= 0 ? modelMaxV : modelMinV;
+                            // 방향 축 중 더 먼 쪽의 경계를 사용
+                            float distToEdgeH = Math.Abs(edgeH - originH);
+                            float distToEdgeV = Math.Abs(edgeV - originV);
+                            float startH, startV;
+                            if (Math.Abs(dirH) > Math.Abs(dirV))
+                            {
+                                startH = edgeH;
+                                startV = originV + dirV * (distToEdgeH / Math.Max(Math.Abs(dirH), 0.001f));
+                            }
+                            else
+                            {
+                                startV = edgeV;
+                                startH = originH + dirH * (distToEdgeV / Math.Max(Math.Abs(dirV), 0.001f));
+                            }
+
+                            float candidateH = startH + dirH * balloonOffset;
+                            float candidateV = startV + dirV * balloonOffset;
 
                             // 겹침 방지: 다른 풍선 + 부재 바운딩박스(2D 투영)와 겹치면 회전
                             bool positionFound = false;
@@ -1277,8 +1303,24 @@ namespace A2Z
                                     float newDirH = cosA * dirH - sinA * dirV;
                                     float newDirV = sinA * dirH + cosA * dirV;
                                     float newOffset = balloonOffset * (1f + (attempt / 4) * 0.15f);
-                                    candidateH = originH + newDirH * newOffset;
-                                    candidateV = originV + newDirV * newOffset;
+                                    // 회전된 방향으로 모델 경계에서 출발
+                                    float rEdgeH = newDirH >= 0 ? modelMaxH : modelMinH;
+                                    float rEdgeV = newDirV >= 0 ? modelMaxV : modelMinV;
+                                    float rDistH = Math.Abs(rEdgeH - originH);
+                                    float rDistV = Math.Abs(rEdgeV - originV);
+                                    float rStartH, rStartV;
+                                    if (Math.Abs(newDirH) > Math.Abs(newDirV))
+                                    {
+                                        rStartH = rEdgeH;
+                                        rStartV = originV + newDirV * (rDistH / Math.Max(Math.Abs(newDirH), 0.001f));
+                                    }
+                                    else
+                                    {
+                                        rStartV = rEdgeV;
+                                        rStartH = originH + newDirH * (rDistV / Math.Max(Math.Abs(newDirV), 0.001f));
+                                    }
+                                    candidateH = rStartH + newDirH * newOffset;
+                                    candidateV = rStartV + newDirV * newOffset;
                                 }
                             }
 
@@ -1301,9 +1343,9 @@ namespace A2Z
                             style.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
                             style.FontColor = entry.color;
                             style.LineColor = entry.color;
-                            style.LineWidth = 0;
+                            style.LineWidth = 1;
                             style.ArrowColor = entry.color;
-                            style.ArrowWidth = 0;
+                            style.ArrowWidth = 3;
 
                             // AddNoteSurface: 2D 변환(Add2DNoteFrom3DNote) 호환
                             vizcore3d.Review.Note.AddNoteSurface(entry.text, textPos, arrowPos, style);

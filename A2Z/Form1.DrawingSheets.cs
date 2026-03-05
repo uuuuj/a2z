@@ -1060,7 +1060,42 @@ namespace A2Z
             int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
 
-            // 6. 3D→2D 변환 (FitToGrid/Rescale 전에 수행 → 모델과 함께 이동/스케일)
+            // 6등분 셀 중앙에 배치 후, 콘텐츠 영역에 맞도록 스케일 조정
+            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
+                VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
+                VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
+
+            {
+                float cellW = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
+                float cellH = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
+                float marginL = vizcore3d.Drawing2D.GridStructure.GetGridCellLeftMargin(row, col);
+                float marginR = vizcore3d.Drawing2D.GridStructure.GetGridCellRightMargin(row, col);
+                float marginT = vizcore3d.Drawing2D.GridStructure.GetGridCellTopMargin(row, col);
+                float marginB = vizcore3d.Drawing2D.GridStructure.GetGridCellBottomMargin(row, col);
+
+                float contentW = cellW - marginL - marginR;
+                float contentH = cellH - marginT - marginB;
+
+                float objW = 0f, objH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+
+                if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
+                {
+                    // 콘텐츠 영역의 80%에 오브젝트가 맞도록 목표 스케일 계산
+                    float targetW = contentW * 0.04f;
+                    float targetH = contentH * 0.04f;
+                    float scaleW = targetW / objW;
+                    float scaleH = targetH / objH;
+                    float fitScale = Math.Min(scaleW, scaleH);
+
+                    if (fitScale > 0 && Math.Abs(fitScale - 1.0f) > 0.01f)
+                    {
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, fitScale);
+                    }
+                }
+            }
+
+            // 6. 3D→2D 변환 (FitToGrid/Rescale 후에 수행)
 
             // 보조선(ShapeDrawing) → 2D 개체로 추가 (모델 실선보다 가늘게)
             if (shapeDrawingIds != null && shapeDrawingIds.Count > 0)
@@ -1094,7 +1129,7 @@ namespace A2Z
                 }
             }
 
-            // 치수선(Measure) → 2D (위치 이동 후 변환)
+            // 치수선(Measure) → 2D
             List<int> measureIds = new List<int>();
             List<VIZCore3D.NET.Data.MeasureItem> measures = vizcore3d.Review.Measure.Items;
             foreach (var measure in measures)
@@ -1105,41 +1140,6 @@ namespace A2Z
             if (measureIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
-            }
-
-            // 7. 그리드 셀 배치 + 스케일 조정 (어노테이션 포함 상태에서 함께 이동/스케일)
-            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
-                VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
-                VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
-
-            {
-                float cellW = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
-                float cellH = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
-                float marginL = vizcore3d.Drawing2D.GridStructure.GetGridCellLeftMargin(row, col);
-                float marginR = vizcore3d.Drawing2D.GridStructure.GetGridCellRightMargin(row, col);
-                float marginT = vizcore3d.Drawing2D.GridStructure.GetGridCellTopMargin(row, col);
-                float marginB = vizcore3d.Drawing2D.GridStructure.GetGridCellBottomMargin(row, col);
-
-                float contentW = cellW - marginL - marginR;
-                float contentH = cellH - marginT - marginB;
-
-                float objW = 0f, objH = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
-
-                if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
-                {
-                    // 콘텐츠 영역의 80%에 오브젝트가 맞도록 목표 스케일 계산
-                    float targetW = contentW * 0.04f;
-                    float targetH = contentH * 0.04f;
-                    float scaleW = targetW / objW;
-                    float scaleH = targetH / objH;
-                    float fitScale = Math.Min(scaleW, scaleH);
-
-                    if (fitScale > 0 && Math.Abs(fitScale - 1.0f) > 0.01f)
-                    {
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, fitScale);
-                    }
-                }
             }
 
             // 7. 시트 부재 표시 복원 (X-Ray 모드로 되돌리기)
