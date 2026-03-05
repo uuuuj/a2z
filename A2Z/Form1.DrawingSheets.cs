@@ -728,6 +728,14 @@ namespace A2Z
                 // ── 6. 최종 렌더링 ──
                 vizcore3d.Drawing2D.Render();
 
+                // 3D 뷰 복원: 선택 부재만 보이게 (2D 렌더링 과정에서 전체 복원된 상태 → 원래대로)
+                vizcore3d.BeginUpdate();
+                vizcore3d.View.XRay.Enable = false;
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                vizcore3d.EndUpdate();
+
                 // 2D 뷰에서 마지막 생성된 객체의 선택(활성화) 해제
                 vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                 vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();

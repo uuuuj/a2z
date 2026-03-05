@@ -56,6 +56,7 @@ A2Z/
 | 16  | Form1.cs partial class 리팩토링     | 완료  | 9,235줄 단일 파일을 10개 파일로 분리 (Phase 24) |
 | 17  | 도면정보 탭 버튼 복원               | 완료  | HYI Designer.cs 복원, 2D출력/PDF출력/BOM수집 버튼 3개 복원 (Phase 25) |
 | 18  | 작업/데이터 탭 구버전→신버전 교체    | 완료  | btnGenerate2D_Click→GenerateSheetDrawing2D, btnExportPDF_Click→Export2PDFBy2DView, 구버전 10개 메서드 삭제 (Phase 26) |
+| 19  | Osnap 필터링 통합 + 3D 뷰 복원      | 완료  | FilterOsnapForDimAxis 공통함수, 4 필수점(A/B/C/D), Part 기준 부재 필터링, 2D 출력 후 3D 뷰 복원 (Phase 28) |
 
 
 ### 현재 구현 완료된 기능
@@ -1444,6 +1445,59 @@ Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
 
 ---
 
+### Phase 28: Osnap 필터링 통합 함수 + 3D 뷰 복원
+
+**[변경 파일]**
+- `Form1.Dimensions.cs` (+170/-77)
+- `Form1.DrawingSheets.cs` (+8)
+
+**[핵심 변경사항]**
+
+1. **`FilterOsnapForDimAxis` 공통 함수 신설**
+   - 기존 85줄의 축별 인라인 필터링 코드를 하나의 함수로 통합
+   - 뷰 방향별 주축/보조축 매핑: X→Z/Y, Y→Z/X, Z→Y/X
+   - 5단계 필터링 파이프라인:
+     1. 축 매핑 (주축/보조축 결정)
+     2. 4 필수점 계산: A(주축MAX), B(주축MIN), C(보조축MAX), D(보조축MIN)
+     3. 부재별(Part 기준) 대표 Osnap 선택 — 주축 MAX + 보조축 MAX 타이브레이크
+     4. 전역 dimAxis 중복 제거 — 같은 dimAxis 값은 보조축 MAX 우선 1개만 유지
+     5. 4 필수점 강제 포함 (A/B/C/D)
+   - 디버그 로깅 포함 (`[FilterOsnapForDimAxis]`)
+
+2. **`ShowAllDimensions` 분기 조건 수정**
+   - ❶분기(osnapPointsWithNames 직접 모드) 조건에 `&& (chainDimensionList == null || chainDimensionList.Count == 0)` 추가
+   - chainDimensionList 존재 시 항상 ❷분기(nodeOsnapMap 기반 필터링) 우선 사용
+   - 이를 통해 osnapPointsWithNames를 Clear하지 않아도 작업/데이터 탭 Osnap 목록 유지
+
+3. **Part 기준 부재 필터링**
+   - 기존: `Dictionary<int,...>` (Body index 기준) → 같은 Part의 여러 Body가 각각 대표점 생성
+   - 변경: `Dictionary<string,...>` (nodeName/Part 이름 기준) → Part당 대표 Osnap 1개만 유지
+
+4. **`VertexAxisGetter` 헬퍼 함수 신설**
+   - 축 이름 문자열("X"/"Y"/"Z")로 Vertex3D 좌표 접근자 반환
+   - FilterOsnapForDimAxis 내부에서 주축/보조축 값 추출에 사용
+
+5. **2D 출력 후 3D 뷰 복원**
+   - `GenerateSheetDrawing2D`에서 `Drawing2D.Render()` 후 3D 뷰 복원 코드 추가
+   - `Object3D.Show(ALL, false)` → `Object3D.Show(sheet.MemberIndices, true)` → `FlyToObject3d`
+   - 2D 렌더링 과정에서 전체 모델이 복원된 상태를 선택 부재만 보이는 상태로 되돌림
+
+**[호출 흐름]**
+```
+ShowAllDimensions (❷분기)
+  → foreach axis in visibleAxes
+    → FilterOsnapForDimAxis(nodeOsnapMap, axis, viewDirection, tolerance)
+      → Step 1: 축 매핑
+      → Step 2: A/B/C/D 필수점 계산
+      → Step 3: Part별 대표 Osnap (주축MAX + 보조축MAX)
+      → Step 4: dimAxis 전역 중복 제거
+      → Step 5: A/B/C/D 강제 포함
+    → MergeCoordinates(filteredPoints)
+    → AddChainDimensionByAxis(mergedPoints)
+```
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1708,6 +1762,6 @@ float ZValue;          // 충돌 지점 Z좌표
 | `main` | 리팩토링 완료 버전 (partial class 분리 + 신버전 2D/PDF) |
 | `HYI`  | 리팩토링 전 단일 Form1.cs 버전 (보존용) |
 
-- `main`: Phase 24~26 적용 (10개 파일 분리 + 구버전 코드 삭제)
+- `main`: Phase 24~28 적용 (10개 파일 분리 + 구버전 코드 삭제 + Osnap 필터링 통합)
 - `HYI`: 리팩토링 전 상태 유지 (만약의 경우를 위한 백업)
 - 커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함

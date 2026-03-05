@@ -695,10 +695,11 @@ namespace A2Z
             List<ChainDimensionData> displayList;
             bool useDirectChain = false; // Osnap 재추출 모드 (순차 체인 + 스마트 필터링 혼합)
             bool isInstallationMode = false; // 설치도 모드 (필터링 우회)
-            if (viewDirection != null && osnapPointsWithNames != null && osnapPointsWithNames.Count > 0)
+            if (viewDirection != null && osnapPointsWithNames != null && osnapPointsWithNames.Count > 0
+                && (chainDimensionList == null || chainDimensionList.Count == 0))
             {
-                // 뷰 방향에 따라 Osnap 필터링을 재적용하여 체인치수 재추출
-                // 왼쪽아래 Osnap부터 순차적으로 다음 Osnap까지 체인치수 표시
+                // Osnap 직접 재추출 모드 (chainDimensionList가 없을 때만)
+                // chainDimensionList가 있으면 ❷분기(nodeOsnapMap 기반 필터링)를 우선
                 float tolerance = 0.5f;
                 var mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
                 displayList = new List<ChainDimensionData>();
@@ -771,9 +772,9 @@ namespace A2Z
                     }
                 }
 
-                // 축별 부재당 대표 Osnap 1개 선택 + 전체 Min/Max 보존
-                // 수직축(Z→X/Y뷰, Y→Z뷰) → 위쪽(max) 선택
-                // 수평축(Y→X뷰, X→Y/Z뷰) → 왼쪽(min) 선택
+                // 축별 Osnap 필터링 (공통 규칙: 주축/보조축 기반)
+                // 주축: MAX/MIN 극값 기준축, 보조축: 동률 시 타이브레이커
+                // X뷰(YZ): 주축=Z, 보조축=Y / Y뷰(XZ): 주축=Z, 보조축=X / Z뷰(XY): 주축=Y, 보조축=X
                 int totalOsnapCount = nodeOsnapMap.Values.Sum(p => p.Count);
                 if (totalOsnapCount >= 2)
                 {
@@ -783,77 +784,9 @@ namespace A2Z
 
                     foreach (var axis in visibleAxes)
                     {
-                        // 축별 값 추출 함수
-                        Func<VIZCore3D.NET.Data.Vertex3D, float> getVal;
-                        switch (axis)
-                        {
-                            case "X": getVal = p => p.X; break;
-                            case "Y": getVal = p => p.Y; break;
-                            default: getVal = p => p.Z; break;
-                        }
-
-                        // 위쪽(max) / 왼쪽(min) 결정
-                        // X뷰: Z=수직→위쪽(max), Y=수평→왼쪽(min)
-                        // Y뷰: Z=수직→위쪽(max), X=수평→왼쪽(min)
-                        // Z뷰: Y=수직→위쪽(max), X=수평→왼쪽(min)
-                        bool keepMax;
-                        switch (viewDirection)
-                        {
-                            case "X": keepMax = (axis == "Z"); break;
-                            case "Y": keepMax = (axis == "Z"); break;
-                            case "Z": keepMax = (axis == "Y"); break;
-                            default: keepMax = false; break;
-                        }
-
-                        var axisPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-                        float gMin = float.MaxValue, gMax = float.MinValue;
-                        (VIZCore3D.NET.Data.Vertex3D point, string nodeName) gMinPt = (null, null);
-                        (VIZCore3D.NET.Data.Vertex3D point, string nodeName) gMaxPt = (null, null);
-
-                        foreach (var kvp in nodeOsnapMap)
-                        {
-                            var pts = kvp.Value;
-                            if (pts.Count == 0) continue;
-
-                            // 부재별 대표 Osnap 1개 선택 (위쪽=max / 왼쪽=min)
-                            int bestIdx = 0;
-                            float bestVal = keepMax ? float.MinValue : float.MaxValue;
-                            for (int i = 0; i < pts.Count; i++)
-                            {
-                                float v = getVal(pts[i].point);
-                                if (keepMax ? (v > bestVal) : (v < bestVal))
-                                {
-                                    bestVal = v;
-                                    bestIdx = i;
-                                }
-                            }
-                            axisPoints.Add(pts[bestIdx]);
-
-                            // 전체 Min/Max 추적 (전체거리 체인치수 보존용)
-                            for (int i = 0; i < pts.Count; i++)
-                            {
-                                float v = getVal(pts[i].point);
-                                if (v < gMin) { gMin = v; gMinPt = pts[i]; }
-                                if (v > gMax) { gMax = v; gMaxPt = pts[i]; }
-                            }
-                        }
-
-                        // 전체 Min 포인트 추가 (대표 포인트와 중복 아닌 경우)
-                        if (gMinPt.point != null)
-                        {
-                            float minV = getVal(gMinPt.point);
-                            bool exists = axisPoints.Any(p => Math.Abs(getVal(p.point) - minV) < tolerance);
-                            if (!exists) axisPoints.Add(gMinPt);
-                        }
-                        // 전체 Max 포인트 추가 (대표 포인트와 중복 아닌 경우)
-                        if (gMaxPt.point != null)
-                        {
-                            float maxV = getVal(gMaxPt.point);
-                            bool exists = axisPoints.Any(p => Math.Abs(getVal(p.point) - maxV) < tolerance);
-                            if (!exists) axisPoints.Add(gMaxPt);
-                        }
-
-                        var mergedPoints = MergeCoordinates(axisPoints, tolerance);
+                        // 공통 필터링 함수 호출
+                        var filteredPoints = FilterOsnapForDimAxis(nodeOsnapMap, axis, viewDirection, tolerance);
+                        var mergedPoints = MergeCoordinates(filteredPoints, tolerance);
                         displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
                     }
                 }
@@ -2283,6 +2216,158 @@ namespace A2Z
             }
 
             return dimensions;
+        }
+
+        /// <summary>
+        /// Osnap 필터링 공통 함수 — X/Y/Z 보기 모두 동일 규칙 적용
+        ///
+        /// 축 매핑:
+        ///   X축 보기(YZ 평면): 주축=Z, 보조축=Y
+        ///   Y축 보기(XZ 평면): 주축=Z, 보조축=X
+        ///   Z축 보기(XY 평면): 주축=Y, 보조축=X
+        ///
+        /// 처리 순서:
+        ///   1) 후보 수집 (nodeOsnapMap에서 dimAxis 방향 값 추출)
+        ///   2) 필수점 A: 주축 최대 (동률 시 보조축 최대)
+        ///   3) 필수점 B: 주축 최소 (동률 시 보조축 최대)
+        ///   4) 부재별 1차 필터: 부재당 주축 최대 1개 (동률 시 보조축 최대)
+        ///   5) 전역 주축 중복 제거: 같은 주축값 Osnap은 1개만 유지 (보조축 최대 우선)
+        ///   6) 필수점 A/B 강제 포함
+        /// </summary>
+        private List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> FilterOsnapForDimAxis(
+            Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> nodeOsnapMap,
+            string dimAxis, string viewDirection, float tolerance)
+        {
+            // --- 축 매핑: 주축/보조축 결정 ---
+            string primaryAxis, secondaryAxis;
+            switch (viewDirection)
+            {
+                case "X": primaryAxis = "Z"; secondaryAxis = "Y"; break;
+                case "Y": primaryAxis = "Z"; secondaryAxis = "X"; break;
+                case "Z": primaryAxis = "Y"; secondaryAxis = "X"; break;
+                default:  primaryAxis = "Z"; secondaryAxis = "X"; break;
+            }
+
+            Func<VIZCore3D.NET.Data.Vertex3D, float> getDim = VertexAxisGetter(dimAxis);
+            Func<VIZCore3D.NET.Data.Vertex3D, float> getPri = VertexAxisGetter(primaryAxis);
+            Func<VIZCore3D.NET.Data.Vertex3D, float> getSec = VertexAxisGetter(secondaryAxis);
+
+            // --- Step 1: 후보 수집 (전체 플랫 리스트) ---
+            var allCandidates = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName, int nodeIdx)>();
+            foreach (var kvp in nodeOsnapMap)
+            {
+                foreach (var pt in kvp.Value)
+                    allCandidates.Add((pt.point, pt.nodeName, kvp.Key));
+            }
+
+            int totalBeforeFilter = allCandidates.Count;
+            if (allCandidates.Count < 2) return allCandidates.Select(c => (c.point, c.nodeName)).ToList();
+
+            // --- Step 2: 필수점 4개 결정 ---
+            // A: 주축 MAX (동률 시 보조축 MAX)
+            var pointA = allCandidates
+                .OrderByDescending(c => getPri(c.point))
+                .ThenByDescending(c => getSec(c.point))
+                .First();
+            // B: 주축 MIN (동률 시 보조축 MAX)
+            var pointB = allCandidates
+                .OrderBy(c => getPri(c.point))
+                .ThenByDescending(c => getSec(c.point))
+                .First();
+            // C: 보조축 MAX (동률 시 주축 MAX)
+            var pointC = allCandidates
+                .OrderByDescending(c => getSec(c.point))
+                .ThenByDescending(c => getPri(c.point))
+                .First();
+            // D: 보조축 MIN (동률 시 주축 MAX)
+            var pointD = allCandidates
+                .OrderBy(c => getSec(c.point))
+                .ThenByDescending(c => getPri(c.point))
+                .First();
+
+            // --- Step 4: 부재별 1차 필터 (부재(Part)당 주축 최대 1개, 동률 시 보조축 최대) ---
+            // 키: nodeName (Part명) — 같은 Part 하위 Body가 여러 개여도 1개만 유지
+            var perMember = new Dictionary<string, (VIZCore3D.NET.Data.Vertex3D point, string nodeName, int nodeIdx)>();
+            foreach (var c in allCandidates)
+            {
+                string memberKey = c.nodeName ?? c.nodeIdx.ToString();
+                if (!perMember.ContainsKey(memberKey))
+                {
+                    perMember[memberKey] = c;
+                }
+                else
+                {
+                    var existing = perMember[memberKey];
+                    float existPri = getPri(existing.point);
+                    float candPri = getPri(c.point);
+                    if (candPri > existPri + tolerance ||
+                        (Math.Abs(candPri - existPri) <= tolerance && getSec(c.point) > getSec(existing.point) + tolerance))
+                    {
+                        perMember[memberKey] = c;
+                    }
+                }
+            }
+            var afterMemberFilter = perMember.Values.ToList();
+            int afterMemberCount = afterMemberFilter.Count;
+
+            // --- Step 5: 전역 주축 중복 제거 (같은 dimAxis 값은 1개만, 보조축 최대 우선) ---
+            var grouped = new Dictionary<string, (VIZCore3D.NET.Data.Vertex3D point, string nodeName, int nodeIdx)>();
+            foreach (var c in afterMemberFilter)
+            {
+                float dimVal = RoundToTolerance(getDim(c.point), tolerance);
+                string key = dimVal.ToString("F1");
+                if (!grouped.ContainsKey(key))
+                {
+                    grouped[key] = c;
+                }
+                else
+                {
+                    var existing = grouped[key];
+                    if (getSec(c.point) > getSec(existing.point) + tolerance)
+                    {
+                        grouped[key] = c;
+                    }
+                }
+            }
+            var afterDedup = grouped.Values.ToList();
+            int dedupRemoved = afterMemberCount - afterDedup.Count;
+
+            // --- Step 6: 필수점 A/B/C/D 강제 포함 ---
+            float tolCheck = tolerance;
+            var requiredPoints = new[] { pointA, pointB, pointC, pointD };
+            foreach (var req in requiredPoints)
+            {
+                bool exists = afterDedup.Any(c =>
+                    Math.Abs(c.point.X - req.point.X) < tolCheck &&
+                    Math.Abs(c.point.Y - req.point.Y) < tolCheck &&
+                    Math.Abs(c.point.Z - req.point.Z) < tolCheck);
+                if (!exists)
+                    afterDedup.Add(req);
+            }
+
+            // --- Debug 로그 ---
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap] dimAxis={dimAxis}, view={viewDirection}, primary={primaryAxis}, secondary={secondaryAxis}");
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap]   필터 전: {totalBeforeFilter}개 → 부재별 필터 후: {afterMemberCount}개 → 중복제거: -{dedupRemoved}개 → 최종: {afterDedup.Count}개");
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap]   필수점 A (주축MAX): ({pointA.point.X:F1}, {pointA.point.Y:F1}, {pointA.point.Z:F1}) [{pointA.nodeName}]");
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap]   필수점 B (주축MIN): ({pointB.point.X:F1}, {pointB.point.Y:F1}, {pointB.point.Z:F1}) [{pointB.nodeName}]");
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap]   필수점 C (보조축MAX): ({pointC.point.X:F1}, {pointC.point.Y:F1}, {pointC.point.Z:F1}) [{pointC.nodeName}]");
+            System.Diagnostics.Debug.WriteLine($"[FilterOsnap]   필수점 D (보조축MIN): ({pointD.point.X:F1}, {pointD.point.Y:F1}, {pointD.point.Z:F1}) [{pointD.nodeName}]");
+
+            return afterDedup.Select(c => (c.point, c.nodeName)).ToList();
+        }
+
+        /// <summary>
+        /// Vertex3D에서 축 값을 가져오는 Func 반환
+        /// </summary>
+        private Func<VIZCore3D.NET.Data.Vertex3D, float> VertexAxisGetter(string axis)
+        {
+            switch (axis)
+            {
+                case "X": return p => p.X;
+                case "Y": return p => p.Y;
+                case "Z": return p => p.Z;
+                default: return p => 0f;
+            }
         }
 
     }
