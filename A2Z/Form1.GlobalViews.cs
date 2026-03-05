@@ -194,11 +194,6 @@ namespace A2Z
             chainDimensionList.Clear();
             lvDimension.Items.Clear();
 
-            // Osnap 데이터 클리어 (바운딩박스 기반 치수 사용)
-            osnapPoints.Clear();
-            osnapPointsWithNames.Clear();
-            lvOsnap.Items.Clear();
-
             // 포함된 부재의 BOM 데이터 수집
             List<BOMData> members = new List<BOMData>();
             foreach (int idx in memberIndices)
