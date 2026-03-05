@@ -2,7 +2,7 @@
 
 > 3D CAD 모델 자동 분석 및 제조용 2D 도면 생성 시스템
 > VIZCore3D.NET + C# WinForms (.NET Framework 4.8)
-> 최종 업데이트: 2026-02-27
+> 최종 업데이트: 2026-03-05
 
 ---
 
@@ -16,13 +16,22 @@
 
 ```
 A2Z/
-├── Form1.cs              # 전체 비즈니스 로직 (약 3,440줄)
-├── Form1.Designer.cs     # UI 레이아웃 (WinForms Designer)
-├── Form1.resx            # 리소스
-├── Program.cs            # 진입점
-├── A2Z.csproj            # .NET Framework 4.8, VIZCore3D.NET 참조
-├── Properties/           # AssemblyInfo, Resources, Settings
-└── bin/Debug/            # VIZCore3D DLL 및 빌드 산출물
+├── Form1.cs                 # 필드 선언 + 생성자 (~150줄)
+├── Form1.BOM.cs             # BOM 수집, 홀/슬롯홀 감지, 파일 열기 (~1,480줄)
+├── Form1.Clash.cs           # 간섭 검출, BOM 정보 수집 (~500줄)
+├── Form1.Drawing2D.cs       # 2D 도면 생성/PDF + UI 이벤트 핸들러 (~920줄)
+├── Form1.Dimensions.cs      # 풍선/치수 표시, 스마트 필터링, 뷰 제어 (~2,290줄)
+├── Form1.Attribute.cs       # 부재 정보/UDA 관리 (~620줄)
+├── Form1.MfgDrawing.cs      # 가공도 생성/렌더링 (~1,080줄)
+├── Form1.DrawingSheets.cs   # 도면 시트(BFS) 관리, 2D 출력/PDF (~1,110줄)
+├── Form1.GlobalViews.cs     # 전역 뷰 제어, 설치 치수 (~380줄)
+├── Form1.Designer.cs        # UI 레이아웃 (WinForms Designer)
+├── Form1.resx               # 리소스
+├── Models.cs                # 데이터 클래스 (BOMData, ClashData 등 ~130줄)
+├── Program.cs               # 진입점
+├── A2Z.csproj               # .NET Framework 4.8, VIZCore3D.NET 참조
+├── Properties/              # AssemblyInfo, Resources, Settings
+└── bin/Debug/               # VIZCore3D DLL 및 빌드 산출물
 ```
 
 ### 개발 진행 예정 사항
@@ -36,7 +45,7 @@ A2Z/
 | 5   | 풍선 위치 개선                   | 완료  | 홀/슬롯홀 풍선 오프셋 증가 (부재와 적절한 거리 확보). ISO 풍선 balloonOffset 25→50, 홀/슬롯홀 baseOffset modelDiag*0.25→0.35 |
 | 6   | BOM 수집 시점 변경 + 활성화 모델 기준   | 완료  | 치수 추출 버튼 클릭 시 BOM 수집. 트리뷰 체크(Visible) 노드만 대상. FromIndex() 실시간 조회 방식 (Phase 14) |
 | 7   | BOM정보 컬럼 재설계 + UDA 전환       | 완료  | 8컬럼(No.\|ITEM\|MATERIAL\|SIZE\|Q'TY\|T/W\|MA\|FA), SPREF/MATREF/GWEI UDA 키, 부재명 TextBox 오버레이 (Phase 16) |
-| 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 보류  | Drawing2D Template API가 현재 DLL에서 미지원, 임시 비활성화 (Phase 17) |
+| 8   | 2D 도면 생성 — Drawing2D Template API 전환 | 완료  | 도면정보 탭 신버전 로직(GenerateSheetDrawing2D)으로 통합, 구버전 코드 삭제 (Phase 26) |
 | 9   | 도면정보 탭 BOM 테이블 통합          | 완료  | 도면정보 탭에 BOM 정보 테이블 추가, 도면 선택 시 해당 BOM 자동 표시 (Phase 17) |
 | 10  | 2D 템플릿 BOM 테이블 전환           | 완료  | 2D 도면 우측 BOM 테이블을 lvBOMInfo 기반 8컬럼으로 전환, BOM 미수집 시 자동 수집 (Phase 18) |
 | 11  | UDA 부모 탐색 + MATREF 파싱         | 완료  | Part→부모 방향 UDA 조회(최대 10단계), MATREF "/" 제거 (Phase 18) |
@@ -44,6 +53,9 @@ A2Z/
 | 13  | X-Ray 모드 선택 노드 필터링         | 완료  | CollectBOMData/DetectClash/CollectBOMInfo에 X-Ray 필터링 적용, 선택 모델만 처리 (Phase 20) |
 | 14  | BOM T/W 소수점 반올림              | 완료  | GWEI 값 소수점 둘째자리 반올림 표시, 요약행 totalWeight도 F2 포맷 (Phase 20) |
 | 15  | BOM정보 탭 제거                    | 완료  | 도면정보 탭에 동일 BOM 테이블 존재하므로 중복 탭 제거, 2D 생성도 lvDrawingBOMInfo 참조로 전환 (Phase 20) |
+| 16  | Form1.cs partial class 리팩토링     | 완료  | 9,235줄 단일 파일을 10개 파일로 분리 (Phase 24) |
+| 17  | 도면정보 탭 버튼 복원               | 완료  | HYI Designer.cs 복원, 2D출력/PDF출력/BOM수집 버튼 3개 복원 (Phase 25) |
+| 18  | 작업/데이터 탭 구버전→신버전 교체    | 완료  | btnGenerate2D_Click→GenerateSheetDrawing2D, btnExportPDF_Click→Export2PDFBy2DView, 구버전 10개 메서드 삭제 (Phase 26) |
 
 
 ### 현재 구현 완료된 기능
@@ -1276,6 +1288,162 @@ Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
 
 ---
 
+### Phase 24: Form1.cs Partial Class 리팩토링 (9,235줄 → 10개 파일 분리)
+
+**[요청]** "코드가 너무 길어서 리팩토링을 해서 문서를 나눠야 할 거 같은데"
+
+**[구현]**
+
+9,235줄의 단일 Form1.cs를 C# `partial class`를 사용하여 기능별 10개 파일로 분리. 클래스 구조/메서드 시그니처/네임스페이스 동일 유지로 동작 변경 없음.
+
+**[분리 구조]**
+
+| 파일 | 줄 수 | 역할 |
+| ---- | ----- | ---- |
+| `Form1.cs` | ~150 | 필드 선언 + 생성자 (진입점) |
+| `Form1.BOM.cs` | ~1,480 | BOM 수집, 홀/슬롯홀 감지, 파일 열기 |
+| `Form1.Clash.cs` | ~500 | 간섭 검출, BOM 정보 수집 |
+| `Form1.Drawing2D.cs` | ~920 | 2D 도면 생성/PDF + UI 이벤트 핸들러 |
+| `Form1.Dimensions.cs` | ~2,290 | 풍선/치수 표시, 스마트 필터링, 뷰 제어 |
+| `Form1.Attribute.cs` | ~620 | 부재 정보 탭, 속성/UDA 관리 |
+| `Form1.MfgDrawing.cs` | ~1,080 | 가공도 생성/렌더링 |
+| `Form1.DrawingSheets.cs` | ~1,110 | 도면 시트(BFS) 관리, 2D 출력/PDF |
+| `Form1.GlobalViews.cs` | ~380 | 전역 뷰 제어, 설치 치수 |
+| `Models.cs` | ~130 | 데이터 클래스 (Form1 밖) |
+
+**[주의사항]**
+
+- .NET Framework 4.8은 새 .cs 파일을 자동 포함하지 않으므로 `A2Z.csproj`에 수동으로 `<Compile Include>` + `<DependentUpon>Form1.cs</DependentUpon>` 추가 필요
+- 메서드 내부에 선언된 필드 3개를 메인 Form1.cs로 이동:
+  - `currentBalloonMemberIndices` (Dimensions.cs에서 이동)
+  - `chainDimensionList` (Dimensions.cs에서 이동)
+  - `_autoProcessOsnapSuccess` (BOM.cs에서 이동)
+- `#region`/`#endregion` 쌍이 파일 경계에서 분리되는 경우 수동 보정 필요
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.cs` | 9,235줄 → ~150줄 (필드+생성자만 유지) |
+| `Form1.BOM.cs` ~ `Form1.GlobalViews.cs` | 8개 partial class 파일 신규 생성 |
+| `Models.cs` | 데이터 클래스 분리 (ChainDimensionData, BOMData, HoleInfo, SlotHoleInfo, ClashData, DrawingSheetData) |
+| `A2Z.csproj` | 9개 신규 파일 Compile Include 추가 |
+
+---
+
+### Phase 25: Designer.cs 복원 + 도면정보 탭 버튼 복원
+
+**[문제]** main의 Form1.Designer.cs가 CJH 기반(구버전)이라 HYI에서 추가된 도면정보 탭 버튼 3개가 누락됨
+
+**[누락된 버튼]**
+
+| 버튼 | 핸들러 | 위치 |
+| ---- | ------ | ---- |
+| `btnGenerateSheet2D` ("2D 출력") | `btnGenerateSheet2D_Click` | Form1.DrawingSheets.cs |
+| `btnExportSheet2DPDF` ("PDF 출력") | `btnExportSheet2DPDF_Click` | Form1.DrawingSheets.cs |
+| `btnCollectBOMInfo` ("BOM 수집") | `btnCollectBOMInfo_Click` | Form1.Clash.cs |
+
+**[해결]**
+
+- HYI 브랜치의 Form1.Designer.cs를 main에 복사하여 버튼 3개 + 전체 UI 복원
+- VIZCore3D DLL 참조 경로를 클론 폴더에 맞게 수정: `..\..\VIZCore3D+.NET.dll` → `..\VIZCore3D+.NET.dll`
+- 핸들러 코드는 이미 partial class 파일에 존재하여 추가 코드 작업 불필요
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Designer.cs` | HYI 버전으로 교체 (도면정보 탭 3개 버튼 복원) |
+| `A2Z.csproj` | DLL HintPath 수정 |
+
+---
+
+### Phase 26: 작업/데이터 탭 2D생성/PDF내보내기를 도면정보 탭과 동일 로직으로 교체
+
+**[요청]** "작업/데이터 탭의 버튼들도 도면정보 버튼이랑 같은 로직을 가질 수 있게 해줘 그 앞의 구 버전은 지워버리고"
+
+**[배경]**
+
+작업/데이터 탭(구버전)과 도면정보 탭(신버전)의 2D/PDF 기능이 완전히 다른 로직 사용:
+
+| 항목 | 구버전 (작업/데이터) | 신버전 (도면정보) |
+| ---- | ------------------- | ---------------- |
+| 은선 처리 | 없음 | Hidden Line (DASH_LINE) |
+| 풍선 충돌방지 | 없음 | 등각 투영 근사 + AABB 충돌 검사 |
+| 보조선 | 없음 | ShapeDrawing → 2D 변환 |
+| PDF 출력 | 래스터 (GDI+ PrintToPDF) | 벡터 (Export2PDFBy2DView) |
+| 렌더 API | Create2DViewObjectWithModelAtCanvasOrigin | Create2DViewObjectWithModelHiddenLineAtCanvasOrigin |
+
+**[구현]**
+
+1. `btnGenerate2D_Click` 교체: 전체 bomList로 임시 `DrawingSheetData` 생성 → `GenerateSheetDrawing2D(sheet)` 호출
+2. `btnExportPDF_Click` 교체: `Export2PDFBy2DView()` 벡터 PDF로 교체
+
+**[삭제된 구버전 메서드 (10개)]**
+
+| 메서드 | 역할 (구버전) |
+| ------ | ------------- |
+| `RenderViewWithVisibleNotes` | 구버전 뷰 투영 (Hidden Line 없음) |
+| `AddDimensionsForView` | 구버전 2D 치수 추가 (검은색) |
+| `Show2DDrawingForm` | 구버전 별도 Form 미리보기 |
+| `DrawPartNumbersOnIsoView` | 구버전 GDI+ 풍선 그리기 |
+| `DrawBOMTable` | 구버전 GDI+ BOM 테이블 |
+| `GetColOffset` | 헬퍼 (BOM 테이블용) |
+| `TruncateString` | 헬퍼 (문자열 자르기) |
+| `DrawTitleBlock` | 구버전 GDI+ 타이틀 블록 |
+| `PrintToPDF` | 구버전 래스터 PDF (Microsoft Print to PDF) |
+
+**[삭제된 필드]**
+
+- `lastGeneratedDrawing` (Form1.cs) — 구버전 래스터 PDF 전용 Bitmap 캐시
+
+**[파일 변경]**
+
+| 파일 | 변경 내용 |
+| ---- | --------- |
+| `Form1.Drawing2D.cs` | 1,605줄 → 924줄 (-681줄). btnGenerate2D_Click/btnExportPDF_Click 교체, 구버전 메서드 10개 삭제 |
+| `Form1.cs` | lastGeneratedDrawing 필드 제거 |
+
+**[변경 통계]**: +42줄, -728줄
+
+---
+
+### Phase 27: 3D 뷰어 vs 2D 도면 차이점 분석
+
+**[분석 결과]**
+
+3D 표현(뷰어)과 2D Drawing(GenerateSheetDrawing2D) 간의 주요 차이:
+
+| 구분 | 3D 뷰어 | 2D 도면 |
+|------|--------|--------|
+| **풍선 위치 계산** | 3D 벡터 기반 (부재→모델중심 방향) | 등각 투영 공식 `H=0.707(x-y), V=0.408(x+y)+0.816z` |
+| **풍선 충돌 검사** | 3D 거리 `√(dx²+dy²+dz²)` | 2D 투영 거리 `√(dh²+dv²) < 30` |
+| **풍선 가시성** | 수동 오버라이드 | `FromScreen()` 카메라 프러스텀 자동 필터링 |
+| **치수 색상** | 파란색 `Color.Blue` | 검은색 `Color.Black` (인쇄 최적화) |
+| **보조선 색상** | 연한 파란색 `(120,120,200)` | 검은색 `(0,0,0)` |
+| **보조선 굵기** | `0.5f` | `0.15f` → 2D 변환 후 `0.3f` |
+| **텍스트 크기** | `SIZE8` | `7f` (약 70% 축소) |
+| **렌더 모드** | DASH_LINE (공통) | DASH_LINE (공통) |
+| **모델 실선** | 기본 | `2.0f` (굵게 설정) |
+| **스케일링** | `FlyToObject3d(1.0f)` 수동 | 높이 40 자동 맞춤 + 개별 축 조정 |
+| **가공도 풍선** | 즉시 AddNote | 튜플 배열 누적 후 일괄 처리 |
+| **PDF 출력** | 해당 없음 | `Export2PDFBy2DView` 벡터 PDF |
+
+**[데이터 흐름]**
+
+```
+3D: 버튼 클릭 → 카메라 이동 → ShowBalloonNumbers/ShowAllDimensions → 뷰어 렌더링
+
+2D: 버튼 클릭 → GenerateSheetDrawing2D
+    → 4개 뷰별 RenderSheetViewForDrawing()
+      ├─ ISO: ShowBalloonNumbers() → 가시성 필터링 → Add2DNoteFrom3DNote
+      └─ X/Y/Z: ShowAllDimensions(forDrawing2D=true) → Add2DMeasureFrom3DMeasure + Add2DObjectFromShapeDrawing
+    → 스케일 조정 → vizcore3d.Drawing2D.Render()
+    → Export2PDFBy2DView (벡터 PDF)
+```
+
+---
+
 ### 확인된 API 문서 URL
 
 | API                       | URL                                                                                                               |
@@ -1397,21 +1565,24 @@ Phase 21의 "부재별 끝단 Osnap 필터링 (min/max 2개)" 로직을 개선:
 7. ShowAllDimensions()로 치수 표시
 ```
 
-### 4.8 2D 도면 생성 (btnGenerate2D_Click)
+### 4.8 2D 도면 생성 (btnGenerate2D_Click → GenerateSheetDrawing2D)
 
 ```
-1. 렌더 설정: 검정색, DASH_LINE, 실루엣 엣지
-2. 4방향 캡처 (400x300):
-   - ISO (등각투영, 치수 없음)
-   - Z+ (평면도, X/Y 치수)
-   - Y+ (정면도, X/Z 치수)
-   - X+ (측면도, Y/Z 치수)
-3. 1155x615 캔버스 구성:
-   - 2x2 뷰 배치 + 치수 오버레이
-   - BOM 테이블 (No/이름/형식/수량)
-   - 타이틀 블록 (회사/도면명/축척/날짜/작성/승인)
-4. 별도 Form에서 미리보기 (저장/인쇄 버튼)
-5. PNG/JPEG/PDF 내보내기
+1. 전체 BOM 부재로 임시 DrawingSheetData 생성
+2. GenerateSheetDrawing2D(sheet) 호출:
+   a. 3D 어노테이션 초기화 (Note/Measure/ShapeDrawing Clear)
+   b. 2D 초기화 (기존 캔버스/오브젝트 삭제 + ViewMode 리셋)
+   c. 시트 부재 X-Ray 설정 + 설치도 치수 추출
+   d. 템플릿 생성 (BOM 테이블 8컬럼 + 도면정보)
+   e. 2x3 그리드 구조 생성 (좌측 4셀 = 뷰, 우측 = 템플릿)
+   f. 4개 뷰 투영 (RenderSheetViewForDrawing):
+      - [1,1] ISO — 풍선번호 (등각 투영 충돌방지)
+      - [1,2] Z축 — 치수선+보조선 (Hidden Line)
+      - [2,1] Y축 — 치수선+보조선 (Hidden Line)
+      - [2,2] X축 — 치수선+보조선 (Hidden Line)
+   g. 스케일 자동 조정 (높이 40 기준)
+   h. vizcore3d.Drawing2D.Render()
+3. PDF 내보내기: Export2PDFBy2DView (벡터 PDF)
 ```
 
 ---
@@ -1495,37 +1666,38 @@ float ZValue;          // 충돌 지점 Z좌표
 
 ---
 
-## 7. Method Index (주요 메서드 라인 번호)
+## 7. Method Index (주요 메서드 — 파일별)
 
-| 라인 | 메서드                             | 역할                                     |
-| ---- | ---------------------------------- | ---------------------------------------- |
-| 57   | `Form1()`                          | 생성자: UI 초기화, VIZCore3D 컨트롤 생성 |
-| 102  | `Vizcore3d_OnInitializedVIZCore3D` | 라이선스, Edge 설정, Clash 이벤트 등록   |
-| 128  | `btnOpen_Click`                    | 파일 열기 + 전체 초기화 + BOM 수집       |
-| 202  | `btnMainDimension_Click`           | 메인 워크플로우 (Osnap→치수→Clash)       |
-| 365  | `CollectBOMData`                   | BOM 데이터 수집                          |
-| 452  | `DetectClash`                      | Clash 검사 실행                          |
-| 525  | `Clash_OnClashTestFinishedEvent`   | Clash 결과 수집/표시                     |
-| 627  | `btnGenerate2D_Click`              | 2D 도면 생성                             |
-| 912  | `AddDimensionsForView`             | 2D 뷰에 치수 추가                        |
-| 1082 | `Show2DDrawingForm`                | 2D 도면 미리보기 폼                      |
-| 1323 | `PrintToPDF`                       | PDF 출력                                 |
-| 1403 | `LvBOM_DoubleClick`                | BOM 부재 확대 이동                       |
-| 1431 | `LvClash_DoubleClick`              | Clash 부재 확대 이동 + 하이라이트        |
-| 1459 | `btnCollectOsnap_Click`            | Osnap 수집                               |
-| 1681 | `btnClashShowSelected_Click`       | X-Ray 선택 보기                          |
-| 1979 | `btnClashShowAll_Click`            | 전체 보기 복원                           |
-| 2128 | `btnOsnapShowSelected_Click`       | 선택 Osnap 빨간 구 마커 표시             |
-| 2382 | `btnShowAxisX_Click`               | X축 방향 보기 (Y,Z 치수)                 |
-| 2396 | `btnShowAxisY_Click`               | Y축 방향 보기 (X,Z 치수)                 |
-| 2409 | `btnShowAxisZ_Click`               | Z축 방향 보기 (X,Y 치수)                 |
-| 2430 | `ShowAllDimensions`                | 치수 필터링 + 레벨 배치 + 렌더링         |
-| 2572 | `DrawDimension`                    | 단일 치수 + 오프셋 + 보조선              |
-| 2647 | `AssignDimensionPriorities`        | 치수 우선순위 점수 할당                  |
-| 2715 | `ApplySmartFiltering`              | Greedy 필터링 (겹침 방지)                |
-| 2947 | `LvClash_SelectedIndexChanged`     | Clash 선택 시 Osnap/치수 자동 연동       |
-| 3109 | `btnExtractDimension_Click`        | 체인 치수 추출                           |
-| 3234 | `AddChainDimensionByAxis`          | 축별 순차/전체 치수 생성                 |
+| 파일 | 메서드 | 역할 |
+| ---- | ------ | ---- |
+| `Form1.cs` | `Form1()` | 생성자: UI 초기화, VIZCore3D 컨트롤 생성 |
+| `Form1.BOM.cs` | `btnOpen_Click` | 파일 열기 + 전체 초기화 |
+| | `btnMainDimension_Click` | 메인 워크플로우 (Osnap→치수→Clash) |
+| | `CollectBOMData` | BOM 데이터 수집 |
+| | `DetectHoles` | 홀/슬롯홀 감지 |
+| `Form1.Clash.cs` | `DetectClash` | Clash 검사 실행 |
+| | `Clash_OnClashTestFinishedEvent` | Clash 결과 수집/표시 |
+| | `CollectBOMInfo` | BOM 정보 수집 (UDA 기반) |
+| `Form1.Drawing2D.cs` | `btnGenerate2D_Click` | 2D 도면 생성 (→ GenerateSheetDrawing2D 호출) |
+| | `btnExportPDF_Click` | PDF 내보내기 (Export2PDFBy2DView 벡터 PDF) |
+| | `btnCollectOsnap_Click` | Osnap 수집 |
+| | `btnClashShowSelected_Click` | X-Ray 선택 보기 |
+| | `btnClashShowAll_Click` | 전체 보기 복원 |
+| `Form1.Dimensions.cs` | `ShowBalloonNumbers` | 풍선 표시 (ISO 등각 투영 충돌방지) |
+| | `ShowAllDimensions` | 치수 필터링 + 레벨 배치 + 렌더링 |
+| | `DrawDimension` | 단일 치수 + 오프셋 + 보조선 |
+| | `AddChainDimensionByAxis` | 축별 순차/전체 치수 생성 |
+| `Form1.Attribute.cs` | `Object3D_OnObject3DSelected` | 부재 선택 이벤트 |
+| | `UpdateAttributeTable` | 속성 테이블 업데이트 |
+| `Form1.MfgDrawing.cs` | `ExecuteMfgDrawing` | 가공도 핵심 로직 |
+| | `GenerateMfgDrawing2DAll` | 가공도 2D 도면 일괄 생성 |
+| `Form1.DrawingSheets.cs` | `GenerateDrawingSheets` | BFS 기반 도면 시트 생성 |
+| | `GenerateSheetDrawing2D` | 2D 도면 생성 (Hidden Line + 풍선 + 치수) |
+| | `RenderSheetViewForDrawing` | 개별 뷰 셀 렌더링 |
+| | `btnExportSheet2DPDF_Click` | PDF 출력 (벡터) |
+| `Form1.GlobalViews.cs` | `ApplyGlobalView` | 전역 뷰 제어 |
+| | `ExtractInstallationDimensions` | 설치도 치수 추출 |
+| `Models.cs` | `BOMData`, `ClashData` 등 | 데이터 클래스 |
 
 ---
 
@@ -1533,7 +1705,9 @@ float ZValue;          // 충돌 지점 Z좌표
 
 | 브랜치 | 용도                    |
 | ------ | ----------------------- |
-| `main` | 메인 브랜치             |
-| `HYI`  | 현재 개발 브랜치 (활성) |
+| `main` | 리팩토링 완료 버전 (partial class 분리 + 신버전 2D/PDF) |
+| `HYI`  | 리팩토링 전 단일 Form1.cs 버전 (보존용) |
 
-커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함.
+- `main`: Phase 24~26 적용 (10개 파일 분리 + 구버전 코드 삭제)
+- `HYI`: 리팩토링 전 상태 유지 (만약의 경우를 위한 백업)
+- 커밋 시 `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` 포함
