@@ -1047,7 +1047,9 @@ namespace A2Z
                     labelStyle.LineColor = Color.Black;
                     labelStyle.ArrowColor = Color.Black;
 
-                    int labelNoteId = vizcore3d.Review.Note.AddNote3D(viewLabel, lx, ly, lz, labelStyle);
+                    // AddNoteSurface: 2D 변환(Add2DNoteFrom3DNote) 호환
+                    VIZCore3D.NET.Data.Vertex3D labelPos = new VIZCore3D.NET.Data.Vertex3D(lx, ly, lz);
+                    int labelNoteId = vizcore3d.Review.Note.AddNoteSurface(viewLabel, labelPos, labelPos, labelStyle);
                     // ISO 뷰: 라벨도 visibleNoteIds에 포함하여 2D 투영 대상에 추가
                     if (visibleNoteIds != null)
                         visibleNoteIds.Add(labelNoteId);
