@@ -1012,13 +1012,23 @@ namespace A2Z
                         initDirX /= initDirLen;
                         initDirY /= initDirLen;
 
-                        // 2D 오프셋 거리를 3D로 변환
+                        // 3D 오프셋: 모델 대각선 기준 고정 거리 (2D AABB 방향만 활용)
+                        float isoDiag = (float)Math.Sqrt(
+                            (mMaxX - mMinX) * (mMaxX - mMinX) +
+                            (mMaxY - mMinY) * (mMaxY - mMinY) +
+                            (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
+                        float fixedOffset = Math.Max(200f, isoDiag * 0.35f);
+
+                        // 2D 방향에서 회전 각도 추출하여 3D 방향에 적용
                         float offsetH = candH - projBom.h;
                         float offsetV = candV - projBom.v;
-                        float offset2D = (float)Math.Sqrt(offsetH * offsetH + offsetV * offsetV);
-                        float noteX = bom.CenterX + initDirX * offset2D;
-                        float noteY = bom.CenterY + initDirY * offset2D;
-                        float noteZ = bom.CenterZ + offsetV * 0.3f; // V방향 일부를 Z로 반영
+                        float angle2D = (float)Math.Atan2(offsetV, offsetH);
+                        float cosA2 = (float)Math.Cos(angle2D);
+                        float sinA2 = (float)Math.Sin(angle2D);
+                        // 2D 각도를 3D XY 회전으로 적용
+                        float noteX = bom.CenterX + (cosA2 * initDirX - sinA2 * initDirY) * fixedOffset;
+                        float noteY = bom.CenterY + (sinA2 * initDirX + cosA2 * initDirY) * fixedOffset;
+                        float noteZ = bom.CenterZ;
 
                         VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(noteX, noteY, noteZ);
                         int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
