@@ -122,7 +122,7 @@ namespace A2Z
             // ISO는 풍선 표시, X/Y/Z는 치수 표시
             if (viewDirection == "ISO")
             {
-                ShowBalloonNumbers("ISO", xraySelectedNodeIndices);
+                CreateIsoBalloonNotes(xraySelectedNodeIndices);
             }
             else
             {
@@ -172,7 +172,11 @@ namespace A2Z
             // ISO는 풍선 표시, X/Y/Z는 치수 표시
             if (viewDirection == "ISO")
             {
-                ShowBalloonNumbers("ISO");
+                // 전체 모델: 모든 bomList 부재 인덱스 사용
+                List<int> allIndices = new List<int>();
+                if (bomList != null)
+                    foreach (var bom in bomList) allIndices.Add(bom.Index);
+                CreateIsoBalloonNotes(allIndices);
             }
             else
             {

@@ -944,7 +944,7 @@ namespace A2Z
 
         /// <summary>
         /// 각 그리드 셀별로 3D 상태를 ApplyDrawingSheetView와 동일하게 적용 → 2D 투영
-        /// ISO: 풍선번호(ShowBalloonNumbers), X/Y/Z: 치수선+보조선+풍선(ShowAllDimensions)
+        /// ISO: 풍선번호(CreateIsoBalloonNotes), X/Y/Z: 치수선+보조선+풍선(ShowAllDimensions)
         /// 각 셀 크기의 90% 비율로 중앙 배치
         /// </summary>
         private int RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet, string viewLabel = "")
