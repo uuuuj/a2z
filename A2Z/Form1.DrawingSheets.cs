@@ -371,7 +371,10 @@ namespace A2Z
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     // 선택된 부재에 맞춰 화면 조정 (반복 호출 시 줌 누적 방지)
                     vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.0f);
-                    ShowBalloonNumbers("ISO", sheet.MemberIndices);
+
+                    // 2D 출력과 동일한 ISO 풍선 로직 사용
+                    vizcore3d.Review.Note.Clear();
+                    CreateIsoBalloonNotes(sheet.MemberIndices);
                 }
                 else
                 {
@@ -416,6 +419,146 @@ namespace A2Z
             {
                 MessageBox.Show($"도면 시트 뷰 표시 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// ISO 뷰 풍선 노트 생성 (3D 고정 오프셋 + 2D AABB 겹침 검사)
+        /// ApplyDrawingSheetView("ISO")와 RenderSheetViewForDrawing 양쪽에서 공유
+        /// </summary>
+        private Dictionary<int, int> CreateIsoBalloonNotes(List<int> memberIndices)
+        {
+            Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
+            if (bomList == null || bomList.Count == 0) return nodeToNoteMap;
+
+            // ISO_PLUS 등각 투영 2D 근사
+            Func<float, float, float, (float h, float v)> isoProject = (px, py, pz) =>
+            {
+                return (0.707f * (px - py), 0.408f * (px + py) + 0.816f * pz);
+            };
+
+            HashSet<int> sheetMemberSet = new HashSet<int>(memberIndices);
+
+            // 모델 3D 중심 + 대각 계산
+            float mCenterX = 0, mCenterY = 0, mCenterZ = 0;
+            float mMinX = float.MaxValue, mMinY = float.MaxValue, mMinZ = float.MaxValue;
+            float mMaxX = float.MinValue, mMaxY = float.MinValue, mMaxZ = float.MinValue;
+            int memberCount = 0;
+            foreach (var bom in bomList)
+            {
+                if (!sheetMemberSet.Contains(bom.Index)) continue;
+                mMinX = Math.Min(mMinX, bom.MinX); mMinY = Math.Min(mMinY, bom.MinY); mMinZ = Math.Min(mMinZ, bom.MinZ);
+                mMaxX = Math.Max(mMaxX, bom.MaxX); mMaxY = Math.Max(mMaxY, bom.MaxY); mMaxZ = Math.Max(mMaxZ, bom.MaxZ);
+                mCenterX += bom.CenterX; mCenterY += bom.CenterY; mCenterZ += bom.CenterZ;
+                memberCount++;
+            }
+            if (memberCount == 0) return nodeToNoteMap;
+            mCenterX /= memberCount; mCenterY /= memberCount; mCenterZ /= memberCount;
+
+            float isoDiag = (float)Math.Sqrt(
+                (mMaxX - mMinX) * (mMaxX - mMinX) +
+                (mMaxY - mMinY) * (mMaxY - mMinY) +
+                (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
+            float baseOffsetDist = Math.Max(200f, isoDiag * 0.35f);
+
+            // 모델 2D AABB (겹침 검사용)
+            float[] cornersX = { mMinX, mMaxX };
+            float[] cornersY = { mMinY, mMaxY };
+            float[] cornersZ = { mMinZ, mMaxZ };
+            float modelH_min = float.MaxValue, modelH_max = float.MinValue;
+            float modelV_min = float.MaxValue, modelV_max = float.MinValue;
+            foreach (float ccx in cornersX)
+                foreach (float ccy in cornersY)
+                    foreach (float ccz in cornersZ)
+                    {
+                        var p = isoProject(ccx, ccy, ccz);
+                        modelH_min = Math.Min(modelH_min, p.h);
+                        modelH_max = Math.Max(modelH_max, p.h);
+                        modelV_min = Math.Min(modelV_min, p.v);
+                        modelV_max = Math.Max(modelV_max, p.v);
+                    }
+            float aabbPad = Math.Max(modelH_max - modelH_min, modelV_max - modelV_min) * 0.05f;
+            modelH_min -= aabbPad; modelH_max += aabbPad;
+            modelV_min -= aabbPad; modelV_max += aabbPad;
+
+            // 풍선 AABB 크기
+            float balloonHalfW = 25f, balloonHalfH = 12f, balloonGap = 5f;
+            List<(float minH, float minV, float maxH, float maxV)> placedAABBs =
+                new List<(float, float, float, float)>();
+
+            foreach (var bom in bomList)
+            {
+                if (!sheetMemberSet.Contains(bom.Index)) continue;
+
+                VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
+
+                // 3D 방향: 모델 중심 → 부재 중심 (XY 평면)
+                float initDirX = bom.CenterX - mCenterX;
+                float initDirY = bom.CenterY - mCenterY;
+                float initDirLen = (float)Math.Sqrt(initDirX * initDirX + initDirY * initDirY);
+                if (initDirLen < 0.001f) { initDirX = 1f; initDirY = 0f; initDirLen = 1f; }
+                initDirX /= initDirLen;
+                initDirY /= initDirLen;
+
+                // 3D 위치 후보 → 2D 투영 → AABB 검사 → 충돌 시 3D 회전
+                float noteX = bom.CenterX + initDirX * baseOffsetDist;
+                float noteY = bom.CenterY + initDirY * baseOffsetDist;
+                float noteZ = bom.CenterZ;
+                var projNote = isoProject(noteX, noteY, noteZ);
+
+                bool positionFound = false;
+                for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
+                {
+                    float bMinH = projNote.h - balloonHalfW;
+                    float bMaxH = projNote.h + balloonHalfW;
+                    float bMinV = projNote.v - balloonHalfH;
+                    float bMaxV = projNote.v + balloonHalfH;
+
+                    // 모델 AABB와 겹침
+                    bool insideModel = bMinH < modelH_max && bMaxH > modelH_min &&
+                                       bMinV < modelV_max && bMaxV > modelV_min;
+
+                    // 다른 풍선과 AABB 겹침
+                    bool collidesPlaced = false;
+                    if (!insideModel)
+                    {
+                        foreach (var placed in placedAABBs)
+                        {
+                            if (bMinH - balloonGap < placed.maxH && bMaxH + balloonGap > placed.minH &&
+                                bMinV - balloonGap < placed.maxV && bMaxV + balloonGap > placed.minV)
+                            { collidesPlaced = true; break; }
+                        }
+                    }
+
+                    if (!insideModel && !collidesPlaced)
+                    {
+                        positionFound = true;
+                    }
+                    else
+                    {
+                        // 3D XY 평면에서 회전 + 거리 증가
+                        float rotAngle = (float)((attempt / 2 + 1) * 15 * Math.PI / 180);
+                        if (attempt % 2 == 1) rotAngle = -rotAngle;
+                        float cosA = (float)Math.Cos(rotAngle);
+                        float sinA = (float)Math.Sin(rotAngle);
+                        float newOffset = baseOffsetDist * (1f + (attempt / 4) * 0.15f);
+                        noteX = bom.CenterX + (cosA * initDirX - sinA * initDirY) * newOffset;
+                        noteY = bom.CenterY + (sinA * initDirX + cosA * initDirY) * newOffset;
+                        noteZ = bom.CenterZ;
+                        projNote = isoProject(noteX, noteY, noteZ);
+                    }
+                }
+
+                placedAABBs.Add((projNote.h - balloonHalfW, projNote.v - balloonHalfH,
+                                 projNote.h + balloonHalfW, projNote.v + balloonHalfH));
+
+                VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(noteX, noteY, noteZ);
+                int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
+                nodeToNoteMap[bom.Index] = id;
+                VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
+                note.UpdateText(id.ToString());
+            }
+
+            return nodeToNoteMap;
         }
 
         private void btnDrawingISO_Click(object sender, EventArgs e)
@@ -860,139 +1003,8 @@ namespace A2Z
                 vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
                 vizcore3d.EndUpdate();
 
-                // bomList 기반 풍선 노트 생성 (3D 고정 오프셋 + 2D AABB 겹침 검사)
-                Dictionary<int, int> nodeToNoteMap = new Dictionary<int, int>();
-                if (bomList != null && bomList.Count > 0)
-                {
-                    // ISO_PLUS 등각 투영 2D 근사
-                    Func<float, float, float, (float h, float v)> isoProject = (px, py, pz) =>
-                    {
-                        return (0.707f * (px - py), 0.408f * (px + py) + 0.816f * pz);
-                    };
-
-                    HashSet<int> sheetMemberSet = new HashSet<int>(sheet.MemberIndices);
-
-                    // 모델 3D 중심 + 대각 계산
-                    float mCenterX = 0, mCenterY = 0, mCenterZ = 0;
-                    float mMinX = float.MaxValue, mMinY = float.MaxValue, mMinZ = float.MaxValue;
-                    float mMaxX = float.MinValue, mMaxY = float.MinValue, mMaxZ = float.MinValue;
-                    int memberCount = 0;
-                    foreach (var bom in bomList)
-                    {
-                        if (!sheetMemberSet.Contains(bom.Index)) continue;
-                        mMinX = Math.Min(mMinX, bom.MinX); mMinY = Math.Min(mMinY, bom.MinY); mMinZ = Math.Min(mMinZ, bom.MinZ);
-                        mMaxX = Math.Max(mMaxX, bom.MaxX); mMaxY = Math.Max(mMaxY, bom.MaxY); mMaxZ = Math.Max(mMaxZ, bom.MaxZ);
-                        mCenterX += bom.CenterX; mCenterY += bom.CenterY; mCenterZ += bom.CenterZ;
-                        memberCount++;
-                    }
-                    if (memberCount == 0) goto SkipIsoBalloons;
-                    mCenterX /= memberCount; mCenterY /= memberCount; mCenterZ /= memberCount;
-
-                    float isoDiag = (float)Math.Sqrt(
-                        (mMaxX - mMinX) * (mMaxX - mMinX) +
-                        (mMaxY - mMinY) * (mMaxY - mMinY) +
-                        (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
-                    float baseOffsetDist = Math.Max(200f, isoDiag * 0.35f);
-
-                    // 모델 2D AABB (겹침 검사용)
-                    float[] cornersX = { mMinX, mMaxX };
-                    float[] cornersY = { mMinY, mMaxY };
-                    float[] cornersZ = { mMinZ, mMaxZ };
-                    float modelH_min = float.MaxValue, modelH_max = float.MinValue;
-                    float modelV_min = float.MaxValue, modelV_max = float.MinValue;
-                    foreach (float ccx in cornersX)
-                        foreach (float ccy in cornersY)
-                            foreach (float ccz in cornersZ)
-                            {
-                                var p = isoProject(ccx, ccy, ccz);
-                                modelH_min = Math.Min(modelH_min, p.h);
-                                modelH_max = Math.Max(modelH_max, p.h);
-                                modelV_min = Math.Min(modelV_min, p.v);
-                                modelV_max = Math.Max(modelV_max, p.v);
-                            }
-                    float aabbPad = Math.Max(modelH_max - modelH_min, modelV_max - modelV_min) * 0.05f;
-                    modelH_min -= aabbPad; modelH_max += aabbPad;
-                    modelV_min -= aabbPad; modelV_max += aabbPad;
-
-                    // 풍선 AABB 크기
-                    float balloonHalfW = 25f, balloonHalfH = 12f, balloonGap = 5f;
-                    List<(float minH, float minV, float maxH, float maxV)> placedAABBs =
-                        new List<(float, float, float, float)>();
-
-                    foreach (var bom in bomList)
-                    {
-                        if (!sheetMemberSet.Contains(bom.Index)) continue;
-
-                        VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
-
-                        // 3D 방향: 모델 중심 → 부재 중심 (XY 평면)
-                        float initDirX = bom.CenterX - mCenterX;
-                        float initDirY = bom.CenterY - mCenterY;
-                        float initDirLen = (float)Math.Sqrt(initDirX * initDirX + initDirY * initDirY);
-                        if (initDirLen < 0.001f) { initDirX = 1f; initDirY = 0f; initDirLen = 1f; }
-                        initDirX /= initDirLen;
-                        initDirY /= initDirLen;
-
-                        // 3D 위치 후보 → 2D 투영 → AABB 검사 → 충돌 시 3D 회전
-                        float noteX = bom.CenterX + initDirX * baseOffsetDist;
-                        float noteY = bom.CenterY + initDirY * baseOffsetDist;
-                        float noteZ = bom.CenterZ;
-                        var projNote = isoProject(noteX, noteY, noteZ);
-
-                        bool positionFound = false;
-                        for (int attempt = 0; attempt < 36 && !positionFound; attempt++)
-                        {
-                            float bMinH = projNote.h - balloonHalfW;
-                            float bMaxH = projNote.h + balloonHalfW;
-                            float bMinV = projNote.v - balloonHalfH;
-                            float bMaxV = projNote.v + balloonHalfH;
-
-                            // 모델 AABB와 겹침
-                            bool insideModel = bMinH < modelH_max && bMaxH > modelH_min &&
-                                               bMinV < modelV_max && bMaxV > modelV_min;
-
-                            // 다른 풍선과 AABB 겹침
-                            bool collidesPlaced = false;
-                            if (!insideModel)
-                            {
-                                foreach (var placed in placedAABBs)
-                                {
-                                    if (bMinH - balloonGap < placed.maxH && bMaxH + balloonGap > placed.minH &&
-                                        bMinV - balloonGap < placed.maxV && bMaxV + balloonGap > placed.minV)
-                                    { collidesPlaced = true; break; }
-                                }
-                            }
-
-                            if (!insideModel && !collidesPlaced)
-                            {
-                                positionFound = true;
-                            }
-                            else
-                            {
-                                // 3D XY 평면에서 회전 + 거리 증가
-                                float rotAngle = (float)((attempt / 2 + 1) * 15 * Math.PI / 180);
-                                if (attempt % 2 == 1) rotAngle = -rotAngle;
-                                float cosA = (float)Math.Cos(rotAngle);
-                                float sinA = (float)Math.Sin(rotAngle);
-                                float newOffset = baseOffsetDist * (1f + (attempt / 4) * 0.15f);
-                                noteX = bom.CenterX + (cosA * initDirX - sinA * initDirY) * newOffset;
-                                noteY = bom.CenterY + (sinA * initDirX + cosA * initDirY) * newOffset;
-                                noteZ = bom.CenterZ;
-                                projNote = isoProject(noteX, noteY, noteZ);
-                            }
-                        }
-
-                        placedAABBs.Add((projNote.h - balloonHalfW, projNote.v - balloonHalfH,
-                                         projNote.h + balloonHalfW, projNote.v + balloonHalfH));
-
-                        VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(noteX, noteY, noteZ);
-                        int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
-                        nodeToNoteMap[bom.Index] = id;
-                        VIZCore3D.NET.Data.NoteItem note = vizcore3d.Review.Note.GetItem(id);
-                        note.UpdateText(id.ToString());
-                    }
-                }
-                SkipIsoBalloons:
+                // bomList 기반 풍선 노트 생성 (공유 메서드 호출)
+                Dictionary<int, int> nodeToNoteMap = CreateIsoBalloonNotes(sheet.MemberIndices);
 
                 // 현재 카메라에서 보이는 노드 추출 + 보이는 풍선만 필터링
                 vizcore3d.View.EnableBoxSelectionFrontObjectOnly = true;
