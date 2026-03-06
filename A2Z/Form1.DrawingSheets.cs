@@ -808,6 +808,7 @@ namespace A2Z
         {
             List<int> shapeDrawingIds = null;
             List<int> visibleNoteIds = null;  // ISO 뷰 풍선 가시성 필터링용
+            int labelNoteId = -1;  // 뷰 라벨 노트 ID (별도 변환용)
 
             // 1. 3D 어노테이션 초기화 (매 뷰마다 새로 그리기)
             vizcore3d.Review.Note.Clear();
@@ -1049,10 +1050,8 @@ namespace A2Z
 
                     // AddNoteSurface: 2D 변환(Add2DNoteFrom3DNote) 호환
                     VIZCore3D.NET.Data.Vertex3D labelPos = new VIZCore3D.NET.Data.Vertex3D(lx, ly, lz);
-                    int labelNoteId = vizcore3d.Review.Note.AddNoteSurface(viewLabel, labelPos, labelPos, labelStyle);
-                    // ISO 뷰: 라벨도 visibleNoteIds에 포함하여 2D 투영 대상에 추가
-                    if (visibleNoteIds != null)
-                        visibleNoteIds.Add(labelNoteId);
+                    labelNoteId = vizcore3d.Review.Note.AddNoteSurface(viewLabel, labelPos, labelPos, labelStyle);
+                    // ISO 뷰: 라벨은 visibleNoteIds에 포함하지 않음 (별도 변환)
                 }
             }
 
@@ -1105,10 +1104,10 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             }
 
-            // 풍선번호(Note) → 2D
+            // 풍선번호(Note) → 2D (라벨 노트는 별도 처리)
             if (visibleNoteIds != null)
             {
-                // ISO: 가시성 필터링된 풍선 + 라벨만 2D로 변환
+                // ISO: 가시성 필터링된 풍선만 2D로 변환
                 if (visibleNoteIds.Count > 0)
                 {
                     vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
@@ -1116,17 +1115,26 @@ namespace A2Z
             }
             else
             {
-                // 비-ISO 뷰: 기존 방식 (라벨 등 모든 노트 변환)
+                // 비-ISO 뷰: 풍선 노트만 변환 (라벨 제외)
                 List<int> noteIds = new List<int>();
                 List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
                 foreach (var note in notes)
                 {
-                    noteIds.Add(note.ID);
+                    if (note.ID != labelNoteId)
+                        noteIds.Add(note.ID);
                 }
                 if (noteIds.Count > 0)
                 {
                     vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
                 }
+            }
+
+            // 뷰 라벨 → 2D (리더선 없이 텍스트만)
+            if (labelNoteId >= 0)
+            {
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.01f);
+                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new int[] { labelNoteId });
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             }
 
             // 치수선(Measure) → 2D
