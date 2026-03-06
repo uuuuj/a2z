@@ -1176,12 +1176,12 @@ namespace A2Z
                     float modelCenterH = modelCenterArr[bHAxis];
                     float modelCenterV = modelCenterArr[bVAxis];
 
-                    // 모델 대각 크기 비례 오프셋 (부재 바운딩박스 바깥으로 확실히 배치)
+                    // 모델 대각 크기 비례 오프셋 (부재 바운딩박스 바깥으로 배치)
                     float modelDiag = (float)Math.Sqrt(
                         (globalMaxX - globalMinX) * (globalMaxX - globalMinX) +
                         (globalMaxY - globalMinY) * (globalMaxY - globalMinY) +
                         (globalMaxZ - globalMinZ) * (globalMaxZ - globalMinZ));
-                    float balloonOffset = Math.Max(100f, modelDiag * 0.35f);
+                    float balloonOffset = Math.Max(50f, modelDiag * 0.15f);
                     float bomPad = 5f; // 부재 바운딩박스 패딩
 
                     // 시트 부재만 필터링 (화면에 보이지 않는 부재는 충돌 검사 제외)
@@ -1194,12 +1194,13 @@ namespace A2Z
                     Func<BOMData, int, float> getBomMax = (b, ax) =>
                         ax == 0 ? b.MaxX : (ax == 1 ? b.MaxY : b.MaxZ);
 
-                    // 텍스트 크기 추정 (SIZE12 폰트 기준, mm 단위)
+                    // 텍스트 크기 추정 (SIZE12 폰트 기준, mm 단위) + 마진
+                    float textGap = 8f; // 풍선 간 최소 간격
                     Func<string, (float w, float h)> estimateTextSize = (text) =>
                     {
                         float charWidth = 6f;
                         float lineHeight = 14f;
-                        return (text.Length * charWidth, lineHeight);
+                        return (text.Length * charWidth + textGap, lineHeight + textGap);
                     };
 
                     // 배치된 풍선 텍스트 AABB 목록 (겹침 판정용)

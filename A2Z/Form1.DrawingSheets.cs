@@ -1004,31 +1004,15 @@ namespace A2Z
                         placedAABBs.Add((candH - balloonHalfW, candV - balloonHalfH,
                                          candH + balloonHalfW, candV + balloonHalfH));
 
-                        // 2D 투영 좌표 → 3D 역산 (XY 평면 방향)
-                        float initDirX = bom.CenterX - (mMinX + mMaxX) / 2f;
-                        float initDirY = bom.CenterY - (mMinY + mMaxY) / 2f;
-                        float initDirLen = (float)Math.Sqrt(initDirX * initDirX + initDirY * initDirY);
-                        if (initDirLen < 0.001f) { initDirX = 1f; initDirY = 0f; initDirLen = 1f; }
-                        initDirX /= initDirLen;
-                        initDirY /= initDirLen;
-
-                        // 3D 오프셋: 모델 대각선 기준 고정 거리 (2D AABB 방향만 활용)
-                        float isoDiag = (float)Math.Sqrt(
-                            (mMaxX - mMinX) * (mMaxX - mMinX) +
-                            (mMaxY - mMinY) * (mMaxY - mMinY) +
-                            (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
-                        float fixedOffset = Math.Max(200f, isoDiag * 0.35f);
-
-                        // 2D 방향에서 회전 각도 추출하여 3D 방향에 적용
-                        float offsetH = candH - projBom.h;
-                        float offsetV = candV - projBom.v;
-                        float angle2D = (float)Math.Atan2(offsetV, offsetH);
-                        float cosA2 = (float)Math.Cos(angle2D);
-                        float sinA2 = (float)Math.Sin(angle2D);
-                        // 2D 각도를 3D XY 회전으로 적용
-                        float noteX = bom.CenterX + (cosA2 * initDirX - sinA2 * initDirY) * fixedOffset;
-                        float noteY = bom.CenterY + (sinA2 * initDirX + cosA2 * initDirY) * fixedOffset;
-                        float noteZ = bom.CenterZ;
+                        // 2D 후보 좌표를 3D로 역산
+                        // ISO 투영: H = 0.707*(x-y), V = 0.408*(x+y) + 0.816*z
+                        // 역산: z 고정, x-y = H/0.707, x+y = (V - 0.816*z) / 0.408
+                        float fixedZ = bom.CenterZ;
+                        float invXmY = candH / 0.707f;
+                        float invXpY = (candV - 0.816f * fixedZ) / 0.408f;
+                        float noteX = (invXpY + invXmY) / 2f;
+                        float noteY = (invXpY - invXmY) / 2f;
+                        float noteZ = fixedZ;
 
                         VIZCore3D.NET.Data.Vertex3D notePos = new VIZCore3D.NET.Data.Vertex3D(noteX, noteY, noteZ);
                         int id = vizcore3d.Review.Note.AddNoteSurface("TEMP", notePos, center);
@@ -1066,8 +1050,47 @@ namespace A2Z
                 shapeDrawingIds = ShowAllDimensions(viewDirection, true);
             }
 
-            // 4-1. 뷰 라벨: 2D 격자 하단 중앙에 직접 배치 (3D 노트 사용 안 함)
-            // labelNoteId는 -1 유지 → 2D 변환 후 격자 좌표 기반으로 추가
+            // 4-1. 뷰 라벨 3D 노트 추가 (모델 하단에 배치, 리더선 최소화)
+            if (!string.IsNullOrEmpty(viewLabel))
+            {
+                var bbox = vizcore3d.Object3D.GetBoundBox(sheet.MemberIndices, false);
+                if (bbox != null)
+                {
+                    float cx = (bbox.MinX + bbox.MaxX) / 2f;
+                    float cy = (bbox.MinY + bbox.MaxY) / 2f;
+                    float cz = (bbox.MinZ + bbox.MaxZ) / 2f;
+                    float spanX = bbox.MaxX - bbox.MinX;
+                    float spanY = bbox.MaxY - bbox.MinY;
+                    float spanZ = bbox.MaxZ - bbox.MinZ;
+                    float offset = Math.Max(Math.Max(spanX, spanY), spanZ) * 0.25f;
+
+                    float lx = cx, ly = cy, lz = cz;
+
+                    if (viewDirection == "Z")
+                    {
+                        ly = bbox.MinY - offset;
+                    }
+                    else
+                    {
+                        lz = bbox.MinZ - offset;
+                    }
+
+                    VIZCore3D.NET.Data.NoteStyle labelStyle = vizcore3d.Review.Note.GetStyle();
+                    labelStyle.UseSymbol = false;
+                    labelStyle.BackgroudTransparent = true;
+                    labelStyle.UseTextBox = false;
+                    labelStyle.FontColor = Color.Black;
+                    labelStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE14;
+                    labelStyle.FontBold = true;
+                    labelStyle.LineWidth = 0;
+                    labelStyle.ArrowWidth = 0;
+                    labelStyle.LineColor = Color.Black;
+                    labelStyle.ArrowColor = Color.Black;
+
+                    VIZCore3D.NET.Data.Vertex3D labelPos = new VIZCore3D.NET.Data.Vertex3D(lx, ly, lz);
+                    labelNoteId = vizcore3d.Review.Note.AddNoteSurface(viewLabel, labelPos, labelPos, labelStyle);
+                }
+            }
 
             // 5. 은선 포함 2D 투영 (현재 3D 뷰를 은선 점선 포함하여 2D로 변환)
             int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
@@ -1118,7 +1141,7 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             }
 
-            // 풍선번호(Note) → 2D
+            // 풍선번호(Note) → 2D (라벨 노트는 별도 처리)
             if (visibleNoteIds != null)
             {
                 // ISO: 가시성 필터링된 풍선만 2D로 변환
@@ -1129,12 +1152,13 @@ namespace A2Z
             }
             else
             {
-                // 비-ISO 뷰: 모든 풍선 노트 변환
+                // 비-ISO 뷰: 풍선 노트만 변환 (라벨 제외)
                 List<int> noteIds = new List<int>();
                 List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
                 foreach (var note in notes)
                 {
-                    noteIds.Add(note.ID);
+                    if (note.ID != labelNoteId)
+                        noteIds.Add(note.ID);
                 }
                 if (noteIds.Count > 0)
                 {
@@ -1142,44 +1166,11 @@ namespace A2Z
                 }
             }
 
-            // 뷰 라벨: 격자 셀 하단 중앙에 2D 노트로 직접 배치
-            if (!string.IsNullOrEmpty(viewLabel))
+            // 뷰 라벨 → 2D (리더선 최소화)
+            if (labelNoteId >= 0)
             {
-                float cellW2 = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
-                float cellH2 = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
-
-                // 격자 셀 좌상단 좌표 계산 (row, col은 1-based)
-                float cellX = 0f;
-                for (int c = 1; c < col; c++)
-                    cellX += vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, c);
-                float cellY = 0f;
-                for (int r = 1; r < row; r++)
-                    cellY += vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(r, col);
-
-                // 하단 중앙: X=셀중앙, Y=셀하단+약간위(마진)
-                float labelX = cellX + cellW2 / 2f;
-                float labelY = cellY + cellH2 - 8f; // 하단에서 8 위
-                VIZCore3D.NET.Data.Vertex3D lblPos = new VIZCore3D.NET.Data.Vertex3D(labelX, labelY, 0);
-
-                VIZCore3D.NET.Data.NoteStyle lblStyle = vizcore3d.Review.Note.GetStyle();
-                lblStyle.UseSymbol = false;
-                lblStyle.BackgroudTransparent = true;
-                lblStyle.UseTextBox = false;
-                lblStyle.FontColor = Color.Black;
-                lblStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE14;
-                lblStyle.FontBold = true;
-                lblStyle.LineWidth = 0;
-                lblStyle.ArrowWidth = 0;
-
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.01f);
-                vizcore3d.Review.Note.AddNoteSurface(viewLabel, lblPos, lblPos, lblStyle);
-                // 방금 추가한 노트를 2D로 변환
-                var lastNotes = vizcore3d.Review.Note.Items;
-                if (lastNotes.Count > 0)
-                {
-                    int lblId = lastNotes[lastNotes.Count - 1].ID;
-                    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new int[] { lblId });
-                }
+                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new int[] { labelNoteId });
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             }
 
