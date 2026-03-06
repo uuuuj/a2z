@@ -1182,7 +1182,6 @@ namespace A2Z
                         (globalMaxY - globalMinY) * (globalMaxY - globalMinY) +
                         (globalMaxZ - globalMinZ) * (globalMaxZ - globalMinZ));
                     float balloonOffset = Math.Max(50f, modelDiag * 0.15f);
-                    float bomPad = 5f; // 부재 바운딩박스 패딩
 
                     // 시트 부재만 필터링 (화면에 보이지 않는 부재는 충돌 검사 제외)
                     HashSet<int> visibleBomSet = (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
@@ -1194,15 +1193,6 @@ namespace A2Z
                     Func<BOMData, int, float> getBomMax = (b, ax) =>
                         ax == 0 ? b.MaxX : (ax == 1 ? b.MaxY : b.MaxZ);
 
-                    // 텍스트 크기 추정 (SIZE12 폰트 기준, mm 단위) + 마진
-                    float textGap = 8f; // 풍선 간 최소 간격
-                    Func<string, (float w, float h)> estimateTextSize = (text) =>
-                    {
-                        float charWidth = 6f;
-                        float lineHeight = 14f;
-                        return (text.Length * charWidth + textGap, lineHeight + textGap);
-                    };
-
                     // 배치된 풍선 텍스트 AABB 목록 (겹침 판정용)
                     List<(float h, float v, float halfW, float halfH)> placedTextBoxes = new List<(float, float, float, float)>();
 
@@ -1213,6 +1203,19 @@ namespace A2Z
                     float modelMaxH = globalMaxArr2[bHAxis];
                     float modelMinV = globalMinArr2[bVAxis];
                     float modelMaxV = globalMaxArr2[bVAxis];
+
+                    // 모델 스케일 비례 크기 계산
+                    float modelSpan = Math.Max(modelMaxH - modelMinH, modelMaxV - modelMinV);
+                    float bomPad = Math.Max(5f, modelSpan * 0.02f); // 부재 바운딩박스 패딩 (스케일 비례)
+
+                    // 텍스트 크기 추정 (모델 스케일 비례) + 마진
+                    float textGap = Math.Max(8f, modelSpan * 0.012f); // 풍선 간 최소 간격
+                    Func<string, (float w, float h)> estimateTextSize = (text) =>
+                    {
+                        float charWidth = Math.Max(6f, modelSpan * 0.01f);
+                        float lineHeight = Math.Max(14f, modelSpan * 0.018f);
+                        return (text.Length * charWidth + textGap, lineHeight + textGap);
+                    };
 
                     foreach (var entry in balloonEntries)
                     {
@@ -1273,7 +1276,7 @@ namespace A2Z
                                     { collision = true; break; }
                                 }
 
-                                // 부재 바운딩박스(2D 투영)와 겹침 검사 (시트 부재만)
+                                // 부재 바운딩박스(2D 투영)와 AABB 겹침 검사 (시트 부재만)
                                 if (!collision)
                                 {
                                     foreach (var bom in bomList)
@@ -1285,8 +1288,9 @@ namespace A2Z
                                         float bMaxH = getBomMax(bom, bHAxis) + bomPad;
                                         float bMinV = getBomMin(bom, bVAxis) - bomPad;
                                         float bMaxV = getBomMax(bom, bVAxis) + bomPad;
-                                        if (candidateH >= bMinH && candidateH <= bMaxH &&
-                                            candidateV >= bMinV && candidateV <= bMaxV)
+                                        // 풍선 텍스트 AABB vs 부재 AABB 검사
+                                        if (candidateH + candHalfW > bMinH && candidateH - candHalfW < bMaxH &&
+                                            candidateV + candHalfH > bMinV && candidateV - candHalfH < bMaxV)
                                         { collision = true; break; }
                                     }
                                 }
