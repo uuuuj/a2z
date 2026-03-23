@@ -218,7 +218,165 @@ namespace A2Z
                 ListViewItem lvi = new ListViewItem(sheetLabel);
                 lvi.SubItems.Add(sheet.BaseMemberName);
                 lvi.SubItems.Add(sheet.BaseMemberIndex == -3 ? "" : string.Join(", ", sheet.MemberNames));
-                lvi.SubItems.Add(sheet.MemberIndices.Count.ToString());
+
+                // 가공도 앵글: 부재수 컬럼에 오른쪽→왼쪽 측면뷰 사등분 Osnap 정보 표시
+                // 사분면번호(1분면합계,2분면합계,3분면합계,4분면합계) — 1:왼위 2:우위 3:우하 4:좌하
+                string countText = sheet.MemberIndices.Count.ToString();
+                if (sheet.BaseMemberIndex == -3 && sheet.MemberIndices.Count > 0)
+                {
+                    int bomIdx = sheet.MemberIndices[0];
+                    BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIdx);
+                    if (bom != null && IsAngleFromSpref(bomIdx))
+                    {
+                        // 장축 로직으로 viewDirection 결정 (ExecuteMfgDrawing과 동일)
+                        float sizeX = bom.MaxX - bom.MinX;
+                        float sizeY = bom.MaxY - bom.MinY;
+                        float sizeZ = bom.MaxZ - bom.MinZ;
+
+                        string longestAxis;
+                        if (sizeX >= sizeY && sizeX >= sizeZ) longestAxis = "X";
+                        else if (sizeY >= sizeX && sizeY >= sizeZ) longestAxis = "Y";
+                        else longestAxis = "Z";
+
+                        string viewDir;
+                        switch (longestAxis)
+                        {
+                            case "Y": viewDir = "X"; break;
+                            default: viewDir = "Y"; break;
+                        }
+
+                        // 기존뷰 카메라 방향(useMinus/use180) 결정 — MfgDrawing과 동일 로직
+                        // 기존뷰 화면축: viewDir X → 화면 Y,Z / viewDir Y → 화면 X,Z
+                        float bbCH = 0f, bbCV = 0f, sumFH = 0f, sumFV = 0f;
+                        int osnapCount = 0;
+                        var osnapList = vizcore3d.Object3D.GetOsnapPoint(bomIdx);
+                        var allPts = new List<float[]>();
+                        if (osnapList != null)
+                        {
+                            foreach (var osnap in osnapList)
+                            {
+                                switch (osnap.Kind)
+                                {
+                                    case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                        if (osnap.Start != null) allPts.Add(new float[] { osnap.Start.X, osnap.Start.Y, osnap.Start.Z });
+                                        if (osnap.End != null) allPts.Add(new float[] { osnap.End.X, osnap.End.Y, osnap.End.Z });
+                                        break;
+                                    case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
+                                    case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                        if (osnap.Center != null) allPts.Add(new float[] { osnap.Center.X, osnap.Center.Y, osnap.Center.Z });
+                                        break;
+                                }
+                            }
+                        }
+                        osnapCount = allPts.Count;
+
+                        // 기존뷰 화면축 기준 centroid/BB center로 useMinus/use180 계산
+                        foreach (var p in allPts)
+                        {
+                            switch (viewDir)
+                            {
+                                case "X": sumFH += p[1]; sumFV += p[2]; break; // front: H=Y, V=Z
+                                case "Y": sumFH += p[0]; sumFV += p[2]; break; // front: H=X, V=Z
+                                default:  sumFH += p[0]; sumFV += p[1]; break;
+                            }
+                        }
+                        switch (viewDir)
+                        {
+                            case "X": bbCH = (bom.MinY + bom.MaxY) / 2f; bbCV = (bom.MinZ + bom.MaxZ) / 2f; break;
+                            case "Y": bbCH = (bom.MinX + bom.MaxX) / 2f; bbCV = (bom.MinZ + bom.MaxZ) / 2f; break;
+                            default:  bbCH = (bom.MinX + bom.MaxX) / 2f; bbCV = (bom.MinY + bom.MaxY) / 2f; break;
+                        }
+
+                        bool hFlip = false, vFlip = false;
+                        if (osnapCount > 0)
+                        {
+                            float centFH = sumFH / osnapCount;
+                            float centFV = sumFV / osnapCount;
+                            float openH = bbCH - centFH;
+                            float openV = bbCV - centFV;
+                            bool use180 = (openV > 0);
+                            bool useMinus;
+                            if (viewDir == "Y")
+                            {
+                                bool needRight = use180 ? (openH < 0) : (openH > 0);
+                                useMinus = !needRight;
+                            }
+                            else
+                            {
+                                bool needRight = use180 ? (openH > 0) : (openH < 0);
+                                useMinus = !needRight;
+                            }
+                            // 측면뷰 좌표 보정
+                            // viewDir=X: 기본 측면(Y방향)의 screen right=-X → base H반전
+                            // viewDir=Y: 기본 측면(X방향)의 screen right=+Y → base H정상
+                            // useMinus가 측면 방향을 뒤집어 H를 토글, use180이 V를 반전
+                            hFlip = (viewDir == "X") != useMinus;
+                            vFlip = use180;
+                        }
+
+                        // 오른쪽 측면에서 봤을때 사분면별 Osnap 개수로 bend 위치 판별
+                        // 1=좌상 2=우상 3=우하 4=좌하
+                        float hCenter = 0f, vCenter = 0f;
+                        switch (viewDir)
+                        {
+                            case "X": hCenter = (bom.MinX + bom.MaxX) / 2f; vCenter = (bom.MinZ + bom.MaxZ) / 2f; break;
+                            case "Y": hCenter = (bom.MinY + bom.MaxY) / 2f; vCenter = (bom.MinZ + bom.MaxZ) / 2f; break;
+                            default:  hCenter = (bom.MinX + bom.MaxX) / 2f; vCenter = (bom.MinY + bom.MaxY) / 2f; break;
+                        }
+
+                        int sq1 = 0, sq2 = 0, sq3 = 0, sq4 = 0;
+                        foreach (var p in allPts)
+                        {
+                            float h, v;
+                            switch (viewDir)
+                            {
+                                case "X": h = p[0]; v = p[2]; break; // side: H=X, V=Z
+                                case "Y": h = p[1]; v = p[2]; break; // side: H=Y, V=Z
+                                default:  h = p[0]; v = p[1]; break;
+                            }
+                            // 카메라 방향에 따른 좌표 보정
+                            if (hFlip) h = 2 * hCenter - h;
+                            if (vFlip) v = 2 * vCenter - v;
+
+                            // 사분면 분류
+                            if (h < hCenter && v >= vCenter) sq1++;       // 좌상
+                            else if (h >= hCenter && v >= vCenter) sq2++;  // 우상
+                            else if (h >= hCenter && v < vCenter) sq3++;   // 우하
+                            else sq4++;                                     // 좌하
+                        }
+
+                        if (osnapCount > 0)
+                        {
+                            int total = sq1 + sq2 + sq3 + sq4;
+
+                            // Osnap이 가장 적은 사분면 = 열린 방향(개구부)
+                            int minVal = Math.Min(Math.Min(sq1, sq2), Math.Min(sq3, sq4));
+                            int openQ;
+                            if (sq3 == minVal) openQ = 3;       // 우하 우선 (정상 목표)
+                            else if (sq4 == minVal) openQ = 4;
+                            else if (sq2 == minVal) openQ = 2;
+                            else openQ = 1;
+
+                            // bend = 열린 방향의 대각 반대
+                            int bendQ;
+                            switch (openQ)
+                            {
+                                case 1: bendQ = 3; break;
+                                case 2: bendQ = 4; break;
+                                case 3: bendQ = 1; break;
+                                default: bendQ = 2; break;
+                            }
+
+                            countText = $"Q{bendQ}({sq1},{sq2},{sq3},{sq4})={total}";
+                        }
+                        else
+                        {
+                            countText = $"Q?";
+                        }
+                    }
+                }
+
+                lvi.SubItems.Add(countText);
                 lvi.Tag = sheet;
                 lvDrawingSheet.Items.Add(lvi);
             }
@@ -942,8 +1100,18 @@ namespace A2Z
                 // [2,2] X축 — 치수선+보조선+풍선
                 RenderSheetViewForDrawing(2, 2, "X", sheet, targetH);
 
-                // ── 라벨 텍스트 ──
-                string[] labelTexts = { "  ISO  ", "  Looking \"Z\"  ", "  Looking \"Y\"  ", "  Looking \"X\"  " };
+                // ── 라벨 텍스트 (ORIENTATION 반영) ──
+                string[] labelTexts = new string[4];
+                labelTexts[0] = "  ISO  ";
+                int orientMemberIdx = (sheet.MemberIndices != null && sheet.MemberIndices.Count > 0) ? sheet.MemberIndices[0] : -1;
+                string[] viewDirs = { "Z", "Y", "X" };
+                for (int vi = 0; vi < 3; vi++)
+                {
+                    if (orientMemberIdx >= 0)
+                        labelTexts[vi + 1] = $"  {GetOrientationLabel(orientMemberIdx, viewDirs[vi])}  ";
+                    else
+                        labelTexts[vi + 1] = $"  Looking \"{viewDirs[vi]}\"  ";
+                }
 
                 // ── 6. 최종 렌더링 (모델 + 치수선 + 풍선 확정) ──
                 vizcore3d.Drawing2D.Render();
@@ -1097,6 +1265,10 @@ namespace A2Z
                     case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
                     case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
                 }
+
+                // ORIENTATION UDA 기반 카메라 회전 (비-ISO 뷰만)
+                if (sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
+                    ApplyOrientationRotation(sheet.MemberIndices[0], viewDirection);
             }
 
             // 셀 크기의 80%로 표시 (줌팩터 1.25 = 1/0.8)

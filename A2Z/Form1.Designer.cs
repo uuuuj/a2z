@@ -951,7 +951,7 @@ namespace A2Z
             // colSheetCount
             //
             this.colSheetCount.Text = "부재수";
-            this.colSheetCount.Width = 60;
+            this.colSheetCount.Width = 150;
             //
             // splitContainerDrawing
             //
