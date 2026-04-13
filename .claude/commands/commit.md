@@ -31,9 +31,12 @@ description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱�
 - 부분 완료면 체크박스만 업데이트하고 섹션 이동 안 함
 - 커밋과 무관한 TASK는 건드리지 마라
 
-### 4. FEEDBACK.md 갱신 (해당 시)
+### 4. FEEDBACK.md / REQUESTS.md 갱신 (해당 시)
 - TASK가 `FB-xxx`에서 유래했고 이번 커밋으로 해당 FEEDBACK이 전체 해결된 경우:
   - FEEDBACK.md에서 `FB-xxx` 항목을 `DONE` 섹션으로 이동
+- TASK가 `REQ-xxx`에서 유래했고 이번 커밋으로 해당 REQUEST가 전체 해결된 경우:
+  - REQUESTS.md에서 `REQ-xxx` 항목을 `DONE` 섹션으로 이동
+- 부분 해결이면 이동하지 말고 상태만 `ACCEPTED` 유지
 
 ### 5. CHANGELOG.md 항목 추가
 상단에 새 섹션 추가 (기존 내용 위에):
@@ -44,6 +47,7 @@ description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱�
 **커밋**: `pending` (커밋 후 업데이트)
 **관련 TASK**: T-xxx
 **관련 FEEDBACK**: FB-xxx (있을 때만)
+**관련 REQUEST**: REQ-xxx (있을 때만)
 **변경 사항**:
 - 항목 1
 - 항목 2
@@ -58,7 +62,7 @@ CLAUDE.md의 커밋 메시지 형식을 따른다:
 
 - 변경 상세 1
 - 변경 상세 2
-- 관련: FB-xxx, T-xxx
+- 관련: FB-xxx, REQ-xxx, T-xxx
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 ```

@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-04-13 — 워크플로우 자동화 확장 (REQUESTS + /checkpoint + docs-sync 훅)
+
+**유형**: chore
+**커밋**: `pending` (커밋 후 업데이트)
+**관련 TASK**: T-002
+**변경 사항**:
+- `docs/tracking/REQUESTS.md` 신규 — 본인 수정 요청 inbox (REQ-xxx, 우선순위/배경/기대효과 필드)
+- `.claude/commands/checkpoint.md` 신규 — 세션 요약 저장 슬래시 커맨드
+  - 주제 kebab-case 변환, 중복 시 suffix
+  - 필수 섹션: "이어갈 지점" (다음 세션 복원용)
+  - git 미커밋 변경 있으면 ⚠️ 경고 자동 추가
+- `.claude/settings.json` 신규 — PostToolUse 훅 등록 (Edit|Write 매처)
+- `.claude/hooks/docs-sync-reminder.sh` 신규 — `Form1.*.cs` 수정 시 docs 동기화 리마인더 주입. jq 불필요 (순수 bash + grep/sed)
+- `CLAUDE.md` 수정
+  - R2 확장: TASKS.md `IN_PROGRESS` + sessions/ 최신 + FEEDBACK OPEN + REQUESTS OPEN 4개 자동 훑기
+  - R4에 `/checkpoint` 커맨드 명시
+  - R8 신규: 본인 요청은 맥락 중심 기록
+  - R9 신규: 훅 리마인더는 신호일 뿐 맹목 추종 금지
+  - 파일 구조 개요에 REQUESTS/hooks/checkpoint 반영
+- `.claude/commands/commit.md` 수정 — REQ-xxx 처리 추가 (단계 4·5·6)
+- `docs/tracking/README.md` 수정 — 파일 테이블 5행, ID 체계에 REQ- 추가, 워크플로우 Mermaid에 REQUESTS/checkpoint 반영
+- `docs/README.md` 수정 — tracking 섹션에 REQUESTS.md + sessions/ 링크 추가
+
+**영향 범위**: 개발 워크플로우 자동화만 (코드 변경 없음)
+
+---
+
 ## 2026-04-13 — 프로젝트 초기 셋업 + 로직 흐름 문서화
 
 **유형**: chore + docs

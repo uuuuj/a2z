@@ -15,10 +15,12 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 - [빈 템플릿](./_template.md) — 새 핸들러 문서 생성 시 복사
 
 ### 개발 현황 추적
-- [tracking/](./tracking/README.md) — FEEDBACK / TASKS / CHANGELOG / sessions 4축 관리
-- [FEEDBACK.md](./tracking/FEEDBACK.md) — 담당자 피드백 inbox
+- [tracking/](./tracking/README.md) — FEEDBACK / REQUESTS / TASKS / CHANGELOG / sessions 5축 관리
+- [FEEDBACK.md](./tracking/FEEDBACK.md) — 담당자 피드백 inbox (FB-xxx)
+- [REQUESTS.md](./tracking/REQUESTS.md) — 본인 수정 요청 inbox (REQ-xxx)
 - [TASKS.md](./tracking/TASKS.md) — 현재 할 일 (TODO/IN_PROGRESS/DONE)
 - [CHANGELOG.md](./tracking/CHANGELOG.md) — 완료 이력 (날짜 역순)
+- [sessions/](./tracking/sessions/) — 세션별 작업 요약 (`/checkpoint`로 저장)
 - Claude Code 작업 규칙: 루트의 [CLAUDE.md](../CLAUDE.md)
 
 ### 기능 카테고리 (Features)

@@ -1,0 +1,58 @@
+# 본인 수정 요청 (REQUESTS)
+
+개발자 **본인**이 생각한 수정/개선 아이디어를 기록합니다. 담당자 피드백과 구분하여 결정 맥락·우선순위를 명확히 보관.
+
+> **상태 값**: `OPEN` (아이디어 접수) / `IN_REVIEW` (고려 중) / `ACCEPTED` (작업 결정, TASKS.md로 이동) / `REJECTED` (기각) / `DONE` (완료)
+
+> **우선순위**: `HIGH` (긴급/필수) / `MEDIUM` (중요하지만 대기 가능) / `LOW` (여유될 때)
+
+---
+
+## 접수 대기 / 진행 중
+
+_현재 OPEN/IN_REVIEW/ACCEPTED 상태의 요청이 없습니다._
+
+---
+
+## 완료 (DONE)
+
+_이력 없음_
+
+---
+
+## 기각 (REJECTED)
+
+_이력 없음_
+
+---
+
+## 형식 예시
+
+```
+### REQ-001 — PDF 저장 경로 설정 가능하게
+- **생성일**: 2026-04-14
+- **상태**: OPEN
+- **우선순위**: MEDIUM
+- **배경**:
+  현재 `btnExportAllPDF`가 `c:\` 루트에 하드코딩되어 저장됨.
+  사용자마다 원하는 저장 폴더가 다르고, 버전 관리도 어려움.
+- **기대효과**:
+  - 저장 경로 설정 UI 또는 App.config 옵션
+  - 마지막 사용한 경로 기억
+  - 프로젝트별 분리된 디렉터리 구조 가능
+- **관련 기능**:
+  - [PDF 배치 내보내기](../features/drawing-sheets/export-all-pdf.md)
+  - [단일 PDF](../features/drawing2d/export-pdf.md)
+- **분해된 작업**: (ACCEPTED 전환 시 기록) T-xxx, T-yyy
+```
+
+---
+
+## FEEDBACK.md와의 차이
+
+| 항목 | FEEDBACK.md | REQUESTS.md |
+|---|---|---|
+| 출처 | 담당자 (외부) | 본인 (내부) |
+| 핵심 | **원문 보존** (뉘앙스 유실 방지) | **결정 맥락** (왜/언제/우선순위) |
+| ID | `FB-xxx` | `REQ-xxx` |
+| TASK 연결 | `T-xxx (from FB-xxx)` | `T-xxx (from REQ-xxx)` |
