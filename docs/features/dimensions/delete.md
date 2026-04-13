@@ -1,0 +1,66 @@
+---
+feature_id: DIM-002
+feature_name: 선택 치수 삭제
+category: Dimensions
+trigger_type: User Action
+owner_module: Form1.Dimensions.cs
+last_updated: 2026-04-13
+code_reference: /docs/code-reference/form1-dimensions.md#btnDimensionDelete_Click
+---
+
+# 선택 치수 삭제
+
+## 1. 개요
+선택된 체인 치수 항목을 `chainDimensionList`와 `lvDimension`에서 제거하고, 치수 번호를 재정렬한 뒤 SDK Measure를 재빌드한다.
+
+## 2. 트리거
+| 항목 | 값 |
+|---|---|
+| 유형 | User Action |
+| 입력 | `btnDimensionDelete` 버튼 클릭 |
+| 위치 | 메인 폼 > 치수 탭 |
+
+## 3. 사전 조건
+- [ ] `lvDimension`에서 1개 이상 선택
+
+## 4. 전체 동작 흐름 (Happy Path)
+
+| # | 단계 | 주체 | 설명 |
+|---|---|---|---|
+| 1 | 선택 확인 | Form1 | → [E01] |
+| 2 | 인덱스 수집·역순 정렬 | Form1 | 삭제 순서 보장 |
+| 3 | 데이터·UI 동시 제거 | Form1 | `chainDimensionList.RemoveAt`, `lvDimension.Items.RemoveAt` |
+| 4 | 번호 재정렬 | Form1 | No 필드와 ListView 첫 컬럼 업데이트 |
+| 5 | Measure 재빌드 | SDK | `Review.Measure.Clear()` 후 남은 전체 재추가 |
+| 6 | 완료 알림 | UI | MessageBox 삭제 개수 + 남은 개수 |
+
+> 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-dimensions.md#btnDimensionDelete_Click) 참고
+
+## 5. 주요 분기 처리
+없음 (단일 경로)
+
+## 6. 예외 / 에러 처리
+
+| ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |
+|---|---|---|---|---|
+| E01 | 선택 없음 | return | MessageBox "삭제할 치수를 선택해주세요." | 변화 없음 |
+| E02 | 처리 중 예외 | catch | MessageBox "치수 삭제 중 오류: {msg}" | 부분 삭제 가능 |
+
+## 7. 상태 변화 (Before / After)
+
+| 대상 | Before | After |
+|---|---|---|
+| `chainDimensionList` | N개 | N - 선택수 개, 번호 재정렬 |
+| `lvDimension` | N개 행 | N - 선택수 행 |
+| `vizcore3d.Review.Measure` | 이전 | Clear 후 남은 치수 전체 재표시 |
+
+## 8. 후행 기능 (Chained)
+- 다시 [선택 치수 표시](./show-selected.md) 가능
+
+## 9. 관련 링크
+- 코드 구현: [Form1.Dimensions.cs:L134](/docs/code-reference/form1-dimensions.md#btnDimensionDelete_Click)
+
+## 10. 변경 이력
+| 날짜 | 변경 내용 | 작성자 |
+|---|---|---|
+| 2026-04-13 | 초안 작성 | — |

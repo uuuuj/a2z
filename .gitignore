@@ -1,0 +1,73 @@
+## Visual Studio / .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.pdb
+*.cache
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Test results
+TestResult*/
+[Tt]est[Rr]esult*/
+*.VisualState.xml
+*.coverage
+*.coveragexml
+coverage*/
+
+## ReSharper / JetBrains
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## VS Code (개인 설정만 제외, 공유 설정은 유지 가능)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Claude Code (개인 설정만 제외)
+.claude/settings.local.json
+.claude/.session/
+
+## Obsidian (에디터 워크스페이스 로컬 상태)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+## OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Backup / Temp
+*.bak
+*.tmp
+*.swp
+*~
