@@ -9,7 +9,7 @@
 ## 2026-04-13 — 워크플로우 자동화 확장 (REQUESTS + /checkpoint + docs-sync 훅)
 
 **유형**: chore
-**커밋**: `pending` (커밋 후 업데이트)
+**커밋**: `ac14c86`
 **관련 TASK**: T-002
 **변경 사항**:
 - `docs/tracking/REQUESTS.md` 신규 — 본인 수정 요청 inbox (REQ-xxx, 우선순위/배경/기대효과 필드)

@@ -9,6 +9,13 @@ obj/
 *.pdb
 *.cache
 
+## VIZCore3D SDK (vendor 바이너리, 크기 221MB — 각 개발자가 별도 수급)
+VIZCore3D+.NET.dll
+VIZCore3D.NET.xml
+VIZCore3D*.dll
+*.vizx
+*.viz
+
 ## Build results
 [Dd]ebug/
 [Dd]ebugPublic/
