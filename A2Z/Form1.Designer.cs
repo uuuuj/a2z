@@ -84,6 +84,7 @@ namespace A2Z
             this.btnCollectBOM = new System.Windows.Forms.Button();
             this.btnMainDimension = new System.Windows.Forms.Button();
             this.panelGlobalViewButtons = new System.Windows.Forms.Panel();
+            this.btnResetToInitial = new System.Windows.Forms.Button();
             this.btnGlobalISO = new System.Windows.Forms.Button();
             this.btnGlobalAxisX = new System.Windows.Forms.Button();
             this.btnGlobalAxisY = new System.Windows.Forms.Button();
@@ -1148,6 +1149,7 @@ namespace A2Z
             // panelGlobalViewButtons
             //
             this.panelGlobalViewButtons.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+            this.panelGlobalViewButtons.Controls.Add(this.btnResetToInitial);
             this.panelGlobalViewButtons.Controls.Add(this.btnGlobalISO);
             this.panelGlobalViewButtons.Controls.Add(this.btnGlobalAxisX);
             this.panelGlobalViewButtons.Controls.Add(this.btnGlobalAxisY);
@@ -1156,8 +1158,23 @@ namespace A2Z
             this.panelGlobalViewButtons.Location = new System.Drawing.Point(0, 0);
             this.panelGlobalViewButtons.Name = "panelGlobalViewButtons";
             this.panelGlobalViewButtons.Padding = new System.Windows.Forms.Padding(5);
-            this.panelGlobalViewButtons.Size = new System.Drawing.Size(457, 42);
+            this.panelGlobalViewButtons.Size = new System.Drawing.Size(438, 42);
             this.panelGlobalViewButtons.TabIndex = 1;
+            //
+            // btnResetToInitial
+            //
+            this.btnResetToInitial.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(97)))), ((int)(((byte)(97)))), ((int)(((byte)(97)))));
+            this.btnResetToInitial.FlatAppearance.BorderSize = 0;
+            this.btnResetToInitial.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnResetToInitial.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnResetToInitial.ForeColor = System.Drawing.Color.White;
+            this.btnResetToInitial.Location = new System.Drawing.Point(8, 6);
+            this.btnResetToInitial.Name = "btnResetToInitial";
+            this.btnResetToInitial.Size = new System.Drawing.Size(80, 30);
+            this.btnResetToInitial.TabIndex = 0;
+            this.btnResetToInitial.Text = "초기화";
+            this.btnResetToInitial.UseVisualStyleBackColor = false;
+            this.btnResetToInitial.Click += new System.EventHandler(this.btnResetToInitial_Click);
             //
             // btnGlobalISO
             //
@@ -1165,9 +1182,9 @@ namespace A2Z
             this.btnGlobalISO.FlatAppearance.BorderSize = 0;
             this.btnGlobalISO.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnGlobalISO.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnGlobalISO.Location = new System.Drawing.Point(8, 6);
+            this.btnGlobalISO.Location = new System.Drawing.Point(93, 6);
             this.btnGlobalISO.Name = "btnGlobalISO";
-            this.btnGlobalISO.Size = new System.Drawing.Size(105, 30);
+            this.btnGlobalISO.Size = new System.Drawing.Size(80, 30);
             this.btnGlobalISO.TabIndex = 0;
             this.btnGlobalISO.Text = "ISO";
             this.btnGlobalISO.UseVisualStyleBackColor = false;
@@ -1180,9 +1197,9 @@ namespace A2Z
             this.btnGlobalAxisX.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnGlobalAxisX.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
             this.btnGlobalAxisX.ForeColor = System.Drawing.Color.White;
-            this.btnGlobalAxisX.Location = new System.Drawing.Point(118, 6);
+            this.btnGlobalAxisX.Location = new System.Drawing.Point(178, 6);
             this.btnGlobalAxisX.Name = "btnGlobalAxisX";
-            this.btnGlobalAxisX.Size = new System.Drawing.Size(105, 30);
+            this.btnGlobalAxisX.Size = new System.Drawing.Size(80, 30);
             this.btnGlobalAxisX.TabIndex = 1;
             this.btnGlobalAxisX.Text = "X축";
             this.btnGlobalAxisX.UseVisualStyleBackColor = false;
@@ -1195,9 +1212,9 @@ namespace A2Z
             this.btnGlobalAxisY.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnGlobalAxisY.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
             this.btnGlobalAxisY.ForeColor = System.Drawing.Color.White;
-            this.btnGlobalAxisY.Location = new System.Drawing.Point(228, 6);
+            this.btnGlobalAxisY.Location = new System.Drawing.Point(263, 6);
             this.btnGlobalAxisY.Name = "btnGlobalAxisY";
-            this.btnGlobalAxisY.Size = new System.Drawing.Size(105, 30);
+            this.btnGlobalAxisY.Size = new System.Drawing.Size(80, 30);
             this.btnGlobalAxisY.TabIndex = 2;
             this.btnGlobalAxisY.Text = "Y축";
             this.btnGlobalAxisY.UseVisualStyleBackColor = false;
@@ -1210,9 +1227,9 @@ namespace A2Z
             this.btnGlobalAxisZ.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnGlobalAxisZ.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
             this.btnGlobalAxisZ.ForeColor = System.Drawing.Color.White;
-            this.btnGlobalAxisZ.Location = new System.Drawing.Point(338, 6);
+            this.btnGlobalAxisZ.Location = new System.Drawing.Point(348, 6);
             this.btnGlobalAxisZ.Name = "btnGlobalAxisZ";
-            this.btnGlobalAxisZ.Size = new System.Drawing.Size(105, 30);
+            this.btnGlobalAxisZ.Size = new System.Drawing.Size(80, 30);
             this.btnGlobalAxisZ.TabIndex = 3;
             this.btnGlobalAxisZ.Text = "Z축";
             this.btnGlobalAxisZ.UseVisualStyleBackColor = false;
@@ -1362,6 +1379,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colDrawingBomMA;
         private System.Windows.Forms.ColumnHeader colDrawingBomFA;
         private System.Windows.Forms.Panel panelGlobalViewButtons;
+        private System.Windows.Forms.Button btnResetToInitial;
         private System.Windows.Forms.Button btnGlobalISO;
         private System.Windows.Forms.Button btnGlobalAxisX;
         private System.Windows.Forms.Button btnGlobalAxisY;

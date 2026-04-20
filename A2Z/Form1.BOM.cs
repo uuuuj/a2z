@@ -248,6 +248,11 @@ namespace A2Z
                 vizcore3d.ShapeDrawing.Clear();
                 vizcore3d.Review.Note.Clear();
 
+                // SDK 권장 패턴: 같은 파일 재선택 시 중복 Open 방지를 위해 먼저 Close
+                // (VIZCore3D.NET.xml 예제 L47297, L60261 참조)
+                if (vizcore3d.Model.IsOpen())
+                    vizcore3d.Model.Close();
+
                 // 파일 열기
                 bool result = vizcore3d.Model.Open(dlg.FileName);
 
@@ -274,6 +279,83 @@ namespace A2Z
             catch (Exception ex)
             {
                 MessageBox.Show($"파일 열기 중 예외 발생:\n\n{ex.Message}", "예외 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 초기화 버튼 - 현재 로드된 파일을 재로드하여 모든 작업 상태(치수/풍선/시트/수동 조정 등)를 리셋
+        /// </summary>
+        private void btnResetToInitial_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentFilePath) || !vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 파일을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var answer = MessageBox.Show(
+                "모든 작업 내용(BOM/치수/Clash/Osnap/도면 시트/풍선 조정)이 초기화되고\n" +
+                "현재 파일이 처음 열었을 때 상태로 다시 로드됩니다.\n\n계속하시겠습니까?",
+                "초기화",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (answer != DialogResult.Yes) return;
+
+            ResetToInitialState();
+        }
+
+        /// <summary>
+        /// 현재 로드된 파일을 재로드하여 초기 상태로 복원한다.
+        /// btnOpen_Click의 초기화 블록과 동일하되 balloonOverrides까지 포함.
+        /// </summary>
+        private void ResetToInitialState()
+        {
+            string path = currentFilePath;
+
+            try
+            {
+                // 누적 상태 전면 초기화
+                bomList.Clear();
+                clashList.Clear();
+                osnapPoints.Clear();
+                osnapPointsWithNames.Clear();
+                chainDimensionList.Clear();
+                xraySelectedNodeIndices.Clear();
+                drawingSheetList.Clear();
+                bodyToPartNameMap.Clear();
+                balloonOverrides.Clear();
+                _autoProcessOsnapSuccess = false;
+                lvBOM.Items.Clear();
+                lvClash.Items.Clear();
+                lvDrawingSheet.Items.Clear();
+                lvOsnap.Items.Clear();
+                lvDimension.Items.Clear();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+                vizcore3d.Review.Note.Clear();
+
+                // SDK 권장 패턴: 같은 경로를 다시 Open하기 전 기존 모델을 먼저 Close
+                // (VIZCore3D.NET.xml 예제 L47297, L60261 참조)
+                if (vizcore3d.Model.IsOpen())
+                    vizcore3d.Model.Close();
+
+                // 동일 파일 재로드
+                bool result = vizcore3d.Model.Open(path);
+
+                if (result)
+                {
+                    vizcore3d.View.FitToView();
+                    vizcore3d.View.SilhouetteEdge = true;
+                    vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+                    BuildBodyToPartNameMap();
+                }
+                else
+                {
+                    MessageBox.Show("파일 재로드에 실패했습니다. 파일을 다시 열어주세요.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"초기화 중 예외 발생:\n\n{ex.Message}", "예외 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

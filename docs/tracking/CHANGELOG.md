@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-04-20 — 초기화 버튼 추가 + 같은 파일 재Open 버그 수정
+
+**유형**: feat + fix
+**커밋**: `pending`
+**관련 TASK**: T-008
+**변경 사항**:
+- `btnResetToInitial` ("초기화", 회색) 신설 — 3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽
+- `ResetToInitialState()` — 누적 상태 전면 초기화 후 `currentFilePath` 동일 경로로 재로드
+  - 정리 대상: bomList/clashList/osnapPoints/osnapPointsWithNames/chainDimensionList/xraySelectedNodeIndices/drawingSheetList/bodyToPartNameMap/balloonOverrides + lv* ListView 5종 + SDK Review.Measure/ShapeDrawing/Review.Note
+  - `balloonOverrides.Clear()` 포함 (btnOpen이 누락했던 항목)
+- **버그 수정**: VIZCore3D는 같은 경로 중복 `Model.Open()`을 거부 (false 반환)
+  - `ResetToInitialState()` 및 `btnOpen_Click` 양쪽에 `if (Model.IsOpen()) Model.Close();` 선행 호출 추가
+  - 근거: VIZCore3D.NET.xml 공식 예제 L47297, L60261 패턴
+- **UI 너비 축소**: 5개 글로벌 뷰 버튼 Size 105→80, Location 재배치(8/93/178/263/348), 패널 Size 558→438
+- 문서 신규:
+  - `docs/features/bom/reset-to-initial.md` (BOM-005)
+  - `docs/사용자-매뉴얼/1.기본-작업/초기화.md`
+- 문서 갱신:
+  - `docs/features/bom/open-model.md` — Close 단계 추가, flowchart·step table·변경 이력
+  - `docs/features/bom/_index.md` — BOM-005 항목 + 의존성 다이어그램 재로드 화살표
+  - `docs/code-reference/form1-bom.md` — 새 핸들러 섹션 + 라인 번호 shift 반영
+  - `docs/사용자-매뉴얼/README.md` — 1.기본 작업에 [초기화] 링크
+
+**영향 범위**: BOM 카테고리 (Form1.BOM.cs + Form1.Designer.cs) + 대응 문서. 핸들러 흐름 변경 있음 (btnOpen 포함 2개 흐름에 Close 단계 삽입)
+
+---
+
 ## 2026-04-14 — 사용자 매뉴얼 전면 작성 (39개 버튼 문서)
 
 **유형**: docs

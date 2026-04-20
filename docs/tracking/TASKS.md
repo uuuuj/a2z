@@ -77,6 +77,21 @@ _차단된 작업 없음_
 
 ## DONE (최근 20개)
 
+### T-008 — 초기화 버튼 + 같은 파일 재Open 버그 수정
+- **완료일**: 2026-04-20
+- **관련**: —  (FB/REQ 없음, 사용자 직접 지시)
+- **커밋**: `pending`
+- **요약**:
+  - 3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽에 `btnResetToInitial` ("초기화", 회색) 신설
+  - `ResetToInitialState()` 헬퍼 — 누적 상태(List 9종 + UI ListView 5종 + SDK Clear 3종) 전면 초기화 후 동일 파일 재로드
+  - `balloonOverrides.Clear()` 포함 (btnOpen이 누락했던 항목)
+  - 확인 다이얼로그 + 가드 체크(`currentFilePath` + `Model.IsOpen`)
+  - **버그 수정**: VIZCore3D는 같은 경로 중복 `Model.Open()`을 거부 → `Model.Open` 전 `if (IsOpen()) Close();` 패턴 적용 (공식 예제 L47297/L60261)
+  - **btnOpen_Click 동반 수정**: 같은 파일 재선택 시 동일 버그 발생 소지 → 같은 패턴 적용
+  - **UI 너비 축소**: 5개 버튼 Size 105→80, Location 재배치 (8/93/178/263/348), 패널 Size 558→438
+  - 문서: `docs/features/bom/reset-to-initial.md` 신설 (BOM-005), `docs/사용자-매뉴얼/1.기본-작업/초기화.md` 신설, `open-model.md`에 Close 단계 추가, `_index.md`·`code-reference/form1-bom.md`·`사용자-매뉴얼/README.md` 갱신
+  - 사용자 실기 테스트 통과 (부재 일부 숨기고 치수 추출 → 초기화 → 정상 복원)
+
 ### T-003 — 사용자 매뉴얼 전면 작성 (39개 버튼 문서)
 - **완료일**: 2026-04-14
 - **관련**: REQ-001

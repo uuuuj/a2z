@@ -9,6 +9,7 @@
 | BOM-002 | 모델 파일 열기 | btnOpen_Click | User Action | [open-model](./open-model.md) |
 | BOM-003 | BOM 수집 (홀 감지 포함) | btnCollectBOM_Click | User Action | [collect-bom](./collect-bom.md) |
 | BOM-004 | 메인 체인 치수 계산 | btnMainDimension_Click | User Action | [main-dimension](./main-dimension.md) |
+| BOM-005 | 초기 상태로 복원 (모델 재로드) | btnResetToInitial_Click | User Action | [reset-to-initial](./reset-to-initial.md) |
 
 ## 데이터 의존성
 ```mermaid
@@ -18,6 +19,8 @@ flowchart LR
     BOM-003 --> BOM-004[치수 계산]
     BOM-003 --> Clash[Clash 검사]
     BOM-003 --> Drawing2D[2D 도면]
+    BOM-002 -.재로드.-> BOM-005[초기 상태 복원]
+    BOM-005 -.재로드 후.-> BOM-003
 ```
 
 ## 주요 생성 상태

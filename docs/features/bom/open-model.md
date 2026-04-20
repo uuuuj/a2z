@@ -4,7 +4,7 @@ feature_name: 모델 파일 열기
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-20
 code_reference: /docs/code-reference/form1-bom.md#btnOpen_Click
 ---
 
@@ -33,7 +33,8 @@ flowchart TD
     C -- 아니오 --> X[종료]
     C -- 예 --> D[파일 존재 확인]
     D --> E[누적 상태 전면 초기화]
-    E --> F[vizcore3d.Model.Open]
+    E --> EC[Model.IsOpen이면 Model.Close]
+    EC --> F[vizcore3d.Model.Open]
     F --> G{로드 성공?}
     G -- 예 --> H[currentFilePath 저장]
     H --> I[FitToView + 실루엣 엣지]
@@ -47,10 +48,11 @@ flowchart TD
 | 2 | 파일 존재 확인 | Form1 | `File.Exists` → [E01] |
 | 3 | 누적 상태 초기화 | Form1 | [§7 상태 변화] 참조 — bomList/clashList/osnap* 등 전부 Clear |
 | 4 | SDK 내부 정리 | SDK | `Review.Measure.Clear()`, `ShapeDrawing.Clear()`, `Review.Note.Clear()` |
-| 5 | 모델 로드 | SDK | `vizcore3d.Model.Open(path)` → bool 반환 |
-| 6 | 성공 처리 | Form1 | `currentFilePath = path`, `FitToView()` |
-| 7 | 실루엣 엣지 | SDK | `View.SilhouetteEdge = true`, 색상 Green |
-| 8 | Body→Part 매핑 | Form1 | `BuildBodyToPartNameMap()` 호출 |
+| 5 | **모델 Close (중복 열림 방지)** | SDK | `IsOpen()`이면 `Model.Close()`. 사용자가 동일 파일을 재선택한 경우 이 단계가 없으면 `Model.Open`이 false를 반환 |
+| 6 | 모델 로드 | SDK | `vizcore3d.Model.Open(path)` → bool 반환 |
+| 7 | 성공 처리 | Form1 | `currentFilePath = path`, `FitToView()` |
+| 8 | 실루엣 엣지 | SDK | `View.SilhouetteEdge = true`, 색상 Green |
+| 9 | Body→Part 매핑 | Form1 | `BuildBodyToPartNameMap()` 호출 |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-bom.md#btnOpen_Click) 참고
 
@@ -119,3 +121,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-20 | 같은 파일 재선택 시 Open 실패 방지 — `Model.Open` 전 `Model.Close()` 호출 추가 (VIZCore3D SDK 공식 패턴, T-008 파생) | Claude |

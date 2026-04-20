@@ -1,8 +1,8 @@
 # Form1.BOM.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.BOM.cs` (약 1,431 라인)
+**경로**: `A2Z/Form1.BOM.cs` (약 1,503 라인)
 
-**책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 라이선스 관리, 메인 치수 추출 통합 파이프라인.
+**책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 라이선스 관리, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드).
 
 ---
 
@@ -20,14 +20,20 @@
 - **핵심**: OpenFileDialog → 상태 완전 초기화 → `Model.Open` → FitToView + SilhouetteEdge + BuildBodyToPartNameMap
 - **흐름 문서**: [features/bom/open-model.md](../features/bom/open-model.md)
 
+### <a id="btnResetToInitial_Click"></a>btnResetToInitial_Click
+- **라인**: L283~L302
+- **트리거**: `btnResetToInitial` 버튼 클릭 (3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽, 회색)
+- **핵심**: 가드 체크(`currentFilePath` + `Model.IsOpen`) → 확인 다이얼로그 → `ResetToInitialState()` 위임
+- **흐름 문서**: [features/bom/reset-to-initial.md](../features/bom/reset-to-initial.md)
+
 ### <a id="btnMainDimension_Click"></a>btnMainDimension_Click
-- **라인**: L283~L351
+- **라인**: L355~L423
 - **트리거**: `btnMainDimension` 버튼 클릭
 - **핵심**: BOM → Osnap → MergeCoordinates → X/Y/Z AddChainDimensionByAxis → ShowAllDimensions → DetectClash(비동기)
 - **흐름 문서**: [features/bom/main-dimension.md](../features/bom/main-dimension.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
-- **라인**: L1418~L1429
+- **라인**: L1490~L1501
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
 - **흐름 문서**: [features/bom/collect-bom.md](../features/bom/collect-bom.md)
@@ -40,7 +46,8 @@
 |---|---|---|
 | `StartLicenseRefreshTimer` | L172 | 30분 주기 라이선스 갱신 타이머 |
 | `LicenseRefreshTimer_Tick` | L183 | 실제 갱신 로직 (예외 시 Debug.WriteLine만) |
-| `CollectAllOsnap` | L358 | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영 |
+| `ResetToInitialState` | L305~L351 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
+| `CollectAllOsnap` | (후행 라인) | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영 |
 | `CollectBOMInfo` | L20 (Clash.cs) | 도면정보 탭용 그룹 수집 |
 | `CollectBOMData` | (BOM 수집 내부) | bomList 채우는 핵심 로직 |
 | `DetectHoles` | (홀 감지 내부) | 원형/슬롯형 홀 자동 인식 |
