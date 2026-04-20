@@ -6,10 +6,30 @@
 
 ---
 
+## 2026-04-20 — T-016 진단 로그 인프라 추가 (간헐 버그 추적용)
+
+**유형**: chore
+**커밋**: `pending`
+**관련 TASK**: T-016 (BLOCKED 전환)
+**변경 사항**:
+- 치수 추출 흐름의 4개 핵심 지점에 `Debug.WriteLine` 진단 로그 추가
+  - `Form1.BOM.cs btnMainDimension_Click` ENTER/EXIT (xray·chain·osnap·bom 카운트)
+  - `Form1.Dimensions.cs btnExtractDimension_Click` ENTER/EXIT
+  - `Form1.DrawingSheets.cs LvDrawingSheet_SelectedIndexChanged` ENTER/SKIP/EXIT/FAIL (sheet#, prevXray, prevChain)
+  - `Form1.GlobalViews.cs ExtractInstallationDimensions` ENTER/EXIT (members, chain)
+- `LvDrawingSheet_SelectedIndexChanged`의 silent catch (`Debug.WriteLine($"도면 시트 표시 중 오류: {ex.Message}")`)에 **stack trace 추가**
+- 모든 로그에 `[T-016 진단 로그]` prefix 또는 `HH:mm:ss.fff` 시각으로 필터링·시계열 분석 가능
+- 다음 재현 시 Visual Studio 출력창 로그를 사용자가 공유하면 즉시 원인 특정 가능
+- T-016 상태 `IN_PROGRESS → BLOCKED (재현 조건 수집 중)`로 이동 + 의심 가설 4개 보존
+
+**영향 범위**: 치수/시트 흐름 4개 핸들러에 로깅만. 기능·흐름 변경 없음 (R9 기준 docs 갱신 불필요)
+
+---
+
 ## 2026-04-20 — 시드 서브에이전트 2개 도입 (sdk-verifier, md-link-checker)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `92d0488`
 **관련 TASK**: T-011
 **변경 사항**:
 - `.claude/agents/sdk-verifier.md` 신설 — VIZCore3D.NET.xml 선행 검색으로 SDK API 존재·시그니처·공식 사용 패턴 반환

@@ -192,6 +192,10 @@ namespace A2Z
         /// </summary>
         private void ExtractInstallationDimensions(List<int> memberIndices)
         {
+            // [T-016 진단 로그] 진입
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ExtractInstallationDimensions ENTER " +
+                $"members={memberIndices?.Count ?? 0} prevChain={chainDimensionList?.Count ?? 0}");
+
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
             vizcore3d.Review.Note.Clear();
@@ -374,6 +378,10 @@ namespace A2Z
             }
 
             xraySelectedNodeIndices = new List<int>(memberIndices);
+
+            // [T-016 진단 로그] 종료
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] ExtractInstallationDimensions EXIT " +
+                $"chain={chainDimensionList.Count} xray={xraySelectedNodeIndices.Count}");
         }
     }
 }

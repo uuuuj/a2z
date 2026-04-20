@@ -47,6 +47,57 @@
 - **영향 파일**:
   - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D L957+)
 
+### T-012 — 엑셀 템플릿 하이브리드 실험 (PoC)
+- **생성일**: 2026-04-20
+- **상태**: TODO
+- **관련**: REQ-002
+- **배경**: SDK가 `ImportExcel`, `ImportExcelWithData`, `Draw2DViewTemplate(path, x, y, w, h)`, `RenderTemplateOnGridStructure`를 제공 ([VIZCore3D.NET.xml:31152, 31099](../../VIZCore3D.NET.xml)). 담당자가 엑셀로 양식을 관리할 수 있는지 **실험만** (프로덕션 전환은 별개). 과거 Phase 18(`790a02a`)에서 BOM 동적 행수 문제로 수동 구성으로 되돌린 이력 있음 — 하이브리드로 재도전
+- **세부**:
+  - [ ] 시나리오 2 (하이브리드 추천안): tableInfo만 엑셀 외부화 PoC (Aspose.Cells로 엑셀 파싱 → TemplateTableData 구성 → `RenderTemplateOnGridStructure(table, 2, 3)`)
+  - [ ] 시나리오 3 (JSON 경유): `Draw2DViewTemplate(path, x, y, w, h)`로 우측 영역만 배치 실험
+  - [ ] `ImportExcel(path)` + 기존 GridStructure 공존 가능성 확인 (시나리오 1 평가)
+  - [ ] BOM 헤더/열너비/스타일 엑셀 외부화 가능성 평가 (데이터 행은 런타임 채움)
+  - [ ] 결과 리포트: `docs/technical-notes/excel-template-experiment.md` 신설
+- **영향 파일**: 실험용 별도 메서드만 (기존 GenerateSheetDrawing2D 변경 없음)
+
+### T-013 — Sheet2+ ISO 뷰 배경·선택 부재 위치 정합
+- **생성일**: 2026-04-20
+- **상태**: TODO
+- **관련**: — (사용자 피드백)
+- **배경**: Sheet2 이상에서 ISO 뷰는 "전체 모델 점선(bgObj) + 선택 부재 실선(obj)"으로 그려지는데, 선택 부재가 **원본 위치가 아니라 전체 모델의 중심**으로 이동됨. 목표는 원본 좌표 그대로 겹쳐 실선만 도드라져 보이기
+- **세부**:
+  - [ ] Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~L1430 `isIsoFullView` 분기 분석
+  - [ ] bgObj ↔ obj 중심 차이 보정 로직 재검토 (`GetObjectCenter`, `FitObjectToGridCellAspect`, `RescaleObject` 흐름)
+  - [ ] obj를 bgObj 좌표계에 맞춰 정렬 (중심 일치 대신 원본 좌표 유지)
+  - [ ] docs/features/drawing-sheets/drawing-iso.md 또는 generate-sheet-2d.md 갱신
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs
+
+### T-014 — 도면정보 테이블의 "기준부재/포함부재" 정의 + 풍선 번호 매칭
+- **생성일**: 2026-04-20
+- **상태**: TODO
+- **관련**: — (사용자 피드백)
+- **배경**: `lvDrawingBOMInfo`의 "기준부재"·"포함부재" 컬럼 값의 의미가 불분명. **최종 목표**는 두 컬럼 값을 ISO 뷰 풍선 번호와 동일하게 표시해 도면 가독성 향상
+- **세부**:
+  - [ ] Form1.Clash.cs `CollectBOMInfo` (L20~) 분석 — 두 컬럼에 현재 매핑되는 값 문서화
+  - [ ] Form1.DrawingSheets.cs `CreateIsoBalloonNotes` 출력(부재 Index ↔ 풍선 번호) 매핑 추출
+  - [ ] 두 컬럼 값을 풍선 번호로 교체 (또는 별도 컬럼 추가)
+  - [ ] docs/features/clash/collect-bom-info.md 갱신
+- **영향 파일**: A2Z/Form1.Clash.cs + A2Z/Form1.DrawingSheets.cs
+
+### T-015 — Sheet 생성 알고리즘 스펙 문서화
+- **생성일**: 2026-04-20
+- **상태**: TODO
+- **관련**: — (사용자 피드백)
+- **배경**: `GenerateDrawingSheets`는 Clash 인접 리스트 기반 BFS로 부재 군집화해 시트를 생성. "겹치는 시트 제외" 등 정확한 기준이 문서화되지 않음
+- **세부**:
+  - [ ] Form1.DrawingSheets.cs `GenerateDrawingSheets` L18~L398 단계별 분석
+  - [ ] Sheet1(전체) 생성 기준, Sheet2~N(군집) 전이 조건 정리
+  - [ ] clashList 인접 리스트 구축 알고리즘 문서화
+  - [ ] 중복/겹침 제외 로직 (포함 관계 판정) 명시
+  - [ ] docs/features/drawing-sheets/generate-sheets.md 확장
+- **영향 파일**: 문서만 (코드 변경 없음)
+
+
 ### T-007 — 뷰 내부 모델 최대화 + 라벨·풍선 영역 확보
 - **생성일**: 2026-04-15
 - **상태**: BLOCKED (T-006 선행 권장)
@@ -114,7 +165,34 @@
 
 ## BLOCKED
 
-_차단된 작업 없음_
+### T-016 — 치수 추출 3회 이상 시 반복 누적 버그
+- **생성일**: 2026-04-20
+- **상태**: BLOCKED (재현 조건 수집 중)
+- **관련**: — (사용자 피드백)
+- **현황**: 사용자 재현 시도 중 다시 정상 동작. **간헐 버그(intermittent)**로 분류
+- **이번 세션 진행**:
+  - [x] 코드 분석으로 영향 가능 영역 좁힘 (4개 메서드)
+  - [x] **로그 인프라 추가** — 다음 발생 시 즉시 진단 가능
+    - `btnMainDimension_Click` ENTER/EXIT (xray·chain·osnap·bom 카운트)
+    - `btnExtractDimension_Click` ENTER/EXIT
+    - `LvDrawingSheet_SelectedIndexChanged` ENTER/SKIP/EXIT/FAIL (sheet#, prevXray, prevChain)
+    - `ExtractInstallationDimensions` ENTER/EXIT (members, chain)
+    - `LvDrawingSheet_SelectedIndexChanged`의 silent catch에 stack trace 추가
+  - [ ] **다음 재현 시 사용자가 Visual Studio 출력창 로그 공유** → 즉시 진단
+- **의심 가설 4개** (다음 재현 시 우선 검증):
+  1. **Silent catch 무력화** — `LvDrawingSheet_SelectedIndexChanged` (Form1.DrawingSheets.cs:487~) 의 try-catch가 SDK 예외를 삼키면서 `xraySelectedNodeIndices = new List<int>(sheet.MemberIndices)` (L460) 또는 `ExtractInstallationDimensions` (L484)이 도달 못해 이전 값 유지
+  2. **WinForms 이벤트 중복 발생** — `ListView.SelectedIndexChanged`는 선택 해제·선택 활성화 시 각각 발생. 3회째 두 이벤트가 race로 꼬여 새 시트의 갱신이 무효화될 가능성
+  3. **xraySelectedNodeIndices 비동기 race** — `vizcore3d.BeginUpdate/EndUpdate` 사이에서 SDK 호출 도중 또 다른 핸들러가 같은 필드 수정
+  4. **chainDimensionList 갱신 실패** — `ExtractInstallationDimensions` 진입 자체가 누락되거나 (L209 `if (members.Count == 0) return;`) early return으로 Clear만 되고 새로 채워지지 않음 — 그러나 Clear는 됐으므로 "이전 치수 반복"과는 직접 매치 X
+- **재현 시 사용자에게 요청할 정보**:
+  - 정확한 UI 조작 순서 (시트 선택? 부재 클릭? 어떤 버튼?)
+  - Visual Studio 출력창 로그 (`[T-016 진단 로그]` prefix로 필터)
+  - lvDimension(좌측 치수 목록)의 행 수 변화
+- **영향 파일** (로그 추가):
+  - A2Z/Form1.BOM.cs (btnMainDimension_Click)
+  - A2Z/Form1.Dimensions.cs (btnExtractDimension_Click)
+  - A2Z/Form1.DrawingSheets.cs (LvDrawingSheet_SelectedIndexChanged)
+  - A2Z/Form1.GlobalViews.cs (ExtractInstallationDimensions)
 
 ---
 
@@ -123,7 +201,7 @@ _차단된 작업 없음_
 ### T-011 — 시드 서브에이전트 2개 도입 (sdk-verifier, md-link-checker)
 - **완료일**: 2026-04-20
 - **관련**: — (사용자 피드백, 반복 실수 방지)
-- **커밋**: `pending`
+- **커밋**: `92d0488`
 - **요약**:
   - 이번 대화에서 드러난 반복 실수 (`RenderModes.SOLID` 가정, `Model.Close` 누락, 링크 공백 133건 등) 방지용 시드 에이전트 2개 신설
   - `.claude/agents/sdk-verifier.md` — `VIZCore3D.NET.xml` 선행 검색으로 API 존재·시그니처·공식 예제 패턴 반환. SDK 새 멤버 처음 쓸 때 호출

@@ -10,7 +10,21 @@
 
 ## 접수 대기 / 진행 중
 
-_현재 OPEN/IN_REVIEW/ACCEPTED 상태의 요청이 없습니다._
+### REQ-002 — 2D 도면 템플릿의 엑셀 외부화 (하이브리드)
+- **생성일**: 2026-04-20
+- **상태**: ACCEPTED
+- **우선순위**: MEDIUM
+- **배경**:
+  현재 `tableInfo`(로고·프로젝트명·제작자)와 `BOM` 테이블 헤더/열너비/스타일이 `Form1.DrawingSheets.cs`에 하드코딩. 회사·프로젝트·고객별로 양식이 다르고, 변경 시 재빌드·배포가 필요해 담당자가 직접 수정 불가. 과거 Phase 18(`790a02a`)에서 한 번 엑셀 기반→수동 구성으로 되돌린 이력은 **BOM의 동적 행수 문제** 때문. tableInfo는 정적이라 문제 없음
+- **기대효과**:
+  - 담당자가 엑셀 파일에서 양식(로고·헤더·테두리·폰트) 직접 편집 → 재빌드 없이 반영
+  - 프로젝트별 템플릿 파일 스위칭 (사내 표준 / 고객 A / 고객 B …)
+  - SDK가 `ImportExcelWithData(path, Dict)`와 `Draw2DViewTemplate(path, x, y, w, h)`를 공식 제공하므로 라이브러리 추가 없음 (Aspose.Cells는 이미 포함)
+  - 현재 4분할 뷰 + 우측 BOM/tableInfo 구조는 **하이브리드로 유지** (시나리오 2)
+- **관련 기능**:
+  - [2D 출력](../사용자-매뉴얼/4.도면정보%20탭/2D%20출력.md)
+  - 개발자 문서: [GenerateSheetDrawing2D](../features/drawing-sheets/generate-sheet-2d.md)
+- **분해된 작업**: T-012 (PoC 실험) → 결과에 따라 Phase B1(tableInfo)·B2(BOM 스타일) 후속
 
 ---
 

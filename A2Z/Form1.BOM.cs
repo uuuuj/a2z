@@ -369,6 +369,11 @@ namespace A2Z
         /// </summary>
         private void btnMainDimension_Click(object sender, EventArgs e)
         {
+            // [T-016 진단 로그] 진입 시 상태
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnMainDimension ENTER " +
+                $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
+                $"osnap={osnapPointsWithNames?.Count ?? 0} bom={bomList?.Count ?? 0}");
+
             if (!vizcore3d.Model.IsOpen())
             {
                 MessageBox.Show("먼저 파일을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -430,9 +435,17 @@ namespace A2Z
                 _autoProcessOsnapSuccess = osnapSuccess;
                 DetectClash();
                 // 알림은 Clash_OnClashTestFinishedEvent에서 한 번만 표시
+
+                // [T-016 진단 로그] 정상 종료
+                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnMainDimension EXIT OK " +
+                    $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
+                    $"osnap={osnapPointsWithNames?.Count ?? 0}");
             }
             catch (Exception ex)
             {
+                // [T-016 진단 로그] 예외 종료
+                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnMainDimension EXIT FAIL " +
+                    $"{ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
