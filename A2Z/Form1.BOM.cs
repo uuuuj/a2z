@@ -329,9 +329,12 @@ namespace A2Z
                 lvDrawingSheet.Items.Clear();
                 lvOsnap.Items.Clear();
                 lvDimension.Items.Clear();
+                lvDrawingBOMInfo.Items.Clear();    // T-009: 도면정보 탭 BOM 목록
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
                 vizcore3d.Review.Note.Clear();
+                // T-009: 은선 점선(DASH_LINE) 해제 — 글로벌 뷰/가공도/시트 생성 시 자동 적용되어 남음
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
 
                 // SDK 권장 패턴: 같은 경로를 다시 Open하기 전 기존 모델을 먼저 Close
                 // (VIZCore3D.NET.xml 예제 L47297, L60261 참조)
@@ -347,6 +350,8 @@ namespace A2Z
                     vizcore3d.View.SilhouetteEdge = true;
                     vizcore3d.View.SilhouetteEdgeColor = Color.Green;
                     BuildBodyToPartNameMap();
+                    // T-009 후속: Model.Open이 2D 뷰를 자동 복원하므로 Open 성공 후에 정리해야 효과 있음
+                    Clear2DView();
                 }
                 else
                 {

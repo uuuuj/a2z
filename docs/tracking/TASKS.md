@@ -65,7 +65,50 @@
 
 ## IN_PROGRESS
 
-_진행 중 작업 없음_
+### T-009 — 초기화 버튼 누락 항목 보강
+- **생성일**: 2026-04-20
+- **착수일**: 2026-04-20
+- **상태**: IN_PROGRESS
+- **관련**: T-008 후속 (사용자 피드백)
+- **배경**: 초기화 버튼 실기 테스트 결과, 도면정보 탭 BOM 목록·3D 렌더모드(DASH_LINE)·2D 캔버스가 남아 있는 상태 발견
+- **세부**:
+  - [x] Form1.BOM.cs `ResetToInitialState()` 정리 블록에 3줄 추가
+    - `lvDrawingBOMInfo.Items.Clear()` (도면정보 탭 BOM)
+    - `vizcore3d.View.SetRenderMode(RenderModes.SMOOTH)` (DASH_LINE 해제, 기본 모드 복귀)
+    - `Clear2DView()` (2D 캔버스 정리)
+  - [x] docs/features/bom/reset-to-initial.md — 단계 3 설명/상태 변화 섹션/변경 이력 갱신
+  - [x] **후속**: `Clear2DView()` 호출 시점을 `Model.Open` 성공 이후로 이동 (SDK가 Open 시 2D 뷰 자동 복원하는 이슈, 4번 번쩍임 해결)
+  - [ ] 빌드 + 다른 기기 실기 테스트 (사용자, 푸시 후)
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` (ResetToInitialState)
+  - `docs/features/bom/reset-to-initial.md`
+- **SDK 참고**: `RenderModes.SOLID`는 존재하지 않음. 기본 실선 모드는 `SMOOTH` ([VIZCore3D.NET.xml:4534](../../VIZCore3D.NET.xml))
+
+### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정
+- **생성일**: 2026-04-15
+- **착수일**: 2026-04-20
+- **상태**: IN_PROGRESS
+- **관련**: FB-003
+- **확정 스펙** (옵션 A):
+  - A4 가로 297×210 / 마진 10 / 그리드 2×3 (셀 ≈ 92.3×95 mm) — 현재 유지
+  - 뷰 4개: (1,1)ISO / (1,2)Z / (2,1)Y / (2,2)X — 현재 유지
+  - **BOM → (1,3) 셀 이관** (`RenderTemplateOnGridStructure(table1, 1, 3)`)
+  - **tableInfo → (2,3) 셀 이관** (`RenderTemplateOnGridStructure(tableInfo, 2, 3)`)
+  - BOM 열 너비 합 82 → **92 mm로 조정** (ITEM 28→38, 그 외 유지)
+  - BOM 최대 데이터 행 **14행**, 초과 시 마지막 행에 "…" + "+N건 생략" 표시 (옵션 2-a)
+  - Anchor/X/Y 절대좌표 제거 → 셀 정렬(`SetGridCell*Alignment`)로 대체
+  - 하드캡 30mm는 이번 범위 밖 → T-007에서 처리
+- **세부**:
+  - [x] Form1.DrawingSheets.cs L1020~1080 수정 — bInfo 절대좌표 제거, BOM/tableInfo `RenderTemplateOnGridStructure` 이관
+  - [x] BOM `BOM_MAX_DATA_ROWS = 14` 상수 + "…+N건 생략" 행 렌더링
+  - [x] BOM 열 너비 2차 축소: ITEM 28→38→17, MATERIAL/SIZE 8→12→11 (합 82→92→81→**77mm**)
+  - [x] tableInfo 2차 축소: 60→57→47, 35→35→30 (합 95→92→81→**77mm**)
+  - [x] 셀 정렬: BOM (1,3) Top/Center, tableInfo (2,3) Bottom/Center
+  - [x] docs/features/drawing-sheets/generate-sheet-2d.md 갱신 (단계표 7~9 추가, 분기 C 추가, 변경 이력 3건)
+  - [ ] 빌드 + 다른 기기 실기 테스트 (사용자, 푸시 후)
+- **영향 파일**:
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D L1020~1080, 약 +18줄)
+  - `docs/features/drawing-sheets/generate-sheet-2d.md`
 
 ---
 
@@ -77,10 +120,21 @@ _차단된 작업 없음_
 
 ## DONE (최근 20개)
 
+### T-010 — 문서 내부 링크 공백 문제 일괄 수정
+- **완료일**: 2026-04-20
+- **관련**: — (사용자 피드백)
+- **커밋**: `pending`
+- **요약**:
+  - `docs/**/*.md` 전체 마크다운 링크 `]( ... )` 내부 공백을 **`%20`**으로 일괄 치환 (Python 스크립트)
+  - **30파일, 147건 치환**. 상위: `사용자-매뉴얼/README.md`(44), `FEEDBACK.md`(8), 글로벌뷰 시리즈(6~7)
+  - 외부 URL(`http://`, `https://`, `mailto:`, `#`로 시작)과 공백 없는 링크는 제외 처리
+  - 대안(파일명 공백 제거 / `<path>` 각괄호)은 가독성·호환성 이유로 기각
+  - 사용자 샘플 확인 통과
+
 ### T-008 — 초기화 버튼 + 같은 파일 재Open 버그 수정
 - **완료일**: 2026-04-20
 - **관련**: —  (FB/REQ 없음, 사용자 직접 지시)
-- **커밋**: `pending`
+- **커밋**: `45d17dd`
 - **요약**:
   - 3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽에 `btnResetToInitial` ("초기화", 회색) 신설
   - `ResetToInitialState()` 헬퍼 — 누적 상태(List 9종 + UI ListView 5종 + SDK Clear 3종) 전면 초기화 후 동일 파일 재로드

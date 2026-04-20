@@ -4,7 +4,7 @@ feature_name: 선택 시트 2D 도면 생성
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-20
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheet2D_Click
 ---
 
@@ -48,9 +48,13 @@ flowchart TD
 | 4 | 위임 호출 | Form1 | `GenerateSheetDrawing2D(sheet)` |
 | 5 | 부재 가시성 조정 | SDK | 시트 부재만 Show, 나머지 Hide |
 | 6 | Hidden Line | SDK | `SetRenderMode(DASH_LINE)` |
-| 7 | 풍선 배치 | Form1 | 번호 풍선 생성, `balloonOverrides`로 충돌 회피 |
-| 8 | 보조선 추가 | Form1 | 풍선과 부재를 잇는 지시선 |
-| 9 | 2D 뷰 전환 | SDK | `ViewMode = Both` |
+| 7 | 그리드 구조 생성 | SDK | `AddGridStructure(2, 3, 297, 210)` + 마진 10mm → 셀 ≈ 92.3×95 mm |
+| 8 | **BOM 테이블 (1,3) 셀 배치** | SDK | `RenderTemplateOnGridStructure(table1, 1, 3)` — 최대 14행, 초과 시 "…+N건 생략" |
+| 9 | **tableInfo (2,3) 셀 배치** | SDK | `RenderTemplateOnGridStructure(tableInfo, 2, 3)` — 하단 정렬 |
+| 10 | 뷰 4개 렌더링 | Form1 | (1,1)ISO / (1,2)Z / (2,1)Y / (2,2)X → `RenderSheetViewForDrawing` |
+| 11 | 풍선 배치 | Form1 | 번호 풍선 생성, `balloonOverrides`로 충돌 회피 |
+| 12 | 보조선 추가 | Form1 | 풍선과 부재를 잇는 지시선 |
+| 13 | 2D 뷰 전환 | SDK | `ViewMode = Both` |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-drawing-sheets.md#GenerateSheetDrawing2D) 참고
 
@@ -66,6 +70,12 @@ flowchart TD
 | 조건 | 처리 |
 |---|---|
 | 시트에 포함된 부재 | `CollectBOMInfo(false, sheet)` 호출 → `lvDrawingBOMInfo` 재표시 |
+
+### [분기 C] BOM 행 수 제한
+| 조건 | 처리 |
+|---|---|
+| `lvDrawingBOMInfo.Items.Count <= 14` | 전체 행을 BOM 테이블에 렌더링 |
+| `> 14` | 14행까지 렌더링 + 마지막에 "…" / "+N건 생략" 행 추가 (셀 (1,3) 높이 초과 방지) |
 
 ## 6. 예외 / 에러 처리
 
@@ -100,3 +110,6 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-20 | 템플릿 정규화 (T-006/FB-003): BOM→(1,3) 셀, tableInfo→(2,3) 셀로 이관 (`RenderTemplateOnGridStructure`). BOM 열 너비 합 82→92mm, 최대 14행 제한 + "…+N건 생략" 처리. 이전 `bInfo` 절대좌표 앵커 제거 | Claude |
+| 2026-04-20 | T-006 후속: BOM/tableInfo가 흰선 밖으로 나가 FA열 분리되는 문제 → 합 92→81mm 축소. BOM: ITEM 38→19, MATERIAL 8→12, SIZE 8→12. tableInfo: 35/57→32/49 | Claude |
+| 2026-04-20 | T-006 재후속: 81도 미세하게 넘침 → 77mm로 추가 축소. BOM: ITEM 19→17, MATERIAL/SIZE 12→11. tableInfo: 32/49→30/47 | Claude |

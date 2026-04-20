@@ -1017,13 +1017,23 @@ namespace A2Z
                     vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
                 }
 
-                // ── 4. 템플릿 생성 (외곽 테두리 포함) ──
-                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CrateTemplateBorder();
+                // ── 4. 템플릿 생성 (외곽 테두리) ──
+                // BOM/tableInfo는 셀 기반(RenderTemplateOnGridStructure)으로 이관되어
+                // 이전에 절대좌표 앵커로 쓰던 bInfo는 더 이상 필요 없음.
+                vizcore3d.Drawing2D.Template.CrateTemplateBorder();
 
-                // [표1] BOM 테이블 — 도면 우측 상단 모서리에 붙이기
+                // BOM 최대 데이터 행수 — 셀 (1,3) 높이(약 95mm) 내 수용 한도
+                const int BOM_MAX_DATA_ROWS = 14;
+
+                // [표1] BOM 테이블 — 그리드 셀 (1,3) 상단 정렬 배치
                 if (lvDrawingBOMInfo.Items.Count > 0)
                 {
-                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(lvDrawingBOMInfo.Items.Count + 1, 8);
+                    int totalItems = lvDrawingBOMInfo.Items.Count;
+                    int displayRows = System.Math.Min(totalItems, BOM_MAX_DATA_ROWS);
+                    bool truncated = totalItems > BOM_MAX_DATA_ROWS;
+                    int tableRowCount = displayRows + 1 + (truncated ? 1 : 0);  // 헤더 + 데이터 + (생략 행)
+
+                    VIZCore3D.NET.Data.TemplateTableData table1 = new VIZCore3D.NET.Data.TemplateTableData(tableRowCount, 8);
                     table1.SetText(0, 0, "No");
                     table1.SetText(0, 1, "ITEM");
                     table1.SetText(0, 2, "MATERIAL");
@@ -1031,8 +1041,9 @@ namespace A2Z
                     table1.SetText(0, 4, "Q'TY");
                     table1.SetText(0, 5, "T/W");
                     table1.SetText(0, 6, "MA");
+                    table1.SetText(0, 7, "FA");
 
-                    for (int i = 0; i < lvDrawingBOMInfo.Items.Count; i++)
+                    for (int i = 0; i < displayRows; i++)
                     {
                         ListViewItem item = lvDrawingBOMInfo.Items[i];
                         for (int col = 0; col < 8 && col < item.SubItems.Count; col++)
@@ -1041,40 +1052,49 @@ namespace A2Z
                         }
                     }
 
-                    // 우측 상단 모서리: Anchor를 Right/Top으로 설정 후 bInfo 좌표 사용
-                    table1.HorizontalAnchor = VIZCore3D.NET.Data.TableHorizontalAnchor.Right;
-                    table1.VerticalAnchor = VIZCore3D.NET.Data.TableVerticalAnchor.Top;
-                    table1.X = bInfo.MaxX;  // 테두리 우측
-                    table1.Y = bInfo.MaxY;  // 테두리 상단
+                    if (truncated)
+                    {
+                        int lastRow = displayRows + 1;
+                        table1.SetText(lastRow, 0, "…");
+                        table1.SetText(lastRow, 1, string.Format("+{0}건 생략", totalItems - BOM_MAX_DATA_ROWS));
+                    }
+
                     table1.IsTextWrapped = true;
-                    // ITEM 넓게, 나머지 동일 작은 너비 (도면정보 테이블과 유사한 총 너비)
+                    // 열 너비 합 77mm — 흰선 내부 폭 추가 축소 (RenderTemplateOnGridStructure가 셀 92.3mm 내부에 추가 패딩 둠)
                     table1.ColumnWidths = new Dictionary<int, int>()
                     {
                         { 0, 6 },   // No
-                        { 1, 28 },  // ITEM
-                        { 2, 8 },   // MATERIAL
-                        { 3, 8 },   // SIZE
+                        { 1, 17 },  // ITEM
+                        { 2, 11 },  // MATERIAL
+                        { 3, 11 },  // SIZE
                         { 4, 8 },   // Q'TY
-                        { 5, 12 },   // T/W
+                        { 5, 12 },  // T/W
                         { 6, 6 },   // MA
                         { 7, 6 }    // FA
                     };
-                    vizcore3d.Drawing2D.Template.RenderTemplate(table1);
+
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(1, 3,
+                        VIZCore3D.NET.Data.GridVerticalAlignment.Top);
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(1, 3,
+                        VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+                    vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(table1, 1, 3);
                 }
 
-                // [표2] 도면정보 — 우측 하단 (2행 2열: 1열 로고, 2열 텍스트)
+                // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
                 VIZCore3D.NET.Data.TemplateTableData tableInfo = new VIZCore3D.NET.Data.TemplateTableData(2, 2);
                 tableInfo.SetText(0, 0, string.Format("{0}\\Logo.png", GetSolutionPath()));
                 tableInfo.SetText(0, 1, "Project Name:\nProject No:");
                 tableInfo.SetText(1, 0, string.Format("{0}\\Logo.png", GetSolutionPath()));
                 tableInfo.SetText(1, 1, "Title:");
                 tableInfo.IsTextWrapped = true;
-                tableInfo.ColumnWidths = new Dictionary<int, int>() { { 0, 35 }, { 1, 60 } };
-                tableInfo.HorizontalAnchor = VIZCore3D.NET.Data.TableHorizontalAnchor.Right;
-                tableInfo.VerticalAnchor = VIZCore3D.NET.Data.TableVerticalAnchor.Bottom;
-                tableInfo.X = bInfo.MaxX;
-                tableInfo.Y = bInfo.MinY;
-                vizcore3d.Drawing2D.Template.RenderTemplate(tableInfo);
+                // 열 너비 합 77mm (흰선 내부 폭 추가 축소, 기존 81→77)
+                tableInfo.ColumnWidths = new Dictionary<int, int>() { { 0, 30 }, { 1, 47 } };
+
+                vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(2, 3,
+                    VIZCore3D.NET.Data.GridVerticalAlignment.Bottom);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(2, 3,
+                    VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+                vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(tableInfo, 2, 3);
 
                 // [라벨] 뷰 라벨은 모델 배치·크기조정·위치이동 후에 렌더링 (아래 MoveObject 이후)
 

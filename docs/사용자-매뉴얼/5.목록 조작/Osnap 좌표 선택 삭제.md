@@ -35,8 +35,8 @@ last_updated: 2026-04-14
 | "Osnap 삭제 중 오류: {메시지}" | 삭제 중 내부 오류 | 일부만 지워졌을 수 있으니 재시도하세요 |
 
 ## 🔗 이어지는 작업
-- 새 좌표를 추가하려면 → [Osnap 좌표 추가](./Osnap 좌표 추가.md)
-- 전체 특징점을 다시 뽑으려면 → [Osnap](../2.작업-데이터 탭/Osnap.md)
+- 새 좌표를 추가하려면 → [Osnap 좌표 추가](./Osnap%20좌표%20추가.md)
+- 전체 특징점을 다시 뽑으려면 → [Osnap](../2.작업-데이터%20탭/Osnap.md)
 
 ## 🔬 자세히 보기 (개발자용)
 로직 세부 구현은 [개발자 문서 osnap-delete.md](/docs/features/drawing2d/osnap-delete.md) 참고.

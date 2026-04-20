@@ -29,8 +29,8 @@ last_updated: 2026-04-14
 이 버튼은 오류가 나도 사용자 화면에 팝업 없이 조용히 끝납니다. 풍선/마커가 화면에 남아 있다면 버튼을 한 번 더 눌러보세요.
 
 ## 🔗 이어지는 작업
-- 필요할 때 다시 표시하려면 → [Osnap 선택 좌표 보기](./Osnap 선택 좌표 보기.md)
-- 좌표 자체를 추가/삭제하려면 → [Osnap 좌표 추가](./Osnap 좌표 추가.md), [Osnap 좌표 선택 삭제](./Osnap 좌표 선택 삭제.md)
+- 필요할 때 다시 표시하려면 → [Osnap 선택 좌표 보기](./Osnap%20선택%20좌표%20보기.md)
+- 좌표 자체를 추가/삭제하려면 → [Osnap 좌표 추가](./Osnap%20좌표%20추가.md), [Osnap 좌표 선택 삭제](./Osnap%20좌표%20선택%20삭제.md)
 
 ## 🔬 자세히 보기 (개발자용)
 로직 세부 구현은 [개발자 문서 osnap-clear-balloon.md](/docs/features/drawing2d/osnap-clear-balloon.md) 참고.

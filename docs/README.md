@@ -33,16 +33,16 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 - Claude Code 작업 규칙: 루트의 [CLAUDE.md](../CLAUDE.md)
 
 ### 기능 카테고리 (Features)
-| 카테고리 | 주요 역할 | 링크 |
-|---|---|---|
-| BOM | 부재 목록 수집, UDA 파싱, 홀 감지 | [features/bom/](./features/bom/_index.md) |
-| Clash | 3D 간섭 검사, 결과 그룹화 | [features/clash/](./features/clash/_index.md) |
-| Dimensions | 체인 치수 계산·표시 | [features/dimensions/](./features/dimensions/_index.md) |
-| Drawing2D | 2D 도면 생성, PDF 출력, Osnap 관리 | [features/drawing2d/](./features/drawing2d/_index.md) |
-| DrawingSheets | 도면 시트 자동 분할 (BFS) | [features/drawing-sheets/](./features/drawing-sheets/_index.md) |
-| GlobalViews | 글로벌 뷰 전환 (ISO/X/Y/Z) | [features/global-views/](./features/global-views/_index.md) |
-| MfgDrawing | 단일 부재 가공도 | [features/mfg-drawing/](./features/mfg-drawing/_index.md) |
-| Attribute | 부재 속성 조회·UDA CRUD | [features/attribute/](./features/attribute/_index.md) |
+| 카테고리          | 주요 역할                      | 링크                                                              |
+| ------------- | -------------------------- | --------------------------------------------------------------- |
+| BOM           | 부재 목록 수집, UDA 파싱, 홀 감지     | [features/bom/](./features/bom/_index.md)                       |
+| Clash         | 3D 간섭 검사, 결과 그룹화           | [features/clash/](./features/clash/_index.md)                   |
+| Dimensions    | 체인 치수 계산·표시                | [features/dimensions/](./features/dimensions/_index.md)         |
+| Drawing2D     | 2D 도면 생성, PDF 출력, Osnap 관리 | [features/drawing2d/](./features/drawing2d/_index.md)           |
+| DrawingSheets | 도면 시트 자동 분할 (BFS)          | [features/drawing-sheets/](./features/drawing-sheets/_index.md) |
+| GlobalViews   | 글로벌 뷰 전환 (ISO/X/Y/Z)       | [features/global-views/](./features/global-views/_index.md)     |
+| MfgDrawing    | 단일 부재 가공도                  | [features/mfg-drawing/](./features/mfg-drawing/_index.md)       |
+| Attribute     | 부재 속성 조회·UDA CRUD          | [features/attribute/](./features/attribute/_index.md)           |
 
 ### 코드 레퍼런스
 | 파일 | 링크 |

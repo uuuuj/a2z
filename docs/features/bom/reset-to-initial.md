@@ -34,12 +34,13 @@ flowchart TD
     B -- 예 --> C[확인 다이얼로그]
     C -- No --> X[종료]
     C -- Yes --> D[ResetToInitialState 호출]
-    D --> E[누적 상태 전면 초기화<br/>+ balloonOverrides.Clear]
+    D --> E[누적 상태 전면 초기화<br/>+ balloonOverrides.Clear<br/>+ SetRenderMode SMOOTH]
     E --> EC[Model.IsOpen이면 Model.Close]
     EC --> F[vizcore3d.Model.Open currentFilePath]
     F --> G{로드 성공?}
     G -- 예 --> H[FitToView + SilhouetteEdge]
     H --> I[BuildBodyToPartNameMap]
+    I --> J[Clear2DView<br/>Model.Open이 자동 복원한 2D 뷰 정리]
     G -- 아니오 --> E02[에러 표시]
 ```
 
@@ -47,11 +48,12 @@ flowchart TD
 |---|---|---|---|
 | 1 | 가드 체크 | Form1 | `currentFilePath` 비었거나 `Model.IsOpen()==false`면 [E01] |
 | 2 | 확인 다이얼로그 | UI | Yes/No. No면 조용히 종료 |
-| 3 | 누적 상태 초기화 | Form1 | [§7] 참조 — List/Dict 9종 + UI ListView 5종 + SDK Clear 3종 |
+| 3 | 누적 상태 초기화 | Form1 | [§7] 참조 — List/Dict 9종 + UI ListView **6종** + SDK Clear **3종 + RenderMode=SMOOTH** |
 | 4 | **모델 Close (중복 열림 방지)** | SDK | `IsOpen()`이면 `Model.Close()`. 이 단계가 없으면 같은 경로 재Open 시 false 반환 (VIZCore3D.NET.xml 공식 예제 패턴) |
 | 5 | 모델 재로드 | SDK | `vizcore3d.Model.Open(currentFilePath)` → bool |
 | 6 | 뷰 세팅 | SDK | `FitToView()`, `SilhouetteEdge=true`, 색상 Green |
 | 7 | Body→Part 매핑 | Form1 | `BuildBodyToPartNameMap()` 재구축 |
+| 8 | **2D 캔버스 정리** | Form1 | `Clear2DView()` — `Model.Open`이 2D 뷰를 자동 복원하므로 Open **성공 이후**에 호출해야 실제로 비어진 상태로 남음 |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-bom.md#btnResetToInitial_Click) 참고
 
@@ -108,9 +110,11 @@ flowchart TD
 | `vizcore3d.View.SilhouetteEdge` | true (대부분) | true (Green) |
 | `vizcore3d.Review.Measure / ShapeDrawing / Note` | 이전 주석 | 모두 Clear |
 | `vizcore3d.View.XRay` | 사용자 조작 반영 | Model.Open으로 리셋됨 |
+| `vizcore3d.View.RenderMode` | 글로벌뷰/가공도/시트 작업 후 `DASH_LINE`로 남음 | **`SMOOTH`** 로 복귀 (T-009) |
+| `vizcore3d.Drawing2D` 캔버스 | 이전 2D 도면 잔존 가능 | **`Clear2DView()` 호출로 정리** (T-009, Model.Open 성공 직후 실행) |
 
 ### UI 상태
-- `lvBOM`, `lvClash`, `lvDrawingSheet`, `lvOsnap`, `lvDimension` 모두 Clear
+- `lvBOM`, `lvClash`, `lvDrawingSheet`, `lvOsnap`, `lvDimension`, **`lvDrawingBOMInfo`** 모두 Clear
 
 ## 8. 후행 기능 (Chained)
 재로드 후 사용자가 처음부터 다시 진행:
@@ -133,3 +137,5 @@ flowchart TD
 |---|---|---|
 | 2026-04-20 | 초안 작성 (T-008) | Claude |
 | 2026-04-20 | 재로드 실패 버그 수정 — `Model.Open` 전 `Model.Close()` 호출 (VIZCore3D SDK 공식 패턴) | Claude |
+| 2026-04-20 | 누락 항목 3종 보강 (T-009): `lvDrawingBOMInfo.Items.Clear()`, `View.SetRenderMode(SMOOTH)`, `Clear2DView()` 추가 | Claude |
+| 2026-04-20 | T-009 후속: `Clear2DView()`를 `Model.Open` 성공 이후로 이동 (SDK가 Open 시 2D 뷰 자동 복원하는 이슈 발견 — 반복 번쩍임 4회 해결) | Claude |

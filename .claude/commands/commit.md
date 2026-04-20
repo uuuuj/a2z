@@ -1,5 +1,5 @@
 ---
-description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱신 + 커밋까지 수행 (push는 별도)
+description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱신 + 커밋 + 자동 push 수행
 ---
 
 # /commit — 통합 커밋 워크플로우
@@ -78,14 +78,23 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 - TASKS.md의 DONE 항목 커밋 해시도 마찬가지로 교체
 - **이 수정분은 다음 커밋에 포함시키지 말고**, 사용자에게 보고 후 다음 `/commit` 호출 시 함께 반영되도록 둔다 (누적 방지)
 
-### 9. 보고
+### 9. 자동 push (CLAUDE.md R5)
+커밋 성공 직후 `git push` 실행:
+- 일반 HYI 브랜치 push는 자동 진행
+- push 실패 시 (원격 변경 충돌 등) 사용자에게 보고 후 지시 대기
+- 예외 — 사용자에게 먼저 확인:
+  - `--force` / `-f` 가 필요한 상황
+  - `main` / `master` 브랜치에 직접 push
+  - 파괴적 히스토리 변경 동반
+
+### 10. 보고
 사용자에게 요약:
 - 커밋 해시 + 메시지 첫 줄
 - 갱신한 tracking 파일 목록
-- 다음 단계 제안 (push 여부 물어보기)
+- push 결과 (성공 시 원격 경로, 실패 시 원인)
 
 ## 금지 사항
-- **자동 push 금지**: 사용자가 "푸시" 또는 "push" 명시적으로 말하지 않으면 절대 push하지 마라
 - **커밋 amend 금지**: 훅 실패 등은 새 커밋으로 해결
 - **pre-commit hook 건너뛰기 금지**: `--no-verify` 사용 금지
 - **메모리/무관한 파일 자동 스테이징 금지**: `.env`, `*.key`, 대용량 바이너리가 새로 생겼으면 사용자에게 먼저 알림
+- **위험 push 자동 실행 금지**: `--force` / main·master 직접 push 는 명시 승인 필요
