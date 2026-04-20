@@ -65,6 +65,12 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 ### R9. 훅 리마인더는 신호일 뿐
 `A2Z/Form1.*.cs` Edit/Write 후 `[docs-sync-reminder]` 시스템 메시지가 주입되면, 이는 **R1 이행을 상기시키는 신호**일 뿐 맹목적으로 따르지 말 것. 실제 흐름 변경이 있었는지 판단 후 docs 갱신 여부 결정. 리팩토링·포매팅이면 주저 없이 생략.
 
+### R10. SDK API 호출 전 sdk-verifier 호출
+`A2Z/Form1.*.cs`에서 **처음 쓰는** VIZCore3D SDK 멤버(메서드/프로퍼티/enum)가 있으면 먼저 `sdk-verifier` 서브에이전트를 호출해 `VIZCore3D.NET.xml`에서 존재·시그니처·공식 사용 패턴을 확인한다. 이미 코드베이스에 반복 사용 중인 익숙한 API(`Model.Open`, `View.FitToView` 등)는 생략 가능.
+
+### R11. docs/ 대량 수정 후 md-link-checker 호출
+다수의 `docs/**/*.md`를 수정·추가한 커밋 직전에는 `md-link-checker` 서브에이전트를 호출해 링크 공백·파일 부재 문제를 검증한다. 단일 문서 소폭 수정은 생략 가능.
+
 ---
 
 ## 파일 구조 개요

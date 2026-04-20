@@ -6,10 +6,26 @@
 
 ---
 
+## 2026-04-20 — 시드 서브에이전트 2개 도입 (sdk-verifier, md-link-checker)
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-011
+**변경 사항**:
+- `.claude/agents/sdk-verifier.md` 신설 — VIZCore3D.NET.xml 선행 검색으로 SDK API 존재·시그니처·공식 사용 패턴 반환
+- `.claude/agents/md-link-checker.md` 신설 — `docs/**/*.md` 링크 공백·파일 부재 검증 + Python 치환 스크립트 제안
+- `CLAUDE.md` R10, R11 추가 — 각 에이전트 호출 트리거 주소
+- 배경: 이번 세션에서 드러난 반복 실수(`RenderModes.SOLID` 존재 가정, `Model.Close` 누락, 링크 공백 133건) 방지
+- 오케스트레이터 프로토콜(동적 생성·합병·삭제)은 사용 패턴 축적 후 재평가 — 중간 도입 경로 채택
+
+**영향 범위**: 개발 워크플로우. 코드 변경 없음.
+
+---
+
 ## 2026-04-20 — T-006/T-009 빌드 테스트 후속 + T-010 링크 치환 + 자동 push 활성화
 
 **유형**: fix + chore
-**커밋**: `pending`
+**커밋**: `10c7d8c`
 **관련 TASK**: T-006, T-009, T-010
 **변경 사항**:
 - **T-006 후속** (템플릿 폭 재조정): BOM/tableInfo 열 너비 합 81→**77mm** 추가 축소. BOM: ITEM 19→17, MATERIAL/SIZE 12→11. tableInfo: 32/49→30/47. (RenderTemplateOnGridStructure가 셀 92.3mm 내부에 추가 패딩 존재)
