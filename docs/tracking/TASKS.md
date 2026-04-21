@@ -8,6 +8,32 @@
 
 ## TODO
 
+### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
+- **생성일**: 2026-04-21
+- **상태**: TODO
+- **관련**: — (사용자 피드백)
+- **배경**: `btnMainDimension_Click` 누르면 Clash 검사 **이전** 단계(BOM 수집 → Osnap 수집 → 치수 계산 → 표시)에서 약 **5초간 화면 반응이 없음**. 사용자가 앱이 멈춘 건지 처리 중인지 판단할 수 없어 UX 저하
+- **해당 구간**:
+  - `Form1.BOM.cs:370~430` `btnMainDimension_Click`
+    - `CollectBOMData()` (bomList 재수집)
+    - `CollectAllOsnap()` (모든 부재 Osnap 수집)
+    - `MergeCoordinates` + `AddChainDimensionByAxis(X/Y/Z)`
+    - `ShowAllDimensions()`
+- **UX 개선 옵션** (난이도·효과 순):
+  - (a) **`Cursor.Current = Cursors.WaitCursor`** — 1~2줄, 매우 쉬움, 최소 효과 (마우스 모양만 바뀜)
+  - (b) **3D 뷰어 위 오버레이 라벨 "처리 중..."** — 10줄 수준, 쉬움, 시각 효과 큼 (이미 `txtMemberNameOverlay` 패턴 존재 — 참고 가능)
+  - (c) **진행 다이얼로그 팝업** — 30줄 수준, 중간, 단계별 % 표시 가능
+  - (d) **`BackgroundWorker` / `async Task` 비동기화** — 50~100줄, 어려움, UX 가장 자연스러움 (SDK가 메인 스레드 외에서 안전 호출되는지 검증 필요)
+- **세부**:
+  - [ ] 옵션 (a)~(d) 중 선택 (추천: **(b) 오버레이** — 최소 위험 + 충분한 효과)
+  - [ ] 구현 범위 결정: 치수 추출만 / 다른 장시간 작업(2D 도면 생성, 가공도, PDF 출력, 시트 생성)도 포함
+  - [ ] 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 검토
+  - [ ] 구현 후 실기 확인 (다른 기기 포함)
+  - [ ] docs/features/bom/main-dimension.md 갱신 (진행 표시 단계 추가)
+- **영향 파일**: A2Z/Form1.BOM.cs + 공통 헬퍼 추가 시 A2Z/Form1.cs 또는 신규 파일
+- **우선순위**: MEDIUM — 실사용 UX 직결, 특히 담당자 테스트 시 오해 방지
+- **확장 가능성**: 동일 패턴을 다른 장시간 작업에도 적용 가능 (2D 도면 생성, ALL PDF 출력 등)
+
 ### T-017 — 라이선스 인증 코드를 Form1.BOM.cs에서 분리
 - **생성일**: 2026-04-21
 - **상태**: TODO
