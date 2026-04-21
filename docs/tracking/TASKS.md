@@ -122,11 +122,17 @@
 - **세부**:
   - [x] Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~L1430 `isIsoFullView` 분기 분석
   - [x] 원인 가설 확정 (원점 생성 + GetObjectCenter 한계)
-  - [x] **옵션 A 시도**: objId의 `RescaleObject`/`MoveObject`/보정 계산 모두 제거 → SDK 자동 처리에 맡김. DiagLog로 bgObjId/objId 중심·스케일 실측 기록
-  - [ ] 사용자 빌드+테스트 결과 확인 (Release 빌드 + 다른 기기)
-  - [ ] 실패 시 옵션 B(WorldToScreen 기반 위치 계산)로 전환
-  - [ ] 성공 시 docs/features/drawing-sheets/generate-sheet-2d.md 본문 갱신
-- **옵션 B 준비**: `vizcore3d.View.WorldToScreen(Vertex3D, bool)` 확인됨 ([VIZCore3D.NET.xml:63853](../../VIZCore3D.NET.xml)). 3D 중심 2개를 화면 좌표로 변환 → 차이를 obj 이동량으로 사용
+  - [x] 옵션 A 시도: objId의 `RescaleObject`/`MoveObject`/보정 계산 모두 제거 → SDK 자동 처리에 맡김
+  - [x] **옵션 A 실패 확인** (사용자 실측 2026-04-21 11:00): `bgScale=0.0301 objScale=0.0050 bgCenter=(49.50,157.50) objCenter=(0.00,0.00)` — objId가 원점에 매우 작게 남아 보이지 않음. SDK 자동 매핑 없음
+  - [x] **옵션 B 구현**: `vizcore3d.View.WorldToScreen(Vertex3D, true)` 사용
+    - 전체 BOM 3D BBox 중심, 시트 부재 3D BBox 중심 계산 (`bomList.MinX/MaxX/MinY/MaxY/MinZ/MaxZ`)
+    - 각각 WorldToScreen으로 캔버스 좌표 변환
+    - objId를 bgFinalScale과 동기 스케일링
+    - objId 중심을 `bgCanvasCenter + (objScreen - bgScreen)`로 이동
+    - DiagLog에 `OPT-B` 라벨로 3D/화면/이동량 실측 출력
+  - [ ] 사용자 빌드+테스트 (Sheet2 이상 시트 ISO 뷰, 선택 부재가 원본 위치에 실선으로 겹치는지)
+  - [ ] 성공 시 generate-sheet-2d.md 본문 갱신 + DONE 이동
+  - [ ] 실패 시 WorldToScreen 단위(캔버스 vs 픽셀) 보정 필요
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
 
 ### T-014 — 도면정보 테이블의 "기준부재/포함부재" 정의 + 풍선 번호 매칭
@@ -258,7 +264,7 @@
 ### T-020 — 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
 - **완료일**: 2026-04-21
 - **관련**: — (사용자 직접 지시, UX)
-- **커밋**: `pending`
+- **커밋**: `29e177f`
 - **요약**:
   - `panelGlobalActions` 신설 — `splitContainer1.Panel1` 내 Dock.Top
     - 위치: panelGlobalViewButtons 아래, tabControlLeft 위

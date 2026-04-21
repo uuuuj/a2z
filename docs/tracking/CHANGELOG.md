@@ -6,10 +6,34 @@
 
 ---
 
+## 2026-04-21 — T-013 옵션 B: WorldToScreen 기반 objId 위치 보정
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-013
+**변경 사항**:
+- **옵션 A 실패 확정** (사용자 실측 11:00:06 로그):
+  ```
+  bgScale=0.0301 objScale=0.0050
+  bgCenter=(49.50,157.50) objCenter=(0.00,0.00)
+  ```
+  objId가 원점 (0,0)에 0.005 스케일로 남아 사실상 보이지 않음 → SDK 자동 매핑 없음 확인
+- **옵션 B 구현** (Form1.DrawingSheets.cs `RenderSheetViewForDrawing` isIsoFullView 분기):
+  - 전체 BOM 3D BBox 중심 + 시트 부재 3D BBox 중심 계산 (`bomList.MinX/MaxX/...`)
+  - 각 중심을 `vizcore3d.View.WorldToScreen(Vertex3D, true)`로 캔버스 좌표 변환
+  - objId를 bgFinalScale과 동기 스케일링 (`RescaleObject`)
+  - objId 중심을 `bgCanvas + (objScreen - bgScreen)`로 이동 (`MoveObject`)
+- DiagLog `OPT-B` 라벨로 3D 중심 / 화면 좌표 / 이동량 / 최종 스케일 모두 기록 — 다음 테스트 결과 즉시 검증 가능
+- SDK API 근거: [VIZCore3D.NET.xml:63853](../../VIZCore3D.NET.xml) `ViewManager.WorldToScreen`
+
+**영향 범위**: Sheet2 이상 시트의 ISO 뷰 렌더링만. 비-ISO / Sheet1 미영향
+
+---
+
 ## 2026-04-21 — T-020 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
 
 **유형**: feat (UX)
-**커밋**: `pending`
+**커밋**: `29e177f`
 **관련 TASK**: T-020
 **변경 사항**:
 - `panelGlobalActions` 신설 (splitContainer1.Panel1, Dock.Top, 438×60)

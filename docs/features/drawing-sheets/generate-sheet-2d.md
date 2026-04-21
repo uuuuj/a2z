@@ -114,3 +114,4 @@ flowchart TD
 | 2026-04-20 | T-006 후속: BOM/tableInfo가 흰선 밖으로 나가 FA열 분리되는 문제 → 합 92→81mm 축소. BOM: ITEM 38→19, MATERIAL 8→12, SIZE 8→12. tableInfo: 35/57→32/49 | Claude |
 | 2026-04-20 | T-006 재후속: 81도 미세하게 넘침 → 77mm로 추가 축소. BOM: ITEM 19→17, MATERIAL/SIZE 12→11. tableInfo: 32/49→30/47 | Claude |
 | 2026-04-21 | T-013 옵션 A 시도: `RenderSheetViewForDrawing`의 `isIsoFullView` 분기에서 objId의 `RescaleObject/MoveObject/GetObjectCenter 보정` 로직 제거. SDK 자동 처리 여부 검증 중. DiagLog로 bgObjId/objId 중심·스케일 실측 기록. 결과에 따라 옵션 B(WorldToScreen) 전환 예정 | Claude |
+| 2026-04-21 | T-013 옵션 A 실패 확인 (objId가 원점 0,0에 objScale=0.005로 남아 보이지 않음, SDK 자동 매핑 없음) → **옵션 B 적용**: `vizcore3d.View.WorldToScreen`으로 3D BBox 중심 2개(전체 BOM / 시트 부재)를 캔버스 좌표로 변환해 obj를 bg 내부 원래 위치에 배치. bgFinalScale로 동기 스케일링 포함. DiagLog에 OPT-B 실측 출력 | Claude |

@@ -1427,22 +1427,81 @@ namespace A2Z
                     }
                 }
 
-                // ── T-013 옵션 A 시도 (2026-04-21) ──
-                // 기존 위치 보정 로직이 `(objCX0 - bgCX0) ≈ 0` 때문에 무력화되어 objId가 bg 중심으로 이동
-                // 하는 문제 발생. SDK가 같은 카메라·같은 원점에서 만든 두 2D 객체를 동일 좌표계로
-                // 자동 처리하는지 확인하기 위해 objId의 RescaleObject/MoveObject/GetObjectCenter
-                // 보정 로직을 모두 생략. 만약 SDK가 자동 매핑한다면 objId가 bgObjId 내부 원래 3D 위치
-                // 그대로 실선 표시될 것. 실패 시 옵션 B(WorldToScreen 기반)로 전환 예정.
-                float bgFinalScaleA = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
-                float objScaleA = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                float bgCXA = 0f, bgCYA = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCXA, ref bgCYA);
-                float objCXA = 0f, objCYA = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCXA, ref objCYA);
-                DiagLog($"RenderSheet ISO OPT-A bgObjId={bgObjId} objId={objId} " +
-                    $"bgScale={bgFinalScaleA:F4} objScale={objScaleA:F4} " +
-                    $"bgCenter=({bgCXA:F2},{bgCYA:F2}) objCenter=({objCXA:F2},{objCYA:F2}) " +
-                    $"bgOrigin=({bgCX0:F2},{bgCY0:F2}) objOrigin=({objCX0:F2},{objCY0:F2})");
+                // ── T-013 옵션 B — WorldToScreen 기반 3D→캔버스 좌표 변환 (2026-04-21) ──
+                // 옵션 A 실패 확인: objId가 원점(0,0)에 objScale=0.005로 남아 거의 안 보임.
+                // SDK가 두 2D 객체를 자동 매핑하지 않으므로, 3D BBox 중심을 WorldToScreen으로
+                // 캔버스 좌표로 변환해 obj를 bg 내부 원래 위치에 배치한다.
+                //
+                // 알고리즘:
+                //   1. 전체 BOM의 3D BBox 중심 + 시트 부재의 3D BBox 중심 계산 (bomList 사용)
+                //   2. WorldToScreen(center3D, true)로 각각 캔버스 좌표 추출
+                //   3. objId를 bgFinalScale과 동일 스케일로 축소
+                //   4. objId 중심을 (bgCanvasCenter + 화면 좌표 차이)로 이동
+
+                // 1. 전체 BOM의 3D BBox 중심
+                float bgMinX3D = float.MaxValue, bgMinY3D = float.MaxValue, bgMinZ3D = float.MaxValue;
+                float bgMaxX3D = float.MinValue, bgMaxY3D = float.MinValue, bgMaxZ3D = float.MinValue;
+                foreach (int idx in allBomIndices)
+                {
+                    BOMData b = bomList.FirstOrDefault(x => x.Index == idx);
+                    if (b == null) continue;
+                    bgMinX3D = System.Math.Min(bgMinX3D, b.MinX); bgMaxX3D = System.Math.Max(bgMaxX3D, b.MaxX);
+                    bgMinY3D = System.Math.Min(bgMinY3D, b.MinY); bgMaxY3D = System.Math.Max(bgMaxY3D, b.MaxY);
+                    bgMinZ3D = System.Math.Min(bgMinZ3D, b.MinZ); bgMaxZ3D = System.Math.Max(bgMaxZ3D, b.MaxZ);
+                }
+                var bgCenter3D = new VIZCore3D.NET.Data.Vertex3D(
+                    (bgMinX3D + bgMaxX3D) / 2f,
+                    (bgMinY3D + bgMaxY3D) / 2f,
+                    (bgMinZ3D + bgMaxZ3D) / 2f);
+
+                // 2. 시트 부재의 3D BBox 중심
+                float objMinX3D = float.MaxValue, objMinY3D = float.MaxValue, objMinZ3D = float.MaxValue;
+                float objMaxX3D = float.MinValue, objMaxY3D = float.MinValue, objMaxZ3D = float.MinValue;
+                foreach (int idx in sheet.MemberIndices)
+                {
+                    BOMData b = bomList.FirstOrDefault(x => x.Index == idx);
+                    if (b == null) continue;
+                    objMinX3D = System.Math.Min(objMinX3D, b.MinX); objMaxX3D = System.Math.Max(objMaxX3D, b.MaxX);
+                    objMinY3D = System.Math.Min(objMinY3D, b.MinY); objMaxY3D = System.Math.Max(objMaxY3D, b.MaxY);
+                    objMinZ3D = System.Math.Min(objMinZ3D, b.MinZ); objMaxZ3D = System.Math.Max(objMaxZ3D, b.MaxZ);
+                }
+                var objCenter3D = new VIZCore3D.NET.Data.Vertex3D(
+                    (objMinX3D + objMaxX3D) / 2f,
+                    (objMinY3D + objMaxY3D) / 2f,
+                    (objMinZ3D + objMaxZ3D) / 2f);
+
+                // 3. WorldToScreen으로 캔버스 좌표 추출 (VIZCore3D.NET.xml:63853)
+                var bgScreenC = vizcore3d.View.WorldToScreen(bgCenter3D, true);
+                var objScreenC = vizcore3d.View.WorldToScreen(objCenter3D, true);
+
+                // 4. objId를 bgFinalScale로 맞추고 위치 이동
+                float bgFinalScaleB = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
+                vizcore3d.Drawing2D.Object2D.RescaleObject(objId, bgFinalScaleB);
+
+                float bgCX1B = 0f, bgCY1B = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCX1B, ref bgCY1B);
+                float objCXB = 0f, objCYB = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCXB, ref objCYB);
+
+                float dScreenX = objScreenC.X - bgScreenC.X;
+                float dScreenY = objScreenC.Y - bgScreenC.Y;
+
+                float targetX = bgCX1B + dScreenX;
+                float targetY = bgCY1B + dScreenY;
+                float moveX = targetX - objCXB;
+                float moveY = targetY - objCYB;
+
+                vizcore3d.Drawing2D.Object2D.MoveObject(objId, moveX, moveY);
+
+                DiagLog($"RenderSheet ISO OPT-B bgObjId={bgObjId} objId={objId} " +
+                    $"bg3D=({bgCenter3D.X:F1},{bgCenter3D.Y:F1},{bgCenter3D.Z:F1}) " +
+                    $"obj3D=({objCenter3D.X:F1},{objCenter3D.Y:F1},{objCenter3D.Z:F1}) " +
+                    $"bgScreen=({bgScreenC.X:F2},{bgScreenC.Y:F2}) " +
+                    $"objScreen=({objScreenC.X:F2},{objScreenC.Y:F2}) " +
+                    $"dScreen=({dScreenX:F2},{dScreenY:F2}) " +
+                    $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) " +
+                    $"target=({targetX:F2},{targetY:F2}) " +
+                    $"scale={bgFinalScaleB:F4}");
             }
             else
             {
