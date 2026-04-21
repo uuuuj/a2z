@@ -9,7 +9,7 @@
 ## 2026-04-21 — T-013 옵션 A 시도 (Sheet2+ ISO 위치 정합)
 
 **유형**: fix (시도)
-**커밋**: `pending`
+**커밋**: `cac4eb3`
 **관련 TASK**: T-013
 **변경 사항**:
 - **원인 확정**: `RenderSheetViewForDrawing`의 `isIsoFullView` 분기에서 bgObjId/objId 모두 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`로 캔버스 원점에 생성 → `GetObjectCenter`가 둘 다 (0,0) 반환 → 기존 위치 보정 공식 `(objCX0 - bgCX0) * scale`이 0에 가까워져 obj가 bg 중심으로 이동하던 현상

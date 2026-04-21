@@ -8,6 +8,32 @@
 
 ## TODO
 
+### T-017 — 라이선스 인증 코드를 Form1.BOM.cs에서 분리
+- **생성일**: 2026-04-21
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시, 코드 정리)
+- **배경**: `Form1.BOM.cs`에 라이선스 인증 관련 코드가 들어있는데 BOM(부재 목록 수집) 기능과 책임이 다름. 파일 가독성·단일 책임 원칙 측면에서 분리 필요
+- **현재 위치** (분리 대상):
+  - `Form1.BOM.cs:172` `StartLicenseRefreshTimer` (30분 주기 타이머 시작)
+  - `Form1.BOM.cs:183` `LicenseRefreshTimer_Tick` (실제 갱신 로직, 예외 시 Debug.WriteLine)
+  - `Form1.BOM.cs` 내 `licenseRefreshTimer` 필드 (Form1.cs:99 선언)
+  - `Vizcore3d_OnInitializedVIZCore3D` 내부의 `License.LicenseServer(127.0.0.1, 8901)` 호출
+- **분리 옵션**:
+  - (A) **`Form1.License.cs` 신규 partial 파일** — 최소 변경, 같은 클래스 유지. 가장 저위험
+  - (B) **독립 `LicenseManager` 클래스** — 구조 개선, Form1 의존성 제거 (VIZCore3DControl 주입). 향후 MVP 재설계 준비용
+- **세부**:
+  - [ ] 라이선스 관련 메서드·필드·이벤트 호출 전수 식별
+  - [ ] (A)/(B) 중 선택 — 지금 단계에선 **(A) 추천** (리팩토링 충격 최소)
+  - [ ] 코드 이동 + 기존 호출부 그대로 유지
+  - [ ] docs/code-reference/form1-bom.md — 라이선스 관련 항목 제거
+  - [ ] docs/code-reference/form1-license.md (신규) — 새 partial 설명
+  - [ ] 빌드 + 라이선스 갱신 동작 확인
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` → 라이선스 관련 메서드 제거
+  - `A2Z/Form1.License.cs` (신규)
+  - `docs/code-reference/form1-bom.md`, `form1-license.md`
+- **우선순위**: LOW — 기능 변경 없음, 현재 버그 수정(T-013 등)·기능 추가 작업 완료 후 착수 권장
+
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
 - **상태**: TODO
