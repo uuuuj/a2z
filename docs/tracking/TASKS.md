@@ -255,6 +255,21 @@
 
 ## DONE (최근 20개)
 
+### T-019 — 도면정보 탭을 첫 번째로 이동
+- **완료일**: 2026-04-21
+- **관련**: — (사용자 직접 지시)
+- **커밋**: `pending`
+- **요약**:
+  - 앱의 최종 목표가 **제작도 출력**이라 도면정보 탭을 첫 번째로 배치
+  - 프로그래밍 위험 전수 검증 — 모두 안전
+    - `SelectedIndex = 0` 하드코딩 (Designer L192): 탭 재배열 후 도면정보가 자동 기본 선택 (=원하는 동작)
+    - `SelectedTab == tabPageDrawing` (GlobalViews.cs:54): 탭 **객체** 비교, 순서 무관
+    - 다른 탭 인덱스 하드코딩 없음
+  - Form1.Designer.cs 4곳 수정
+    - L186~188: `Controls.Add` 순서 Drawing → Work → Attribute
+    - TabIndex 재매김: Drawing=0, Work=1, Attribute=2
+  - 런타임 로직 영향 0 (Designer 메타데이터만)
+
 ### T-011 — 시드 서브에이전트 2개 도입 (sdk-verifier, md-link-checker)
 - **완료일**: 2026-04-20
 - **관련**: — (사용자 피드백, 반복 실수 방지)

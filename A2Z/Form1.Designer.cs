@@ -183,9 +183,10 @@ namespace A2Z
             //
             // tabControlLeft
             //
+            // 탭 순서: 도면정보(최종 목표)를 첫 번째에 배치 — T-019
+            this.tabControlLeft.Controls.Add(this.tabPageDrawing);
             this.tabControlLeft.Controls.Add(this.tabPageWork);
             this.tabControlLeft.Controls.Add(this.tabPageAttribute);
-            this.tabControlLeft.Controls.Add(this.tabPageDrawing);
             this.tabControlLeft.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControlLeft.Location = new System.Drawing.Point(0, 42);
             this.tabControlLeft.Name = "tabControlLeft";
@@ -204,7 +205,7 @@ namespace A2Z
             this.tabPageWork.Name = "tabPageWork";
             this.tabPageWork.Padding = new System.Windows.Forms.Padding(3);
             this.tabPageWork.Size = new System.Drawing.Size(449, 971);
-            this.tabPageWork.TabIndex = 0;
+            this.tabPageWork.TabIndex = 1;
             this.tabPageWork.Text = "작업/데이터";
             this.tabPageWork.UseVisualStyleBackColor = true;
             // 
@@ -742,7 +743,7 @@ namespace A2Z
             this.tabPageAttribute.Name = "tabPageAttribute";
             this.tabPageAttribute.Padding = new System.Windows.Forms.Padding(3);
             this.tabPageAttribute.Size = new System.Drawing.Size(449, 971);
-            this.tabPageAttribute.TabIndex = 1;
+            this.tabPageAttribute.TabIndex = 2;
             this.tabPageAttribute.Text = "부재 정보";
             this.tabPageAttribute.UseVisualStyleBackColor = true;
             // 
@@ -879,7 +880,7 @@ namespace A2Z
             this.tabPageDrawing.Name = "tabPageDrawing";
             this.tabPageDrawing.Padding = new System.Windows.Forms.Padding(3);
             this.tabPageDrawing.Size = new System.Drawing.Size(449, 971);
-            this.tabPageDrawing.TabIndex = 2;
+            this.tabPageDrawing.TabIndex = 0;
             this.tabPageDrawing.Text = "도면정보";
             this.tabPageDrawing.UseVisualStyleBackColor = true;
             //

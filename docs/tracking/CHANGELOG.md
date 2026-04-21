@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-04-21 — T-019 탭 순서 재배열 (도면정보를 첫 번째로)
+
+**유형**: feat (UX)
+**커밋**: `pending`
+**관련 TASK**: T-019
+**변경 사항**:
+- `tabControlLeft.Controls.Add` 순서 변경: 도면정보 → 작업/데이터 → 부재 정보
+- `tabPageDrawing.TabIndex = 0`, `tabPageWork.TabIndex = 1`, `tabPageAttribute.TabIndex = 2`
+- 앱 실행 시 `SelectedIndex = 0`에 의해 **도면정보 탭이 기본 선택**됨 — 사용자(담당자) 최종 목표가 제작도 출력이라 즉시 작업 화면 노출
+- 프로그래밍 위험 전수 검증: `SelectedTab == tabPageDrawing` 등 모든 참조가 **탭 객체 기반**이라 순서 변경 안전
+- 런타임 로직/이벤트 핸들러/핸들러 흐름 영향 **0** (Designer 메타데이터만 변경)
+
+**영향 범위**: UI 탭 순서. 기존 기능·핸들러 영향 없음
+
+---
+
 ## 2026-04-21 — T-013 옵션 A 시도 (Sheet2+ ISO 위치 정합)
 
 **유형**: fix (시도)
