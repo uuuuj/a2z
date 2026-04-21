@@ -1524,6 +1524,12 @@ namespace A2Z
 
                 vizcore3d.Drawing2D.Object2D.MoveObject(objId, moveX, moveY);
 
+                // 이동 후 objId의 실제 최종 중심·크기 — MoveObject가 실제로 적용되었는지 검증용
+                float objFinalCX = 0f, objFinalCY = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objFinalCX, ref objFinalCY);
+                float objFinalW = 0f, objFinalH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objFinalW, ref objFinalH);
+
                 // BBox 크기와 상대 오프셋 비율 추가 — obj가 bg 내 어디에 있는지 판정용
                 float bgW3D = bgMaxX3D - bgMinX3D;
                 float bgH3D = bgMaxY3D - bgMinY3D;
@@ -1552,6 +1558,8 @@ namespace A2Z
                     $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) bgCanvasSize=({bgCanvasW:F1}x{bgCanvasH:F1}) " +
                     $"ratio=({ratioX:F4},{ratioY:F4}) " +
                     $"target=({targetX:F2},{targetY:F2}) " +
+                    $"move=({moveX:F2},{moveY:F2}) " +
+                    $"objFinal=({objFinalCX:F2},{objFinalCY:F2}) objFinalSize=({objFinalW:F2}x{objFinalH:F2}) " +
                     $"scale={bgFinalScaleB:F4}");
             }
             else

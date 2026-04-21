@@ -6,10 +6,28 @@
 
 ---
 
+## 2026-04-21 — T-013 OPT-B2 진단 로그 확장 (MoveObject 유효성 검증)
+
+**유형**: chore
+**커밋**: `pending`
+**관련 TASK**: T-013
+**변경 사항**:
+- OPT-B2 구현 후 사용자 보고: 6.21mm 이동이 계산됐는데 시각적으로 "위치 전혀 안 바뀜"
+- 진단 로그 확장 — `MoveObject` 직후 `objId`의 실제 최종 상태 기록:
+  - `objFinal=(x,y)` — 이동 후 실제 중심 (target과 일치하는지 검증)
+  - `objFinalSize=(w,h)` — 렌더된 실제 크기 (obj가 너무 작아 보이는지 확인)
+  - `move=(dx,dy)` — 실제 호출된 이동량
+- 이전 커밋(ebef55d)에서 DiagLog 메시지에 `objFinalCX/CY/W/H` 참조를 넣었으나 변수 선언이 누락된 상태였음 → 이번에 선언 + 계산 추가로 컴파일 건전성 복구
+- 판정 기준: `objFinal ≈ target`이면 이동 정상이고 `objFinalSize`가 작아 체감이 적은 것; `objFinal ≠ target`이면 `MoveObject` 자체 무효화 의심
+
+**영향 범위**: 진단 로깅만. 흐름 무변화
+
+---
+
 ## 2026-04-21 — T-013 옵션 B2 재수정 — bg BBox 꼭지점 8개 투영 기반 비율
 
 **유형**: fix
-**커밋**: `pending`
+**커밋**: `ebef55d`
 **관련 TASK**: T-013
 **변경 사항**:
 - 1차 보정(`* bgFinalScale`) 결과 여전히 부정확 (실측 `offsetRatio.Z=-0.244` → 7.3mm 이동이 정답인데 5.9mm 계산)
