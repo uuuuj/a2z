@@ -1474,6 +1474,30 @@ namespace A2Z
                 var bgScreenC = vizcore3d.View.WorldToScreen(bgCenter3D, true);
                 var objScreenC = vizcore3d.View.WorldToScreen(objCenter3D, true);
 
+                // 3-1. bg의 3D BBox 8개 꼭지점 → WorldToScreen → 원본 캔버스 BBox 계산
+                //      (bgFinalScale 단독으론 스케일 체인 불일치 → bgCanvasSize / bgScreenBBox 비율 필요)
+                var bgCornersScreen = new VIZCore3D.NET.Data.Vertex3D[8];
+                bgCornersScreen[0] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMinY3D, bgMinZ3D), true);
+                bgCornersScreen[1] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMinY3D, bgMinZ3D), true);
+                bgCornersScreen[2] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMaxY3D, bgMinZ3D), true);
+                bgCornersScreen[3] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMinY3D, bgMaxZ3D), true);
+                bgCornersScreen[4] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMaxY3D, bgMinZ3D), true);
+                bgCornersScreen[5] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMinY3D, bgMaxZ3D), true);
+                bgCornersScreen[6] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMaxY3D, bgMaxZ3D), true);
+                bgCornersScreen[7] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMaxY3D, bgMaxZ3D), true);
+
+                float bgScreenMinX = float.MaxValue, bgScreenMinY = float.MaxValue;
+                float bgScreenMaxX = float.MinValue, bgScreenMaxY = float.MinValue;
+                for (int k = 0; k < 8; k++)
+                {
+                    bgScreenMinX = System.Math.Min(bgScreenMinX, bgCornersScreen[k].X);
+                    bgScreenMinY = System.Math.Min(bgScreenMinY, bgCornersScreen[k].Y);
+                    bgScreenMaxX = System.Math.Max(bgScreenMaxX, bgCornersScreen[k].X);
+                    bgScreenMaxY = System.Math.Max(bgScreenMaxY, bgCornersScreen[k].Y);
+                }
+                float bgScreenW = bgScreenMaxX - bgScreenMinX;
+                float bgScreenH = bgScreenMaxY - bgScreenMinY;
+
                 // 4. objId를 bgFinalScale로 맞추고 위치 이동
                 float bgFinalScaleB = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
                 vizcore3d.Drawing2D.Object2D.RescaleObject(objId, bgFinalScaleB);
@@ -1486,11 +1510,15 @@ namespace A2Z
                 float dScreenX = objScreenC.X - bgScreenC.X;
                 float dScreenY = objScreenC.Y - bgScreenC.Y;
 
-                // T-013 옵션 B 보정: WorldToScreen은 원본 캔버스 좌표(스케일 전) 반환이라
-                // bgObjId가 RescaleObject(bgFinalScale)로 축소된 상태에선 dScreen에 bgFinalScale을 곱해야
-                // 축소된 셀 내부의 올바른 상대 위치로 매핑됨 (미적용 시 Y축 195→셀 밖으로 튐)
-                float targetX = bgCX1B + dScreenX * bgFinalScaleB;
-                float targetY = bgCY1B + dScreenY * bgFinalScaleB;
+                // T-013 옵션 B 재수정 (2차): bgFinalScale 단독 곱으론 부족.
+                // 정확한 변환: dScreen(원본 캔버스 단위) → (bgCanvasSize / bgScreenBBox) 비율 → 현재 렌더 단위
+                // 실측 검증: dScreen.Y=195.97 × (30.0/bgScreenH) ≈ 7.3mm (offsetRatio.Z=0.244 × 30=7.32mm와 일치)
+                float bgCanvasWRef = 0f, bgCanvasHRef = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(bgObjId, ref bgCanvasWRef, ref bgCanvasHRef);
+                float ratioX = bgScreenW > 0 ? bgCanvasWRef / bgScreenW : 1f;
+                float ratioY = bgScreenH > 0 ? bgCanvasHRef / bgScreenH : 1f;
+                float targetX = bgCX1B + dScreenX * ratioX;
+                float targetY = bgCY1B + dScreenY * ratioY;
                 float moveX = targetX - objCXB;
                 float moveY = targetY - objCYB;
 
@@ -1511,7 +1539,7 @@ namespace A2Z
                 float bgCanvasW = 0f, bgCanvasH = 0f;
                 vizcore3d.Drawing2D.Object2D.GetObjectSize(bgObjId, ref bgCanvasW, ref bgCanvasH);
 
-                DiagLog($"RenderSheet ISO OPT-B bgObjId={bgObjId} objId={objId} " +
+                DiagLog($"RenderSheet ISO OPT-B2 bgObjId={bgObjId} objId={objId} " +
                     $"bg3D=({bgCenter3D.X:F1},{bgCenter3D.Y:F1},{bgCenter3D.Z:F1}) " +
                     $"obj3D=({objCenter3D.X:F1},{objCenter3D.Y:F1},{objCenter3D.Z:F1}) " +
                     $"bgSize3D=({bgW3D:F0}x{bgH3D:F0}x{bgD3D:F0}) " +
@@ -1520,7 +1548,9 @@ namespace A2Z
                     $"bgScreen=({bgScreenC.X:F2},{bgScreenC.Y:F2}) " +
                     $"objScreen=({objScreenC.X:F2},{objScreenC.Y:F2}) " +
                     $"dScreen=({dScreenX:F2},{dScreenY:F2}) " +
+                    $"bgScreenBBox=({bgScreenW:F2}x{bgScreenH:F2}) " +
                     $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) bgCanvasSize=({bgCanvasW:F1}x{bgCanvasH:F1}) " +
+                    $"ratio=({ratioX:F4},{ratioY:F4}) " +
                     $"target=({targetX:F2},{targetY:F2}) " +
                     $"scale={bgFinalScaleB:F4}");
             }

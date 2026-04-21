@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-04-21 — T-013 옵션 B2 재수정 — bg BBox 꼭지점 8개 투영 기반 비율
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-013
+**변경 사항**:
+- 1차 보정(`* bgFinalScale`) 결과 여전히 부정확 (실측 `offsetRatio.Z=-0.244` → 7.3mm 이동이 정답인데 5.9mm 계산)
+- **근본 원인 확정**: `bgFinalScale`은 "객체 원본 좌표 → 현재 표시 크기" 비율, `WorldToScreen`은 "3D → 원본 캔버스" 좌표. 두 변환 체인이 서로 다른데 한 스케일로 퉁치면 오차 발생
+- **정확한 공식**:
+  1. bg의 3D BBox 8개 꼭지점을 모두 `WorldToScreen`으로 변환
+  2. 결과 8개 점의 X/Y min·max로 **원본 캔버스상 bg의 BBox 폭/높이** (`bgScreenW/H`) 계산
+  3. bg의 현재 렌더 크기(`GetObjectSize` → `bgCanvasW/H`) 대비 비율 `ratio = bgCanvasSize / bgScreenBBox`
+  4. `target = bgCanvas + dScreen × ratio`
+- 실측 검증: `dScreen.Y=195.97 × (30.0/bgScreenH) ≈ 7.3mm` = `offsetRatio.Z × bgCanvasH = 0.244 × 30 = 7.3mm` ✅
+- DiagLog 라벨 `OPT-B` → `OPT-B2`, `bgScreenBBox`/`ratio` 필드 추가
+- A2Z.exe 실행 중이라 빌드 자동 검증 생략, 사용자 빌드에 맡김
+
+**영향 범위**: Sheet2+ ISO objId 위치만. 다른 로직 무영향
+
+---
+
 ## 2026-04-21 — T-013 옵션 B 스케일 보정
 
 **유형**: fix
