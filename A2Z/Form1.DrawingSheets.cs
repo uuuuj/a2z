@@ -1496,13 +1496,31 @@ namespace A2Z
 
                 vizcore3d.Drawing2D.Object2D.MoveObject(objId, moveX, moveY);
 
+                // BBox 크기와 상대 오프셋 비율 추가 — obj가 bg 내 어디에 있는지 판정용
+                float bgW3D = bgMaxX3D - bgMinX3D;
+                float bgH3D = bgMaxY3D - bgMinY3D;
+                float bgD3D = bgMaxZ3D - bgMinZ3D;
+                float objW3D = objMaxX3D - objMinX3D;
+                float objH3D = objMaxY3D - objMinY3D;
+                float objD3D = objMaxZ3D - objMinZ3D;
+                float offsetRatioX = bgW3D > 0 ? (objCenter3D.X - bgCenter3D.X) / bgW3D : 0;
+                float offsetRatioY = bgH3D > 0 ? (objCenter3D.Y - bgCenter3D.Y) / bgH3D : 0;
+                float offsetRatioZ = bgD3D > 0 ? (objCenter3D.Z - bgCenter3D.Z) / bgD3D : 0;
+
+                // bgObjId의 현재 캔버스 크기 (bgFinalScale 반영 후)
+                float bgCanvasW = 0f, bgCanvasH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(bgObjId, ref bgCanvasW, ref bgCanvasH);
+
                 DiagLog($"RenderSheet ISO OPT-B bgObjId={bgObjId} objId={objId} " +
                     $"bg3D=({bgCenter3D.X:F1},{bgCenter3D.Y:F1},{bgCenter3D.Z:F1}) " +
                     $"obj3D=({objCenter3D.X:F1},{objCenter3D.Y:F1},{objCenter3D.Z:F1}) " +
+                    $"bgSize3D=({bgW3D:F0}x{bgH3D:F0}x{bgD3D:F0}) " +
+                    $"objSize3D=({objW3D:F0}x{objH3D:F0}x{objD3D:F0}) " +
+                    $"offsetRatio=({offsetRatioX:F3},{offsetRatioY:F3},{offsetRatioZ:F3}) " +
                     $"bgScreen=({bgScreenC.X:F2},{bgScreenC.Y:F2}) " +
                     $"objScreen=({objScreenC.X:F2},{objScreenC.Y:F2}) " +
                     $"dScreen=({dScreenX:F2},{dScreenY:F2}) " +
-                    $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) " +
+                    $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) bgCanvasSize=({bgCanvasW:F1}x{bgCanvasH:F1}) " +
                     $"target=({targetX:F2},{targetY:F2}) " +
                     $"scale={bgFinalScaleB:F4}");
             }
