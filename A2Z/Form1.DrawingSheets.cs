@@ -1486,8 +1486,11 @@ namespace A2Z
                 float dScreenX = objScreenC.X - bgScreenC.X;
                 float dScreenY = objScreenC.Y - bgScreenC.Y;
 
-                float targetX = bgCX1B + dScreenX;
-                float targetY = bgCY1B + dScreenY;
+                // T-013 옵션 B 보정: WorldToScreen은 원본 캔버스 좌표(스케일 전) 반환이라
+                // bgObjId가 RescaleObject(bgFinalScale)로 축소된 상태에선 dScreen에 bgFinalScale을 곱해야
+                // 축소된 셀 내부의 올바른 상대 위치로 매핑됨 (미적용 시 Y축 195→셀 밖으로 튐)
+                float targetX = bgCX1B + dScreenX * bgFinalScaleB;
+                float targetY = bgCY1B + dScreenY * bgFinalScaleB;
                 float moveX = targetX - objCXB;
                 float moveY = targetY - objCYB;
 
