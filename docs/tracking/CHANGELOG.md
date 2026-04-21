@@ -6,10 +6,31 @@
 
 ---
 
-## 2026-04-21 — T-019 탭 순서 재배열 (도면정보를 첫 번째로)
+## 2026-04-21 — T-020 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
 
 **유형**: feat (UX)
 **커밋**: `pending`
+**관련 TASK**: T-020
+**변경 사항**:
+- `panelGlobalActions` 신설 (splitContainer1.Panel1, Dock.Top, 438×60)
+  - 위치: panelGlobalViewButtons 아래, tabControlLeft 위
+  - 배경색 통일 (`45,45,48` — 글로벌 뷰 버튼 패널과 같음)
+- `btnOpen`(파일 열기), `btnMainDimension`(치수 추출) 이관
+  - 기존: `tabPageWork > groupBox1` (작업/데이터 탭에서만 보임)
+  - 신규: `splitContainer1.Panel1 > panelGlobalActions` (모든 탭 공통)
+  - Location (x, 25) → (x, 5)
+- `groupBox1` 후속 정리: Size 110→55, 작은 버튼 6개(BOM/Clash/Osnap/치수/2D 생성/PDF 내보내기) Y=78→20 위로 당김
+- 자동화된 사용자 흐름(파일 → 치수 추출 → 2D 도면 → 가공도) 중 첫 2단계를 항상 한 손에 접근 가능하게 함 (담당자 목표 = 자동화)
+- 사용자 직접 빌드·실행 확인 완료
+
+**영향 범위**: UI 레이아웃만. 핸들러 흐름·이벤트 핸들러 참조 영향 없음
+
+---
+
+## 2026-04-21 — T-019 탭 순서 재배열 (도면정보를 첫 번째로)
+
+**유형**: feat (UX)
+**커밋**: `3f51a02`
 **관련 TASK**: T-019
 **변경 사항**:
 - `tabControlLeft.Controls.Add` 순서 변경: 도면정보 → 작업/데이터 → 부재 정보

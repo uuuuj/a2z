@@ -84,6 +84,7 @@ namespace A2Z
             this.btnCollectBOM = new System.Windows.Forms.Button();
             this.btnMainDimension = new System.Windows.Forms.Button();
             this.panelGlobalViewButtons = new System.Windows.Forms.Panel();
+            this.panelGlobalActions = new System.Windows.Forms.Panel();
             this.btnResetToInitial = new System.Windows.Forms.Button();
             this.btnGlobalISO = new System.Windows.Forms.Button();
             this.btnGlobalAxisX = new System.Windows.Forms.Button();
@@ -171,6 +172,7 @@ namespace A2Z
             // (WinForms: 나중에 추가된 컨트롤이 먼저 Dock됨 - Top을 마지막에 추가)
             //
             this.splitContainer1.Panel1.Controls.Add(this.tabControlLeft);
+            this.splitContainer1.Panel1.Controls.Add(this.panelGlobalActions);
             this.splitContainer1.Panel1.Controls.Add(this.panelGlobalViewButtons);
             // 
             // splitContainer1.Panel2
@@ -614,20 +616,19 @@ namespace A2Z
             //
             // groupBox1
             // 
+            // T-020: btnOpen/btnMainDimension은 panelGlobalActions(탭 밖)로 이동됨
             this.groupBox1.Controls.Add(this.btnExtractDimension);
             this.groupBox1.Controls.Add(this.btnCollectOsnap);
             this.groupBox1.Controls.Add(this.btnExportPDF);
             this.groupBox1.Controls.Add(this.btnGenerate2D);
             this.groupBox1.Controls.Add(this.btnClashDetection);
             this.groupBox1.Controls.Add(this.btnCollectBOM);
-            this.groupBox1.Controls.Add(this.btnMainDimension);
-            this.groupBox1.Controls.Add(this.btnOpen);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox1.Location = new System.Drawing.Point(3, 3);
             this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.groupBox1.Size = new System.Drawing.Size(443, 110);
+            this.groupBox1.Size = new System.Drawing.Size(443, 55);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "작업";
@@ -635,7 +636,7 @@ namespace A2Z
             // btnCollectBOM
             //
             this.btnCollectBOM.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnCollectBOM.Location = new System.Drawing.Point(234, 78);
+            this.btnCollectBOM.Location = new System.Drawing.Point(234, 20);
             this.btnCollectBOM.Margin = new System.Windows.Forms.Padding(1);
             this.btnCollectBOM.Name = "btnCollectBOM";
             this.btnCollectBOM.Size = new System.Drawing.Size(52, 25);
@@ -647,7 +648,7 @@ namespace A2Z
             // btnClashDetection
             //
             this.btnClashDetection.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnClashDetection.Location = new System.Drawing.Point(287, 78);
+            this.btnClashDetection.Location = new System.Drawing.Point(287, 20);
             this.btnClashDetection.Margin = new System.Windows.Forms.Padding(1);
             this.btnClashDetection.Name = "btnClashDetection";
             this.btnClashDetection.Size = new System.Drawing.Size(52, 25);
@@ -659,7 +660,7 @@ namespace A2Z
             // btnCollectOsnap
             //
             this.btnCollectOsnap.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnCollectOsnap.Location = new System.Drawing.Point(340, 78);
+            this.btnCollectOsnap.Location = new System.Drawing.Point(340, 20);
             this.btnCollectOsnap.Margin = new System.Windows.Forms.Padding(1);
             this.btnCollectOsnap.Name = "btnCollectOsnap";
             this.btnCollectOsnap.Size = new System.Drawing.Size(52, 25);
@@ -671,7 +672,7 @@ namespace A2Z
             // btnExtractDimension
             //
             this.btnExtractDimension.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnExtractDimension.Location = new System.Drawing.Point(393, 78);
+            this.btnExtractDimension.Location = new System.Drawing.Point(393, 20);
             this.btnExtractDimension.Margin = new System.Windows.Forms.Padding(1);
             this.btnExtractDimension.Name = "btnExtractDimension";
             this.btnExtractDimension.Size = new System.Drawing.Size(52, 25);
@@ -683,7 +684,7 @@ namespace A2Z
             // btnGenerate2D
             //
             this.btnGenerate2D.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnGenerate2D.Location = new System.Drawing.Point(11, 78);
+            this.btnGenerate2D.Location = new System.Drawing.Point(11, 20);
             this.btnGenerate2D.Margin = new System.Windows.Forms.Padding(1);
             this.btnGenerate2D.Name = "btnGenerate2D";
             this.btnGenerate2D.Size = new System.Drawing.Size(105, 25);
@@ -695,7 +696,7 @@ namespace A2Z
             // btnExportPDF
             //
             this.btnExportPDF.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnExportPDF.Location = new System.Drawing.Point(117, 78);
+            this.btnExportPDF.Location = new System.Drawing.Point(117, 20);
             this.btnExportPDF.Margin = new System.Windows.Forms.Padding(1);
             this.btnExportPDF.Name = "btnExportPDF";
             this.btnExportPDF.Size = new System.Drawing.Size(105, 25);
@@ -710,7 +711,8 @@ namespace A2Z
             this.btnMainDimension.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnMainDimension.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
             this.btnMainDimension.ForeColor = System.Drawing.Color.White;
-            this.btnMainDimension.Location = new System.Drawing.Point(234, 25);
+            // T-020: panelGlobalActions 내부 좌표 (탭 밖 공용 버튼)
+            this.btnMainDimension.Location = new System.Drawing.Point(234, 5);
             this.btnMainDimension.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnMainDimension.Name = "btnMainDimension";
             this.btnMainDimension.Size = new System.Drawing.Size(211, 50);
@@ -725,7 +727,8 @@ namespace A2Z
             this.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnOpen.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
             this.btnOpen.ForeColor = System.Drawing.Color.White;
-            this.btnOpen.Location = new System.Drawing.Point(11, 25);
+            // T-020: panelGlobalActions 내부 좌표 (탭 밖 공용 버튼)
+            this.btnOpen.Location = new System.Drawing.Point(11, 5);
             this.btnOpen.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnOpen.Name = "btnOpen";
             this.btnOpen.Size = new System.Drawing.Size(211, 50);
@@ -1162,6 +1165,18 @@ namespace A2Z
             this.panelGlobalViewButtons.Size = new System.Drawing.Size(438, 42);
             this.panelGlobalViewButtons.TabIndex = 1;
             //
+            // panelGlobalActions (T-020: 파일 열기 + 치수 추출 — 어느 탭에서도 접근 가능)
+            //
+            this.panelGlobalActions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+            this.panelGlobalActions.Controls.Add(this.btnOpen);
+            this.panelGlobalActions.Controls.Add(this.btnMainDimension);
+            this.panelGlobalActions.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelGlobalActions.Location = new System.Drawing.Point(0, 42);
+            this.panelGlobalActions.Name = "panelGlobalActions";
+            this.panelGlobalActions.Padding = new System.Windows.Forms.Padding(5);
+            this.panelGlobalActions.Size = new System.Drawing.Size(438, 60);
+            this.panelGlobalActions.TabIndex = 2;
+            //
             // btnResetToInitial
             //
             this.btnResetToInitial.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(97)))), ((int)(((byte)(97)))), ((int)(((byte)(97)))));
@@ -1380,6 +1395,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colDrawingBomMA;
         private System.Windows.Forms.ColumnHeader colDrawingBomFA;
         private System.Windows.Forms.Panel panelGlobalViewButtons;
+        private System.Windows.Forms.Panel panelGlobalActions;
         private System.Windows.Forms.Button btnResetToInitial;
         private System.Windows.Forms.Button btnGlobalISO;
         private System.Windows.Forms.Button btnGlobalAxisX;

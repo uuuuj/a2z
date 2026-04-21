@@ -255,10 +255,28 @@
 
 ## DONE (최근 20개)
 
+### T-020 — 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
+- **완료일**: 2026-04-21
+- **관련**: — (사용자 직접 지시, UX)
+- **커밋**: `pending`
+- **요약**:
+  - `panelGlobalActions` 신설 — `splitContainer1.Panel1` 내 Dock.Top
+    - 위치: panelGlobalViewButtons 아래, tabControlLeft 위
+    - 배경색 `FromArgb(45,45,48)` — panelGlobalViewButtons와 통일
+    - Size 438×60, Padding 5
+  - `btnOpen`·`btnMainDimension`을 `groupBox1` → `panelGlobalActions`로 이관
+    - 결과: 도면정보/작업·데이터/부재정보 **어떤 탭에서도 접근 가능**
+    - 버튼 Location (x, 25) → (x, 5)로 조정
+  - **groupBox1 후속 정리** (두 버튼 빠져 생긴 빈 공간 제거)
+    - Size 110 → 55
+    - 작은 버튼 6개 (BOM/Clash/Osnap/치수/2D 생성/PDF 내보내기) Y=78 → 20
+  - 사용자 직접 빌드 확인 완료
+  - R9 판단: UI 레이아웃 변경만이라 features/code-reference 갱신 불필요
+
 ### T-019 — 도면정보 탭을 첫 번째로 이동
 - **완료일**: 2026-04-21
 - **관련**: — (사용자 직접 지시)
-- **커밋**: `pending`
+- **커밋**: `3f51a02`
 - **요약**:
   - 앱의 최종 목표가 **제작도 출력**이라 도면정보 탭을 첫 번째로 배치
   - 프로그래밍 위험 전수 검증 — 모두 안전
