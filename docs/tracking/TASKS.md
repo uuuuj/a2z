@@ -62,15 +62,20 @@
 
 ### T-013 — Sheet2+ ISO 뷰 배경·선택 부재 위치 정합
 - **생성일**: 2026-04-20
-- **상태**: TODO
+- **착수일**: 2026-04-21
+- **상태**: IN_PROGRESS (옵션 A 시도 중, 사용자 테스트 대기)
 - **관련**: — (사용자 피드백)
-- **배경**: Sheet2 이상에서 ISO 뷰는 "전체 모델 점선(bgObj) + 선택 부재 실선(obj)"으로 그려지는데, 선택 부재가 **원본 위치가 아니라 전체 모델의 중심**으로 이동됨. 목표는 원본 좌표 그대로 겹쳐 실선만 도드라져 보이기
+- **배경**: Sheet2 이상에서 ISO 뷰는 "전체 모델 점선(bgObj) + 선택 부재 실선(obj)"으로 그려지는데, 선택 부재가 **원본 위치가 아니라 전체 모델의 중심**으로 이동됨
+- **원인 분석**: 두 객체 모두 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`로 **캔버스 원점에** 생성됨 → `GetObjectCenter`가 둘 다 (0,0) 근처 반환 → `(objCX0 - bgCX0) ≈ 0` → 위치 보정 공식이 무력화되어 obj가 bg 중심으로 이동
 - **세부**:
-  - [ ] Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~L1430 `isIsoFullView` 분기 분석
-  - [ ] bgObj ↔ obj 중심 차이 보정 로직 재검토 (`GetObjectCenter`, `FitObjectToGridCellAspect`, `RescaleObject` 흐름)
-  - [ ] obj를 bgObj 좌표계에 맞춰 정렬 (중심 일치 대신 원본 좌표 유지)
-  - [ ] docs/features/drawing-sheets/drawing-iso.md 또는 generate-sheet-2d.md 갱신
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs
+  - [x] Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~L1430 `isIsoFullView` 분기 분석
+  - [x] 원인 가설 확정 (원점 생성 + GetObjectCenter 한계)
+  - [x] **옵션 A 시도**: objId의 `RescaleObject`/`MoveObject`/보정 계산 모두 제거 → SDK 자동 처리에 맡김. DiagLog로 bgObjId/objId 중심·스케일 실측 기록
+  - [ ] 사용자 빌드+테스트 결과 확인 (Release 빌드 + 다른 기기)
+  - [ ] 실패 시 옵션 B(WorldToScreen 기반 위치 계산)로 전환
+  - [ ] 성공 시 docs/features/drawing-sheets/generate-sheet-2d.md 본문 갱신
+- **옵션 B 준비**: `vizcore3d.View.WorldToScreen(Vertex3D, bool)` 확인됨 ([VIZCore3D.NET.xml:63853](../../VIZCore3D.NET.xml)). 3D 중심 2개를 화면 좌표로 변환 → 차이를 obj 이동량으로 사용
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
 
 ### T-014 — 도면정보 테이블의 "기준부재/포함부재" 정의 + 풍선 번호 매칭
 - **생성일**: 2026-04-20

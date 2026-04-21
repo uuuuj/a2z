@@ -4,7 +4,7 @@ feature_name: 선택 시트 2D 도면 생성
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-20
+last_updated: 2026-04-21
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheet2D_Click
 ---
 
@@ -113,3 +113,4 @@ flowchart TD
 | 2026-04-20 | 템플릿 정규화 (T-006/FB-003): BOM→(1,3) 셀, tableInfo→(2,3) 셀로 이관 (`RenderTemplateOnGridStructure`). BOM 열 너비 합 82→92mm, 최대 14행 제한 + "…+N건 생략" 처리. 이전 `bInfo` 절대좌표 앵커 제거 | Claude |
 | 2026-04-20 | T-006 후속: BOM/tableInfo가 흰선 밖으로 나가 FA열 분리되는 문제 → 합 92→81mm 축소. BOM: ITEM 38→19, MATERIAL 8→12, SIZE 8→12. tableInfo: 35/57→32/49 | Claude |
 | 2026-04-20 | T-006 재후속: 81도 미세하게 넘침 → 77mm로 추가 축소. BOM: ITEM 19→17, MATERIAL/SIZE 12→11. tableInfo: 32/49→30/47 | Claude |
+| 2026-04-21 | T-013 옵션 A 시도: `RenderSheetViewForDrawing`의 `isIsoFullView` 분기에서 objId의 `RescaleObject/MoveObject/GetObjectCenter 보정` 로직 제거. SDK 자동 처리 여부 검증 중. DiagLog로 bgObjId/objId 중심·스케일 실측 기록. 결과에 따라 옵션 B(WorldToScreen) 전환 예정 | Claude |

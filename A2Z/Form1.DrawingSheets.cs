@@ -1427,45 +1427,22 @@ namespace A2Z
                     }
                 }
 
-                // objId 정렬: bgObjId와 동일 스케일 + 정확한 위치 겹치기
-                float bgFinalScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
-                float objScaleBefore = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                vizcore3d.Drawing2D.Object2D.RescaleObject(objId, bgFinalScale);
-
-                // bgObjId 최종 중심 + 원본 중심 차이(×스케일)로 objId 위치 계산
-                float bgCX1 = 0f, bgCY1 = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCX1, ref bgCY1);
-
-                float objCX_afterScale = 0f, objCY_afterScale = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCX_afterScale, ref objCY_afterScale);
-
-                float targetX = bgCX1 + (objCX0 - bgCX0) * bgFinalScale;
-                float targetY = bgCY1 + (objCY0 - bgCY0) * bgFinalScale;
-
-                float moveX = targetX - objCX_afterScale;
-                float moveY = targetY - objCY_afterScale;
-
-                System.Diagnostics.Debug.WriteLine($"[2PASS DEBUG] ── 원본 중심 ──");
-                System.Diagnostics.Debug.WriteLine($"  bgObjId 원본중심: ({bgCX0:F2}, {bgCY0:F2})");
-                System.Diagnostics.Debug.WriteLine($"  objId   원본중심: ({objCX0:F2}, {objCY0:F2})");
-                System.Diagnostics.Debug.WriteLine($"  중심 차이(원본): ({objCX0 - bgCX0:F2}, {objCY0 - bgCY0:F2})");
-                System.Diagnostics.Debug.WriteLine($"[2PASS DEBUG] ── 스케일 ──");
-                System.Diagnostics.Debug.WriteLine($"  objId 스케일(RescaleObject 전): {objScaleBefore:F6}");
-                System.Diagnostics.Debug.WriteLine($"  bgFinalScale: {bgFinalScale:F6}");
-                System.Diagnostics.Debug.WriteLine($"[2PASS DEBUG] ── 피팅 후 중심 ──");
-                System.Diagnostics.Debug.WriteLine($"  bgObjId 최종중심: ({bgCX1:F2}, {bgCY1:F2})");
-                System.Diagnostics.Debug.WriteLine($"  objId   스케일후중심: ({objCX_afterScale:F2}, {objCY_afterScale:F2})");
-                System.Diagnostics.Debug.WriteLine($"[2PASS DEBUG] ── 이동 계산 ──");
-                System.Diagnostics.Debug.WriteLine($"  타겟 좌표: ({targetX:F2}, {targetY:F2})");
-                System.Diagnostics.Debug.WriteLine($"  이동량: ({moveX:F2}, {moveY:F2})");
-
-                vizcore3d.Drawing2D.Object2D.MoveObject(objId, moveX, moveY);
-
-                // 이동 후 확인
-                float objCX_final = 0f, objCY_final = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCX_final, ref objCY_final);
-                System.Diagnostics.Debug.WriteLine($"[2PASS DEBUG] ── 이동 후 ──");
-                System.Diagnostics.Debug.WriteLine($"  objId   최종중심: ({objCX_final:F2}, {objCY_final:F2})");
+                // ── T-013 옵션 A 시도 (2026-04-21) ──
+                // 기존 위치 보정 로직이 `(objCX0 - bgCX0) ≈ 0` 때문에 무력화되어 objId가 bg 중심으로 이동
+                // 하는 문제 발생. SDK가 같은 카메라·같은 원점에서 만든 두 2D 객체를 동일 좌표계로
+                // 자동 처리하는지 확인하기 위해 objId의 RescaleObject/MoveObject/GetObjectCenter
+                // 보정 로직을 모두 생략. 만약 SDK가 자동 매핑한다면 objId가 bgObjId 내부 원래 3D 위치
+                // 그대로 실선 표시될 것. 실패 시 옵션 B(WorldToScreen 기반)로 전환 예정.
+                float bgFinalScaleA = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
+                float objScaleA = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                float bgCXA = 0f, bgCYA = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCXA, ref bgCYA);
+                float objCXA = 0f, objCYA = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCXA, ref objCYA);
+                DiagLog($"RenderSheet ISO OPT-A bgObjId={bgObjId} objId={objId} " +
+                    $"bgScale={bgFinalScaleA:F4} objScale={objScaleA:F4} " +
+                    $"bgCenter=({bgCXA:F2},{bgCYA:F2}) objCenter=({objCXA:F2},{objCYA:F2}) " +
+                    $"bgOrigin=({bgCX0:F2},{bgCY0:F2}) objOrigin=({objCX0:F2},{objCY0:F2})");
             }
             else
             {

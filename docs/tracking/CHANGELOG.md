@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-04-21 — T-013 옵션 A 시도 (Sheet2+ ISO 위치 정합)
+
+**유형**: fix (시도)
+**커밋**: `pending`
+**관련 TASK**: T-013
+**변경 사항**:
+- **원인 확정**: `RenderSheetViewForDrawing`의 `isIsoFullView` 분기에서 bgObjId/objId 모두 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`로 캔버스 원점에 생성 → `GetObjectCenter`가 둘 다 (0,0) 반환 → 기존 위치 보정 공식 `(objCX0 - bgCX0) * scale`이 0에 가까워져 obj가 bg 중심으로 이동하던 현상
+- **옵션 A 시도**: Form1.DrawingSheets.cs L1430~1468 범위의 objId 변환 로직 전체(RescaleObject + GetObjectCenter 보정 + MoveObject + 디버그 출력) 제거
+- SDK가 동일 카메라·동일 원점에서 만든 두 객체를 동일 좌표계로 자동 매핑하는지 검증
+- DiagLog로 bgObjId/objId의 스케일·중심·원본좌표 실측 기록 (다음 테스트 시 로그로 결과 판정)
+- 실패 시 옵션 B(`WorldToScreen` 기반 3D→2D 좌표 변환)로 전환 예정 — SDK API 이미 확인됨
+
+**영향 범위**: Sheet2 이상 시트의 ISO 뷰 렌더링. 비-ISO 뷰(X/Y/Z) 및 Sheet1(전체) 미영향
+
+---
+
+## 2026-04-21 — T-016 진단 로그 파일 저장 방식 전환
+
+**유형**: chore
+**커밋**: `53c6245`
+**관련 TASK**: T-016
+**변경 사항**:
+- Form1.cs에 `DiagLog` 헬퍼 신설 — 파일(`{exe}/logs/diag-{YYYY-MM-DD}.log`) + VS 출력창 병행 기록
+- 기존 T-016 진단용 `Debug.WriteLine` 13곳 → `DiagLog`로 일괄 교체 (Python 스크립트)
+  * `Form1.BOM.cs btnMainDimension_Click` 3곳
+  * `Form1.Dimensions.cs btnExtractDimension_Click` 3곳
+  * `Form1.DrawingSheets.cs LvDrawingSheet_SelectedIndexChanged` 5곳
+  * `Form1.GlobalViews.cs ExtractInstallationDimensions` 2곳
+- Release 빌드 + 다른 기기 실행에서도 로그 파일 생성되어 T-016 재현 진단 가능
+- `.gitignore`의 기존 `[Ll]ogs/` 패턴으로 로그 파일 자동 제외
+
+**영향 범위**: 진단 로깅만. 기능·흐름 변경 없음
+
+---
+
 ## 2026-04-20 — T-016 진단 로그 인프라 추가 (간헐 버그 추적용)
 
 **유형**: chore
