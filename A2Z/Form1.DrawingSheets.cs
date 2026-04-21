@@ -100,17 +100,15 @@ namespace A2Z
                 }
             }
 
-            // Sheet 2~: BOM 순서대로 순회
-            // appearedAsIncluded: 다른 시트의 포함부재에 나온 인덱스 (기준부재 스킵용)
-            HashSet<int> appearedAsIncluded = new HashSet<int>();
+            // Sheet 2~: BOM의 **모든 부재가 각자 기준부재**가 되어 1-hop 이웃 시트를 생성한다.
+            // (T-015, 2026-04-21): 이전에는 `appearedAsIncluded`로 "이미 다른 시트의 포함부재로 등장한
+            // 부재는 기준부재로 못 쓰게" 막았으나, 사용자 의도는 "모든 부재가 자기 기준 시트를 가져야 함".
+            // 1-2-3-4가 연쇄 Clash면 Sheet 2(기준 1), Sheet 3(기준 2), Sheet 4(기준 3), Sheet 5(기준 4) 4개 생성.
+            // 단계 7의 Sheet 1 중복 제거는 그대로 유지되어 과잉 시트는 자동 정리된다.
             int sheetNumber = 2;
 
             foreach (var bom in bomList)
             {
-                // 이미 다른 시트의 포함부재에 나온 부재면 기준부재로 스킵
-                if (appearedAsIncluded.Contains(bom.Index))
-                    continue;
-
                 DrawingSheetData sheet = new DrawingSheetData();
                 sheet.SheetNumber = sheetNumber;
                 sheet.BaseMemberIndex = bom.Index;
@@ -120,7 +118,7 @@ namespace A2Z
                 sheet.MemberIndices.Add(bom.Index);
                 sheet.MemberNames.Add(bom.Name);
 
-                // 포함부재: Clash에서 기준부재와 연결된 모든 부재 (Index 기반)
+                // 포함부재: Clash에서 기준부재와 연결된 모든 부재 (Index 기반, 1-hop)
                 if (adjacencyByIndex.ContainsKey(bom.Index))
                 {
                     foreach (int neighborIndex in adjacencyByIndex[bom.Index])
@@ -132,8 +130,6 @@ namespace A2Z
                             if (bomIndexToName.ContainsKey(neighborIndex))
                                 sheet.MemberNames.Add(bomIndexToName[neighborIndex]);
                         }
-                        // 포함부재로 등록 → 이후 기준부재로 선정되지 않음
-                        appearedAsIncluded.Add(neighborIndex);
                     }
                 }
 

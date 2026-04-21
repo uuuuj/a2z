@@ -147,18 +147,6 @@
   - [ ] docs/features/clash/collect-bom-info.md 갱신
 - **영향 파일**: A2Z/Form1.Clash.cs + A2Z/Form1.DrawingSheets.cs
 
-### T-015 — Sheet 생성 알고리즘 스펙 문서화
-- **생성일**: 2026-04-20
-- **상태**: TODO
-- **관련**: — (사용자 피드백)
-- **배경**: `GenerateDrawingSheets`는 Clash 인접 리스트 기반 BFS로 부재 군집화해 시트를 생성. "겹치는 시트 제외" 등 정확한 기준이 문서화되지 않음
-- **세부**:
-  - [ ] Form1.DrawingSheets.cs `GenerateDrawingSheets` L18~L398 단계별 분석
-  - [ ] Sheet1(전체) 생성 기준, Sheet2~N(군집) 전이 조건 정리
-  - [ ] clashList 인접 리스트 구축 알고리즘 문서화
-  - [ ] 중복/겹침 제외 로직 (포함 관계 판정) 명시
-  - [ ] docs/features/drawing-sheets/generate-sheets.md 확장
-- **영향 파일**: 문서만 (코드 변경 없음)
 
 
 ### T-007 — 뷰 내부 모델 최대화 + 라벨·풍선 영역 확보

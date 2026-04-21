@@ -4,14 +4,14 @@ feature_name: 도면 시트 자동 분할 (BFS)
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-21
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheets_Click
 ---
 
 # 도면 시트 자동 분할 (BFS)
 
 ## 1. 개요
-Clash 결과를 인접 리스트로 간주하고, 각 부재를 중심으로 **BFS 트래버설**하여 연결된 부재들을 하나의 시트로 묶는다. Sheet 1 = 전체 BOM, Sheet 2~N = 부재별 연결 집합, 마지막 Sheet = 전체 설치도.
+Clash 결과를 인접 리스트로 간주하고, 각 부재를 중심으로 **1-hop 이웃**(직접 Clash로 연결된 부재)을 묶어 시트를 만든다. Sheet 1 = 전체 BOM, Sheet 2~N = **각 부재가 기준부재로 등장하는 1-hop 그룹**, 그 다음 = 설치도(전체), 그 다음 = 각 부재별 가공도. 마지막 단계에서 Sheet 1과 구성이 동일한 일반 시트는 자동 제거.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -23,7 +23,7 @@ Clash 결과를 인접 리스트로 간주하고, 각 부재를 중심으로 **B
 ## 3. 사전 조건
 - [ ] 3D 모델 로드됨
 - [ ] `bomList.Count > 0`
-- [ ] `clashList.Count > 0`
+- [ ] `clashList` — 비어 있어도 실행되나, 인접 리스트가 공백이라 일반 시트들이 모두 "자기 자신만 포함"하게 됨
 
 ## 4. 전체 동작 흐름 (Happy Path)
 
@@ -32,30 +32,30 @@ flowchart TD
     A[btnGenerateSheets 클릭] --> B[사전조건 검증]
     B --> C[GenerateDrawingSheets]
     C --> D[Sheet 1: 전체 BOM]
-    D --> E[부재별 BFS]
-    E --> F{appearedAsIncluded 체크}
-    F -- 신규 --> G[Sheet 생성 + Clash 이웃 탐색]
-    F -- 중복 --> H[건너뜀]
-    G --> I[다음 부재]
-    H --> I
-    I --> J{모든 부재 완료?}
-    J -- 아니오 --> E
-    J -- 예 --> K[Last Sheet: 전체 설치도]
+    D --> E[Part→Body 역매핑]
+    E --> F[Clash 인접 리스트 구축]
+    F --> G[모든 부재 순회]
+    G --> H[각 부재마다 Sheet 생성<br/>기준부재 + 1-hop 이웃]
+    H --> I[설치도 Sheet]
+    I --> J[가공도 Sheet<br/>각 부재마다 1개]
+    J --> K[Sheet 1과 동일 구성 제거]
     K --> L[lvDrawingSheet 갱신]
     L --> M[완료 MessageBox]
 ```
 
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
-| 1 | 사전조건 검증 | Form1 | 모델/BOM/Clash 확인 → [E01~E03] |
+| 1 | 사전조건 검증 | Form1 | 모델/BOM 확인 → [E01~E02] |
 | 2 | 내부 호출 | Form1 | `GenerateDrawingSheets()` |
-| 3 | Sheet 1 생성 | Form1 | 전체 BOM 부재 MemberIndices에 추가 |
-| 4 | 인접 리스트 구축 | Form1 | clashList → Dictionary<int, HashSet<int>> |
-| 5 | BFS 트래버설 | Form1 | 각 BOM 부재 시작점으로, Clash 이웃 포함 |
-| 6 | 중복 방지 | Form1 | `appearedAsIncluded` HashSet 관리 |
-| 7 | 마지막 Sheet | Form1 | 전체 설치도 추가 (BFS 전역 트래버설) |
-| 8 | ListView 갱신 | UI | SheetNumber / BaseMember / 부재 수 표시 |
-| 9 | 완료 알림 | UI | MessageBox "도면 시트 {N}개가 생성되었습니다." |
+| 3 | Sheet 1 생성 | Form1 | 전체 BOM 부재 MemberIndices에 추가. BaseMemberName = 모델트리 선택 노드 → 파일명 → "전체" fallback |
+| 4 | Part→Body 역매핑 | Form1 | `bodyToPartIndexMap`을 뒤집어 `partToBodyIndices[partIdx] = [bodyIdx…]` 구성 (Clash는 Part 기반, bomList는 Body 기반) |
+| 5 | Clash 인접 리스트 | Form1 | `clashList` → `adjacencyByIndex[bodyA] = {bodyB, …}` 양방향 |
+| 6 | Sheet 2~N 생성 (**모든 부재**) | Form1 | `bomList` 순서대로 순회. **모든 부재가 기준부재**로 등장하며, 포함부재 = 자기 자신 + 1-hop 이웃. `BaseMemberIndex ≥ 0`, `BaseMemberName = bom.Name` |
+| 7 | 설치도 Sheet | Form1 | BFS로 모든 연결된 부재 + 독립 부재 모두 포함 (사실상 전체 BOM). `BaseMemberIndex = -2`, `BaseMemberName = "설치도"` |
+| 8 | 가공도 Sheet | Form1 | `bomList`의 각 부재마다 독립 시트 1개 (개당 1부재). `BaseMemberIndex = -3`, `MfgDrawingNo` 순번 |
+| 9 | Sheet 1 중복 제거 | Form1 | 일반 시트 중 Sheet 1과 구성 완전 동일한 시트 삭제 (설치도·가공도 제외) |
+| 10 | ListView 갱신 | UI | SheetNumber / BaseMember / 부재 수 표시 |
+| 11 | 완료 알림 | UI | MessageBox "도면 시트 {N}개가 생성되었습니다." |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-drawing-sheets.md#GenerateDrawingSheets) 참고
 
@@ -64,14 +64,20 @@ flowchart TD
 ### [분기 A] 호출 경로
 | 조건 | 처리 |
 |---|---|
-| 사용자가 직접 클릭 | 사전조건 검증 + 완료 MessageBox |
+| 사용자가 직접 `btnGenerateSheets` 클릭 | 사전조건 검증 + 완료 MessageBox |
 | `Clash_OnClashTestFinishedEvent`에서 호출 | 사전조건 스킵(이미 충족), MessageBox 생략 |
 
-### [분기 B] 부재 BFS 시 중복
+### [분기 B] 부재 시트 구성
 | 조건 | 처리 |
 |---|---|
-| 이미 `appearedAsIncluded`에 있음 | 신규 Sheet 생성하지 않음 |
-| 신규 부재 | Sheet 생성 + 이웃 포함 |
+| 부재가 `adjacencyByIndex`에 있음 (Clash 연결 有) | Sheet 생성 + **자기 자신 + 1-hop 이웃** 포함 |
+| 부재가 `adjacencyByIndex`에 없음 (Clash 없는 독립 부재) | Sheet 생성 + **자기 자신만** 포함 (이웃 없음) |
+
+### [분기 C] Sheet 1 중복 제거 (단계 9)
+| 조건 | 처리 |
+|---|---|
+| 일반 시트(`BaseMemberIndex ≥ 0`)의 MemberIndices가 Sheet 1과 완전 동일 | 시트 삭제 |
+| 설치도(-2) / 가공도(-3) | 제거 대상 제외 |
 
 ## 6. 예외 / 에러 처리
 
@@ -79,14 +85,22 @@ flowchart TD
 |---|---|---|---|---|
 | E01 | 모델 미로드 | return | MessageBox "먼저 모델을 열어주세요." | 변화 없음 |
 | E02 | `bomList.Count == 0` | return | MessageBox "BOM 데이터가 없습니다." | 변화 없음 |
-| E03 | `clashList.Count == 0` | return | MessageBox "Clash 데이터가 없습니다. 먼저 Clash 검사를 수행..." | 변화 없음 |
+
+> `clashList`가 비어 있어도 실행되지만, 인접 리스트가 없어 일반 시트들이 자기 자신 1개만 포함하게 되고 단계 9의 중복 제거가 많이 발동될 수 있음.
 
 ## 7. 상태 변화 (Before / After)
 
 | 대상 | Before | After |
 |---|---|---|
-| `drawingSheetList` | 이전 시트 | 새 시트 N개 (Sheet1=전체, Sheet2~N-1=BFS 그룹, SheetN=전체설치도) |
-| `lvDrawingSheet` | 이전 행 | 시트 행 갱신 |
+| `drawingSheetList` | 이전 시트 | 순서: **Sheet 1 (전체) → 일반 시트 (모든 부재, 단계 9 중복 제거 적용) → 설치도 → 가공도 (bomList 개수)** |
+| `lvDrawingSheet` | 이전 행 | 각 시트가 한 행. 도면번호 / 기준부재 / 포함부재 / 부재수 컬럼 |
+
+### 시트 수 공식
+```
+총 시트 = 1(Sheet1) + N_일반 + 1(설치도) + bomList.Count(가공도) − Sheet1_동일_제거
+```
+- `N_일반 ≤ bomList.Count` (일반 시트는 모든 부재가 각자 기준이 되어 최대 `bomList.Count`개까지 생성)
+- Sheet 1과 동일 구성 제거 덕분에 작은 모델에선 일반 시트가 전부 사라질 수도 있음
 
 ## 8. 후행 기능 (Chained)
 - [시트 선택 시 X-Ray 표시](./lv-sheet-selected.md)
@@ -102,3 +116,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-21 | T-015: 시트 생성 로직 재설계 — `appearedAsIncluded` 스킵 로직 제거. 이전엔 "포함부재로 등장한 부재는 기준부재가 될 수 없음"이라 1-2-3-4 연쇄 Clash 시 Sheet 2~3 두 개만 생성되던 문제. 이제 모든 부재가 각자 기준부재 시트를 가짐 (4개 생성, 단계 9 중복 제거로 과잉 자동 정리). 흐름도·단계표·분기·상태 섹션 전면 갱신 | Claude |
