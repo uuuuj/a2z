@@ -1735,7 +1735,7 @@ namespace A2Z
         private void btnExtractDimension_Click(object sender, EventArgs e)
         {
             // [T-016 진단 로그] 진입 시 상태
-            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnExtractDimension ENTER " +
+            DiagLog($"btnExtractDimension ENTER " +
                 $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
                 $"osnap={osnapPointsWithNames?.Count ?? 0}");
 
@@ -1841,14 +1841,14 @@ namespace A2Z
                 ShowAllDimensions();
 
                 // [T-016 진단 로그] 정상 종료
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnExtractDimension EXIT OK " +
+                DiagLog($"btnExtractDimension EXIT OK " +
                     $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
                     $"osnap={osnapPointsWithNames?.Count ?? 0}");
             }
             catch (Exception ex)
             {
                 // [T-016 진단 로그] 예외 종료
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] btnExtractDimension EXIT FAIL " +
+                DiagLog($"btnExtractDimension EXIT FAIL " +
                     $"{ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }

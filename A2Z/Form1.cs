@@ -118,6 +118,36 @@ namespace A2Z
         /// </summary>
         private List<ChainDimensionData> chainDimensionList = new List<ChainDimensionData>();
 
+        /// <summary>
+        /// 진단 로그 파일 경로 — {exe 폴더}/logs/diag-{YYYY-MM-DD}.log
+        /// Release 빌드에서도 동작해 다른 기기에서 재현한 이슈를 추적 가능.
+        /// </summary>
+        private static readonly string _diagLogPath =
+            System.IO.Path.Combine(
+                System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "",
+                "logs",
+                $"diag-{DateTime.Now:yyyy-MM-dd}.log");
+
+        /// <summary>
+        /// 진단 로그 출력 — 파일과 VS 출력창(Debug) 양쪽에 기록.
+        /// 파일 쓰기 실패는 앱 흐름에 영향을 주지 않도록 삼킴.
+        /// </summary>
+        private static void DiagLog(string msg)
+        {
+            string line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(_diagLogPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    System.IO.Directory.CreateDirectory(dir);
+                    System.IO.File.AppendAllText(_diagLogPath, line + Environment.NewLine);
+                }
+            }
+            catch { /* 로깅 실패는 무시 */ }
+            System.Diagnostics.Debug.WriteLine(line);
+        }
+
         public Form1()
         {
             InitializeComponent();

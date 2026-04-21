@@ -427,7 +427,7 @@ namespace A2Z
             if (lvDrawingSheet.SelectedItems.Count == 0)
             {
                 // [T-016 진단 로그] 빈 선택 (이벤트 두 번 발생 패턴)
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] LvDrawingSheet_SelectedIndexChanged SKIP (no selection)");
+                DiagLog($"LvDrawingSheet_SelectedIndexChanged SKIP (no selection)");
                 return;
             }
 
@@ -435,12 +435,12 @@ namespace A2Z
             if (sheet == null || sheet.MemberIndices.Count == 0)
             {
                 // [T-016 진단 로그] 무효 시트
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] LvDrawingSheet_SelectedIndexChanged SKIP (sheet null or empty)");
+                DiagLog($"LvDrawingSheet_SelectedIndexChanged SKIP (sheet null or empty)");
                 return;
             }
 
             // [T-016 진단 로그] 진입
-            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] LvDrawingSheet_SelectedIndexChanged ENTER " +
+            DiagLog($"LvDrawingSheet_SelectedIndexChanged ENTER " +
                 $"sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} " +
                 $"prevXray={xraySelectedNodeIndices?.Count ?? 0} prevChain={chainDimensionList?.Count ?? 0}");
 
@@ -500,12 +500,12 @@ namespace A2Z
             catch (Exception ex)
             {
                 // [T-016 진단 로그] silent catch 강화 (stack trace 포함)
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] LvDrawingSheet_SelectedIndexChanged FAIL " +
+                DiagLog($"LvDrawingSheet_SelectedIndexChanged FAIL " +
                     $"{ex.Message}\n{ex.StackTrace}");
             }
 
             // [T-016 진단 로그] 종료 (BOM 재수집 전 상태)
-            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] LvDrawingSheet_SelectedIndexChanged EXIT " +
+            DiagLog($"LvDrawingSheet_SelectedIndexChanged EXIT " +
                 $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0}");
 
             // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
