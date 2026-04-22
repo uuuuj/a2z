@@ -6,10 +6,36 @@
 
 ---
 
+## 2026-04-22 — T-014 시트 목록 item 번호 표시 + T-021 BOM 행 카메라 fit
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-014, T-021
+**변경 사항**:
+- **T-014 (`lvDrawingSheet` 표시 포맷)**: 기준부재/포함부재 컬럼을 부재 이름 대신 **item 번호**(= `bomList` 순서 i+1 = ISO 풍선 번호 = BOM 정보 탭 No.)로 표시
+  - Sheet 1 → "전체 / 전체"
+  - Sheet 2+ → `{기준번호} / {포함 번호 오름차순 콤마}` (예: `1 / 1, 3, 5`)
+  - 설치도 → "설치도 / {전체 item 번호}"
+  - 가공도 → `{MemberIndices[0]의 item 번호} / 공란`
+  - 시트 생성 로직은 T-015 그대로 유지 (표시 전용 변경)
+  - `bomIndexToItemNo` Dictionary 신설 후 ListView 채우기 블록 전면 재작성 (Form1.DrawingSheets.cs L215~281, +약 50줄)
+  - 빌드 오류 1건 수정: 상단 `int mfgNo=1`(가공도 번호)과 변수명 충돌 → `mfgBomIdx`/`mfgItemNo`로 리네임
+  - 문서 `generate-sheets.md` 단계 10 설명·상태 변화 섹션·변경 이력 갱신
+- **T-021 (`lvDrawingBOMInfo` 행 선택 핸들러)**: BOM 테이블 행 선택 시 해당 부재로 카메라만 fit
+  - 가시성은 그대로 두고 `vizcore3d.View.FlyToObject3d(new List<int>{bodyIdx}, 1.2f)` — 현재 시트 맥락 유지
+  - No. 컬럼 파싱 → `bomList[No-1].Index` Body 조회 (CollectBOMInfo의 `partIndexToBomNo` = `bi+1` 매핑과 일치)
+  - 요약행(Row 0) · No 파싱 실패 · 범위 초과는 조용히 return, SDK 예외는 `DiagLog`로 기록
+  - Form1.cs L166에 `lvDrawingBOMInfo.SelectedIndexChanged += LvDrawingBOMInfo_SelectedIndexChanged` 등록
+  - 신규 문서 `lv-bom-info-selected.md` (SHT-010) + `_index.md` 등록 추가
+
+**영향 범위**: 도면정보 탭 UI(시트 목록 + BOM 테이블) 상호작용. 시트 생성·가공도·설치도 내부 로직은 변화 없음. 사용자 실기 테스트 통과 (2026-04-22)
+
+---
+
 ## 2026-04-21 — T-015 Sheet 생성 로직 재설계 (모든 부재가 기준부재)
 
 **유형**: feat (기능 변경)
-**커밋**: `pending`
+**커밋**: `9b870a0`
 **관련 TASK**: T-015
 **변경 사항**:
 - **문제**: `GenerateDrawingSheets` L105-142의 `appearedAsIncluded` 스킵 로직이 "부재가 이미 다른 시트에 포함부재로 등장하면 기준부재가 될 수 없음"을 강제 → 1-2-3-4 연쇄 Clash 시 Sheet 2(기준 1, {1,2}) + Sheet 3(기준 3, {3,2,4}) 2개만 생성. 사용자 의도(각 부재가 자기 기준 시트를 가짐)와 불일치

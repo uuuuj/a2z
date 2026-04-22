@@ -212,6 +212,14 @@ namespace A2Z
                     new HashSet<int>(s.MemberIndices).SetEquals(sheet1Members));
             }
 
+            // BOM 인덱스 → item 번호 매핑 (bomList 순서 = ISO 풍선 번호 = BOM 정보 탭 No.)
+            // T-014: 기준부재/포함부재 컬럼을 부재 이름 대신 item 번호로 표시
+            Dictionary<int, int> bomIndexToItemNo = new Dictionary<int, int>();
+            for (int i = 0; i < bomList.Count; i++)
+            {
+                bomIndexToItemNo[bomList[i].Index] = i + 1;
+            }
+
             // ListView 갱신
             foreach (var sheet in drawingSheetList)
             {
@@ -221,9 +229,58 @@ namespace A2Z
                 else
                     sheetLabel = $"Sheet {sheet.SheetNumber}";
 
+                // 기준부재 표시 (T-014: item 번호)
+                string baseText;
+                if (sheet.BaseMemberIndex == -1)        // Sheet 1
+                {
+                    baseText = "전체";
+                }
+                else if (sheet.BaseMemberIndex == -2)   // 설치도
+                {
+                    baseText = "설치도";
+                }
+                else if (sheet.BaseMemberIndex == -3)   // 가공도: 실제 기준은 MemberIndices[0]
+                {
+                    int mfgBomIdx = sheet.MemberIndices.Count > 0 ? sheet.MemberIndices[0] : -1;
+                    int mfgItemNo;
+                    baseText = bomIndexToItemNo.TryGetValue(mfgBomIdx, out mfgItemNo)
+                        ? mfgItemNo.ToString()
+                        : sheet.BaseMemberName;
+                }
+                else                                    // Sheet 2+ (개별 기준부재)
+                {
+                    int baseNo;
+                    baseText = bomIndexToItemNo.TryGetValue(sheet.BaseMemberIndex, out baseNo)
+                        ? baseNo.ToString()
+                        : sheet.BaseMemberName;
+                }
+
+                // 포함부재 표시 (T-014: item 번호 오름차순, 가공도는 빈칸)
+                string includedText;
+                if (sheet.BaseMemberIndex == -3)        // 가공도
+                {
+                    includedText = "";
+                }
+                else if (sheet.BaseMemberIndex == -1)   // Sheet 1
+                {
+                    includedText = "전체";
+                }
+                else
+                {
+                    List<int> nums = new List<int>();
+                    foreach (int idx in sheet.MemberIndices)
+                    {
+                        int n;
+                        if (bomIndexToItemNo.TryGetValue(idx, out n))
+                            nums.Add(n);
+                    }
+                    nums.Sort();
+                    includedText = string.Join(", ", nums);
+                }
+
                 ListViewItem lvi = new ListViewItem(sheetLabel);
-                lvi.SubItems.Add(sheet.BaseMemberName);
-                lvi.SubItems.Add(sheet.BaseMemberIndex == -3 ? "" : string.Join(", ", sheet.MemberNames));
+                lvi.SubItems.Add(baseText);
+                lvi.SubItems.Add(includedText);
 
                 // 가공도 앵글: 부재수 컬럼에 오른쪽→왼쪽 측면뷰 사등분 Osnap 정보 표시
                 // 사분면번호(1분면합계,2분면합계,3분면합계,4분면합계) — 1:왼위 2:우위 3:우하 4:좌하
@@ -506,6 +563,37 @@ namespace A2Z
 
             // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
             CollectBOMInfo(false);
+        }
+
+        /// <summary>
+        /// BOM 정보 테이블(lvDrawingBOMInfo) 행 선택 시 해당 부재를 카메라 fit.
+        /// 시트의 visibility는 건드리지 않고 카메라만 이동한다.
+        /// </summary>
+        private void LvDrawingBOMInfo_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lvDrawingBOMInfo.SelectedItems.Count == 0) return;
+            ListViewItem row = lvDrawingBOMInfo.SelectedItems[0];
+
+            // 요약행(Row 0)은 No. 컬럼이 공란 — 스킵
+            if (row.Index == 0) return;
+
+            // No. 컬럼 파싱 → bomList 순서(i+1)와 일치 (CollectBOMInfo 매핑 기준)
+            int itemNo;
+            if (!int.TryParse(row.SubItems[0].Text, out itemNo)) return;
+            if (itemNo < 1 || itemNo > bomList.Count) return;
+
+            int bodyIdx = bomList[itemNo - 1].Index;
+
+            try
+            {
+                vizcore3d.BeginUpdate();
+                vizcore3d.View.FlyToObject3d(new List<int> { bodyIdx }, 1.2f);
+                vizcore3d.EndUpdate();
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"LvDrawingBOMInfo_SelectedIndexChanged FAIL {ex.Message}");
+            }
         }
 
         /// <summary>

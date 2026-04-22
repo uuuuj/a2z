@@ -4,7 +4,7 @@ feature_name: 도면 시트 자동 분할 (BFS)
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-21
+last_updated: 2026-04-21 (T-014 ListView 표시 포맷 변경)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheets_Click
 ---
 
@@ -54,7 +54,7 @@ flowchart TD
 | 7 | 설치도 Sheet | Form1 | BFS로 모든 연결된 부재 + 독립 부재 모두 포함 (사실상 전체 BOM). `BaseMemberIndex = -2`, `BaseMemberName = "설치도"` |
 | 8 | 가공도 Sheet | Form1 | `bomList`의 각 부재마다 독립 시트 1개 (개당 1부재). `BaseMemberIndex = -3`, `MfgDrawingNo` 순번 |
 | 9 | Sheet 1 중복 제거 | Form1 | 일반 시트 중 Sheet 1과 구성 완전 동일한 시트 삭제 (설치도·가공도 제외) |
-| 10 | ListView 갱신 | UI | SheetNumber / BaseMember / 부재 수 표시 |
+| 10 | ListView 갱신 | UI | SheetNumber / 기준부재(item 번호) / 포함부재(item 번호 콤마) / 부재 수. **item 번호 = `bomList` 순서(i+1) = ISO 풍선 번호 = BOM 정보 탭 No.** (T-014). Sheet 1은 "전체", 설치도는 "설치도", 가공도는 기준부재를 단일 번호로 표기하고 포함부재 컬럼은 공란 |
 | 11 | 완료 알림 | UI | MessageBox "도면 시트 {N}개가 생성되었습니다." |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-drawing-sheets.md#GenerateDrawingSheets) 참고
@@ -93,7 +93,7 @@ flowchart TD
 | 대상 | Before | After |
 |---|---|---|
 | `drawingSheetList` | 이전 시트 | 순서: **Sheet 1 (전체) → 일반 시트 (모든 부재, 단계 9 중복 제거 적용) → 설치도 → 가공도 (bomList 개수)** |
-| `lvDrawingSheet` | 이전 행 | 각 시트가 한 행. 도면번호 / 기준부재 / 포함부재 / 부재수 컬럼 |
+| `lvDrawingSheet` | 이전 행 | 각 시트가 한 행. 도면번호 / 기준부재(**item 번호**) / 포함부재(**item 번호 콤마, 오름차순**) / 부재수 컬럼. Sheet 1 → "전체/전체", 설치도 → "설치도/{전체 item 번호}", 가공도 → "{item 번호}/공란" |
 
 ### 시트 수 공식
 ```
@@ -117,3 +117,4 @@ flowchart TD
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-21 | T-015: 시트 생성 로직 재설계 — `appearedAsIncluded` 스킵 로직 제거. 이전엔 "포함부재로 등장한 부재는 기준부재가 될 수 없음"이라 1-2-3-4 연쇄 Clash 시 Sheet 2~3 두 개만 생성되던 문제. 이제 모든 부재가 각자 기준부재 시트를 가짐 (4개 생성, 단계 9 중복 제거로 과잉 자동 정리). 흐름도·단계표·분기·상태 섹션 전면 갱신 | Claude |
+| 2026-04-21 | T-014: `lvDrawingSheet` 기준부재/포함부재 컬럼을 부재 이름 대신 **item 번호**(= `bomList` 순서 i+1 = ISO 풍선 번호 = BOM 정보 탭 No.)로 표시. Sheet 1은 "전체", 설치도는 "설치도", 가공도는 `MemberIndices[0]`의 번호를 기준부재 셀에 표기하고 포함부재는 공란 유지. 생성 로직은 변경 없음(표시 전용) | Claude |

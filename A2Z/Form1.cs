@@ -163,6 +163,7 @@ namespace A2Z
             lvClash.DoubleClick += LvClash_DoubleClick;
             lvClash.SelectedIndexChanged += LvClash_SelectedIndexChanged;
             lvDrawingSheet.SelectedIndexChanged += LvDrawingSheet_SelectedIndexChanged;
+            lvDrawingBOMInfo.SelectedIndexChanged += LvDrawingBOMInfo_SelectedIndexChanged;
 
             // VIZCore3D.NET 초기화
             VIZCore3D.NET.ModuleInitializer.Run();

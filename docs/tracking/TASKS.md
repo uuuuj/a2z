@@ -135,20 +135,6 @@
   - [ ] 실패 시 WorldToScreen 단위(캔버스 vs 픽셀) 보정 필요
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
 
-### T-014 — 도면정보 테이블의 "기준부재/포함부재" 정의 + 풍선 번호 매칭
-- **생성일**: 2026-04-20
-- **상태**: TODO
-- **관련**: — (사용자 피드백)
-- **배경**: `lvDrawingBOMInfo`의 "기준부재"·"포함부재" 컬럼 값의 의미가 불분명. **최종 목표**는 두 컬럼 값을 ISO 뷰 풍선 번호와 동일하게 표시해 도면 가독성 향상
-- **세부**:
-  - [ ] Form1.Clash.cs `CollectBOMInfo` (L20~) 분석 — 두 컬럼에 현재 매핑되는 값 문서화
-  - [ ] Form1.DrawingSheets.cs `CreateIsoBalloonNotes` 출력(부재 Index ↔ 풍선 번호) 매핑 추출
-  - [ ] 두 컬럼 값을 풍선 번호로 교체 (또는 별도 컬럼 추가)
-  - [ ] docs/features/clash/collect-bom-info.md 갱신
-- **영향 파일**: A2Z/Form1.Clash.cs + A2Z/Form1.DrawingSheets.cs
-
-
-
 ### T-007 — 뷰 내부 모델 최대화 + 라벨·풍선 영역 확보
 - **생성일**: 2026-04-15
 - **상태**: BLOCKED (T-006 선행 권장)
@@ -248,6 +234,48 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-021 — BOM 정보 행 선택 시 부재 카메라 fit
+- **완료일**: 2026-04-22
+- **관련**: — (사용자 직접 지시)
+- **커밋**: `pending`
+- **요약**:
+  - `lvDrawingBOMInfo`(도면정보 탭 BOM 테이블) 행 선택 시 카메라 fit 동작 신설
+  - 가시성은 그대로 두고 `vizcore3d.View.FlyToObject3d(new List<int>{bodyIdx}, 1.2f)`로 카메라만 이동 — 현재 시트 맥락 유지
+  - No. 컬럼 파싱 → `bomList[No-1].Index` Body 조회 (CollectBOMInfo의 `partIndexToBomNo` 매핑 = `bi+1`과 동일)
+  - 요약행(Row 0) · No 파싱 실패 · 범위 초과는 조용히 return
+  - 이벤트 등록 위치: [Form1.cs:166](../../A2Z/Form1.cs:166)
+  - 새 핸들러: [Form1.DrawingSheets.cs `LvDrawingBOMInfo_SelectedIndexChanged`](../../A2Z/Form1.DrawingSheets.cs)
+  - 신규 문서: [lv-bom-info-selected.md (SHT-010)](../features/drawing-sheets/lv-bom-info-selected.md), `_index.md` 등록 추가
+  - 사용자 실기 테스트 통과 (2026-04-22)
+
+### T-014 — 도면 시트 목록의 "기준부재/포함부재" 컬럼을 item 번호로 표시
+- **완료일**: 2026-04-22
+- **관련**: — (사용자 피드백)
+- **커밋**: `pending`
+- **요약**:
+  - `lvDrawingSheet` 표시 포맷 변경: 부재 이름 대신 **item 번호**(= `bomList` 순서 i+1 = ISO 풍선 번호 = BOM 정보 탭 No.)
+    - Sheet 1 → "전체 / 전체"
+    - Sheet 2+ → `{기준번호}` / `{포함 번호 오름차순 콤마}` (예: `1 / 1, 3, 5`)
+    - 설치도 → "설치도 / {전체 item 번호}"
+    - 가공도 → `{MemberIndices[0]의 item 번호}` / 공란
+  - 사용자 결정 확정: (1) 시트 생성 로직은 T-015 그대로 유지, 표시만 변경 (2) 접두사 `item` 없이 숫자만 (3) 가공도도 번호로
+  - 구현: [Form1.DrawingSheets.cs:215~281](../../A2Z/Form1.DrawingSheets.cs:215) `bomIndexToItemNo` Dictionary + ListView 갱신 블록
+  - 빌드 오류 1건 수정: 외부 `int mfgNo=1`(가공도 번호)과 변수명 충돌 → `mfgBomIdx`/`mfgItemNo`로 리네임
+  - 문서: `generate-sheets.md` 단계 10·상태 섹션·변경 이력 갱신
+  - 사용자 실기 테스트 통과 (2026-04-22)
+
+### T-015 — Sheet 생성 로직 재설계 (모든 부재가 기준부재)
+- **완료일**: 2026-04-21
+- **관련**: — (사용자 피드백)
+- **커밋**: `9b870a0`
+- **요약**:
+  - **기존 문제**: `GenerateDrawingSheets`의 `appearedAsIncluded` 스킵 로직 — "다른 시트의 포함부재로 등장한 부재는 기준부재가 될 수 없음". 결과: 1-2-3-4 연쇄 Clash에서 Sheet 2(기준 1, {1,2}) + Sheet 3(기준 3, {3,2,4})만 생성. 기준부재 2·4 시트 누락
+  - **사용자 의도**: 모든 부재가 각자 기준부재 시트를 가지며, 포함부재는 1-hop 이웃
+  - **수정**: [Form1.DrawingSheets.cs:105~142](../../A2Z/Form1.DrawingSheets.cs:105) `appearedAsIncluded` HashSet 선언·검사·추가 3곳 모두 제거. 주석도 T-015 결정 배경으로 교체
+  - **결과 예**: 1-2-3-4 연쇄 Clash → Sheet 2(기준 1), 3(기준 2), 4(기준 3), 5(기준 4) 4개 생성. 단계 9의 Sheet 1 중복 제거 유지 (과잉 시트 자동 정리)
+  - `docs/features/drawing-sheets/generate-sheets.md` 전면 갱신 — 이전 문서가 실제 코드와 불일치(BFS 서술·E03 오류·가공도/중복제거 누락)된 부분까지 교정
+  - 빌드 검증은 사용자 기기에서 (A2Z.exe 실행 중이라 자동 빌드 불가)
 
 ### T-020 — 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
 - **완료일**: 2026-04-21

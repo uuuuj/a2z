@@ -14,6 +14,7 @@
 | SHT-007 | 선택 시트 2D 생성 | btnGenerateSheet2D_Click | User Action | [generate-sheet-2d](./generate-sheet-2d.md) |
 | SHT-008 | 선택 시트 PDF 내보내기 | btnExportSheet2DPDF_Click | User Action | [export-sheet-2d-pdf](./export-sheet-2d-pdf.md) |
 | SHT-009 | 전체 시트 PDF 배치 내보내기 | btnExportAllPDF_Click | User Action | [export-all-pdf](./export-all-pdf.md) |
+| SHT-010 | BOM 정보 행 선택 시 부재 카메라 fit | LvDrawingBOMInfo_SelectedIndexChanged | Event Callback | [lv-bom-info-selected](./lv-bom-info-selected.md) |
 
 ## 주요 생성 상태
 - `drawingSheets : List<DrawingSheetData>`
