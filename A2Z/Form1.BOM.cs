@@ -334,6 +334,9 @@ namespace A2Z
                 return;
             }
 
+            // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Osnap → 치수 → Clash 시작까지 약 5초)
+            ShowBusyOverlay("치수 추출 중...");
+
             try
             {
                 // 0. BOM 데이터 수집 (매번 재수집하여 현재 가시성 반영)
@@ -345,11 +348,13 @@ namespace A2Z
                 }
 
                 // 1. Osnap 수집 (전체)
+                ShowBusyOverlay("Osnap 수집 중...");
                 bool osnapSuccess = CollectAllOsnap();
 
                 // 2. 치수 추출 (Osnap이 있을 때만)
                 if (osnapSuccess && osnapPointsWithNames.Count > 0)
                 {
+                    ShowBusyOverlay("치수 계산 중...");
                     float tolerance = 0.5f;
                     List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
 
@@ -386,9 +391,11 @@ namespace A2Z
                 }
 
                 // 3. Clash 검사 (비동기 - 완료 이벤트에서 최종 알림)
+                ShowBusyOverlay("간섭검사 실행 중...");
                 _autoProcessOsnapSuccess = osnapSuccess;
                 DetectClash();
                 // 알림은 Clash_OnClashTestFinishedEvent에서 한 번만 표시
+                // Clash는 비동기라 여기서 오버레이를 바로 해제해도 UI는 반응함
 
                 // [T-016 진단 로그] 정상 종료
                 DiagLog($"btnMainDimension EXIT OK " +
@@ -401,6 +408,11 @@ namespace A2Z
                 DiagLog($"btnMainDimension EXIT FAIL " +
                     $"{ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // T-018: 오버레이 해제 (정상·예외 모두)
+                HideBusyOverlay();
             }
         }
 

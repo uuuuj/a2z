@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-22 (T-018 진행 오버레이 추가)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -45,15 +45,17 @@ flowchart TD
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
 | 1 | 모델 확인 | Form1 | `vizcore3d.Model.IsOpen()` → [E01] |
-| 2 | BOM 재수집 | Form1 | `CollectBOMData()` — 가시성 반영 위해 매번 재수집 |
-| 3 | BOM 확인 | Form1 | `bomList.Count == 0` → [E02] |
-| 4 | Osnap 수집 | Form1 | `CollectAllOsnap()` → bool |
-| 5 | 좌표 병합 | Form1 | `MergeCoordinates(osnap, 0.5f)` — 0.5mm 허용오차 |
-| 6 | 축별 체인 치수 | Form1 | X, Y, Z 각각 `AddChainDimensionByAxis()` |
-| 7 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End 표시 |
-| 8 | 치수 3D 표시 | SDK | `ShowAllDimensions()` → 축별 오프셋 적용 |
-| 9 | Clash 검사 시작 | Form1 | `DetectClash()` (비동기) |
-| 10 | 플래그 저장 | Form1 | `_autoProcessOsnapSuccess = osnapSuccess` |
+| 2 | **오버레이 표시** (T-018) | UI | `ShowBusyOverlay("치수 추출 중...")` — 3D 뷰어 중앙에 "처리 중" 라벨 띄워 5초 공백 동안 UI 반응 표시. try 직전 호출, finally에서 `HideBusyOverlay()` |
+| 3 | BOM 재수집 | Form1 | `CollectBOMData()` — 가시성 반영 위해 매번 재수집 |
+| 4 | BOM 확인 | Form1 | `bomList.Count == 0` → [E02] |
+| 5 | Osnap 수집 | Form1 | `ShowBusyOverlay("Osnap 수집 중...")` → `CollectAllOsnap()` → bool |
+| 6 | 좌표 병합 | Form1 | `ShowBusyOverlay("치수 계산 중...")` → `MergeCoordinates(osnap, 0.5f)` — 0.5mm 허용오차 |
+| 7 | 축별 체인 치수 | Form1 | X, Y, Z 각각 `AddChainDimensionByAxis()` |
+| 8 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End 표시 |
+| 9 | 치수 3D 표시 | SDK | `ShowAllDimensions()` → 축별 오프셋 적용 |
+| 10 | Clash 검사 시작 | Form1 | `ShowBusyOverlay("간섭검사 실행 중...")` → `DetectClash()` (비동기) |
+| 11 | 플래그 저장 | Form1 | `_autoProcessOsnapSuccess = osnapSuccess` |
+| 12 | **오버레이 해제** (T-018) | UI | `finally { HideBusyOverlay(); }` — 정상·예외 모두 해제. Clash는 비동기라 여기서 해제해도 UI 반응 유지 |
 
 > 최종 결과 요약 알림은 [Clash 완료 콜백](../clash/clash-finished-event.md)에서 표시됨
 
@@ -107,3 +109,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-22 | T-018: 3D 뷰어 중앙 "처리 중..." 오버레이 라벨 추가 — BOM 수집 → Osnap → 치수 계산 → Clash 시작의 각 단계 진입 시 라벨 메시지 갱신. 공통 헬퍼 `ShowBusyOverlay`/`HideBusyOverlay`는 [Form1.cs](/docs/code-reference/form1-bom.md)에 신설. 핸들러는 try/finally로 감싸 예외 시에도 오버레이 해제 보장. 5초 공백 UX 문제 해결 | Claude |

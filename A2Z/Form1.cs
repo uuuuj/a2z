@@ -99,6 +99,12 @@ namespace A2Z
         private TextBox txtMemberNameOverlay = null;
 
         /// <summary>
+        /// 장시간 작업 중 표시하는 "처리 중..." 오버레이 라벨 (T-018)
+        /// ShowBusyOverlay/HideBusyOverlay로 제어
+        /// </summary>
+        private Label busyOverlay = null;
+
+        /// <summary>
         /// Osnap 자동 처리 성공 여부
         /// </summary>
         private bool _autoProcessOsnapSuccess = false;
@@ -172,6 +178,45 @@ namespace A2Z
             vizcore3d.OnInitializedVIZCore3D += Vizcore3d_OnInitializedVIZCore3D;
 
 
+        }
+
+        /// <summary>
+        /// 3D 뷰어 중앙에 "처리 중..." 오버레이 라벨 표시 (T-018).
+        /// 장시간 블로킹 작업 전 호출 → 반드시 finally에서 HideBusyOverlay() 호출.
+        /// </summary>
+        private void ShowBusyOverlay(string message = "처리 중...")
+        {
+            if (busyOverlay == null)
+            {
+                busyOverlay = new Label();
+                busyOverlay.AutoSize = false;
+                busyOverlay.TextAlign = ContentAlignment.MiddleCenter;
+                busyOverlay.Font = new Font("맑은 고딕", 14F, FontStyle.Bold);
+                busyOverlay.ForeColor = Color.White;
+                busyOverlay.BackColor = Color.FromArgb(45, 45, 48);
+                busyOverlay.BorderStyle = BorderStyle.FixedSingle;
+                busyOverlay.Size = new Size(260, 70);
+                busyOverlay.Visible = false;
+                panelViewer.Controls.Add(busyOverlay);
+            }
+            busyOverlay.Text = message;
+            busyOverlay.Location = new Point(
+                Math.Max(0, (panelViewer.ClientSize.Width - busyOverlay.Width) / 2),
+                Math.Max(0, (panelViewer.ClientSize.Height - busyOverlay.Height) / 2));
+            busyOverlay.BringToFront();
+            busyOverlay.Visible = true;
+            Application.DoEvents(); // 즉시 화면 갱신
+        }
+
+        /// <summary>
+        /// 오버레이 해제 (T-018). ShowBusyOverlay와 쌍으로 사용.
+        /// </summary>
+        private void HideBusyOverlay()
+        {
+            if (busyOverlay != null)
+            {
+                busyOverlay.Visible = false;
+            }
         }
     }
 }

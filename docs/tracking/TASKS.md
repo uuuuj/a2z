@@ -64,32 +64,6 @@
 - **선결 조건**: 없음 (SDK API 조회가 우선)
 - **연관**: T-023 (선택상태 기반 치수추출)
 
-### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
-- **생성일**: 2026-04-21
-- **상태**: TODO
-- **관련**: — (사용자 피드백)
-- **배경**: `btnMainDimension_Click` 누르면 Clash 검사 **이전** 단계(BOM 수집 → Osnap 수집 → 치수 계산 → 표시)에서 약 **5초간 화면 반응이 없음**. 사용자가 앱이 멈춘 건지 처리 중인지 판단할 수 없어 UX 저하
-- **해당 구간**:
-  - `Form1.BOM.cs:370~430` `btnMainDimension_Click`
-    - `CollectBOMData()` (bomList 재수집)
-    - `CollectAllOsnap()` (모든 부재 Osnap 수집)
-    - `MergeCoordinates` + `AddChainDimensionByAxis(X/Y/Z)`
-    - `ShowAllDimensions()`
-- **UX 개선 옵션** (난이도·효과 순):
-  - (a) **`Cursor.Current = Cursors.WaitCursor`** — 1~2줄, 매우 쉬움, 최소 효과 (마우스 모양만 바뀜)
-  - (b) **3D 뷰어 위 오버레이 라벨 "처리 중..."** — 10줄 수준, 쉬움, 시각 효과 큼 (이미 `txtMemberNameOverlay` 패턴 존재 — 참고 가능)
-  - (c) **진행 다이얼로그 팝업** — 30줄 수준, 중간, 단계별 % 표시 가능
-  - (d) **`BackgroundWorker` / `async Task` 비동기화** — 50~100줄, 어려움, UX 가장 자연스러움 (SDK가 메인 스레드 외에서 안전 호출되는지 검증 필요)
-- **세부**:
-  - [ ] 옵션 (a)~(d) 중 선택 (추천: **(b) 오버레이** — 최소 위험 + 충분한 효과)
-  - [ ] 구현 범위 결정: 치수 추출만 / 다른 장시간 작업(2D 도면 생성, 가공도, PDF 출력, 시트 생성)도 포함
-  - [ ] 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 검토
-  - [ ] 구현 후 실기 확인 (다른 기기 포함)
-  - [ ] docs/features/bom/main-dimension.md 갱신 (진행 표시 단계 추가)
-- **영향 파일**: A2Z/Form1.BOM.cs + 공통 헬퍼 추가 시 A2Z/Form1.cs 또는 신규 파일
-- **우선순위**: MEDIUM — 실사용 UX 직결, 특히 담당자 테스트 시 오해 방지
-- **확장 가능성**: 동일 패턴을 다른 장시간 작업에도 적용 가능 (2D 도면 생성, ALL PDF 출력 등)
-
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -134,6 +108,28 @@
 ---
 
 ## IN_PROGRESS
+
+### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
+- **생성일**: 2026-04-21
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백)
+- **선택 옵션**: **(b) 오버레이 라벨** — 3D 뷰어 중앙에 "처리 중..." 반투명 라벨 (위험 최소 + 시각 효과 충분)
+- **세부** (1차 완료):
+  - [x] 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 → [Form1.cs](../../A2Z/Form1.cs) L183~L222
+  - [x] `busyOverlay` 필드(Label) 추가 — 최초 호출 시 지연 생성, panelViewer 중앙 자동 배치
+  - [x] `btnMainDimension_Click` try/finally 구조 + 각 단계 진입 시 메시지 갱신 ("치수 추출 중..." → "Osnap 수집 중..." → "치수 계산 중..." → "간섭검사 실행 중...")
+  - [x] `finally`에서 `HideBusyOverlay()` 호출 — 정상·예외 모두 해제
+  - [x] MSBuild Debug 통과 (경고 0)
+  - [x] docs/features/bom/main-dimension.md 단계표·변경 이력 갱신
+  - [ ] 사용자 실기 확인 (오버레이 보이고 처리 완료 시 사라지는지)
+- **2차 확장 (검토)**:
+  - [ ] 다른 장시간 작업 적용 여부 — 2D 도면 생성(`GenerateSheetDrawing2D`), 가공도(`ExecuteMfgDrawing`), PDF 배치(`btnExportAllPDF`), 시트 생성(`GenerateDrawingSheets`). 1차 UX 반응 보고 결정
+- **영향 파일**:
+  - `A2Z/Form1.cs` (busyOverlay 필드 + 헬퍼 2개, +40줄)
+  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click try/finally 구조 + 오버레이 4곳 호출)
+  - `docs/features/bom/main-dimension.md`
+- **우선순위**: MEDIUM
 
 ### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정 + 뷰 내부 clip (T-007 흡수)
 - **생성일**: 2026-04-15
@@ -233,7 +229,7 @@
 ### T-017 — 라이선스 인증 코드를 Form1.BOM.cs에서 분리
 - **완료일**: 2026-04-22 (사용자 실기 테스트 통과)
 - **관련**: — (사용자 직접 지시, 코드 정리)
-- **커밋**: `pending`
+- **커밋**: `d849663`
 - **요약**:
   - 옵션 (A) 채택 — `Form1.License.cs` 신규 partial (71줄)로 라이선스 로직 이동
   - `InitializeLicense()` 공용 진입점 — 실패 시 MessageBox + false, 성공 시 30분 갱신 타이머 기동 후 true

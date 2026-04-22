@@ -6,10 +6,30 @@
 
 ---
 
+## 2026-04-22 — T-018 장시간 작업 진행 오버레이 (1차: 치수 추출)
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-018
+**변경 사항**:
+- 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 ([Form1.cs](../../A2Z/Form1.cs) L183~L222)
+  - 3D 뷰어(`panelViewer`) 중앙에 "처리 중..." 반투명 Label(맑은 고딕 14pt Bold, 260×70, 배경 #2D2D30)
+  - 최초 호출 시 지연 생성 → 이후 재사용. 크기는 panelViewer 기준 자동 센터링
+  - `Application.DoEvents()`로 즉시 화면 반영
+- `btnMainDimension_Click`에 try/finally 구조로 오버레이 적용
+  - 각 장시간 단계 진입 시 메시지 갱신: 치수 추출 중 → Osnap 수집 중 → 치수 계산 중 → 간섭검사 실행 중
+  - finally에서 `HideBusyOverlay()` 호출 — 정상·예외 모두 해제
+  - Clash는 비동기라 해제 후에도 완료 콜백의 MessageBox 정상 동작
+- 문서 `main-dimension.md` 단계표를 10→12단계로 확장 (2·12단계에 오버레이 표시·해제 추가), 변경 이력 1건
+
+**영향 범위**: 치수 추출 UX. 다른 장시간 작업(2D 생성·가공도·PDF·시트 생성)은 1차 반응 보고 2차에서 확장 검토. 기능 로직 무변경
+
+---
+
 ## 2026-04-22 — T-017 라이선스 코드 Form1.License.cs로 분리
 
 **유형**: refactor
-**커밋**: `pending`
+**커밋**: `d849663`
 **관련 TASK**: T-017
 **변경 사항**:
 - `Form1.BOM.cs`에 섞여 있던 라이선스 관련 코드 전부를 신규 partial `Form1.License.cs`로 이동
