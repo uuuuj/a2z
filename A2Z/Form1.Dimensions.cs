@@ -2036,6 +2036,72 @@ namespace A2Z
         }
 
         /// <summary>
+        /// T-027: 도면 뷰별 치수 계산에 쓰이는 Osnap endpoint의 합집합을 반환.
+        ///
+        /// 동작:
+        ///   - 뷰 방향 3종(X/Y/Z) × 치수축 3종(X/Y/Z) 중 viewDir ≠ dimAxis인 6개 조합에 대해
+        ///   - AddChainDimensionByAxis의 1차 필터(같은 치수축 값 중 필터축 최소 1점) 로직을 재현해
+        ///   - 각 조합에서 살아남은 점들을 합집합해 반환
+        ///
+        /// 목적: 치수추출 시 3D 뷰에 표시되는 체인 치수 개수를 도면에 실제로 남는 Osnap만으로 제한해 가독성 개선.
+        /// osnap 원본 리스트(osnapPointsWithNames, lvOsnap)는 건드리지 않아 제작도·가공도와 호환.
+        ///
+        /// 입력:
+        ///   mergedPoints: MergeCoordinates 결과 (0.5mm 이내 병합된 좌표)
+        ///   tolerance: RoundToTolerance 반올림 단위 (AddChainDimensionByAxis와 동일)
+        /// 반환: 뷰×축 필터 endpoint 합집합. 원 순서 보존, 좌표 3자리 반올림 기준 중복 제거.
+        /// </summary>
+        private List<VIZCore3D.NET.Data.Vector3D> FilterOsnapByViewDimensionUsage(
+            List<VIZCore3D.NET.Data.Vector3D> mergedPoints, float tolerance)
+        {
+            if (mergedPoints == null || mergedPoints.Count == 0)
+                return mergedPoints;
+
+            HashSet<string> seenKeys = new HashSet<string>();
+            List<VIZCore3D.NET.Data.Vector3D> result = new List<VIZCore3D.NET.Data.Vector3D>();
+
+            string[] axes = new string[] { "X", "Y", "Z" };
+            foreach (string viewDir in axes)
+            {
+                foreach (string dimAxis in axes)
+                {
+                    if (viewDir == dimAxis) continue;  // 뷰 방향 = 치수축: 해당 뷰에 표현 불가
+
+                    string filterAxisName = GetRemainingAxis(viewDir, dimAxis);
+                    Dictionary<string, VIZCore3D.NET.Data.Vector3D> grouped =
+                        new Dictionary<string, VIZCore3D.NET.Data.Vector3D>();
+
+                    foreach (var pt in mergedPoints)
+                    {
+                        float dimValue = RoundToTolerance(GetAxisValue(pt, dimAxis), tolerance);
+                        float filterValue = GetAxisValue(pt, filterAxisName);
+                        string key = dimValue.ToString("F1");
+
+                        if (!grouped.ContainsKey(key))
+                        {
+                            grouped[key] = pt;
+                        }
+                        else
+                        {
+                            float existingFilter = GetAxisValue(grouped[key], filterAxisName);
+                            if (filterValue < existingFilter)
+                                grouped[key] = pt;
+                        }
+                    }
+
+                    foreach (var pt in grouped.Values)
+                    {
+                        string ptKey = $"{pt.X:F3},{pt.Y:F3},{pt.Z:F3}";
+                        if (seenKeys.Add(ptKey))
+                            result.Add(pt);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Osnap 필터링 공통 함수 — X/Y/Z 보기 모두 동일 규칙 적용
         ///
         /// 축 매핑:

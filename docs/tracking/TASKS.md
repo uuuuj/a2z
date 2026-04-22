@@ -53,6 +53,37 @@
 
 ## IN_PROGRESS
 
+### T-027 — 치수추출 Osnap 선별 (뷰×축 필터 endpoint 합집합)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 중)
+- **관련**: — (사용자 직접 지시)
+- **배경**: 현재 `btnMainDimension_Click` → `CompleteMainDimensionPostClash`가 `MergeCoordinates` 결과(수백 개)를 그대로 `AddChainDimensionByAxis` 3회(X/Y/Z)에 입력해 체인 치수 생성. 실기 로그 기준 chain=32~52. 3D 뷰 치수선이 과밀해 가독성 저하
+- **사용자 의도**: "도면 추출 시 X뷰/Y뷰/Z뷰에서 치수 계산할 때 남기는 Osnap들 외엔 다 지우자"
+- **확정 방식**: **(a) 체인 치수만** 줄이되 osnap 원본 리스트는 보존 + **β 방식**(endpoint 합집합 S 1회 산출 후 축별 체인 1벌)
+- **뷰×축 매트릭스** (X뷰·Y뷰·Z뷰 각각 2개 치수축 → 6개 조합):
+  - X뷰(Y-Z 평면): Y축 치수 + Z축 치수
+  - Y뷰(X-Z 평면): X축 치수 + Z축 치수
+  - Z뷰(X-Y 평면): X축 치수 + Y축 치수
+- **알고리즘**:
+  1. `CollectAllOsnap` → `MergeCoordinates` (기존 그대로)
+  2. 6개 조합 각각에 대해 `AddChainDimensionByAxis` 내부 1차 필터(같은 치수축 값 중 필터축 최소 1점) 재현 → endpoint 수집
+  3. 6개 endpoint 집합의 **합집합 S**
+  4. S를 `AddChainDimensionByAxis(S, axis, tolerance, viewDirection=null)` 3회 호출해 체인 치수 구성 → 기존 3D 표시·`lvDimension`과 호환
+- **세부**:
+  - [x] `Form1.Dimensions.cs`에 `FilterOsnapByViewDimensionUsage(mergedPoints, tolerance) → List<Vector3D>` 신설 — 기존 `GetRemainingAxis`, `GetAxisValue`, `RoundToTolerance` 재사용
+  - [x] `Form1.BOM.cs` `CompleteMainDimensionPostClash` 수정 — `MergeCoordinates` 직후 필터 호출, 결과를 `AddChainDimensionByAxis` 입력으로 사용
+  - [x] DiagLog로 필터 전/후 점 수 기록 (`T-027 Osnap filter: merged=N → filtered=M`)
+  - [x] osnap 원본 리스트(`osnapPointsWithNames`, `lvOsnap`)는 **건드리지 않음** (제작도·가공도 등 다른 기능이 공유)
+  - [x] docs/features/bom/main-dimension.md 단계표 갱신 (Osnap 필터 단계 13.5 추가)
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 — 치수선 개수 감소 체감, 필요한 치수는 유지 (DiagLog에서 merged·filtered 숫자 비교 가능)
+- **예상 효과**: 체인 치수 수 대폭 감소(로그 측정 후 정량화)
+- **영향 파일**:
+  - `A2Z/Form1.Dimensions.cs` (+약 40줄 — 새 헬퍼)
+  - `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 치수 블록 1줄 추가 + DiagLog)
+  - `docs/features/bom/main-dimension.md`
+
 ### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22

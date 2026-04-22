@@ -6,10 +6,33 @@
 
 ---
 
+## 2026-04-22 — T-027 치수추출 Osnap 선별 (뷰×축 필터 endpoint 합집합)
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-027
+**배경**: 치수 추출 결과 3D 뷰에 체인 치수가 과밀(로그상 chain=32~52). 사용자 의도는 "도면 뷰별 치수 계산에서 살아남는 Osnap만 남기고 나머지는 치수선 생성에 쓰지 말자"
+**변경 사항**:
+- **선택한 방식**: (a) 체인 치수만 축소 / β — endpoint 합집합 1회 산출 후 축별 1벌 체인 생성
+- **`FilterOsnapByViewDimensionUsage(mergedPoints, tolerance)`** 신설 ([Form1.Dimensions.cs](../../A2Z/Form1.Dimensions.cs))
+  - X·Y·Z 뷰 × X·Y·Z 치수축 중 뷰≠치수축인 **6개 조합** 각각에서 `AddChainDimensionByAxis` 1차 필터(같은 치수축 값 중 필터축 최소) 로직을 재현해 endpoint 수집
+  - 6개 endpoint 집합의 **합집합**(좌표 3자리 반올림 기준 중복 제거)을 반환. 원 순서 보존
+- **`CompleteMainDimensionPostClash`** 수정 ([Form1.BOM.cs](../../A2Z/Form1.BOM.cs))
+  - `MergeCoordinates` 직후 `FilterOsnapByViewDimensionUsage` 호출로 `filteredPoints` 산출
+  - `AddChainDimensionByAxis(filteredPoints, axis, tolerance)` 3회(X/Y/Z) 호출해 `chainDimensionList` 생성 — 기존 뷰 방향 없는 축별 1벌 구조 그대로
+  - `DiagLog "T-027 Osnap filter: merged=N → filtered=M"` 기록으로 감소량 정량화
+- **보존 대상**: `osnapPointsWithNames`, `lvOsnap`(왼쪽 Osnap 목록) — 제작도·가공도 등 다른 기능이 공유하므로 **원본 유지**
+- docs `main-dimension.md` 단계 13.5 추가, 변경 이력 1건
+- MSBuild Debug 통과 (경고 0)
+
+**영향 범위**: 치수추출 결과의 체인 치수 개수. 뷰별로 의미 있는 점만 체인의 endpoint로 쓰이므로 3D 뷰 치수선이 깔끔해짐. 2D 도면(`GenerateSheetDrawing2D`) 등 후행은 `chainDimensionList`를 그대로 사용해 자동 반영됨
+
+---
+
 ## 2026-04-22 — T-023 v3: Clash 기반 연결성 판정 + 파이프라인 재배치
 
 **유형**: refactor + feat
-**커밋**: `pending`
+**커밋**: `cc72e94`
 **관련 TASK**: T-023 (v3, 3차 재재설계)
 **배경**: 사용자 2차 지시(STRU 단위) 재교정 → "물리적 연결성(Clash 인접) 1덩어리" 기준 확정. 정확성 우선 (방식 A 채택)
 **변경 사항**:

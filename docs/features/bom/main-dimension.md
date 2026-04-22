@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-023 v3 Clash 기반 연결성 판정 — 파이프라인 재배치)
+last_updated: 2026-04-22 (T-027 Osnap 뷰별 필터로 체인 치수 개수 제한)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -74,8 +74,9 @@ flowchart TD
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
 | 12 | Osnap 수집 | Form1 | `ShowBusyOverlay("Osnap 수집 중...")` → `CollectAllOsnap()` → `_autoProcessOsnapSuccess` 저장 |
-| 13 | 좌표 병합 | Form1 | `ShowBusyOverlay("치수 계산 중...")` → `MergeCoordinates(osnap, 0.5f)` |
-| 14 | 축별 체인 치수 | Form1 | X, Y, Z 각각 `AddChainDimensionByAxis()` → `chainDimensionList` 재구성 |
+| 13 | 좌표 병합 | Form1 | `ShowBusyOverlay("치수 계산 중...")` → `MergeCoordinates(osnap, 0.5f)` → `mergedPoints` |
+| 13.5 | **Osnap 뷰별 필터** (T-027) | Form1 | `FilterOsnapByViewDimensionUsage(mergedPoints, tolerance)` — X/Y/Z 뷰 각각 2개 치수축(뷰 방향 제외) 총 6개 조합에서 `AddChainDimensionByAxis` 1차 필터(같은 치수축 값 중 필터축 최소 1점) 재현 → endpoint 합집합 `filteredPoints` 반환. DiagLog `T-027 Osnap filter: merged=N → filtered=M`. osnap 원본 리스트는 건드리지 않음 |
+| 14 | 축별 체인 치수 | Form1 | X, Y, Z 각각 `AddChainDimensionByAxis(filteredPoints, …)` → `chainDimensionList` 재구성. 입력이 필터된 점들이므로 **체인 치수 수 감소** |
 | 15 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End |
 | 16 | 치수 3D 표시 | SDK | `ShowAllDimensions()` |
 | 17 | 요약 MessageBox | UI | BOM/Osnap/치수/Clash 개수 통합 (단일 부재 시 "간섭검사 건너뜀") |
@@ -155,3 +156,4 @@ flowchart TD
 | 2026-04-22 | T-023 재설계 — 사용자 의도는 "부재 개수"가 아니라 "STRU(UDA 상위 단위) 1개"로 판정. 기존 visible/selected==1 가드 **제거**. 새 `FindAncestorByUda` + `CheckSingleStruCondition` 헬퍼를 [Form1.BOM.cs 하단 주석 블록](/docs/code-reference/form1-bom.md)에 완성 형태로 보존(UDA 키·값 확정 시 `/* */` 해제만으로 활성화). 분기 D 추가, E03·E04 재정렬, 단계 1.5 "비활성" 표기. 사용자 매뉴얼의 에러 ③도 원복 | Claude |
 | 2026-04-22 | T-026: 진입부에 `xraySelectedNodeIndices.Clear()` 추가 — 이전 시트 선택이 `CollectBOMData` X-Ray 필터(L591)에 계속 반영되어 "1개 부재 기준" 결과가 반복되던 잔존 상태 버그. 로그 근거: `btnMainDimension ENTER xray=1 ... EXIT chain=32`가 부재 1개 띄웠을 때와 동일 재현. 단계 1.3 추가 | Claude |
 | 2026-04-22 | **T-023 v3 재재설계** — "STRU 단위"에서 **"Clash 기반 물리적 연결성 1덩어리"** 로 변경. 사용자 결정(정확성 우선). STRU 주석 블록 2개 제거. 파이프라인 순서 재배치 — Osnap/치수 로직을 `btnMainDimension_Click`에서 **`CompleteMainDimensionPostClash`** 공용 메서드로 분리하고, `Clash_OnClashTestFinishedEvent`에서 `IsSingleConnectedComponent` 판정 후 호출. 단일 부재(clashStarted=false)는 판정 생략하고 Post 메서드 직접 호출(T-024와 통합). 흐름도·단계표(3섹션)·분기 C·D·E03·E04·last_updated 모두 갱신 | Claude |
+| 2026-04-22 | T-027: 치수 계산 단계(13) 직후 `FilterOsnapByViewDimensionUsage` 호출 추가(단계 13.5) — 도면 뷰×치수축 6개 조합의 1차 필터 endpoint 합집합만 `AddChainDimensionByAxis` 입력으로 사용. 3D 뷰 체인 치수 개수 감소(필터 전/후 DiagLog 기록). osnap 원본 리스트는 보존해 다른 기능(제작도·가공도) 영향 없음. 방식: (a) 체인 치수만 / β (endpoint 합집합 1회 산출 후 축별 1벌) | Claude |

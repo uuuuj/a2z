@@ -405,15 +405,23 @@ namespace A2Z
                     float tolerance = 0.5f;
                     List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
 
+                    // T-027: 3D 뷰 치수선 개수 제한 — 도면 뷰별(X/Y/Z) 치수 계산에서
+                    // 살아남는 Osnap endpoint의 합집합 S만 체인 치수 입력으로 사용.
+                    // osnap 원본 리스트는 유지되므로 제작도·가공도 등 다른 기능은 영향 없음.
+                    int beforeCount = mergedPoints.Count;
+                    List<VIZCore3D.NET.Data.Vector3D> filteredPoints =
+                        FilterOsnapByViewDimensionUsage(mergedPoints, tolerance);
+                    DiagLog($"T-027 Osnap filter: merged={beforeCount} → filtered={filteredPoints.Count}");
+
                     chainDimensionList.Clear();
 
-                    var xDimensions = AddChainDimensionByAxis(mergedPoints, "X", tolerance);
+                    var xDimensions = AddChainDimensionByAxis(filteredPoints, "X", tolerance);
                     chainDimensionList.AddRange(xDimensions);
 
-                    var yDimensions = AddChainDimensionByAxis(mergedPoints, "Y", tolerance);
+                    var yDimensions = AddChainDimensionByAxis(filteredPoints, "Y", tolerance);
                     chainDimensionList.AddRange(yDimensions);
 
-                    var zDimensions = AddChainDimensionByAxis(mergedPoints, "Z", tolerance);
+                    var zDimensions = AddChainDimensionByAxis(filteredPoints, "Z", tolerance);
                     chainDimensionList.AddRange(zDimensions);
 
                     // ListView에 추가 및 치수 번호 설정
