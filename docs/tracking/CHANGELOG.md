@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-04-22 — T-024 단일 부재 치수추출 시 시트 목록 미갱신 버그 수정
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-024
+**변경 사항**:
+- **원인**: `DetectClash` 내부 루프가 `targetNodes.Count == 1`이면 쌍 없어 `clashCount == 0` → return false → `PerformInterferenceCheck` 미호출 → `Clash_OnClashTestFinishedEvent` 미발동 → 이벤트에서 호출되던 `GenerateDrawingSheets` 미실행 → 시트 목록 갱신 안 됨. 부가적으로 간섭 없는 다중 부재도 이벤트 내 `if (clashList.Count > 0)` 조건에 걸려 시트 안 생기던 숨은 버그 공존
+- **수정 1**: `btnMainDimension_Click` — `bool clashStarted = DetectClash()` 반환값 수신. false면 `GenerateDrawingSheets()` + 요약 MessageBox 직접 호출 (fallback 경로)
+- **수정 2**: `Clash_OnClashTestFinishedEvent` — `if (clashList.Count > 0)` 조건 제거하고 `GenerateDrawingSheets()`를 **항상** 호출. 내부 `bomList.Count > 0` 가드로 안전
+- docs: `main-dimension.md` 단계표 10→13 재번호 + 분기 C 신설, `clash-finished-event.md` 단계 10 재기술 + 분기 A 수정
+- MSBuild Debug 통과
+
+**영향 범위**: 단일 부재 / 간섭 없는 다중 부재의 자동 처리 경로. 간섭 있는 다중 부재는 기존 동작 그대로
+
+---
+
 ## 2026-04-22 — T-022 시트/BOM 선택 시 3D View 선택상태 동기화
 
 **유형**: feat

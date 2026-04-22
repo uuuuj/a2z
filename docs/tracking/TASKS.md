@@ -8,24 +8,6 @@
 
 ## TODO
 
-### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 직접 지시)
-- **배경**: 3D View에 부재 **1개만** 띄운 상태에서 치수 추출 → 치수 자체는 산출되는데 `lvDrawingSheet`(도면 시트 목록)에 새 시트가 생성·갱신되지 않음
-- **가설**:
-  - `GenerateDrawingSheets`는 `Clash_OnClashTestFinishedEvent`에서 자동 호출되고, 단일 부재는 Clash 대상 쌍이 없음 → 시트 생성 트리거 미발동 가능성
-  - 혹은 Sheet 1(전체)만 생성되고 가공도/설치도가 안 나와 사용자 체감상 "반영 안 됨"
-  - `DetectClash`가 부재 쌍이 0이면 return false → Clash 이벤트 자체가 발생하지 않아 `GenerateDrawingSheets`가 호출되지 않을 수 있음
-- **세부**:
-  - [ ] 단일 부재 로드 → 치수추출 시나리오 재현 + Visual Studio 출력창 확인 (clashCount, drawingSheetList.Count)
-  - [ ] `btnMainDimension_Click` → `DetectClash` → `Clash_OnClashTestFinishedEvent` → `GenerateDrawingSheets` 체인 추적
-  - [ ] 단일 부재도 Sheet 1(전체) + 가공도 1개는 항상 생성되도록 보장 — Clash 의존성 분리 검토
-  - [ ] 필요 시 `btnMainDimension_Click` 또는 별도 경로에서 "부재 1개 이상이면 시트 생성" 직접 호출
-  - [ ] docs/features/drawing-sheets/generate-sheets.md 갱신 (단일 부재 케이스 분기 명시)
-- **영향 파일**: A2Z/Form1.BOM.cs (btnMainDimension_Click), A2Z/Form1.Clash.cs (DetectClash, Clash_OnClashTestFinishedEvent), A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets)
-- **연관**: T-023 (사전조건 강화 후 단일 부재 케이스가 정식 경로가 될 가능성)
-
 ### T-023 — 치수추출 사전조건 강화 (단일 모델 또는 선택상태만 허용)
 - **생성일**: 2026-04-22
 - **상태**: TODO
@@ -88,6 +70,30 @@
 ---
 
 ## IN_PROGRESS
+
+### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **원인 확정** (코드 추적):
+  - `DetectClash`([Form1.Clash.cs:307~376](../../A2Z/Form1.Clash.cs)) 내부 루프 `for j = i+1`이 `targetNodes.Count == 1`이면 전혀 돌지 않음 → `clashCount == 0` → `return false` (L366)
+  - `PerformInterferenceCheck()` 미호출 → `Clash_OnClashTestFinishedEvent` 이벤트 자체가 발동 안 함
+  - 기존 `btnMainDimension_Click`은 `DetectClash()` 반환값을 무시 → 이벤트 대기 상태로 종료되지만 영영 발동 안 함
+  - `GenerateDrawingSheets`는 `Clash_OnClashTestFinishedEvent`에서 호출되는데 이벤트 미발동 → 시트 목록 미갱신
+  - 부가: 간섭 없는 다중 부재도 `Clash_OnClashTestFinishedEvent` 내 `if (clashList.Count > 0) GenerateDrawingSheets();` 조건에 걸려 시트 생성 안 되던 숨은 버그 존재
+- **구현** (2026-04-22):
+  - [x] `Form1.BOM.cs` `btnMainDimension_Click` — `DetectClash()` 반환값 `clashStarted` 수신. false면 `GenerateDrawingSheets()` + "Clash: 검사 대상 부재가 1개 이하 (간섭검사 건너뜀)" MessageBox 직접 호출
+  - [x] `Form1.Clash.cs` `Clash_OnClashTestFinishedEvent` — `if (clashList.Count > 0)` 조건 제거, `GenerateDrawingSheets()`를 **항상** 호출 (간섭 없는 다중 부재 대응)
+  - [x] `GenerateDrawingSheets` 내부 `bomList.Count > 0` 가드로 안전성 확인 — 수정 불필요
+  - [x] `docs/features/bom/main-dimension.md` 단계표 10→13, 분기 C 신설, 변경 이력
+  - [x] `docs/features/clash/clash-finished-event.md` 단계 10 재기술, 분기 A 수정, 변경 이력
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (부재 1개만 띄운 상태에서 치수추출 → Sheet 1·설치도·가공도_1 생성 확인)
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` (+15줄 fallback 블록)
+  - `A2Z/Form1.Clash.cs` (조건부 호출 → 무조건 호출, 설명 주석)
+  - `docs/features/bom/main-dimension.md`, `docs/features/clash/clash-finished-event.md`
 
 ### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
 - **생성일**: 2026-04-22

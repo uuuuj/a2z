@@ -488,10 +488,9 @@ namespace A2Z
                 MessageBox.Show(summaryMessage, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // Clash 완료 후 도면 시트 자동 생성
-                if (clashList.Count > 0)
-                {
-                    GenerateDrawingSheets();
-                }
+                // T-024: clashList가 비어도 GenerateDrawingSheets 호출 (간섭 없는 다중 부재·단일 부재 대비)
+                //        GenerateDrawingSheets 내부에 bomList.Count > 0 가드가 있어 안전
+                GenerateDrawingSheets();
             }
             catch (Exception ex)
             {

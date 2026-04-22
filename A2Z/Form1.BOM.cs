@@ -393,9 +393,25 @@ namespace A2Z
                 // 3. Clash 검사 (비동기 - 완료 이벤트에서 최종 알림)
                 ShowBusyOverlay("간섭검사 실행 중...");
                 _autoProcessOsnapSuccess = osnapSuccess;
-                DetectClash();
+                bool clashStarted = DetectClash();
                 // 알림은 Clash_OnClashTestFinishedEvent에서 한 번만 표시
                 // Clash는 비동기라 여기서 오버레이를 바로 해제해도 UI는 반응함
+
+                if (!clashStarted)
+                {
+                    // T-024: Clash 시작 실패(대상 쌍 0개·SDK 예외 등) → 이벤트 미발동
+                    // 시트 생성과 요약 알림을 직접 수행해야 단일 부재 케이스에서도 시트 목록이 갱신됨
+                    GenerateDrawingSheets();
+
+                    string summaryMessage = $"모델 로드 및 자동 처리 완료!\n\n" +
+                        $"BOM: {bomList.Count}개\n" +
+                        $"Osnap: {osnapPointsWithNames.Count}개\n" +
+                        $"치수: {chainDimensionList.Count}개\n" +
+                        $"Clash: 검사 대상 부재가 1개 이하 (간섭검사 건너뜀)";
+                    if (!_autoProcessOsnapSuccess)
+                        summaryMessage += "\n\n* Osnap 수집 실패";
+                    MessageBox.Show(summaryMessage, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
 
                 // [T-016 진단 로그] 정상 종료
                 DiagLog($"btnMainDimension EXIT OK " +

@@ -4,7 +4,7 @@ feature_name: 간섭 검사 완료 콜백
 category: Clash
 trigger_type: Event Callback
 owner_module: Form1.Clash.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-22 (T-024 단일 부재 시트 생성 보장)
 code_reference: /docs/code-reference/form1-clash.md#Clash_OnClashTestFinishedEvent
 ---
 
@@ -53,7 +53,7 @@ flowchart TD
 | 7 | 정렬 | Form1 | `clashList.Sort((a,b) => b.ZValue.CompareTo(a.ZValue))` |
 | 8 | ListView 표시 | UI | Name1 / Name2 / Z(F2) |
 | 9 | 요약 알림 | UI | BOM/Osnap/치수/Clash 개수 통합 메시지 |
-| 10 | 시트 자동 생성 | Form1 | `clashList.Count > 0`이면 `GenerateDrawingSheets()` |
+| 10 | 시트 자동 생성 (T-024) | Form1 | **항상** `GenerateDrawingSheets()` 호출. clashList가 비어도(간섭 없는 다중 부재) Sheet 1 + 설치도 + 가공도는 생성되어야 함. 내부 `bomList.Count > 0` 가드로 안전 |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-clash.md#Clash_OnClashTestFinishedEvent) 참고
 
@@ -62,8 +62,10 @@ flowchart TD
 ### [분기 A] 결과 존재 여부
 | 조건 | 처리 |
 |---|---|
-| `clashList.Count > 0` | 정렬·표시·시트 자동 생성 |
-| 비어있음 | "간섭 없음" 메시지만 표시, 시트 생성 건너뜀 |
+| `clashList.Count > 0` | 정렬·표시 + 요약에 "Clash: N개 검출" |
+| 비어있음 | 요약에 "Clash: 간섭 없음"만, 시트 생성은 **그대로 수행** (T-024) |
+
+> 본 경로는 "Clash가 실제로 돌았지만 결과가 비었을 때"이며, 애초에 **Clash 시작 자체가 실패**(단일 부재 등)하는 케이스는 본 콜백이 아예 호출되지 않아 [`btnMainDimension_Click`의 fallback](../bom/main-dimension.md) 경로가 대신 처리한다.
 
 ### [분기 B] HotPoint 유효성
 | 조건 | 처리 |
@@ -106,3 +108,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-22 | T-024: `clashList.Count > 0` 분기 제거 → `GenerateDrawingSheets()`를 **항상** 호출. 간섭 없는 다중 부재도 Sheet 1/설치도/가공도 생성되도록 보장. 단일 부재 케이스의 Clash 시작 실패는 본 콜백 미발동이라 `btnMainDimension_Click` fallback이 담당 (참조 링크 추가) | Claude |

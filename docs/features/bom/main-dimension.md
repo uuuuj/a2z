@@ -53,9 +53,10 @@ flowchart TD
 | 7 | 축별 체인 치수 | Form1 | X, Y, Z 각각 `AddChainDimensionByAxis()` |
 | 8 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End 표시 |
 | 9 | 치수 3D 표시 | SDK | `ShowAllDimensions()` → 축별 오프셋 적용 |
-| 10 | Clash 검사 시작 | Form1 | `ShowBusyOverlay("간섭검사 실행 중...")` → `DetectClash()` (비동기) |
-| 11 | 플래그 저장 | Form1 | `_autoProcessOsnapSuccess = osnapSuccess` |
-| 12 | **오버레이 해제** (T-018) | UI | `finally { HideBusyOverlay(); }` — 정상·예외 모두 해제. Clash는 비동기라 여기서 해제해도 UI 반응 유지 |
+| 10 | 플래그 저장 | Form1 | `_autoProcessOsnapSuccess = osnapSuccess` |
+| 11 | Clash 검사 시작 | Form1 | `ShowBusyOverlay("간섭검사 실행 중...")` → `bool clashStarted = DetectClash()` |
+| 12 | **Clash fallback** (T-024) | Form1 | `!clashStarted` (단일 부재 등 쌍 0개 또는 SDK 예외)이면 `Clash_OnClashTestFinishedEvent` 미발동 → 여기서 `GenerateDrawingSheets()` + 요약 MessageBox 직접 호출 |
+| 13 | **오버레이 해제** (T-018) | UI | `finally { HideBusyOverlay(); }` — 정상·예외 모두 해제. Clash가 시작된 경우는 비동기라 여기서 해제해도 UI 반응 유지 |
 
 > 최종 결과 요약 알림은 [Clash 완료 콜백](../clash/clash-finished-event.md)에서 표시됨
 
@@ -74,6 +75,12 @@ flowchart TD
 |---|---|
 | xraySelectedNodeIndices.Count > 0 | 선택 부재만 대상 |
 | 비어있음 | `FromIndex().Visible`로 필터, 없으면 전체 |
+
+### [분기 C] Clash 시작 성공 여부 (T-024)
+| 조건 | 처리 |
+|---|---|
+| `clashStarted == true` | `Clash_OnClashTestFinishedEvent`가 비동기로 결과 수집 + 시트 생성 + 요약 MessageBox |
+| `clashStarted == false` (단일 부재, 쌍 0개, SDK 예외) | 본 핸들러 내에서 `GenerateDrawingSheets()` + "Clash: 대상 부재가 1개 이하 (간섭검사 건너뜀)" MessageBox 직접 수행 |
 
 ## 6. 예외 / 에러 처리
 
@@ -110,3 +117,4 @@ flowchart TD
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-018: 3D 뷰어 중앙 "처리 중..." 오버레이 라벨 추가 — BOM 수집 → Osnap → 치수 계산 → Clash 시작의 각 단계 진입 시 라벨 메시지 갱신. 공통 헬퍼 `ShowBusyOverlay`/`HideBusyOverlay`는 [Form1.cs](/docs/code-reference/form1-bom.md)에 신설. 핸들러는 try/finally로 감싸 예외 시에도 오버레이 해제 보장. 5초 공백 UX 문제 해결 | Claude |
+| 2026-04-22 | T-024: `DetectClash()` 반환값을 받아 **`clashStarted == false`일 때 fallback 경로** 추가 — 단일 부재(쌍 0개)·SDK 예외는 `Clash_OnClashTestFinishedEvent` 미발동이므로 `GenerateDrawingSheets()` + 요약 MessageBox를 직접 호출해 시트 목록 미갱신 버그 해결. 단계표 10→13 재번호, 분기 C 신설 | Claude |
