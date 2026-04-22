@@ -113,6 +113,13 @@ namespace A2Z
             = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
 
         /// <summary>
+        /// T-036: ExecuteMfgDrawing이 Z 최장축 90° 회전 직후 저장한 카메라 스냅샷.
+        /// LvDrawingSheet_SelectedIndexChanged 말미에 SetCameraData(false)로 복원해
+        /// 외부 FitToView가 ScreenAxisRotation 회전을 리셋한 경우를 방어.
+        /// </summary>
+        private VIZCore3D.NET.Data.CameraData _mfgDrawingCameraSnapshot = null;
+
+        /// <summary>
         /// Osnap 자동 처리 성공 여부
         /// </summary>
         private bool _autoProcessOsnapSuccess = false;

@@ -4,7 +4,7 @@ feature_name: 선택 부재 가공도 생성
 category: MfgDrawing
 trigger_type: User Action
 owner_module: Form1.MfgDrawing.cs
-last_updated: 2026-04-23 (T-036 Z90 FitToView 제거 — 회전 리셋 방지)
+last_updated: 2026-04-23 (T-036 CameraData 스냅샷으로 외부 FitToView 리셋 방어)
 code_reference: /docs/code-reference/form1-mfg-drawing.md#btnMfgDrawing_Click
 ---
 
@@ -133,3 +133,4 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | 2026-04-23 | T-036 재해석·원복: 사용자 재보고 "45도 대각 ISO 뷰 느낌"은 Z 최장축 세로 문제가 아닌 **카메라 방향 자체가 ISO로 잔존**하는 문제였음. 원인은 [LvDrawingSheet_SelectedIndexChanged](../drawing-sheets/lv-sheet-selected.md) 공통부의 `FlyToObject3d` 호출이 이전 카메라 방향(예: 글로벌 ISO 누적)을 유지한 채 이동만 하는 것. 가공도 시트 분기 앞에서 `FlyToObject3d` 스킵으로 해결(상세는 lv-sheet-selected.md T-036 이력). 본 함수의 **L215 180° 스킵 가드는 원복** — ISO 원인과 무관하며 수직 뒤집기 기능이 본래 의도였음. `use1803d`는 여전히 블록 바깥 스코프로 승격 유지 (DiagLog 가시성) | Claude |
 | 2026-04-23 | T-036 후속: 사용자 "카메라 재조정/fit 과정 중 갑자기 세로로 변함" 관찰 — **중간 카메라 단계가 화면에 실시간 노출**되는 현상. 2가지 보강: (1) 함수 전체를 `BeginUpdate/EndUpdate`로 감싸 중간 깜빡임 차단 (finally에서 해제 보장), (2) Z 최장축 90° 회전 직후 `FitToView` 호출 누락 → 추가. 최종 상태만 화면에 반영돼 "가로→세로 깜빡" 제거. 최종 결과가 여전히 세로라면 `DiagLog T-036 MfgDrawing` 값 분석 필요 | Claude |
 | 2026-04-23 | T-036 재수정 (직전 커밋 부분 되돌림): 사용자 DiagLog 공유 결과 **"누르는 순간 가로 → 0.5초 뒤 FitToView로 세로로 변함"** 확정. **직전 커밋에서 추가한 Z90 직후 `FitToView`가 바로 그 리셋의 주범**이었음. 원본 주석(`LockZAxis false 유지 — true로 복원하면 렌더링 엔진이 회전을 리셋`)이 경고한 현상이 FitToView에도 동일 적용. 제거. `BeginUpdate/EndUpdate` 감싸기는 그대로 유지 (중간 깜빡임 차단 역할). 추가 "FitToView 호출 금지" 주석 경고 강화 | Claude |
+| 2026-04-23 | **T-036 3차**: 내부 `FitToView` 제거만으로는 해결 안 됐다는 사용자 재보고 (여전히 외부 경로에서 리셋). `sdk-verifier`로 `LockZAxis`(= 키보드 회전용, 무관) vs **`GetCameraData()` / `SetCameraData(data, animation)`**(스냅샷·복원) 구분. Z 90° 회전 직후 `_mfgDrawingCameraSnapshot = vizcore3d.View.GetCameraData()` 저장 → `LvDrawingSheet_SelectedIndexChanged` 말미에서 `SetCameraData(snapshot, false)`로 **사후 복원**. 외부에서 어떤 `FitToView`가 리셋해도 핸들러 말미에 확실히 가로 상태로 되돌림. non-Z 케이스에선 null로 리셋해 오염 방지 | Claude |

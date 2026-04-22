@@ -625,6 +625,22 @@ namespace A2Z
 
             // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
             CollectBOMInfo(false);
+
+            // T-036 (2026-04-23 3차): 가공도 시트이고 Z 최장축 스냅샷이 있으면
+            // 핸들러 말미에서 카메라 복원 — ExecuteMfgDrawing 이후 외부 FitToView가
+            // ScreenAxisRotation 회전을 리셋한 경우를 방어. `animation=false`로 즉시 적용.
+            if (sheet.BaseMemberIndex == -3 && _mfgDrawingCameraSnapshot != null)
+            {
+                try
+                {
+                    vizcore3d.View.SetCameraData(_mfgDrawingCameraSnapshot, false);
+                    DiagLog($"T-036 카메라 스냅샷 복원: sheet#={sheet.SheetNumber}");
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-036 SetCameraData FAIL {ex.Message}");
+                }
+            }
         }
 
         /// <summary>

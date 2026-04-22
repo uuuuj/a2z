@@ -545,9 +545,15 @@ namespace A2Z
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    // T-036 (2026-04-23 재수정): 직전 커밋에서 FitToView 추가했지만 사용자 실기 로그상
-                    // "0.5초 뒤 FitToView로 세로로 변함"으로 이 FitToView가 회전 리셋 원인 확정 → 제거.
-                    // (원본 주석의 "마지막에 적용해야 유지됨" 경고가 정확했음)
+
+                    // T-036 (2026-04-23 3차): 사용자 실기 "0.5초 뒤 외부 FitToView가 회전 리셋"
+                    // → 회전 직후 CameraData 스냅샷 저장. LvDrawingSheet_SelectedIndexChanged 말미에서
+                    //   SetCameraData(snapshot, false)로 복원해 최종 상태를 가로로 되돌림.
+                    _mfgDrawingCameraSnapshot = vizcore3d.View.GetCameraData();
+                }
+                else
+                {
+                    _mfgDrawingCameraSnapshot = null;
                 }
 
                 // T-036 (2026-04-23 강화): 회전 단계별 상세 진단 로그

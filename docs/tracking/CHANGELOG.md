@@ -6,10 +6,33 @@
 
 ---
 
-## 2026-04-23 — T-036 재수정: Z90 FitToView 제거 (직전 커밋 부분 되돌림)
+## 2026-04-23 — T-036 3차: CameraData 스냅샷 복원으로 외부 FitToView 리셋 방어
 
 **유형**: fix
 **커밋**: `pending`
+**관련 TASK**: T-036
+**배경**: 직전 커밋(`e9547a1`)으로 ExecuteMfgDrawing 내부 FitToView는 제거했지만 사용자 실기 "세로로 안 되거든" 재보고. 즉 **외부 경로**에서 FitToView가 0.5초 뒤 호출되어 ScreenAxisRotation 회전을 리셋. 사용자 힌트 "Z축 고정 푸는 API"
+**SDK 조사** (sdk-verifier):
+- `LockZAxis` = 키보드 방향키 회전용. 회전 유지와 **무관**
+- `EnableAutoFit` = 자동 fit만 차단. 명시적 `FitToView` 호출은 못 막음
+- **`GetCameraData()` / `SetCameraData(data, animation)`** = 스냅샷·복원 (XML L63141/63154~63166). **SDK 정공법**
+- 회전 유지 전용 `FreezeRotation`·`PinRotation` 등은 **존재하지 않음** 확인
+
+**변경 사항**:
+- [Form1.cs](../../A2Z/Form1.cs): `_mfgDrawingCameraSnapshot` 필드 추가 (`VIZCore3D.NET.Data.CameraData`)
+- [Form1.MfgDrawing.cs `ExecuteMfgDrawing`](../../A2Z/Form1.MfgDrawing.cs): Z 최장축 90° 회전 직후 `_mfgDrawingCameraSnapshot = vizcore3d.View.GetCameraData()` 저장. non-Z 케이스는 null로 리셋(오염 방지)
+- [Form1.DrawingSheets.cs `LvDrawingSheet_SelectedIndexChanged`](../../A2Z/Form1.DrawingSheets.cs): 말미 `CollectBOMInfo(false)` 직후에 가공도(-3) + 스냅샷 존재 시 `vizcore3d.View.SetCameraData(_mfgDrawingCameraSnapshot, false)` 복원. `animation=false`로 즉시 적용. try/catch로 예외 보호, `DiagLog T-036 카메라 스냅샷 복원` 기록
+- docs: `mfg-drawing.md` / `lv-sheet-selected.md` 변경 이력 각 1건
+- MSBuild Debug 통과
+
+**영향 범위**: Z 최장축 가공도 시트 선택 시 카메라 상태 보존만. 다른 시트(일반·설치도)·다른 축 케이스는 스냅샷 null로 영향 없음
+
+---
+
+## 2026-04-23 — T-036 재수정: Z90 FitToView 제거 (직전 커밋 부분 되돌림)
+
+**유형**: fix
+**커밋**: `e9547a1`
 **관련 TASK**: T-036
 **배경**: 직전 커밋(`e08cb5c`)에서 Z 최장축 90° 회전 직후 `FitToView()` 추가. 사용자 DiagLog 공유:
 ```
