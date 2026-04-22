@@ -467,10 +467,17 @@ namespace A2Z
                 if (!_autoProcessOsnapSuccess)
                     summary += "\n\n* Osnap 수집 실패";
 
-                MessageBox.Show(summary, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // T-033: 순서 재배치 — 시트 생성 먼저, 그 뒤 오버레이 해제, 마지막 MessageBox.
+                // 기존 순서(MessageBox → 시트 → finally 해제)는 "팝업 뜰 때 오버레이 잔존 + 팝업 닫힌 후 오버레이 2초 더"라는 사용자 체감 문제를 유발.
 
-                // 4. 도면 시트 생성 (내부에서 Sheet 1 BOM 자동 수집 — T-025)
+                // 3. 도면 시트 생성 (오버레이 유지, 내부에서 Sheet 1 BOM 자동 수집 — T-025)
                 GenerateDrawingSheets();
+
+                // 4. 오버레이 해제 (MessageBox 전에)
+                HideBusyOverlay();
+
+                // 5. 요약 MessageBox (오버레이 없이)
+                MessageBox.Show(summary, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 DiagLog($"CompleteMainDimensionPostClash EXIT OK " +
                     $"chain={chainDimensionList.Count} osnap={osnapPointsWithNames.Count} " +

@@ -6,10 +6,36 @@
 
 ---
 
+## 2026-04-22 — T-033/T-034/T-035/T-036 UX 후속 개선 4건
+
+**유형**: feat + fix
+**커밋**: `pending`
+**관련 TASK**: T-033, T-034, T-035, T-036
+**사용자 피드백 반영**:
+- T-033 "자동 처리 완료 팝업 후에도 치수 계산 중 창이 2초 더 떠있음"
+- T-034 "ISO/X/Y/Z 글로벌 버튼에서도 은선 처리되는 거 같아 잘 보이게"
+- T-035 "글로벌 뷰 버튼 누르면 특정 부재가 빨간색으로 되어있을 때가 있어서 선택 안 되게"
+- T-036 "가공도 눌러도 가장 긴 부분이 가로로 배치되고 fit하게 안 나오는 경우 / 선택 안 되게"
+
+**변경 사항**:
+- **T-033** [Form1.BOM.cs `CompleteMainDimensionPostClash`](../../A2Z/Form1.BOM.cs): 순서 재배치
+  - 기존: `Osnap → 치수 → MessageBox → GenerateDrawingSheets → finally HideBusyOverlay`
+  - 신: `Osnap → 치수 → GenerateDrawingSheets → HideBusyOverlay → MessageBox`
+  - 팝업 뜰 때 오버레이 없음, 팝업 닫힌 후 추가 처리 없음. finally HideBusyOverlay는 예외 안전망 유지 (중복 호출 OK)
+- **T-034** [Form1.GlobalViews.cs](../../A2Z/Form1.GlobalViews.cs): L100 `ApplySelectedNodesView` + L150 `ApplyFullModelView` 의 `SetRenderMode(DASH_LINE)` → `SetRenderMode(SMOOTH)` 실선 모드로 교체. `ApplyDrawingSheetView` 쪽은 추가 조사 필요로 미변경
+- **T-035** [Form1.GlobalViews.cs](../../A2Z/Form1.GlobalViews.cs): `ApplyFullModelView`·`ApplySelectedNodesView` 시작부에 `Object3D.Select(Object3dSelectionModes.DESELECT_ALL)` 추가. 글로벌 뷰 전환 시 T-022로 생긴 빨간 하이라이트 해제. `ApplyDrawingSheetView`는 시트 선택 맥락이라 T-022 유지
+- **T-036** [Form1.MfgDrawing.cs `ExecuteMfgDrawing`](../../A2Z/Form1.MfgDrawing.cs): 진입부에 `DESELECT_ALL` 추가. 말미 `DiagLog T-036 MfgDrawing bom=N sizeXYZ=... longestAxis=X/Y/Z isPadOrPlate=bool viewDir=...` 추가 — 사용자 재현 시 "최장축 가로 배치 안 되는 경우" 분석용. 회전 로직 자체는 재현 데이터 확보 후 수정 예정
+- docs 갱신: `main-dimension.md` T-033 변경 이력 / `global-iso.md` T-034·T-035 상태 변화·이력 / `mfg-drawing.md` T-036 변경 이력
+- MSBuild Debug 통과
+
+**영향 범위**: UX 후속 튜닝 4건 묶음. 치수 추출 플로우 타이밍, 글로벌 뷰 시각 스타일, 선택상태 일관성, 가공도 진단 로그
+
+---
+
 ## 2026-04-22 — T-032 치수 계산 성능 최적화 (Osnap 맵 재사용)
 
 **유형**: perf
-**커밋**: `pending`
+**커밋**: `6113a16`
 **관련 TASK**: T-032
 **배경**: 사용자 피드백 "치수 계산 중 창이 오래 떠있음". 원인은 `CollectAllOsnap`과 `ComputeViewDimensionsForMembers`가 각 부재의 `GetOsnapPoint`를 **이중 호출**하던 것 (데이터 구조 차이로 재사용 안 됨)
 **선택한 방식**: 옵션 A — CollectAllOsnap이 수집 중 부재별 맵도 같이 구축, ComputeViewDimensionsForMembers가 재사용
@@ -30,7 +56,7 @@
 ## 2026-04-22 — T-030 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `a01cddb`
 **관련 TASK**: T-030
 **배경**: T-029로 치수추출 버튼의 3D 뷰 치수 렌더링을 제거했지만, 시트 선택 자동 치수는 여전히 렌더링됨. 사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음"
 **결정**: (a) 채택 — 일반 시트 분기에서도 같은 정책 적용
@@ -49,7 +75,7 @@
 ## 2026-04-22 — T-031 가공도 시트 선택 시 은선 처리 제거 (SMOOTH 실선)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `2812b80`
 **관련 TASK**: T-031
 **배경**: 사용자 피드백 "가공도 눌렀을 때 은선 처리 안되게 하고 싶어"
 **변경 사항**:

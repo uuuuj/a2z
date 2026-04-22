@@ -8,7 +8,61 @@
 
 ## TODO
 
+### T-036 — 가공도 시트: 부재 선택상태 해제 + 최장축 가로 배치 진단
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (선택 해제 + DiagLog 추가 완료, 최장축 문제는 재현 로그 대기)
+- **관련**: — (사용자 피드백)
+- **배경 1 (선택 해제)**: 가공도 시트 선택 시 이전에 시트/BOM 선택으로 빨간 하이라이트된 부재가 잔존
+- **배경 2 (최장축 가로)**: 가공도 선택 시 "모델의 가장 긴 부분이 가로 + FitToView"가 기대 동작인데 **일부 부재에서 안 됨**. 코드상 [L532 Z 최장축 90° 회전](../../A2Z/Form1.MfgDrawing.cs) + L215 180° 회전이 합쳐져 270° = Z가 다시 세로로 뒤집히는 케이스 의심
+- **세부**:
+  - [ ] `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가 (선택 해제)
+  - [ ] 회전 진단 `DiagLog T-036 MfgDrawing: longestAxis=? use180=? useMinus=?` 추가
+  - [ ] 사용자 재현 케이스 수집 (어떤 부재에서 가로 배치 안 되는지)
+  - [ ] 180°+90° 조합 조건 확인 후 회전 순서 재조정
+  - [ ] docs/features/mfg-drawing/mfg-drawing.md 반영
+- **영향 파일**: A2Z/Form1.MfgDrawing.cs, docs/features/mfg-drawing/mfg-drawing.md
 
+### T-035 — 글로벌 ISO/X/Y/Z 뷰 버튼 클릭 시 부재 선택상태 해제
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 피드백)
+- **배경**: T-022로 시트/BOM 행 선택 시 빨간 하이라이트 적용. 글로벌 뷰 버튼 누르면 이 상태 잔존. 글로벌 뷰는 "전체 관찰" 모드이므로 선택 없는 상태 기대
+- **세부**:
+  - [x] `ApplyFullModelView`·`ApplySelectedNodesView` 시작부에 `Object3D.Select(DESELECT_ALL)` 추가
+  - [x] `ApplyDrawingSheetView`는 T-022 기준부재 하이라이트 유지 (건드리지 않음)
+  - [x] docs/features/global-views/global-iso.md 상태 변화·이력 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인
+- **영향 파일**: A2Z/Form1.GlobalViews.cs
+
+### T-034 — 글로벌 ISO/X/Y/Z 뷰 버튼: 은선(DASH_LINE) → 실선(SMOOTH)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백 "글로벌 뷰에서도 은선 처리되는 거 같아 잘 보이게")
+- **해당 위치**: [Form1.GlobalViews.cs L100](../../A2Z/Form1.GlobalViews.cs) `ApplySelectedNodesView` + L150 `ApplyFullModelView` 두 곳의 `SetRenderMode(DASH_LINE)`
+- **세부**:
+  - [x] 두 호출 `RenderModes.SMOOTH`로 교체
+  - [x] docs/features/global-views/global-iso.md 상태 변화·이력 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] `ApplyDrawingSheetView` 쪽 DASH_LINE 호출(Form1.DrawingSheets.cs L696/L729/L1433) 필요 여부 — 시트 선택 후 글로벌 뷰 전환 경로라 추가 조사 필요 (현재 후속)
+  - [ ] 사용자 실기 확인
+- **영향 파일**: A2Z/Form1.GlobalViews.cs
+
+### T-033 — 오버레이 해제 타이밍 (MessageBox 전에 해제)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백 "자동 처리 완료 팝업 후에도 치수 계산 중 창이 2초 더 떠있음")
+- **배경**: 현재 순서 `Osnap → 치수 → 요약 MessageBox → GenerateDrawingSheets → finally HideBusyOverlay` → 팝업 뜰 때 오버레이 잔존, 팝업 닫힌 후 시트 생성까지 오버레이 지속
+- **세부**:
+  - [x] 순서 재배치: `Osnap → 치수 → GenerateDrawingSheets → HideBusyOverlay → MessageBox`
+  - [x] finally의 HideBusyOverlay는 예외 안전망으로 유지 (중복 호출 OK)
+  - [x] docs/features/bom/main-dimension.md 변경 이력 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (팝업 뜰 때 오버레이 없는 상태인지)
+- **영향 파일**: A2Z/Form1.BOM.cs (CompleteMainDimensionPostClash)
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15

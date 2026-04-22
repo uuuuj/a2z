@@ -56,6 +56,9 @@ namespace A2Z
 
             try
             {
+                // T-036: 가공도 진입 시 이전 선택상태(빨간색) 해제
+                vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+
                 // 1. 기존 치수/보조선/풍선 모두 제거
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
@@ -534,6 +537,11 @@ namespace A2Z
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                 }
+
+                // T-036: 최장축 가로 배치·FitToView 진단 로그 (사용자 재현 시 분석용)
+                DiagLog($"T-036 MfgDrawing bom={bom.Index} " +
+                    $"sizeXYZ=({sizeX:F0},{sizeY:F0},{sizeZ:F0}) longestAxis={longestAxis} " +
+                    $"isPadOrPlate={isPadOrPlate} viewDir={viewDirection}");
             }
             catch (Exception ex)
             {

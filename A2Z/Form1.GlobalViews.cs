@@ -78,6 +78,9 @@ namespace A2Z
         /// </summary>
         private void ApplySelectedNodesView(string viewDirection)
         {
+            // T-035: 글로벌 뷰 전환 시 이전 Object3D.Select 선택상태(빨간색) 해제
+            vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+
             vizcore3d.BeginUpdate();
 
             // X-Ray 모드 유지 (해당 부재만 보이도록)
@@ -97,7 +100,8 @@ namespace A2Z
             vizcore3d.Review.Note.Clear();
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
-            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+            // T-034: DASH_LINE → SMOOTH (부재가 잘 보이도록 실선 모드)
+            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
 
             // 카메라 방향 설정
             switch (viewDirection)
@@ -135,6 +139,9 @@ namespace A2Z
         /// </summary>
         private void ApplyFullModelView(string viewDirection)
         {
+            // T-035: 글로벌 뷰 전환 시 이전 Object3D.Select 선택상태(빨간색) 해제
+            vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+
             // X-Ray 모드 해제 (전체 모델 표시)
             if (vizcore3d.View.XRay.Enable)
             {
@@ -147,7 +154,8 @@ namespace A2Z
             vizcore3d.Review.Note.Clear();
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
-            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+            // T-034: DASH_LINE → SMOOTH (부재가 잘 보이도록 실선 모드)
+            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
 
             // 카메라 방향 설정
             switch (viewDirection)

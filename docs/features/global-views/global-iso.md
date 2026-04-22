@@ -4,7 +4,7 @@ feature_name: 글로벌 ISO 뷰
 category: GlobalViews
 trigger_type: User Action
 owner_module: Form1.GlobalViews.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-22 (T-034 실선 모드 + T-035 선택 해제)
 code_reference: /docs/code-reference/form1-global-views.md#btnGlobalISO_Click
 ---
 
@@ -69,7 +69,8 @@ flowchart TD
 | 대상 | Before | After |
 |---|---|---|
 | 카메라 | 이전 | `ISO_PLUS` |
-| RenderMode | 이전 | `DASH_LINE` |
+| RenderMode | 이전 | **`SMOOTH`** (T-034, 2026-04-22 이전에는 `DASH_LINE`) |
+| **Object3D 선택상태** | 이전 빨간 하이라이트 | **DESELECT_ALL** (T-035) — 글로벌 뷰는 전체 관찰 모드라 이전 시트/BOM 선택 잔존 제거 |
 | `Review.Note` | 이전 | ISO 풍선 |
 | `xraySelectedNodeIndices` | 이전 | 경로별 상이 (FullModel는 Clear) |
 | `XRay.Enable` | 이전 | Selected경로만 true, FullModel경로는 false |
@@ -85,3 +86,5 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-22 | T-034: `ApplyFullModelView`·`ApplySelectedNodesView`의 `SetRenderMode(DASH_LINE)` → `SMOOTH` 실선 모드로 교체. 부재가 은선 처리 없이 잘 보이도록. `ApplyDrawingSheetView`(시트 선택 경로)는 그대로 | Claude |
+| 2026-04-22 | T-035: 두 경로 시작에 `Object3D.Select(DESELECT_ALL)` 추가. 글로벌 뷰 버튼 클릭 시 이전 시트/BOM 선택으로 남은 빨간 하이라이트 제거 | Claude |

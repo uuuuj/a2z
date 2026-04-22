@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-032 Osnap 맵 재사용으로 치수 계산 성능 개선)
+last_updated: 2026-04-22 (T-033 오버레이 해제 타이밍 조정)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -160,3 +160,4 @@ flowchart TD
 | 2026-04-22 | **T-028**: 4경로(치수추출·글로벌 X/Y/Z·2D 출력·시트 선택 자동) 치수 엔진 통합. 2D 출력 엔진(`nodeOsnapMap` + `FilterOsnapForDimAxis` + `AddChainDimensionByAxis(viewDirection)`)을 `ComputeViewDimensionsForMembers` 공용 헬퍼로 추출. 본 핸들러는 단계 13에서 visible 부재를 이 헬퍼에 넘겨 3뷰 × 2축 = 6조합 치수를 한 번에 생성(중복 제거 + `ViewDirection` 콤마 누적). T-027 `FilterOsnapByViewDimensionUsage` 제거. `ShowAllDimensions` 내부 분기 ①②③ 제거되어 표시 전용으로 단순화. 단계표 12·13·14 재번호 | Claude |
 | 2026-04-22 | **T-029**: 치수추출 버튼 완료 직후 `ShowAllDimensions()` 호출 **제거**. 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 이전 렌더 잔존 정리. 3D 뷰는 "치수선 없는 깨끗한 상태"로 종료되고, 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 실제 치수선이 그려짐. 단계 14.5 추가, 상태 변화에 `Review.Measure` 행 갱신 | Claude |
 | 2026-04-22 | **T-032**: `CollectAllOsnap` 내부에 **부재별 Osnap 맵**(`_lastCollectedNodeOsnapMap`) 병행 구축. `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` 파라미터 추가해 치수추출 버튼 경로에서 `GetOsnapPoint` 중복 호출 제거. `Stopwatch`로 소요 시간 측정, `DiagLog T-032` 기록. 시트 선택 자동 경로(다른 부재 집합)는 null 전달해 내부 재구축 유지. 단계 12·13 재기술 | Claude |
+| 2026-04-22 | **T-033**: `CompleteMainDimensionPostClash` 후반 순서 재배치 — 기존 `MessageBox → GenerateDrawingSheets → finally HideBusyOverlay` → 신 `GenerateDrawingSheets → HideBusyOverlay → MessageBox`. 팝업 뜰 때 오버레이 잔존 + 팝업 닫힌 후 시트 생성 중 오버레이 2초 더 떠있던 UX 문제 해결. finally의 HideBusyOverlay는 예외 안전망으로 유지 | Claude |
