@@ -469,33 +469,114 @@ namespace A2Z
                     }
                 }
 
-                // 전체 요약 알림 (BOM + Osnap + 치수 + Clash 한 번에)
-                string clashResult = clashList.Count > 0
-                    ? $"Clash: {clashList.Count}개 검출 (검사 쌍: {testCount}개)"
-                    : $"Clash: 간섭 없음 (검사 쌍: {testCount}개)";
-
-                string summaryMessage = $"모델 로드 및 자동 처리 완료!\n\n" +
-                    $"BOM: {bomList.Count}개\n" +
-                    $"Osnap: {osnapPointsWithNames.Count}개\n" +
-                    $"치수: {chainDimensionList.Count}개\n" +
-                    clashResult;
-
-                if (!_autoProcessOsnapSuccess)
+                // T-023 v3: 연결성 판정 — bomList의 부재들이 Clash 인접 그래프 기준
+                // "한 덩어리(연결 성분 1개)"인가? 떨어진 부재가 하나라도 있으면 차단.
+                // 이 판정이 통과해야만 Osnap/치수/요약/시트 생성으로 이어진다.
+                int componentCount;
+                if (!IsSingleConnectedComponent(out componentCount))
                 {
-                    summaryMessage += "\n\n* Osnap 수집 실패";
+                    HideBusyOverlay();
+                    MessageBox.Show(
+                        "치수 추출은 모든 부재가 **하나의 덩어리로 연결**되어 있을 때만 가능합니다.\n\n" +
+                        $"현재: 서로 연결되지 않은 부재 그룹 {componentCount}개 발견 (Clash 인접 기준)\n\n" +
+                        "해결 방법:\n" +
+                        "- 떨어진 부재를 모델트리 체크박스로 숨기기\n" +
+                        "- 한 덩어리만 남기고 다시 치수 추출",
+                        "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    DiagLog($"btnMainDimension BLOCKED components={componentCount} (T-023 v3)");
+                    return;
                 }
 
-                MessageBox.Show(summaryMessage, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                // Clash 완료 후 도면 시트 자동 생성
-                // T-024: clashList가 비어도 GenerateDrawingSheets 호출 (간섭 없는 다중 부재·단일 부재 대비)
-                //        GenerateDrawingSheets 내부에 bomList.Count > 0 가드가 있어 안전
-                GenerateDrawingSheets();
+                // 연결성 통과 → Osnap 수집 → 치수 계산 → 요약 → 시트 생성
+                // 오버레이 해제는 CompleteMainDimensionPostClash의 finally에서 수행
+                CompleteMainDimensionPostClash(isSingleMember: false, clashTestCount: testCount);
             }
             catch (Exception ex)
             {
+                HideBusyOverlay();
                 MessageBox.Show($"간섭검사 결과 처리 중 오류:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// T-023 v3: Clash 인접 그래프 기준 연결 성분 수 계산.
+        /// bomList가 모두 하나의 연결 성분에 속하면 true, 떨어진 부재가 있으면 false.
+        /// componentCount out 파라미터로 발견된 연결 성분 수 반환.
+        /// </summary>
+        private bool IsSingleConnectedComponent(out int componentCount)
+        {
+            componentCount = 0;
+            if (bomList == null || bomList.Count == 0) return false;
+            if (bomList.Count == 1)
+            {
+                componentCount = 1;
+                return true;
+            }
+
+            // Part → Body 역매핑 (Clash는 Part 인덱스, bomList는 Body 인덱스)
+            Dictionary<int, List<int>> partToBodyIndices = new Dictionary<int, List<int>>();
+            foreach (var bom in bomList)
+            {
+                if (bodyToPartIndexMap.ContainsKey(bom.Index))
+                {
+                    int partIdx = bodyToPartIndexMap[bom.Index];
+                    if (!partToBodyIndices.ContainsKey(partIdx))
+                        partToBodyIndices[partIdx] = new List<int>();
+                    partToBodyIndices[partIdx].Add(bom.Index);
+                }
+            }
+
+            // Clash 인접 리스트 구축 (Body 기반, 양방향)
+            Dictionary<int, HashSet<int>> adjacency = new Dictionary<int, HashSet<int>>();
+            foreach (var clash in clashList)
+            {
+                List<int> bodies1 = partToBodyIndices.ContainsKey(clash.Index1) ? partToBodyIndices[clash.Index1] : new List<int>();
+                List<int> bodies2 = partToBodyIndices.ContainsKey(clash.Index2) ? partToBodyIndices[clash.Index2] : new List<int>();
+
+                foreach (int b1 in bodies1)
+                {
+                    foreach (int b2 in bodies2)
+                    {
+                        if (b1 == b2) continue;
+                        if (!adjacency.ContainsKey(b1)) adjacency[b1] = new HashSet<int>();
+                        if (!adjacency.ContainsKey(b2)) adjacency[b2] = new HashSet<int>();
+                        adjacency[b1].Add(b2);
+                        adjacency[b2].Add(b1);
+                    }
+                }
+            }
+
+            // BFS로 연결 성분 카운트 (≥ 2 발견 즉시 early exit)
+            HashSet<int> visited = new HashSet<int>();
+            foreach (var bom in bomList)
+            {
+                if (visited.Contains(bom.Index)) continue;
+
+                componentCount++;
+                if (componentCount > 1) return false;
+
+                Queue<int> queue = new Queue<int>();
+                queue.Enqueue(bom.Index);
+                visited.Add(bom.Index);
+
+                while (queue.Count > 0)
+                {
+                    int current = queue.Dequeue();
+                    if (adjacency.ContainsKey(current))
+                    {
+                        foreach (int neighbor in adjacency[current])
+                        {
+                            if (!visited.Contains(neighbor))
+                            {
+                                visited.Add(neighbor);
+                                queue.Enqueue(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return componentCount == 1;
         }
     }
 }

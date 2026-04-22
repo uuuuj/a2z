@@ -336,36 +336,11 @@ namespace A2Z
 
             // T-026: "치수추출 버튼은 항상 현재 visible 기준" — 이전 시트 선택으로 남은
             // xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며
-            // "이전 부재 1개" 결과가 반복되는 버그 방지. 특정 부재 치수는 시트/BOM 행 선택
-            // (LvDrawing*_SelectedIndexChanged) 경로에서 자동 수행되므로 UX 충돌 없음.
+            // "이전 부재 1개" 결과가 반복되는 버그 방지.
             xraySelectedNodeIndices.Clear();
 
-            // ============================================================
-            // T-023 (STRU 단위 가드) — **현재 비활성**, UDA 키 확정 시 활성화
-            //
-            // 의도: 치수 추출은 "하나의 STRU(구조 단위)" 범위에서만 의미 있음.
-            //       STRU는 모델트리의 특정 상위 노드에 UDA 키 값이 `STRU`인 것.
-            //
-            // 허용 조건:
-            //   (a) Object3D.Select 상태의 부재들이 모두 같은 1개의 STRU 하위
-            //   (b) 선택이 없으면 visible 부재들이 모두 같은 1개의 STRU 하위
-            //   → 둘 중 하나라도 충족이면 통과
-            //
-            // 활성화 방법:
-            //   1) 아래 STRU_UDA_KEY / STRU_UDA_VALUE 상수를 실제 값으로 교체
-            //   2) `/* */` 블록 주석 2곳 (헬퍼 2개 + 호출부) 제거
-            //
-            // 구현 메모:
-            //   - UDA 부모 탐색 패턴은 Form1.Clash.cs `CollectBOMInfo`에서 재사용
-            //   - `Object3dFilter.SELECTED`로 프로그래매틱 선택 상태도 포함
-            //   - 실패 시 MessageBox + DiagLog `BLOCKED visible=N selected=M`
-            // ============================================================
-            /*
-            if (!CheckSingleStruCondition()) return;
-            */
-
-            // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Osnap → 치수 → Clash 시작까지 약 5초)
-            ShowBusyOverlay("치수 추출 중...");
+            // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Clash → 이벤트에서 Osnap/치수/시트)
+            ShowBusyOverlay("BOM 수집 중...");
 
             try
             {
@@ -374,12 +349,54 @@ namespace A2Z
                 if (bomList.Count == 0)
                 {
                     MessageBox.Show("BOM 데이터를 수집할 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    HideBusyOverlay();
                     return;
                 }
 
-                // 1. Osnap 수집 (전체)
+                // 1. Clash 검사 먼저 수행 — 연결성 판정(T-023 v3)을 Clash 결과 기반으로 하려면
+                //    Osnap/치수보다 Clash가 선행되어야 함. 치수 생성은 판정 통과 후에만.
+                ShowBusyOverlay("간섭검사 실행 중...");
+                _autoProcessOsnapSuccess = false;
+                bool clashStarted = DetectClash();
+
+                if (!clashStarted)
+                {
+                    // T-024: 단일 부재(쌍 0개) 또는 SDK 예외 → Clash 이벤트 미발동.
+                    // 단일 부재는 "연결 성분 1개"로 간주하고 나머지 파이프라인 직접 수행.
+                    CompleteMainDimensionPostClash(isSingleMember: true, clashTestCount: 0);
+                }
+                // clashStarted == true → Clash_OnClashTestFinishedEvent가 이어서
+                //   clashList 수집 → 연결성 판정 → 통과 시 CompleteMainDimensionPostClash 호출
+                //   오버레이는 그 경로에서 해제됨
+
+                // [T-016 진단 로그] 진입 종료 (실제 파이프라인은 이벤트에서 이어짐)
+                DiagLog($"btnMainDimension EXIT OK " +
+                    $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
+                    $"osnap={osnapPointsWithNames?.Count ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                // [T-016 진단 로그] 예외 종료
+                DiagLog($"btnMainDimension EXIT FAIL " +
+                    $"{ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                HideBusyOverlay();
+            }
+        }
+
+        /// <summary>
+        /// Clash 판정 이후(정상 경로는 Clash_OnClashTestFinishedEvent에서, 단일 부재는 btnMainDimension_Click에서)
+        /// 공통적으로 수행할 Osnap 수집 → 체인 치수 계산 → 요약 MessageBox → 시트 생성.
+        /// 오버레이 해제는 finally에서 보장.
+        /// </summary>
+        private void CompleteMainDimensionPostClash(bool isSingleMember, int clashTestCount)
+        {
+            try
+            {
+                // 1. Osnap 수집
                 ShowBusyOverlay("Osnap 수집 중...");
                 bool osnapSuccess = CollectAllOsnap();
+                _autoProcessOsnapSuccess = osnapSuccess;
 
                 // 2. 치수 추출 (Osnap이 있을 때만)
                 if (osnapSuccess && osnapPointsWithNames.Count > 0)
@@ -404,7 +421,7 @@ namespace A2Z
                     int no = 1;
                     foreach (var dim in chainDimensionList)
                     {
-                        dim.No = no;  // 치수 데이터에 번호 저장
+                        dim.No = no;
                         ListViewItem lvi = new ListViewItem(no.ToString());
                         lvi.SubItems.Add(dim.Axis);
                         lvi.SubItems.Add(dim.ViewName);
@@ -416,48 +433,42 @@ namespace A2Z
                         no++;
                     }
 
-                    // 치수 자동 표시
                     ShowAllDimensions();
                 }
 
-                // 3. Clash 검사 (비동기 - 완료 이벤트에서 최종 알림)
-                ShowBusyOverlay("간섭검사 실행 중...");
-                _autoProcessOsnapSuccess = osnapSuccess;
-                bool clashStarted = DetectClash();
-                // 알림은 Clash_OnClashTestFinishedEvent에서 한 번만 표시
-                // Clash는 비동기라 여기서 오버레이를 바로 해제해도 UI는 반응함
+                // 3. 요약 MessageBox
+                string clashLine;
+                if (isSingleMember)
+                    clashLine = "Clash: 검사 대상 부재가 1개 이하 (간섭검사 건너뜀)";
+                else if (clashList.Count > 0)
+                    clashLine = $"Clash: {clashList.Count}개 검출 (검사 쌍: {clashTestCount}개)";
+                else
+                    clashLine = $"Clash: 간섭 없음 (검사 쌍: {clashTestCount}개)";
 
-                if (!clashStarted)
-                {
-                    // T-024: Clash 시작 실패(대상 쌍 0개·SDK 예외 등) → 이벤트 미발동
-                    // 시트 생성과 요약 알림을 직접 수행해야 단일 부재 케이스에서도 시트 목록이 갱신됨
-                    GenerateDrawingSheets();
+                string summary = $"모델 로드 및 자동 처리 완료!\n\n" +
+                    $"BOM: {bomList.Count}개\n" +
+                    $"Osnap: {osnapPointsWithNames.Count}개\n" +
+                    $"치수: {chainDimensionList.Count}개\n" +
+                    clashLine;
+                if (!_autoProcessOsnapSuccess)
+                    summary += "\n\n* Osnap 수집 실패";
 
-                    string summaryMessage = $"모델 로드 및 자동 처리 완료!\n\n" +
-                        $"BOM: {bomList.Count}개\n" +
-                        $"Osnap: {osnapPointsWithNames.Count}개\n" +
-                        $"치수: {chainDimensionList.Count}개\n" +
-                        $"Clash: 검사 대상 부재가 1개 이하 (간섭검사 건너뜀)";
-                    if (!_autoProcessOsnapSuccess)
-                        summaryMessage += "\n\n* Osnap 수집 실패";
-                    MessageBox.Show(summaryMessage, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                MessageBox.Show(summary, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // [T-016 진단 로그] 정상 종료
-                DiagLog($"btnMainDimension EXIT OK " +
-                    $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
-                    $"osnap={osnapPointsWithNames?.Count ?? 0}");
+                // 4. 도면 시트 생성 (내부에서 Sheet 1 BOM 자동 수집 — T-025)
+                GenerateDrawingSheets();
+
+                DiagLog($"CompleteMainDimensionPostClash EXIT OK " +
+                    $"chain={chainDimensionList.Count} osnap={osnapPointsWithNames.Count} " +
+                    $"clash={clashList.Count} sheets={drawingSheetList.Count} singleMember={isSingleMember}");
             }
             catch (Exception ex)
             {
-                // [T-016 진단 로그] 예외 종료
-                DiagLog($"btnMainDimension EXIT FAIL " +
-                    $"{ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DiagLog($"CompleteMainDimensionPostClash FAIL {ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show($"치수 추출 후속 처리 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                // T-018: 오버레이 해제 (정상·예외 모두)
                 HideBusyOverlay();
             }
         }
@@ -1540,119 +1551,5 @@ namespace A2Z
             }
         }
 
-        // ============================================================
-        // T-023 STRU 단위 가드 — **현재 비활성** (UDA 키 확정 후 활성화)
-        //
-        // 활성화 절차:
-        //   1) 아래 블록 주석 `/* */` 제거
-        //   2) STRU_UDA_KEY / STRU_UDA_VALUE 상수를 실제 UDA 키·값으로 교체
-        //   3) btnMainDimension_Click의 `CheckSingleStruCondition()` 호출 주석 해제
-        //
-        // 설계:
-        //   - `FindAncestorByUda(nodeIndex, key, value)` : 주어진 Body/Part에서
-        //     부모로 올라가며 UDA(key)==value인 조상 노드 인덱스를 반환 (없으면 -1)
-        //     → Form1.Clash.cs `CollectBOMInfo`의 부모 탐색 패턴 재사용
-        //   - `CheckSingleStruCondition()` :
-        //       (a) Object3D.Select 상태 부재들이 있으면 그들의 조상 STRU 집합 계산
-        //           → 집합 크기 1이면 통과, 2+면 차단, 0(STRU 조상 없음)이면 (b)로 폴백
-        //       (b) visible 부재들의 조상 STRU 집합 계산 → 크기 1이면 통과, 아니면 차단
-        //   - 실패 시 MessageBox + DiagLog `BLOCKED visibleStru=N selectedStru=M`
-        // ============================================================
-        /*
-        /// <summary>
-        /// 주어진 노드 인덱스에서 부모로 올라가며 UDA 키=값인 첫 조상의 인덱스를 반환.
-        /// 없으면 -1. 무한 루프 방지를 위해 maxDepth 제한.
-        /// </summary>
-        private int FindAncestorByUda(int startIndex, string udaKey, string udaValue, int maxDepth = 10)
-        {
-            int currentIdx = startIndex;
-            for (int depth = 0; depth < maxDepth; depth++)
-            {
-                if (currentIdx < 0) return -1;
-
-                try
-                {
-                    var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, udaKey);
-                    string valStr = (val != null) ? val.ToString().Trim() : "";
-                    if (string.Equals(valStr, udaValue, StringComparison.OrdinalIgnoreCase))
-                        return currentIdx;
-                }
-                catch { }
-
-                try
-                {
-                    var parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
-                    if (parentNode == null) return -1;
-                    if (parentNode.ParentIndex == currentIdx) return -1; // 루트 도달
-                    currentIdx = parentNode.ParentIndex;
-                }
-                catch { return -1; }
-            }
-            return -1;
-        }
-
-        /// <summary>
-        /// T-023 치수추출 사전조건: "하나의 STRU 단위"만 허용.
-        /// 선택 기반 → visible 기반 순서로 평가. 통과 시 true, 차단 시 MessageBox 후 false.
-        /// </summary>
-        private bool CheckSingleStruCondition()
-        {
-            // TODO: 담당자 확정 UDA 키·값으로 교체
-            const string STRU_UDA_KEY = "UNIT_TYPE";
-            const string STRU_UDA_VALUE = "STRU";
-
-            // (a) Object3D.Select 기반 평가
-            var selectedNodes = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.SELECTED);
-            HashSet<int> selectedStruSet = new HashSet<int>();
-            if (selectedNodes != null && selectedNodes.Count > 0)
-            {
-                foreach (var n in selectedNodes)
-                {
-                    int struIdx = FindAncestorByUda(n.Index, STRU_UDA_KEY, STRU_UDA_VALUE);
-                    if (struIdx >= 0) selectedStruSet.Add(struIdx);
-                }
-
-                if (selectedStruSet.Count == 1) return true;
-
-                if (selectedStruSet.Count > 1)
-                {
-                    MessageBox.Show(
-                        $"선택된 부재들이 서로 다른 {selectedStruSet.Count}개의 STRU에 속합니다.\n" +
-                        "같은 STRU 하위 부재만 선택한 뒤 다시 시도해주세요.",
-                        "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    DiagLog($"btnMainDimension BLOCKED selectedStru={selectedStruSet.Count}");
-                    return false;
-                }
-                // selectedStruSet.Count == 0 → 선택은 있으나 STRU 조상 없음 → visible 폴백
-            }
-
-            // (b) Visible 기반 평가
-            HashSet<int> visibleStruSet = new HashSet<int>();
-            var allBodies = vizcore3d.Object3D.GetPartialNode(false, false, true);
-            if (allBodies != null)
-            {
-                foreach (var body in allBodies)
-                {
-                    var real = vizcore3d.Object3D.FromIndex(body.Index);
-                    if (real == null || !real.Visible) continue;
-                    int struIdx = FindAncestorByUda(body.Index, STRU_UDA_KEY, STRU_UDA_VALUE);
-                    if (struIdx >= 0) visibleStruSet.Add(struIdx);
-                }
-            }
-
-            if (visibleStruSet.Count == 1) return true;
-
-            MessageBox.Show(
-                "치수 추출은 **하나의 STRU 단위**에서만 가능합니다.\n\n" +
-                $"현재: 표시된 STRU {visibleStruSet.Count}개, 선택된 STRU {selectedStruSet.Count}개\n\n" +
-                "해결 방법:\n" +
-                "- 한 STRU만 표시되도록 가시성 조정\n" +
-                "- 한 STRU 또는 그 하위 부재들만 선택\n" +
-                "- 도면 시트 목록 / BOM 테이블에서 해당 STRU 선택",
-                "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            DiagLog($"btnMainDimension BLOCKED visibleStru={visibleStruSet.Count} selectedStru={selectedStruSet.Count}");
-            return false;
-        }
-        */
     }
 }

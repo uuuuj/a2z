@@ -6,10 +6,38 @@
 
 ---
 
+## 2026-04-22 — T-023 v3: Clash 기반 연결성 판정 + 파이프라인 재배치
+
+**유형**: refactor + feat
+**커밋**: `pending`
+**관련 TASK**: T-023 (v3, 3차 재재설계)
+**배경**: 사용자 2차 지시(STRU 단위) 재교정 → "물리적 연결성(Clash 인접) 1덩어리" 기준 확정. 정확성 우선 (방식 A 채택)
+**변경 사항**:
+- **사전 정리**: 직전 `2a216b5`의 STRU 주석 블록 2개(btnMainDimension 호출부 + 파일 하단 헬퍼) 완전 제거
+- **파이프라인 재배치**:
+  - 기존: `btnMainDimension` 안에서 BOM → Osnap → 치수 → Clash(비동기) → 이벤트에서 시트 생성
+  - 신: `btnMainDimension` 안에서 BOM → Clash(비동기) → 즉시 반환 / Osnap·치수·요약·시트 전부 `Clash_OnClashTestFinishedEvent` → `CompleteMainDimensionPostClash`로 이동
+  - 치수 생성 시점이 Clash 결과 수신 후로 미뤄져 **판정 실패 시 치수가 아예 만들어지지 않음** (롤백 불필요)
+- **`CompleteMainDimensionPostClash(bool isSingleMember, int clashTestCount)`** 공용 메서드 신설 (Form1.BOM.cs)
+  - Osnap 수집 → `MergeCoordinates` → X/Y/Z 체인 → `lvDimension` → `ShowAllDimensions` → 요약 MessageBox → `GenerateDrawingSheets` → `HideBusyOverlay`(finally)
+- **`IsSingleConnectedComponent(out int componentCount)`** 헬퍼 신설 (Form1.Clash.cs)
+  - Part→Body 역매핑(`bodyToPartIndexMap`) 후 `clashList`로 양방향 인접 그래프 구축
+  - BFS로 연결 성분 수 계산, ≥2 발견 즉시 early exit (성능)
+  - `bomList.Count == 1`은 항상 통과 (단일 부재)
+- **`Clash_OnClashTestFinishedEvent`** 확장: clashList 수집 후 판정 → 실패면 MessageBox + `HideBusyOverlay` + return, 성공이면 `CompleteMainDimensionPostClash(false, testCount)` 호출. 기존 요약 MessageBox는 Post 메서드로 이동
+- **T-024 fallback 통합**: 단일 부재(clashStarted=false)는 Clash 이벤트 미발동이므로 `btnMainDimension`에서 직접 `CompleteMainDimensionPostClash(true, 0)` 호출 — 판정 스킵하고 동일 파이프라인 재사용
+- **차단 메시지**: "치수 추출은 모든 부재가 하나의 덩어리로 연결되어 있을 때만 가능합니다. 현재: 연결되지 않은 부재 그룹 N개 발견. 해결: 떨어진 부재를 숨기거나 한 덩어리만 선택"
+- docs 3종 전면 갱신 — `main-dimension.md` 흐름도 재작성 + 단계표 3섹션(btn/Clash 이벤트/Post) + 분기 C·D + E03/E04 / `clash-finished-event.md` 개요·단계 9·10·분기 B·E03·상태 변화 2열 / 사용자 매뉴얼 `치수 추출.md` 내부 흐름·분기·에러 ③
+- MSBuild Debug 통과
+
+**영향 범위**: 치수추출 핵심 흐름 재구성. 치수 생성 타이밍이 Clash 결과 수신 후로 변경. 단일 부재 / 떨어진 부재 / 연결된 다중 부재 세 케이스 모두 같은 Post 메서드를 타는 통합 구조
+
+---
+
 ## 2026-04-22 — T-025 BOM 테이블 자동 출력 + T-026 xray 잔존 버그 fix
 
 **유형**: feat + fix
-**커밋**: `pending`
+**커밋**: `7614417`
 **관련 TASK**: T-025, T-026
 **변경 사항**:
 - **T-025 (feat)**: `GenerateDrawingSheets()` 끝에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가

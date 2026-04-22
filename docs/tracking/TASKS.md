@@ -101,6 +101,32 @@
   - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
 - **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
 
+### T-023 — 치수추출 사전조건 (연결성 1덩어리 판정)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22 (재재설계 3번째)
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **최종 의도** (2026-04-22, 3차 확정):
+  - "부재 개수" / "STRU 단위" 모두 기각
+  - 판정 기준: **Clash 인접 그래프 기준 연결 성분 == 1**
+  - 떨어진 부재가 하나라도 있으면(간섭 없이 분리된 그룹이 2개 이상) 차단
+  - 사용자 근거: "3D View에서 모두 하나의 부재로 연결되어 있지 않고, 멀리 떨어져 있는 부재가 하나라도 있으면 치수추출 하면 안 될 것 같다"
+- **구현** (커밋 예정):
+  - [x] `Form1.BOM.cs`에서 STRU 주석 블록 2개 전부 제거 (호출부 + 하단 헬퍼)
+  - [x] `btnMainDimension_Click` 리팩토링: BOM 수집 + Clash 시작까지만 수행 → 반환. Osnap/치수/요약/시트는 Clash 이벤트로 이동. finally 제거, 오류·early return 시 명시적 `HideBusyOverlay`
+  - [x] `CompleteMainDimensionPostClash(bool isSingleMember, int clashTestCount)` 신설 ([Form1.BOM.cs](../../A2Z/Form1.BOM.cs)) — Osnap 수집 → 체인 치수 → 요약 MessageBox → `GenerateDrawingSheets` 묶음. finally에서 오버레이 해제
+  - [x] `Form1.Clash.cs` `Clash_OnClashTestFinishedEvent` 확장 — clashList 수집 후 `IsSingleConnectedComponent(out n)` 판정, n≠1이면 차단 MessageBox + return, n==1이면 `CompleteMainDimensionPostClash(false, testCount)` 호출
+  - [x] `IsSingleConnectedComponent(out int)` 헬퍼 신설 — Part→Body 역매핑으로 양방향 Clash 인접 그래프 구축 후 BFS, ≥2 발견 시 early exit
+  - [x] 단일 부재(clashStarted=false) fallback은 Post 메서드 직접 호출(isSingleMember=true)로 통합 → T-024 로직 흡수
+  - [x] docs 3종 전면 갱신: `main-dimension.md` 흐름도·단계표(3섹션)·분기 C·D·E03/E04 / `clash-finished-event.md` 단계 9·10·분기 B·E03·상태 변화 / 사용자 매뉴얼 `치수 추출.md` 내부 흐름·분기·에러 ③
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 — 떨어진 부재 2덩어리 → 차단 / 한 덩어리 → 정상 / 단일 부재 → 정상
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 약 -90줄, +CompleteMainDimensionPostClash 약 90줄, STRU 주석 -120줄)
+  - `A2Z/Form1.Clash.cs` (Clash_OnClashTestFinishedEvent +30줄, IsSingleConnectedComponent +70줄)
+  - `docs/features/bom/main-dimension.md`, `docs/features/clash/clash-finished-event.md`, `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md`
+- **연관**: T-018 (오버레이), T-024 (단일 부재 fallback), T-025 (Sheet 1 BOM 자동), T-026 (xray 클리어)
+
 ### T-026 — 치수추출 진입 시 이전 xray 선택 잔존 클리어
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22
@@ -225,35 +251,6 @@
   - 근본 설계 전환: Sheet2+ 렌더링에서 bgObj+obj 분리 구조 자체를 폐기하고 **단일 객체 + 컬러/라인 스타일 분기**로 처리
 - **진단 로그**: `OPT-B` / `OPT-B2` 라벨로 3D/화면/이동량 실측 출력 중 (Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~)
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
-
-### T-023 — 치수추출 사전조건 강화 (STRU 단위만 허용)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **차단일**: 2026-04-22 (UDA 키·값 확정 대기)
-- **상태**: BLOCKED (로직은 완성, 실제 UDA 키 확정 시 주석 해제로 활성화)
-- **관련**: — (사용자 직접 지시)
-- **최종 의도** (2026-04-22 사용자 교정):
-  - 단위는 **부재 개수**가 아니라 **"STRU" 단위** (모델트리 특정 상위 노드에 UDA 키=`STRU` 값이 붙은 단위)
-  - 허용 조건:
-    1. Object3D.Select 상태 부재들의 조상 STRU 집합 크기가 정확히 1
-    2. 선택이 없으면 visible 부재들의 조상 STRU 집합 크기가 정확히 1
-  - 여러 STRU 동시 표시 / 서로 다른 STRU 하위 부재 혼합 선택 → 차단
-- **1차 구현(제거됨)**: "visible==1 or selected==1" — 의도와 달라 원복 (커밋 `1620289` → 본 변경으로 코드 제거)
-- **현 상태**: `Form1.BOM.cs` 하단에 `FindAncestorByUda` + `CheckSingleStruCondition` 헬퍼 2개를 **완성 형태 + 블록 주석**으로 보존. `btnMainDimension_Click`의 호출부도 주석. 컴파일 영향 없음
-- **활성화 절차** (UDA 확정 시):
-  1. Form1.BOM.cs 내 `STRU_UDA_KEY` / `STRU_UDA_VALUE` 상수를 실제 값으로 교체
-  2. 헬퍼 블록 `/* */` 주석 제거
-  3. `btnMainDimension_Click`의 `CheckSingleStruCondition()` 호출 주석 제거
-  4. docs 3종(main-dimension.md E04 / 사용자 매뉴얼 예고 / TASKS BLOCKED → DONE) 갱신
-- **차단 해제 필요 정보**:
-  - [ ] UDA 키 이름 (예: `UNIT_TYPE`, `SPREF` 등 — 담당자가 확정)
-  - [ ] UDA 값 확정 (현재 `STRU` 가정, 변경 가능)
-  - [ ] 실기 테스트 샘플 모델 (여러 STRU · 단일 STRU · STRU 없는 부재 각 케이스)
-- **영향 파일** (현재 상태):
-  - `A2Z/Form1.BOM.cs` — L346~L360 호출부 주석, L1521~L1640 헬퍼 블록 주석
-  - `docs/features/bom/main-dimension.md` — 단계 1.5 / 분기 D / E04 "비활성" 표기
-  - `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` — 향후 예고 문구
-- **연관**: T-022 (Object3D.Select 상태 API 제공)
 
 ### T-016 — 치수 추출 3회 이상 시 반복 누적 버그
 - **생성일**: 2026-04-20
