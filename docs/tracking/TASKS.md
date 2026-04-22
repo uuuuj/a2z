@@ -8,6 +8,62 @@
 
 ## TODO
 
+### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시)
+- **배경**: 3D View에 부재 **1개만** 띄운 상태에서 치수 추출 → 치수 자체는 산출되는데 `lvDrawingSheet`(도면 시트 목록)에 새 시트가 생성·갱신되지 않음
+- **가설**:
+  - `GenerateDrawingSheets`는 `Clash_OnClashTestFinishedEvent`에서 자동 호출되고, 단일 부재는 Clash 대상 쌍이 없음 → 시트 생성 트리거 미발동 가능성
+  - 혹은 Sheet 1(전체)만 생성되고 가공도/설치도가 안 나와 사용자 체감상 "반영 안 됨"
+  - `DetectClash`가 부재 쌍이 0이면 return false → Clash 이벤트 자체가 발생하지 않아 `GenerateDrawingSheets`가 호출되지 않을 수 있음
+- **세부**:
+  - [ ] 단일 부재 로드 → 치수추출 시나리오 재현 + Visual Studio 출력창 확인 (clashCount, drawingSheetList.Count)
+  - [ ] `btnMainDimension_Click` → `DetectClash` → `Clash_OnClashTestFinishedEvent` → `GenerateDrawingSheets` 체인 추적
+  - [ ] 단일 부재도 Sheet 1(전체) + 가공도 1개는 항상 생성되도록 보장 — Clash 의존성 분리 검토
+  - [ ] 필요 시 `btnMainDimension_Click` 또는 별도 경로에서 "부재 1개 이상이면 시트 생성" 직접 호출
+  - [ ] docs/features/drawing-sheets/generate-sheets.md 갱신 (단일 부재 케이스 분기 명시)
+- **영향 파일**: A2Z/Form1.BOM.cs (btnMainDimension_Click), A2Z/Form1.Clash.cs (DetectClash, Clash_OnClashTestFinishedEvent), A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets)
+- **연관**: T-023 (사전조건 강화 후 단일 부재 케이스가 정식 경로가 될 가능성)
+
+### T-023 — 치수추출 사전조건 강화 (단일 모델 또는 선택상태만 허용)
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시)
+- **배경**: 현재 `btnMainDimension_Click`은 모델이 로드되어 있으면 무조건 실행 → 여러 부재가 보이는 상태에서도 치수 추출 시도 → 결과가 의미 없거나 혼란스러울 수 있음. 사용자 요구: "치수추출의 기준은 3D View에 모델 하나만 띄워져 있을 때"
+- **허용 조건 (후보)**:
+  - (A) 3D View에 visible 부재가 **정확히 1개**일 때 (기본 안전망)
+  - (B) T-022 구현 후, "선택상태(빨간색)" 부재가 1개일 때 해당 부재만으로 추출 (대안)
+  - (A)를 기본으로 하고 (B)는 선택 기능 확정 시 추가
+- **세부**:
+  - [ ] `btnMainDimension_Click` 시작 지점에 visible 부재 카운트 계산 로직 추가 (`bomList` 중 `Object3D.FromIndex(idx).Visible == true` 개수)
+  - [ ] visible != 1이면 MessageBox "치수 추출은 단일 부재만 표시된 상태에서 가능합니다" 안내 후 return
+  - [ ] T-022 통과 시 "selected == 1"을 대안 허용 조건으로 병행
+  - [ ] docs/features/bom/main-dimension.md 사전조건 섹션·예외 섹션 갱신
+  - [ ] docs/사용자-매뉴얼/1.기본-작업/치수 추출.md 선결조건 명시
+- **영향 파일**: A2Z/Form1.BOM.cs (btnMainDimension_Click), docs/features/bom/main-dimension.md, docs/사용자-매뉴얼/1.기본-작업/치수%20추출.md
+- **연관**: T-022
+
+### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시)
+- **배경**: 현재 `lvDrawingSheet`·`lvDrawingBOMInfo` 선택 시 `FlyToObject3d`로 카메라만 이동. 3D View의 "선택상태(빨간색 하이라이트)"는 설정되지 않음. 사용자는 모델트리 이름 클릭·3D View 부재 클릭과 동일한 시각 피드백을 원함
+- **"선택상태" 정의** (사용자 설명):
+  - 3D View에서 부재 클릭 → 빨간색 변환
+  - 모델트리 이름 클릭(체크박스 아님) → 3D View에서 빨간색
+  - 체크박스는 visibility ON/OFF (별개 개념)
+- **세부**:
+  - [ ] SDK에 "프로그래밍 방식 선택상태 설정" API 존재 여부 확인 (`sdk-verifier` 호출 — `Object3D.Select*`, `Selection.Set`, `Highlight` 등 후보 전수)
+  - [ ] 확인 결과에 따라 `LvDrawingSheet_SelectedIndexChanged`에 기준부재(BaseMemberIndex) 선택상태 동기화 추가
+  - [ ] `LvDrawingBOMInfo_SelectedIndexChanged`에 해당 행 부재 선택상태 동기화 추가
+  - [ ] 시트 변경·초기화·Open 시 선택상태 해제 보장
+  - [ ] 빌드 + 실기 테스트 (빨간 하이라이트 확인)
+  - [ ] docs/features/drawing-sheets/lv-sheet-selected.md, lv-bom-info-selected.md 갱신
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/*
+- **선결 조건**: 없음 (SDK API 조회가 우선)
+- **연관**: T-023 (선택상태 기반 치수추출)
+
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21
 - **상태**: TODO
@@ -87,18 +143,6 @@
   - `A2Z/Form1.Dimensions.cs` (btnDimensionShowSelected_Click L17, ShowAllDimensions)
   - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 내부 AddChainDimensionByAxis 영향 가능)
 
-### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정
-- **생성일**: 2026-04-15
-- **상태**: TODO
-- **관련**: FB-003
-- **세부**:
-  - [ ] 현재 `GenerateSheetDrawing2D`의 2x3 그리드(ISO+3축 / 라벨) 셀 크기 상수화
-  - [ ] BOM 테이블(table1) · 도면정보 테이블(tableInfo)의 폭·높이 고정값 정의
-  - [ ] A4 297x210 기준 영역 레이아웃 스펙 명시
-  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 동기화
-- **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D L957+)
-
 ### T-012 — 엑셀 템플릿 하이브리드 실험 (PoC)
 - **생성일**: 2026-04-20
 - **상태**: TODO
@@ -112,72 +156,16 @@
   - [ ] 결과 리포트: `docs/technical-notes/excel-template-experiment.md` 신설
 - **영향 파일**: 실험용 별도 메서드만 (기존 GenerateSheetDrawing2D 변경 없음)
 
-### T-013 — Sheet2+ ISO 뷰 배경·선택 부재 위치 정합
-- **생성일**: 2026-04-20
-- **착수일**: 2026-04-21
-- **상태**: IN_PROGRESS (옵션 A 시도 중, 사용자 테스트 대기)
-- **관련**: — (사용자 피드백)
-- **배경**: Sheet2 이상에서 ISO 뷰는 "전체 모델 점선(bgObj) + 선택 부재 실선(obj)"으로 그려지는데, 선택 부재가 **원본 위치가 아니라 전체 모델의 중심**으로 이동됨
-- **원인 분석**: 두 객체 모두 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`로 **캔버스 원점에** 생성됨 → `GetObjectCenter`가 둘 다 (0,0) 근처 반환 → `(objCX0 - bgCX0) ≈ 0` → 위치 보정 공식이 무력화되어 obj가 bg 중심으로 이동
-- **세부**:
-  - [x] Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~L1430 `isIsoFullView` 분기 분석
-  - [x] 원인 가설 확정 (원점 생성 + GetObjectCenter 한계)
-  - [x] 옵션 A 시도: objId의 `RescaleObject`/`MoveObject`/보정 계산 모두 제거 → SDK 자동 처리에 맡김
-  - [x] **옵션 A 실패 확인** (사용자 실측 2026-04-21 11:00): `bgScale=0.0301 objScale=0.0050 bgCenter=(49.50,157.50) objCenter=(0.00,0.00)` — objId가 원점에 매우 작게 남아 보이지 않음. SDK 자동 매핑 없음
-  - [x] **옵션 B 구현**: `vizcore3d.View.WorldToScreen(Vertex3D, true)` 사용
-    - 전체 BOM 3D BBox 중심, 시트 부재 3D BBox 중심 계산 (`bomList.MinX/MaxX/MinY/MaxY/MinZ/MaxZ`)
-    - 각각 WorldToScreen으로 캔버스 좌표 변환
-    - objId를 bgFinalScale과 동기 스케일링
-    - objId 중심을 `bgCanvasCenter + (objScreen - bgScreen)`로 이동
-    - DiagLog에 `OPT-B` 라벨로 3D/화면/이동량 실측 출력
-  - [ ] 사용자 빌드+테스트 (Sheet2 이상 시트 ISO 뷰, 선택 부재가 원본 위치에 실선으로 겹치는지)
-  - [ ] 성공 시 generate-sheet-2d.md 본문 갱신 + DONE 이동
-  - [ ] 실패 시 WorldToScreen 단위(캔버스 vs 픽셀) 보정 필요
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
-
-### T-007 — 뷰 내부 모델 최대화 + 라벨·풍선 영역 확보
-- **생성일**: 2026-04-15
-- **상태**: BLOCKED (T-006 선행 권장)
-- **관련**: FB-004
-- **세부**:
-  - [ ] T-006 완료 후 각 뷰 셀의 "모델 배치 가능 영역"(라벨·풍선 제외) 좌표 계산
-  - [ ] `RenderSheetViewForDrawing`의 targetHeight(현재 40f) → 셀 최대 크기 동적 계산으로 변경
-  - [ ] 풍선 예약 영역(상단 또는 측면) 일정 크기 확보
-  - [ ] ISO/X/Y/Z 라벨 하단 위치 고정
-  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 갱신
-- **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing, CreateIsoBalloonNotes)
-- **참고**: FB-003·004는 같은 2D 도면 레이아웃. T-006 구조 확정 후 T-007 진행하면 수정 충돌 최소화
-
 ---
 
 ## IN_PROGRESS
 
-### T-009 — 초기화 버튼 누락 항목 보강
-- **생성일**: 2026-04-20
-- **착수일**: 2026-04-20
-- **상태**: IN_PROGRESS
-- **관련**: T-008 후속 (사용자 피드백)
-- **배경**: 초기화 버튼 실기 테스트 결과, 도면정보 탭 BOM 목록·3D 렌더모드(DASH_LINE)·2D 캔버스가 남아 있는 상태 발견
-- **세부**:
-  - [x] Form1.BOM.cs `ResetToInitialState()` 정리 블록에 3줄 추가
-    - `lvDrawingBOMInfo.Items.Clear()` (도면정보 탭 BOM)
-    - `vizcore3d.View.SetRenderMode(RenderModes.SMOOTH)` (DASH_LINE 해제, 기본 모드 복귀)
-    - `Clear2DView()` (2D 캔버스 정리)
-  - [x] docs/features/bom/reset-to-initial.md — 단계 3 설명/상태 변화 섹션/변경 이력 갱신
-  - [x] **후속**: `Clear2DView()` 호출 시점을 `Model.Open` 성공 이후로 이동 (SDK가 Open 시 2D 뷰 자동 복원하는 이슈, 4번 번쩍임 해결)
-  - [ ] 빌드 + 다른 기기 실기 테스트 (사용자, 푸시 후)
-- **영향 파일**:
-  - `A2Z/Form1.BOM.cs` (ResetToInitialState)
-  - `docs/features/bom/reset-to-initial.md`
-- **SDK 참고**: `RenderModes.SOLID`는 존재하지 않음. 기본 실선 모드는 `SMOOTH` ([VIZCore3D.NET.xml:4534](../../VIZCore3D.NET.xml))
-
-### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정
+### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정 + 뷰 내부 clip (T-007 흡수)
 - **생성일**: 2026-04-15
 - **착수일**: 2026-04-20
-- **상태**: IN_PROGRESS
-- **관련**: FB-003
-- **확정 스펙** (옵션 A):
+- **상태**: IN_PROGRESS (1차 레이아웃 구현 완료, **치수선 clip·모델 최대화 추가 실험 필요**)
+- **관련**: FB-003, FB-004 (T-007 내용 흡수 — 2026-04-22 사용자 지시)
+- **확정 스펙** (옵션 A — 1차):
   - A4 가로 297×210 / 마진 10 / 그리드 2×3 (셀 ≈ 92.3×95 mm) — 현재 유지
   - 뷰 4개: (1,1)ISO / (1,2)Z / (2,1)Y / (2,2)X — 현재 유지
   - **BOM → (1,3) 셀 이관** (`RenderTemplateOnGridStructure(table1, 1, 3)`)
@@ -185,22 +173,54 @@
   - BOM 열 너비 합 82 → **92 mm로 조정** (ITEM 28→38, 그 외 유지)
   - BOM 최대 데이터 행 **14행**, 초과 시 마지막 행에 "…" + "+N건 생략" 표시 (옵션 2-a)
   - Anchor/X/Y 절대좌표 제거 → 셀 정렬(`SetGridCell*Alignment`)로 대체
-  - 하드캡 30mm는 이번 범위 밖 → T-007에서 처리
-- **세부**:
+- **추가 요구사항 (2026-04-22)**:
+  - **치수선 clip 필수** — 뷰 셀 안에서 모델뿐 아니라 **치수선도 셀 경계를 벗어나지 않고** 그리드 내부에서만 표현되어야 함. 현재 치수선이 인접 셀로 늘어남
+  - **뷰 내부 모델 최대화** (T-007 흡수) — `RenderSheetViewForDrawing`의 `targetHeight=40f` 하드코드를 셀 크기 기반 동적 계산으로 교체
+  - **풍선 예약 영역 확보** (T-007 흡수) — 상단/측면에 일정 여백 확보해 번호 풍선이 겹치지 않게
+  - **ISO/X/Y/Z 라벨 하단 고정** (T-007 흡수) — 셀 하단 같은 Y 좌표에 고정 배치
+  - **실험 심화** — 1차 구현이 레이아웃만 고정시켰을 뿐 위 4개 요구를 충족 못 함. SDK의 `SetGridCellClipping` 류 API, `Create2DViewObject` 계열 파라미터, 그리드 셀 내부 렌더링 경계 제어 옵션 전수 조사 필요
+- **세부** (1차 완료):
   - [x] Form1.DrawingSheets.cs L1020~1080 수정 — bInfo 절대좌표 제거, BOM/tableInfo `RenderTemplateOnGridStructure` 이관
   - [x] BOM `BOM_MAX_DATA_ROWS = 14` 상수 + "…+N건 생략" 행 렌더링
   - [x] BOM 열 너비 2차 축소: ITEM 28→38→17, MATERIAL/SIZE 8→12→11 (합 82→92→81→**77mm**)
   - [x] tableInfo 2차 축소: 60→57→47, 35→35→30 (합 95→92→81→**77mm**)
   - [x] 셀 정렬: BOM (1,3) Top/Center, tableInfo (2,3) Bottom/Center
-  - [x] docs/features/drawing-sheets/generate-sheet-2d.md 갱신 (단계표 7~9 추가, 분기 C 추가, 변경 이력 3건)
-  - [ ] 빌드 + 다른 기기 실기 테스트 (사용자, 푸시 후)
+  - [x] docs/features/drawing-sheets/generate-sheet-2d.md 1차 갱신 (단계표 7~9 추가, 분기 C 추가, 변경 이력 3건)
+- **세부** (2차 — 추가 실험):
+  - [ ] SDK 조사: 뷰 셀 내부 clip / 치수선 경계 제어 API (`sdk-verifier` 서브에이전트)
+  - [ ] 치수선 렌더링 경로 추적 — 현재 치수선이 어디서 그려지며 왜 셀을 벗어나는지
+  - [ ] `targetHeight=40f` 하드코드 → 셀 크기 기반 동적 계산
+  - [ ] 풍선 예약 영역 설계 + 적용
+  - [ ] ISO/X/Y/Z 라벨 위치 고정 (하단)
+  - [ ] 빌드 + 실기 테스트 (치수선 셀 이탈 여부, 모델 크기, 풍선 겹침, 라벨 위치 모두 확인)
+  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 2차 갱신
 - **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D L1020~1080, 약 +18줄)
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D, RenderSheetViewForDrawing, CreateIsoBalloonNotes)
   - `docs/features/drawing-sheets/generate-sheet-2d.md`
+- **참고**: T-007은 본 항목에 흡수되어 제거됨 (2026-04-22)
 
 ---
 
 ## BLOCKED
+
+### T-013 — Sheet2+ ISO 뷰 배경·선택 부재 위치 정합
+- **생성일**: 2026-04-20
+- **착수일**: 2026-04-21
+- **차단일**: 2026-04-22
+- **상태**: BLOCKED (옵션 A·B·B2 모두 실패, 새 접근 필요)
+- **관련**: — (사용자 피드백)
+- **배경**: Sheet2 이상에서 ISO 뷰는 "전체 모델 점선(bgObj) + 선택 부재 실선(obj)"으로 그려지는데, 선택 부재가 **원본 위치가 아니라 전체 모델의 중심**으로 이동됨
+- **원인 분석 (기존)**: 두 객체 모두 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`로 **캔버스 원점에** 생성됨 → `GetObjectCenter`가 둘 다 (0,0) 근처 반환 → `(objCX0 - bgCX0) ≈ 0` → 위치 보정 공식이 무력화되어 obj가 bg 중심으로 이동
+- **시도한 접근** (모두 실패):
+  - [x] 옵션 A — SDK 자동 매핑 기대: objId의 `RescaleObject`/`MoveObject` 제거 → objId가 원점에 매우 작게 남음
+  - [x] 옵션 B — `WorldToScreen` + `bgFinalScale` 단일 스케일: 오차 발생 (7.3mm 정답 대비 5.9mm 계산)
+  - [x] 옵션 B2 — bg BBox 8꼭지점 투영 → ratio 계산: 이동량 자체는 계산됐지만 시각적 변화 없음. 사용자 실측 2026-04-22 실패 확정
+- **재개 시 고려할 방향**:
+  - `WorldToScreen` 반환 단위 재검증 (캔버스 / 픽셀 / 월드 어느 기준인지)
+  - SDK의 다른 API 탐색 — `Create2DViewObject*` 계열에 "원본 월드 좌표 유지 모드" 파라미터 존재 여부
+  - 근본 설계 전환: Sheet2+ 렌더링에서 bgObj+obj 분리 구조 자체를 폐기하고 **단일 객체 + 컬러/라인 스타일 분기**로 처리
+- **진단 로그**: `OPT-B` / `OPT-B2` 라벨로 3D/화면/이동량 실측 출력 중 (Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~)
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
 
 ### T-016 — 치수 추출 3회 이상 시 반복 누적 버그
 - **생성일**: 2026-04-20
@@ -238,7 +258,7 @@
 ### T-021 — BOM 정보 행 선택 시 부재 카메라 fit
 - **완료일**: 2026-04-22
 - **관련**: — (사용자 직접 지시)
-- **커밋**: `pending`
+- **커밋**: `9b99b8c`
 - **요약**:
   - `lvDrawingBOMInfo`(도면정보 탭 BOM 테이블) 행 선택 시 카메라 fit 동작 신설
   - 가시성은 그대로 두고 `vizcore3d.View.FlyToObject3d(new List<int>{bodyIdx}, 1.2f)`로 카메라만 이동 — 현재 시트 맥락 유지
@@ -252,7 +272,7 @@
 ### T-014 — 도면 시트 목록의 "기준부재/포함부재" 컬럼을 item 번호로 표시
 - **완료일**: 2026-04-22
 - **관련**: — (사용자 피드백)
-- **커밋**: `pending`
+- **커밋**: `9b99b8c`
 - **요약**:
   - `lvDrawingSheet` 표시 포맷 변경: 부재 이름 대신 **item 번호**(= `bomList` 순서 i+1 = ISO 풍선 번호 = BOM 정보 탭 No.)
     - Sheet 1 → "전체 / 전체"
@@ -264,6 +284,17 @@
   - 빌드 오류 1건 수정: 외부 `int mfgNo=1`(가공도 번호)과 변수명 충돌 → `mfgBomIdx`/`mfgItemNo`로 리네임
   - 문서: `generate-sheets.md` 단계 10·상태 섹션·변경 이력 갱신
   - 사용자 실기 테스트 통과 (2026-04-22)
+
+### T-009 — 초기화 버튼 누락 항목 보강
+- **완료일**: 2026-04-22 (사용자 실기 테스트 통과)
+- **관련**: T-008 후속 (사용자 피드백)
+- **커밋**: `45d17dd` (본체) + `10c7d8c` (후속 — `Clear2DView()` 호출 시점 `Model.Open` 이후로 이동, 4번 번쩍임 해결)
+- **요약**:
+  - `ResetToInitialState()` 정리 블록에 3줄 추가 — `lvDrawingBOMInfo.Items.Clear()`, `vizcore3d.View.SetRenderMode(RenderModes.SMOOTH)` (DASH_LINE 해제), `Clear2DView()`
+  - `Clear2DView()` 호출 시점을 `Model.Open` 성공 이후로 재배치 (SDK가 Open 시 2D 뷰 자동 복원하는 이슈)
+  - docs/features/bom/reset-to-initial.md 갱신
+  - SDK 참고: `RenderModes.SOLID`는 존재하지 않음 → `SMOOTH` 사용
+  - 다른 기기 실기 테스트 통과 (2026-04-22)
 
 ### T-015 — Sheet 생성 로직 재설계 (모든 부재가 기준부재)
 - **완료일**: 2026-04-21
