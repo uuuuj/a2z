@@ -134,17 +134,8 @@ namespace A2Z
 
         private void Vizcore3d_OnInitializedVIZCore3D(object sender, EventArgs e)
         {
-            // 라이선스 설정
-            VIZCore3D.NET.Data.LicenseResults result = vizcore3d.License.LicenseServer("127.0.0.1", 8901);
-
-            if (result != VIZCore3D.NET.Data.LicenseResults.SUCCESS)
-            {
-                MessageBox.Show(string.Format("License Error: {0}", result), "라이선스 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            // 라이선스 자동 갱신 타이머 시작 (30분마다)
-            StartLicenseRefreshTimer();
+            // 라이선스 초기화 + 자동 갱신 타이머 (Form1.License.cs로 분리 — T-017)
+            if (!InitializeLicense()) return;
 
             vizcore3d.ToolbarDrawing2D.Visible = true;
             //vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
@@ -164,43 +155,6 @@ namespace A2Z
             // 이미 로드된 객체의 엣지 데이터도 생성 (라인 없는 개체 대응)
             vizcore3d.Object3D.GenerateEdgeData();
 
-        }
-
-        /// <summary>
-        /// 라이선스 자동 갱신 타이머 시작
-        /// </summary>
-        private void StartLicenseRefreshTimer()
-        {
-            licenseRefreshTimer = new System.Windows.Forms.Timer();
-            licenseRefreshTimer.Interval = 30 * 60 * 1000; // 30분 (밀리초)
-            licenseRefreshTimer.Tick += LicenseRefreshTimer_Tick;
-            licenseRefreshTimer.Start();
-        }
-
-        /// <summary>
-        /// 라이선스 갱신 타이머 이벤트
-        /// </summary>
-        private void LicenseRefreshTimer_Tick(object sender, EventArgs e)
-        {
-            try
-            {
-                // 라이선스 서버에 재연결하여 갱신
-                VIZCore3D.NET.Data.LicenseResults result = vizcore3d.License.LicenseServer("127.0.0.1", 8901);
-
-                if (result != VIZCore3D.NET.Data.LicenseResults.SUCCESS)
-                {
-                    // 갱신 실패 시 상태바나 로그에 표시 (MessageBox는 작업 방해할 수 있음)
-                    System.Diagnostics.Debug.WriteLine($"[{DateTime.Now}] 라이선스 갱신 실패: {result}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[{DateTime.Now}] 라이선스 갱신 성공");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[{DateTime.Now}] 라이선스 갱신 오류: {ex.Message}");
-            }
         }
 
         /// <summary>

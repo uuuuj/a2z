@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-22 — T-017 라이선스 코드 Form1.License.cs로 분리
+
+**유형**: refactor
+**커밋**: `pending`
+**관련 TASK**: T-017
+**변경 사항**:
+- `Form1.BOM.cs`에 섞여 있던 라이선스 관련 코드 전부를 신규 partial `Form1.License.cs`로 이동
+  - 이동 대상: `StartLicenseRefreshTimer`, `LicenseRefreshTimer_Tick`, `licenseRefreshTimer` 필드, `Vizcore3d_OnInitializedVIZCore3D`의 `License.LicenseServer("127.0.0.1", 8901)` 초기 호출 2줄
+  - 새 진입점 `InitializeLicense()` — 서버 연결 실패 시 MessageBox + `false`, 성공 시 갱신 타이머 시작 + `true`
+  - `Vizcore3d_OnInitializedVIZCore3D` 진입 블록 10줄 → `if (!InitializeLicense()) return;` 한 줄로 축약
+- `A2Z.csproj`에 `Form1.License.cs` Compile 항목 추가 (`DependentUpon=Form1.cs`, `SubType=Form`)
+- `Form1.cs`에서 `licenseRefreshTimer` 필드 선언 제거 (License.cs로 이동)
+- docs: `code-reference/form1-bom.md` 라이선스 항목 5곳(헤더 라인 수·핸들러 설명·헬퍼 표·필드 표·API 사용) 정리, `code-reference/form1-license.md` 신설, `features/bom/vizcore3d-initialized.md` 단계표·E01 에러·관련 링크·변경 이력 갱신
+- 기능 변경 없음 (순수 리팩토링). MSBuild Debug 통과, 경고 0. 사용자 실기에서 앱 기동 정상 확인
+
+**영향 범위**: 라이선스 로직 파일 경계만. 호출 규약은 동일 — 다른 핸들러/모듈 무영향
+
+---
+
 ## 2026-04-22 — T-014 시트 목록 item 번호 표시 + T-021 BOM 행 카메라 fit
 
 **유형**: feat

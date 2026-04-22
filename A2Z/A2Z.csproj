@@ -59,6 +59,10 @@
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Form1.License.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Form1.Clash.cs">
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>

@@ -94,11 +94,6 @@ namespace A2Z
         private List<DrawingSheetData> drawingSheetList = new List<DrawingSheetData>();
 
         /// <summary>
-        /// 라이선스 갱신 타이머 (30분마다 갱신)
-        /// </summary>
-        private System.Windows.Forms.Timer licenseRefreshTimer;
-
-        /// <summary>
         /// 부재 이름 입력 TextBox (3D 뷰어 위 오버레이)
         /// </summary>
         private TextBox txtMemberNameOverlay = null;

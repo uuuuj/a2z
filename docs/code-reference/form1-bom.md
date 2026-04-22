@@ -1,17 +1,17 @@
 # Form1.BOM.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.BOM.cs` (약 1,503 라인)
+**경로**: `A2Z/Form1.BOM.cs` (약 1,485 라인)
 
-**책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 라이선스 관리, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드).
+**책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드). **라이선스 관리는 [Form1.License.cs](./form1-license.md)로 분리** (T-017, 2026-04-22).
 
 ---
 
 ## 주요 핸들러 · 메서드
 
 ### <a id="vizcore3d-oninitialized"></a>Vizcore3d_OnInitializedVIZCore3D
-- **라인**: L135~L167
+- **라인**: L135~L158
 - **트리거**: `vizcore3d.OnInitializedVIZCore3D`
-- **핵심**: 라이선스 서버 등록(`127.0.0.1:8901`), 30분 갱신 타이머, Clash/Object3D 이벤트 구독, 엣지 데이터 생성 활성화
+- **핵심**: `InitializeLicense()` 위임(Form1.License.cs) → ToolbarDrawing2D·ModelTree 표시 → Clash/Object3D 이벤트 구독 → 엣지 데이터 생성 활성화
 - **흐름 문서**: [features/bom/vizcore3d-initialized.md](../features/bom/vizcore3d-initialized.md)
 
 ### <a id="btnOpen_Click"></a>btnOpen_Click
@@ -44,9 +44,7 @@
 
 | 메서드 | 라인 | 역할 |
 |---|---|---|
-| `StartLicenseRefreshTimer` | L172 | 30분 주기 라이선스 갱신 타이머 |
-| `LicenseRefreshTimer_Tick` | L183 | 실제 갱신 로직 (예외 시 Debug.WriteLine만) |
-| `ResetToInitialState` | L305~L351 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
+| `ResetToInitialState` | L287~L333 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
 | `CollectAllOsnap` | (후행 라인) | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영 |
 | `CollectBOMInfo` | L20 (Clash.cs) | 도면정보 탭용 그룹 수집 |
 | `CollectBOMData` | (BOM 수집 내부) | bomList 채우는 핵심 로직 |
@@ -70,14 +68,14 @@
 | `xraySelectedNodeIndices` | List&lt;int&gt; | X-Ray 선택 부재 |
 | `bodyToPartNameMap` / `bodyToPartIndexMap` | Dict | Body→Part 캐시 |
 | `currentFilePath` | string | 현재 로드된 파일 경로 |
-| `licenseRefreshTimer` | Timer | 라이선스 갱신 |
 | `_autoProcessOsnapSuccess` | bool | 자동 파이프라인 Osnap 성공 플래그 |
+
+> `licenseRefreshTimer` 필드는 [Form1.License.cs](./form1-license.md)로 이동 (T-017).
 
 ---
 
 ## VIZCore3D API 사용
 
-- `vizcore3d.License.LicenseServer(ip, port)`
 - `vizcore3d.Model.Open(path)`, `vizcore3d.Model.IsOpen()`
 - `vizcore3d.Object3D.GetPartialNode(bool, bool, bool)` — Top/Part/Body 필터
 - `vizcore3d.Object3D.UDA.FromIndex(idx, key)`, `UDA.Keys`
