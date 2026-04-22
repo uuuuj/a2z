@@ -8,20 +8,27 @@
 
 ## TODO
 
-### T-036 — 가공도 시트: 부재 선택상태 해제 + 최장축 가로 배치 진단
+### T-036 — 가공도 시트: 선택상태 해제 + ISO 뷰 느낌 해결
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (선택 해제 + DiagLog 추가 완료, 최장축 문제는 재현 로그 대기)
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 재확인 대기)
 - **관련**: — (사용자 피드백)
-- **배경 1 (선택 해제)**: 가공도 시트 선택 시 이전에 시트/BOM 선택으로 빨간 하이라이트된 부재가 잔존
-- **배경 2 (최장축 가로)**: 가공도 선택 시 "모델의 가장 긴 부분이 가로 + FitToView"가 기대 동작인데 **일부 부재에서 안 됨**. 코드상 [L532 Z 최장축 90° 회전](../../A2Z/Form1.MfgDrawing.cs) + L215 180° 회전이 합쳐져 270° = Z가 다시 세로로 뒤집히는 케이스 의심
-- **세부**:
-  - [ ] `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가 (선택 해제)
-  - [ ] 회전 진단 `DiagLog T-036 MfgDrawing: longestAxis=? use180=? useMinus=?` 추가
-  - [ ] 사용자 재현 케이스 수집 (어떤 부재에서 가로 배치 안 되는지)
-  - [ ] 180°+90° 조합 조건 확인 후 회전 순서 재조정
-  - [ ] docs/features/mfg-drawing/mfg-drawing.md 반영
-- **영향 파일**: A2Z/Form1.MfgDrawing.cs, docs/features/mfg-drawing/mfg-drawing.md
+- **경로 전개**:
+  1. 1차 진입: 선택상태 해제(DESELECT_ALL) + DiagLog 추가 (커밋 `230e45f`)
+  2. 1차 해석 시도: "Z 최장축인데 세로로 배치" → L215 `use1803d && longestAxis!="Z"` 가드 추가 (커밋 `537f07c`)
+  3. **사용자 재보고 (2026-04-23)**: "45도 대각 ISO 뷰로 보게 된다" → Z 방향이 아닌 **카메라 방향 자체가 ISO로 잔존**하는 증상
+  4. **원인 재확정**: [LvDrawingSheet_SelectedIndexChanged](../../A2Z/Form1.DrawingSheets.cs) 공통부 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 글로벌 ISO) 유지한 채 이동 → `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 덮어쓰지 못함
+  5. 수정 (커밋 `b0f8802`): 가공도 시트(-3) 분기 앞에서 `FlyToObject3d` 스킵 + L215 180° 스킵 가드 **원복** (수직 뒤집기 의도 복원)
+- **세부 (완료)**:
+  - [x] `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가
+  - [x] 회전 진단 `DiagLog T-036 MfgDrawing bom=... sizeXYZ=... longestAxis=... isPadOrPlate=... viewDir=... use180=... useMinus=... Z90Applied=... R180Applied=...`
+  - [x] 1차 해석 L215 가드 → 원복 (ISO 원인 아님)
+  - [x] `LvDrawingSheet_SelectedIndexChanged`에서 가공도 분기 시 `FlyToObject3d` 스킵
+  - [x] `use1803d` 바깥 스코프 승격 (DiagLog 가시성 — 유지)
+  - [x] docs/features/drawing-sheets/lv-sheet-selected.md / mfg-drawing.md 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 재확인 — 가공도 시트 누르면 정면 뷰(부재 주요 면 정면)로 나오는지. ISO 대각 아닌지 확인
+- **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/features/mfg-drawing/mfg-drawing.md, docs/features/drawing-sheets/lv-sheet-selected.md
 
 ### T-035 — 글로벌 ISO/X/Y/Z 뷰 버튼 클릭 시 부재 선택상태 해제
 - **생성일**: 2026-04-22
