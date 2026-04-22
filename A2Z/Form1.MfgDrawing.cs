@@ -181,6 +181,7 @@ namespace A2Z
                 // Osnap 무게중심은 L자 내부코너 쪽으로 편향됨
                 // 열린 방향(BB중심 - 무게중심)이 화면 우하로 가도록 카메라 조정
                 bool isMinusCamera3d = false;
+                bool use1803d = false;  // T-036: DiagLog에서 접근 가능하도록 바깥 스코프로 승격
                 bool isEA3d = IsAngleFromSpref(bom.Index);
                 if (isEA3d && mfgOsnapWithNames.Count > 0)
                 {
@@ -215,7 +216,7 @@ namespace A2Z
                     // 180°: 수평+수직 모두 뒤집힘
                     // → openH 부호로 MINUS 결정, openV 부호로 180° 결정
                     // 열린 방향이 아래로 → openV < 0 → 그대로, openV > 0 → 180° 필요
-                    bool use1803d = (openV > 0);
+                    use1803d = (openV > 0);  // T-036: 바깥 스코프 변수에 할당
 
                     // 열린 방향이 오른쪽으로: 화면 좌표 기준
                     // 180° 적용 전 기준으로 판단 (180°는 수평도 뒤집으므로)
@@ -542,10 +543,15 @@ namespace A2Z
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                 }
 
-                // T-036: 최장축 가로 배치·FitToView 진단 로그 (사용자 재현 시 분석용)
-                DiagLog($"T-036 MfgDrawing bom={bom.Index} " +
-                    $"sizeXYZ=({sizeX:F0},{sizeY:F0},{sizeZ:F0}) longestAxis={longestAxis} " +
-                    $"isPadOrPlate={isPadOrPlate} viewDir={viewDirection}");
+                // T-036 (2026-04-23 강화): 회전 단계별 상세 진단 로그
+                //   ISO 뷰 느낌·세로 배치 원인 특정용 — 사용자 재현 시 이 라인 공유 요청
+                DiagLog($"T-036 MfgDrawing bom={bom.Index} name=\"{bom.Name}\" " +
+                    $"sizeXYZ=({sizeX:F0},{sizeY:F0},{sizeZ:F0}) " +
+                    $"longestAxis={longestAxis} isPadOrPlate={isPadOrPlate} " +
+                    $"viewDir={viewDirection} " +
+                    $"use180={use1803d} useMinus={isMinusCamera3d} " +
+                    $"Z90Applied={(longestAxis == "Z")} " +
+                    $"R180Applied={(use1803d && longestAxis != "Z")}");
             }
             catch (Exception ex)
             {
