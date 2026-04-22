@@ -334,6 +334,12 @@ namespace A2Z
                 return;
             }
 
+            // T-026: "치수추출 버튼은 항상 현재 visible 기준" — 이전 시트 선택으로 남은
+            // xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며
+            // "이전 부재 1개" 결과가 반복되는 버그 방지. 특정 부재 치수는 시트/BOM 행 선택
+            // (LvDrawing*_SelectedIndexChanged) 경로에서 자동 수행되므로 UX 충돌 없음.
+            xraySelectedNodeIndices.Clear();
+
             // ============================================================
             // T-023 (STRU 단위 가드) — **현재 비활성**, UDA 키 확정 시 활성화
             //

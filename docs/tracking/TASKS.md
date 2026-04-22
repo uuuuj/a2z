@@ -101,6 +101,47 @@
   - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
 - **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
 
+### T-026 — 치수추출 진입 시 이전 xray 선택 잔존 클리어
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백 + 로그 근거)
+- **증상**: 부재 1개만 띄운 상태에서 치수추출 → 다시 전체를 띄우고 치수추출해도 **1개 부재 기준 결과가 그대로 재현**
+- **원인 확정**: `LvDrawingSheet_SelectedIndexChanged` ([Form1.DrawingSheets.cs:526](../../A2Z/Form1.DrawingSheets.cs:526))가 시트 선택 시 `xraySelectedNodeIndices = new List<int>(sheet.MemberIndices)`를 설정. 이 잔존 값이 `CollectBOMData` ([Form1.BOM.cs:591](../../A2Z/Form1.BOM.cs:591))의 X-Ray 우선 필터에 계속 걸려 "그 부재만" 수집. 사용자가 3D 뷰 visibility를 전체로 돌려도 내부 필드는 안 지워짐
+- **로그 근거** (2026-04-22 10:58):
+  ```
+  [10:58:25.952] LvDrawingSheet_SelectedIndexChanged sheet#=1 members=1 → xray=1 설정
+  [10:58:34.372] btnMainDimension ENTER xray=1 chain=3 osnap=276 bom=1 → 재실행인데 xray=1 그대로
+  [10:58:35.481] EXIT OK chain=32 osnap=276 → 여전히 1개 기준 결과
+  ```
+- **구현**:
+  - [x] `btnMainDimension_Click` 진입부(IsOpen 가드 직후)에 `xraySelectedNodeIndices.Clear()` 추가 — "치수추출 버튼은 항상 현재 visible 기준" 원칙
+  - [x] docs/features/bom/main-dimension.md 단계 1.3 추가 + 변경 이력
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (1개 띄우고 치수추출 → 전체 띄우고 치수추출 → 전체 기준 결과 정상)
+- **UX 충돌 없음**: 특정 부재 치수는 시트/BOM 행 선택 경로(`LvDrawing*_SelectedIndexChanged`)에서 자동 수행되므로, `btnMainDimension`을 "현재 visible 기준"으로 굳혀도 부재 단위 치수 기능은 그대로 유지
+- **T-016과의 구분**: T-016은 "3회 이상 반복 누적"으로 재현 조건 미확정 간헐 버그. 본 T-026은 **명확한 잔존 상태**로 재현 조건 확정. 서로 다른 케이스
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 진입부 +4줄)
+  - `docs/features/bom/main-dimension.md`
+
+### T-025 — 치수추출 직후 Sheet 1 기준 BOM 테이블 자동 출력
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백)
+- **배경**: 치수추출 완료 후 `lvDrawingBOMInfo`(도면정보 탭 BOM 테이블)가 **빈 상태**로 남음. 사용자가 시트 목록에서 Sheet 1을 직접 클릭해야만 `LvDrawingSheet_SelectedIndexChanged` → `CollectBOMInfo`가 트리거되어 채워짐. 사용자 요구: "치수추출 직후 Sheet 1(전체) 기준 BOM 테이블이 자동 표시"
+- **구현**:
+  - [x] `GenerateDrawingSheets()` 내부 ListView 갱신 직전에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가
+  - [x] try/catch로 감싸 SDK 예외 시 DiagLog만 기록 (앱 흐름 보호)
+  - [x] visibility·카메라는 건드리지 않음 (시트 선택 이벤트의 부수효과 회피)
+  - [x] docs/features/drawing-sheets/generate-sheets.md 단계 9.5 추가 + 변경 이력
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (치수추출 버튼 누르면 도면정보 탭에 전체 BOM이 즉시 표시되는지)
+- **영향 파일**:
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateDrawingSheets +13줄)
+  - `docs/features/drawing-sheets/generate-sheets.md`
+
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21
 - **착수일**: 2026-04-22

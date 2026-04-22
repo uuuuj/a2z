@@ -220,6 +220,20 @@ namespace A2Z
                 bomIndexToItemNo[bomList[i].Index] = i + 1;
             }
 
+            // T-025: 치수추출 직후 Sheet 1(전체) 기준 BOM 정보 자동 수집
+            // lvDrawingSheet 선택 이벤트를 기다리지 않고 여기서 직접 채움 (visibility 등 부수효과 없이).
+            if (drawingSheetList.Count > 0)
+            {
+                try
+                {
+                    CollectBOMInfo(false, drawingSheetList[0]);
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"GenerateDrawingSheets CollectBOMInfo FAIL {ex.Message}");
+                }
+            }
+
             // ListView 갱신
             foreach (var sheet in drawingSheetList)
             {

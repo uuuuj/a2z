@@ -6,10 +6,33 @@
 
 ---
 
+## 2026-04-22 — T-025 BOM 테이블 자동 출력 + T-026 xray 잔존 버그 fix
+
+**유형**: feat + fix
+**커밋**: `pending`
+**관련 TASK**: T-025, T-026
+**변경 사항**:
+- **T-025 (feat)**: `GenerateDrawingSheets()` 끝에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가
+  - 치수추출 완료 직후 Sheet 1(전체) 기준 BOM 정보가 `lvDrawingBOMInfo`에 자동 표시
+  - try/catch로 감싸 SDK 예외 시 `DiagLog`만 기록하고 앱 흐름 보호
+  - visibility·카메라는 건드리지 않음 (시트 선택 이벤트의 부수효과 회피)
+  - 사용자가 시트를 별도로 클릭하지 않아도 BOM 테이블이 즉시 채워짐
+- **T-026 (fix)**: `btnMainDimension_Click` 진입부에 `xraySelectedNodeIndices.Clear()` 추가
+  - **증상**: 부재 1개 띄우고 치수추출 → 전체 띄우고 치수추출 → **1개 기준 결과 재현** (`chain=32` 동일)
+  - **원인**: `LvDrawingSheet_SelectedIndexChanged`가 시트 선택 시 설정하는 `xraySelectedNodeIndices` 값이 잔존, `CollectBOMData` L591의 X-Ray 우선 필터에 계속 걸려 "그 부재만" 수집
+  - **로그 근거**: `[10:58:25] sheet#=1 members=1 → xray=1 설정` → `[10:58:34] btnMainDimension ENTER xray=1 → EXIT chain=32` (전체 띄운 뒤에도 1개 기준)
+  - **원칙 확립**: "치수추출 버튼은 항상 현재 visible 기준". 특정 부재 치수는 시트/BOM 행 선택 경로가 담당
+- docs: `main-dimension.md` 단계 1.3 (xray clear) / `generate-sheets.md` 단계 9.5 (BOM 자동 수집) 추가, 변경 이력 각 1건
+- MSBuild Debug 통과
+
+**영향 범위**: 치수추출 정상 흐름. T-016(3회 누적 간헐 버그)과 별개의 잔존 상태 버그 해결
+
+---
+
 ## 2026-04-22 — T-023 재설계: STRU 단위 가드로 변경 (현재 비활성)
 
 **유형**: refactor
-**커밋**: `pending`
+**커밋**: `2a216b5`
 **관련 TASK**: T-023
 **변경 사항**:
 - 사용자 의도 재확인: "부재 개수 1"이 아니라 **"STRU(모델트리 상위 UDA 단위) 1개"** 기준

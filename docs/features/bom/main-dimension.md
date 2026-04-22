@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-018 오버레이 + T-024 fallback, T-023 가드는 비활성)
+last_updated: 2026-04-22 (T-026 xray 잔존 클리어 추가)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -47,6 +47,7 @@ flowchart TD
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
 | 1 | 모델 확인 | Form1 | `vizcore3d.Model.IsOpen()` → [E01] |
+| 1.3 | **xray 잔존 클리어** (T-026) | Form1 | `xraySelectedNodeIndices.Clear()` — 이전 시트 선택(`LvDrawingSheet_SelectedIndexChanged`가 남긴 값)이 `CollectBOMData`·`DetectClash`의 필터로 쓰여 "이전 부재 1개" 결과가 반복되던 버그 방지. 치수추출 버튼은 항상 현재 visible 기준 |
 | 1.5 | STRU 단위 가드 (T-023, **현재 비활성**) | Form1 | UDA 키·값 확정 후 활성화 예정. `CheckSingleStruCondition()` — 선택 또는 visible 부재들의 공통 조상 STRU가 정확히 1개여야 통과. 코드는 `Form1.BOM.cs` 주석 블록에 완성 형태로 존재 |
 | 2 | **오버레이 표시** (T-018) | UI | `ShowBusyOverlay("치수 추출 중...")` — 3D 뷰어 중앙에 "처리 중" 라벨 띄워 5초 공백 동안 UI 반응 표시. try 직전 호출, finally에서 `HideBusyOverlay()` |
 | 3 | BOM 재수집 | Form1 | `CollectBOMData()` — 가시성 반영 위해 매번 재수집 |
@@ -132,3 +133,4 @@ flowchart TD
 | 2026-04-22 | T-024: `DetectClash()` 반환값을 받아 **`clashStarted == false`일 때 fallback 경로** 추가 — 단일 부재(쌍 0개)·SDK 예외는 `Clash_OnClashTestFinishedEvent` 미발동이므로 `GenerateDrawingSheets()` + 요약 MessageBox를 직접 호출해 시트 목록 미갱신 버그 해결. 단계표 10→13 재번호, 분기 C 신설 | Claude |
 | 2026-04-22 | T-023: 단일 부재 가드 추가 — `IsOpen` 확인 직후 `GetPartialNode` + `FromFilter(SELECTED_TOP)`로 visible·selected 카운트 계산, 둘 다 ≠ 1이면 MessageBox 후 return. 사전 조건에 항목 추가, 단계 1.5 추가, E03 신설, 기존 E03은 E04로 재번호 | Claude |
 | 2026-04-22 | T-023 재설계 — 사용자 의도는 "부재 개수"가 아니라 "STRU(UDA 상위 단위) 1개"로 판정. 기존 visible/selected==1 가드 **제거**. 새 `FindAncestorByUda` + `CheckSingleStruCondition` 헬퍼를 [Form1.BOM.cs 하단 주석 블록](/docs/code-reference/form1-bom.md)에 완성 형태로 보존(UDA 키·값 확정 시 `/* */` 해제만으로 활성화). 분기 D 추가, E03·E04 재정렬, 단계 1.5 "비활성" 표기. 사용자 매뉴얼의 에러 ③도 원복 | Claude |
+| 2026-04-22 | T-026: 진입부에 `xraySelectedNodeIndices.Clear()` 추가 — 이전 시트 선택이 `CollectBOMData` X-Ray 필터(L591)에 계속 반영되어 "1개 부재 기준" 결과가 반복되던 잔존 상태 버그. 로그 근거: `btnMainDimension ENTER xray=1 ... EXIT chain=32`가 부재 1개 띄웠을 때와 동일 재현. 단계 1.3 추가 | Claude |
