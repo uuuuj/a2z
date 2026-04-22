@@ -4,7 +4,7 @@ feature_name: 도면 시트 선택 시 X-Ray 표시
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-22 (T-030 일반 시트 3D 뷰 치수 미렌더 — T-029 정책 확장)
+last_updated: 2026-04-23 (T-036 가공도 시트 FlyToObject3d 스킵)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingSheet_SelectedIndexChanged
 ---
 
@@ -98,3 +98,4 @@ flowchart TD
 | 2026-04-22 | T-022: 시트의 "기준부재"를 3D View에서 `Object3D.Select`로 빨간 하이라이트. `DESELECT_ALL` 선행으로 이전 선택 누적 방지. 가공도(`MemberIndices[0]`) / Sheet 2+(`BaseMemberIndex`) 구분, Sheet 1·설치도는 생략. 단계 10 추가, 상태 변화 2행 추가 | Claude |
 | 2026-04-22 | **T-028**: 시트 유형별 치수 분기 3종 재작성. 가공도(-3)는 `ExecuteMfgDrawing`, 설치도(-2)는 `ExtractInstallationDimensions`(BBox 유지), 그 외는 `ComputeViewDimensionsForMembers`(2D 출력·글로벌 버튼과 동일 Osnap 엔진). 분기 A 재기술 | Claude |
 | 2026-04-22 | **T-030**: 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거, `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 3D 뷰를 "치수 없는 깨끗한 상태"로 마감 (T-029 정책 확장). `chainDimensionList`·`lvDimension`은 계속 채워 2D 출력·글로벌 뷰 버튼에서 재사용. 분기 A 재기술, `DiagLog T-030 시트 선택 자동 치수` 추가 | Claude |
+| 2026-04-23 | **T-036 재조정**: 가공도 시트(-3) 선택 시 공통부 `FlyToObject3d(sheet.MemberIndices, 1.2f)` **스킵** — `ExecuteMfgDrawing`이 자체 `MoveCamera(X/Y/Z_PLUS)` + `FitToView`로 정면 뷰를 세팅하는데, 이전 카메라 방향(예: 글로벌 ISO 상태)이 잔존한 채 `FlyToObject3d`가 먼저 호출되면 "45도 대각 ISO 뷰 느낌"으로 보이던 문제 해결. 일반 시트·설치도는 기존대로 `FlyToObject3d` 호출 | Claude |

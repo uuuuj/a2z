@@ -539,8 +539,14 @@ namespace A2Z
                 // 선택된 노드 인덱스 저장 (글로벌 뷰 버튼용)
                 xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
 
-                // 선택된 노드로 화면 이동
-                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                // T-036 (2026-04-23): 가공도 시트는 ExecuteMfgDrawing이 자체 MoveCamera(X_PLUS/Y_PLUS/Z_PLUS)로
+                // 카메라를 정면 뷰로 세팅하기 때문에, 여기서 FlyToObject3d를 먼저 호출하면 이전 ISO_PLUS 등의
+                // 카메라 방향이 잔존한 상태로 화면 이동만 되어 "45도 대각 ISO 뷰 느낌"이 남음.
+                // 가공도일 때 FlyToObject3d 스킵 → ExecuteMfgDrawing의 카메라/FitToView에 맡김.
+                if (sheet.BaseMemberIndex != -3)
+                {
+                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                }
 
                 // 이전 심볼 제거
                 vizcore3d.Clash.ClearResultSymbol();

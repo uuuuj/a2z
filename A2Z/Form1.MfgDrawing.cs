@@ -250,11 +250,9 @@ namespace A2Z
                         vizcore3d.View.FitToView();
                     }
 
-                    // T-036 (2026-04-23): Z 최장축일 땐 180° 회전 스킵.
-                    // 뒤에 L532에서 90° 회전이 추가되는데, 180° + 90° = 270°가 되어
-                    // Z축이 수평이 아닌 세로로 뒤집히던 버그. 가로 배치 우선 복구.
-                    // (Z 최장축 시 use180의 수직 뒤집기 효과는 잃지만, 재현 데이터 확보 후 정교화 예정)
-                    if (use1803d && longestAxis != "Z")
+                    // T-036 (2026-04-23 재조정): 사용자 "ISO 뷰 느낌" 문제는 LvDrawingSheet 공통 FlyToObject3d
+                    // 잔존이 원인으로 판명 (아래 분리 처리). L215 180° 스킵 가드 원복 — 원래 180° 회전 복원.
+                    if (use1803d)
                     {
                         vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                         vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);

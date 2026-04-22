@@ -6,10 +6,29 @@
 
 ---
 
-## 2026-04-23 — T-034/T-036 후속 패치 (사용자 실기 피드백 반영)
+## 2026-04-23 — T-036 재해석: 가공도 시트 ISO 뷰 느낌 해결
 
 **유형**: fix
 **커밋**: `pending`
+**관련 TASK**: T-036
+**배경**: 직전 커밋(`537f07c`)은 "Z 최장축 세로 배치"로 해석해 L215 180° 스킵 가드 추가. 사용자 실기 재보고 "45도 대각 ISO 뷰로 보게 된다" → Z 축 방향이 아닌 **카메라 방향 자체가 ISO**라는 다른 증상 확인
+
+**원인 확정**: [LvDrawingSheet_SelectedIndexChanged](../features/drawing-sheets/lv-sheet-selected.md) 공통부의 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 직전 글로벌 ISO 버튼 상태)을 **그대로 유지한 채 객체로 이동**. 그 후 호출되는 `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 SDK 비동기 렌더 사이에 묻혀 덮어쓰지 못하는 현상으로 추정
+
+**변경 사항**:
+- [Form1.DrawingSheets.cs `LvDrawingSheet_SelectedIndexChanged` L542~](../../A2Z/Form1.DrawingSheets.cs): 가공도(-3) 시트일 땐 `FlyToObject3d` **스킵**. `ExecuteMfgDrawing`이 자체 카메라·FitToView·visibility를 모두 세팅하므로 충돌 제거
+- [Form1.MfgDrawing.cs L254](../../A2Z/Form1.MfgDrawing.cs): 직전 커밋의 `if (use1803d && longestAxis != "Z")` 가드 **원복** → 원래 `if (use1803d)`. ISO 원인과 무관한 수정이고 Z 최장축 수직 뒤집기 효과를 잃게만 했기 때문. `use1803d` 변수의 블록 바깥 스코프 승격은 유지 (DiagLog 가시성)
+- docs: `lv-sheet-selected.md` 변경 이력(T-036 재조정), `mfg-drawing.md` 변경 이력(재해석·원복)
+- MSBuild Debug 통과
+
+**영향 범위**: 가공도 시트 선택 시 카메라 동작만. 일반 시트·설치도는 기존 `FlyToObject3d` 호출 유지
+
+---
+
+## 2026-04-23 — T-034/T-036 후속 패치 (사용자 실기 피드백 반영)
+
+**유형**: fix
+**커밋**: `537f07c`
 **관련 TASK**: T-034 (후속), T-036 (수정)
 **사용자 피드백**:
 - T-033 ✓ 통과 / T-034 ✓ 통과 (단 BOM 테이블 선택 → 글로벌 ISO 시 **은선 복귀** 발견) / T-036 "가공도 선택 시 세로축이 더 길게 나옴, 가로여야 하는데"
