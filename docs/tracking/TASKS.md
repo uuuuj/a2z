@@ -27,7 +27,8 @@
   - [x] `use1803d` 바깥 스코프 승격 (DiagLog 가시성 — 유지)
   - [x] docs/features/drawing-sheets/lv-sheet-selected.md / mfg-drawing.md 갱신
   - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 재확인 — 가공도 시트 누르면 정면 뷰(부재 주요 면 정면)로 나오는지. ISO 대각 아닌지 확인
+  - [x] **후속 (2026-04-23)**: 사용자 "카메라 재조정 중 가로→세로 깜빡" 관찰 → `ExecuteMfgDrawing` 전체를 `BeginUpdate/EndUpdate`로 감싸 중간 상태 노출 차단 + Z 최장축 90° 회전 직후 누락됐던 `FitToView` 추가
+  - [ ] 사용자 실기 재확인 — 가공도 시트 누르면 중간 깜빡임 없이 **최종 가로 배치**로 나오는지. 여전히 세로면 DiagLog 공유 요청
 - **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/features/mfg-drawing/mfg-drawing.md, docs/features/drawing-sheets/lv-sheet-selected.md
 
 ### T-035 — 글로벌 ISO/X/Y/Z 뷰 버튼 클릭 시 부재 선택상태 해제

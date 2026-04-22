@@ -4,7 +4,7 @@ feature_name: 선택 부재 가공도 생성
 category: MfgDrawing
 trigger_type: User Action
 owner_module: Form1.MfgDrawing.cs
-last_updated: 2026-04-23 (T-036 180° 스킵 원복 + ISO 뷰 느낌은 FlyToObject3d 분리로 해결)
+last_updated: 2026-04-23 (T-036 BeginUpdate 감싸기 + Z90 FitToView 보강)
 code_reference: /docs/code-reference/form1-mfg-drawing.md#btnMfgDrawing_Click
 ---
 
@@ -131,3 +131,4 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | 2026-04-22 | T-036: `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가 — 이전 시트/BOM 선택 잔존 해제. 말미 `DiagLog T-036 MfgDrawing bom=... sizeXYZ=... longestAxis=... isPadOrPlate=... viewDir=...` 추가 — 사용자가 "최장축이 가로로 배치 안 되는 경우" 재현 시 분석용. Z 최장축 90° 회전과 L215 180° 회전이 합쳐져 270° 되는 케이스 의심 | Claude |
 | 2026-04-23 | T-036 수정: 사용자 실기 "Z 최장축인데 세로로 배치" 확정 → **Z 최장축일 땐 use180 180° 회전 스킵**. L215 `if (use1803d && longestAxis != "Z")` 가드 추가. 뒤에 이어지는 L532 90° 회전이 온전히 작용해 Z축이 수평으로 배치됨. Z 최장축 + use180 조합의 "수직 뒤집기" 효과는 잃지만 가로 배치 복구가 우선. 재현 데이터 더 확보되면 정교화 예정 | Claude |
 | 2026-04-23 | T-036 재해석·원복: 사용자 재보고 "45도 대각 ISO 뷰 느낌"은 Z 최장축 세로 문제가 아닌 **카메라 방향 자체가 ISO로 잔존**하는 문제였음. 원인은 [LvDrawingSheet_SelectedIndexChanged](../drawing-sheets/lv-sheet-selected.md) 공통부의 `FlyToObject3d` 호출이 이전 카메라 방향(예: 글로벌 ISO 누적)을 유지한 채 이동만 하는 것. 가공도 시트 분기 앞에서 `FlyToObject3d` 스킵으로 해결(상세는 lv-sheet-selected.md T-036 이력). 본 함수의 **L215 180° 스킵 가드는 원복** — ISO 원인과 무관하며 수직 뒤집기 기능이 본래 의도였음. `use1803d`는 여전히 블록 바깥 스코프로 승격 유지 (DiagLog 가시성) | Claude |
+| 2026-04-23 | T-036 후속: 사용자 "카메라 재조정/fit 과정 중 갑자기 세로로 변함" 관찰 — **중간 카메라 단계가 화면에 실시간 노출**되는 현상. 2가지 보강: (1) 함수 전체를 `BeginUpdate/EndUpdate`로 감싸 중간 깜빡임 차단 (finally에서 해제 보장), (2) Z 최장축 90° 회전 직후 `FitToView` 호출 누락 → 추가. 최종 상태만 화면에 반영돼 "가로→세로 깜빡" 제거. 최종 결과가 여전히 세로라면 `DiagLog T-036 MfgDrawing` 값 분석 필요 | Claude |

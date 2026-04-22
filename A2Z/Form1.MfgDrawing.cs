@@ -54,6 +54,11 @@ namespace A2Z
             BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
             if (bom == null) return;
 
+            // T-036 (2026-04-23 재시도): 함수 전체를 BeginUpdate/EndUpdate로 감싸
+            // 중간 카메라 회전(MoveCamera → FitToView → RotateCamera 여러 회)이 화면에 실시간
+            // 노출돼 "가로 → 세로 깜빡" 현상이 보이던 문제 방지. 최종 결과만 화면에 반영.
+            vizcore3d.BeginUpdate();
+
             try
             {
                 // T-036: 가공도 진입 시 이전 선택상태(빨간색) 해제
@@ -539,6 +544,9 @@ namespace A2Z
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    // T-036 (2026-04-23): 90° 회전 직후 FitToView 누락되어 있었음 → 추가.
+                    // 회전 후 화면 중앙·스케일 재조정이 안 돼서 최종 결과가 왜곡되던 원인 중 하나.
+                    vizcore3d.View.FitToView();
                 }
 
                 // T-036 (2026-04-23 강화): 회전 단계별 상세 진단 로그
@@ -554,6 +562,11 @@ namespace A2Z
             catch (Exception ex)
             {
                 MessageBox.Show($"가공도 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                // T-036: BeginUpdate 짝 (예외 시에도 해제 보장)
+                vizcore3d.EndUpdate();
             }
         }
 

@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-04-23 — T-036 추가 보강: BeginUpdate 감싸기 + Z90 FitToView
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-036
+**배경**: 사용자 재보고 "가로로 누워있다가 카메라 재조정/fit 과정 중 갑자기 세로로 변함 (Z축 세운 모델들에서)". 진단: `ExecuteMfgDrawing` 내부 `MoveCamera`·`FitToView`·`RotateCameraByScreenAxis` 여러 단계가 즉시 반영되어 **중간 상태가 화면 깜빡임으로 노출**. `BeginUpdate/EndUpdate` 없이 구현되어 있었음
+**변경 사항**:
+- [Form1.MfgDrawing.cs `ExecuteMfgDrawing`](../../A2Z/Form1.MfgDrawing.cs) 전체를 `vizcore3d.BeginUpdate()` / `finally { vizcore3d.EndUpdate(); }` 로 감쌈 → 중간 카메라 회전 단계가 화면에 노출되지 않고 **최종 상태만** 반영
+- L532 Z 최장축 90° 회전 **직후** `vizcore3d.View.FitToView()` 호출 추가 — 회전 후 화면 중앙·스케일 재조정 누락되어 있던 부분 보강
+- docs `mfg-drawing.md` 변경 이력 갱신
+- MSBuild Debug 통과
+
+**영향 범위**: 가공도 시트 선택 시 화면 전환 부드러움 + Z 최장축 90° 회전 후 화면 정합. 회전 로직 자체는 무변경
+
+**추가 확인 필요**: 이 수정으로 "가로→세로 깜빡"이 사라지는데, 만약 **최종 결과가 여전히 세로**라면 `DiagLog T-036 MfgDrawing bom=... longestAxis=... use180=...` 로그 공유 필요. 회전 순서 자체를 재설계해야 할 수 있음
+
+---
+
 ## 2026-04-23 — T-036 재해석: 가공도 시트 ISO 뷰 느낌 해결
 
 **유형**: fix
