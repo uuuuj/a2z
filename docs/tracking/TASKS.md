@@ -8,26 +8,6 @@
 
 ## TODO
 
-### T-032 — 치수 계산 성능 측정 + Osnap 중복 호출 최적화
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 피드백 "치수 계산 중 창이 오래 떠있음")
-- **원인 가설**: `CompleteMainDimensionPostClash`에서 **Osnap 수집이 이중 호출**됨
-  1. `CollectAllOsnap()` — 전체 visible 부재 `GetOsnapPoint(idx)` 호출해 `osnapPointsWithNames`·`lvOsnap` 채움
-  2. `ComputeViewDimensionsForMembers(visibleMembers, null)` 내부 `nodeOsnapMap` 구축 시 **다시** 부재별 `GetOsnapPoint(idx)` 호출
-  - 데이터 구조 차이(플랫 리스트 vs node→Osnap 맵) 때문에 재사용 안 됨
-  - 부재 수 × Osnap 수 만큼 SDK 왕복 호출 중복
-- **세부**:
-  - [ ] `CompleteMainDimensionPostClash` 각 단계에 DiagLog로 소요 시간 기록 (`CollectAllOsnap`, `ComputeViewDimensionsForMembers`, `lvDimension 채움`)
-  - [ ] 병목 구간 특정 후 최적화:
-    - (A) `CollectAllOsnap`이 수집하는 동안 `nodeOsnapMap`도 같이 구축 → `ComputeViewDimensionsForMembers`에 이미 구축된 맵 전달
-    - (B) `CollectAllOsnap` 호출 제거하고 `ComputeViewDimensionsForMembers` 내부 `nodeOsnapMap`에서 역으로 `osnapPointsWithNames`·`lvOsnap` 구성
-    - (C) Osnap 수집 자체가 느리면 `GetOsnapPoint` 호출 수 줄이는 방향 (예: Part 단위 배치 API 검토)
-  - [ ] 오버레이 메시지 세분화 — 현재 "치수 계산 중..."으로 뭉뚱그려 있어 체감 시간 김. "Osnap 수집 중 {n/N}" 등 진행률 표시 검토
-  - [ ] docs/features/bom/main-dimension.md 성능 측정 결과 + 최적화 내용 기록
-- **영향 파일**: A2Z/Form1.BOM.cs (CompleteMainDimensionPostClash), A2Z/Form1.Dimensions.cs (ComputeViewDimensionsForMembers)
-- **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
-
 
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
@@ -73,6 +53,31 @@
 ---
 
 ## IN_PROGRESS
+
+### T-032 — 치수 계산 성능 최적화 (Osnap 맵 재사용)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (A 옵션 구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백 "치수 계산 중 창이 오래 떠있음")
+- **원인 확정**: `CompleteMainDimensionPostClash`에서 Osnap 수집이 이중 호출
+  1. `CollectAllOsnap()` — 전체 visible 부재 `GetOsnapPoint(idx)`
+  2. `ComputeViewDimensionsForMembers` 내부 `nodeOsnapMap` 구축 시 **다시** `GetOsnapPoint(idx)`
+  - 같은 SDK 왕복을 부재 수만큼 반복 → 전체 시간의 절반 가까이가 이 중복
+- **선택한 방식**: **옵션 A** — `CollectAllOsnap`이 수집하는 동안 `nodeOsnapMap`도 같이 구축, `ComputeViewDimensionsForMembers`가 재사용
+- **구현**:
+  - [x] Form1.cs에 `_lastCollectedNodeOsnapMap` 필드 추가 (`Dictionary<int, List<(Vertex3D, string)>>`)
+  - [x] `CollectAllOsnap` 내부에서 각 부재의 Osnap을 플랫 리스트(`osnapPointsWithNames`)에 추가하면서 동시에 부재별 맵에도 적재
+  - [x] `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` optional 파라미터 추가 — 있으면 `memberIndices` 부분만 필터해 재사용, 없으면 기존대로 내부에서 `GetOsnapPoint` 호출해 구축 (시트 선택 자동 경로용)
+  - [x] `CompleteMainDimensionPostClash`가 `_lastCollectedNodeOsnapMap`을 전달 → 치수추출 버튼 경로의 `GetOsnapPoint` 중복 호출 제거
+  - [x] `Stopwatch`로 `ComputeViewDimensionsForMembers` 소요 시간 측정, `DiagLog T-032 치수 계산: visibleMembers=N osnapMapNodes=K chain=M ComputeViewDimensionsForMembers=Xms` 기록
+  - [x] docs `main-dimension.md` 단계 12·13 재기술 + 변경 이력
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 — DiagLog의 `ComputeViewDimensionsForMembers=Xms` 수치 개선 비교
+- **후속 검토 여지**:
+  - 오버레이 메시지 세분화 (예: "Osnap 수집 중 {n/N}") — 체감 시간 개선용
+  - `GetOsnapPoint` 자체가 병목이면 Part 단위 배치 API 검토
+- **영향 파일**: A2Z/Form1.cs (+1 필드), A2Z/Form1.BOM.cs (CollectAllOsnap 루프, CompleteMainDimensionPostClash), A2Z/Form1.Dimensions.cs (ComputeViewDimensionsForMembers 파라미터 추가)
+- **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
 
 ### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
 - **생성일**: 2026-04-22

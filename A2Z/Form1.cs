@@ -105,6 +105,14 @@ namespace A2Z
         private Label busyOverlay = null;
 
         /// <summary>
+        /// T-032: CollectAllOsnap이 마지막으로 수집한 부재별 Osnap 맵.
+        /// ComputeViewDimensionsForMembers 호출 시 재사용해 GetOsnapPoint 중복 호출 방지.
+        /// 시트 선택 자동 경로(다른 부재 집합)에서는 null 대신 빈 맵을 전달받고 내부에서 재구축.
+        /// </summary>
+        private Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> _lastCollectedNodeOsnapMap
+            = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
+
+        /// <summary>
         /// Osnap 자동 처리 성공 여부
         /// </summary>
         private bool _autoProcessOsnapSuccess = false;

@@ -1942,53 +1942,71 @@ namespace A2Z
         ///       ViewDirection은 콤마 구분으로 누적 병합 (예: "X,Y" = X·Y 뷰 양쪽에 표시).
         ///
         /// 기준: ShowAllDimensions(viewDirection) 분기 ② 로직 = 2D 출력(GenerateSheetDrawing2D)에서 사용하는 것.
+        ///
+        /// T-032: `preBuiltNodeOsnapMap` 파라미터 — 이미 `CollectAllOsnap`에서 수집된 맵을 전달하면
+        /// `GetOsnapPoint` 중복 호출을 피할 수 있음. null이면 내부에서 신규 구축(시트 선택 자동 경로).
         /// </summary>
         private List<ChainDimensionData> ComputeViewDimensionsForMembers(
-            List<int> memberIndices, string viewDirection = null, float tolerance = 0.5f)
+            List<int> memberIndices, string viewDirection = null, float tolerance = 0.5f,
+            Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> preBuiltNodeOsnapMap = null)
         {
             List<ChainDimensionData> result = new List<ChainDimensionData>();
             if (memberIndices == null || memberIndices.Count == 0) return result;
 
-            // 1. nodeOsnapMap 구축 — 부재별 Osnap(LINE 끝점, POINT)
+            // 1. nodeOsnapMap 준비 — preBuilt가 있으면 그중 memberIndices 부분만 필터링, 없으면 신규 구축
             Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> nodeOsnapMap =
                 new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
 
-            List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-            if (allBodyNodes == null || allBodyNodes.Count == 0) return result;
-
             HashSet<int> memberSet = new HashSet<int>(memberIndices);
-            var bodyNodes = allBodyNodes.Where(n => memberSet.Contains(n.Index)).ToList();
 
-            foreach (var node in bodyNodes)
+            if (preBuiltNodeOsnapMap != null && preBuiltNodeOsnapMap.Count > 0)
             {
-                string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
-                var pts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-                try
+                // T-032 빠른 경로: 이미 구축된 맵에서 해당 부재만 골라 재사용 (GetOsnapPoint 호출 없음)
+                foreach (var kv in preBuiltNodeOsnapMap)
                 {
-                    var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
-                    if (osnapList != null)
+                    if (memberSet.Contains(kv.Key))
+                        nodeOsnapMap[kv.Key] = kv.Value;
+                }
+            }
+            else
+            {
+                // 기본 경로: GetOsnapPoint로 직접 수집 (시트 선택 자동·기존 호출자)
+                List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (allBodyNodes == null || allBodyNodes.Count == 0) return result;
+
+                var bodyNodes = allBodyNodes.Where(n => memberSet.Contains(n.Index)).ToList();
+
+                foreach (var node in bodyNodes)
+                {
+                    string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
+                    var pts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                    try
                     {
-                        foreach (var osnap in osnapList)
+                        var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
+                        if (osnapList != null)
                         {
-                            switch (osnap.Kind)
+                            foreach (var osnap in osnapList)
                             {
-                                case VIZCore3D.NET.Data.OsnapKind.LINE:
-                                    if (osnap.Start != null)
-                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), partName));
-                                    if (osnap.End != null)
-                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), partName));
-                                    break;
-                                case VIZCore3D.NET.Data.OsnapKind.POINT:
-                                    if (osnap.Center != null)
-                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), partName));
-                                    break;
+                                switch (osnap.Kind)
+                                {
+                                    case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                        if (osnap.Start != null)
+                                            pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), partName));
+                                        if (osnap.End != null)
+                                            pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), partName));
+                                        break;
+                                    case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                        if (osnap.Center != null)
+                                            pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), partName));
+                                        break;
+                                }
                             }
                         }
                     }
+                    catch { }
+                    if (pts.Count > 0)
+                        nodeOsnapMap[node.Index] = pts;
                 }
-                catch { }
-                if (pts.Count > 0)
-                    nodeOsnapMap[node.Index] = pts;
             }
 
             if (nodeOsnapMap.Count == 0) return result;

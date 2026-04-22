@@ -398,7 +398,7 @@ namespace A2Z
                 bool osnapSuccess = CollectAllOsnap();
                 _autoProcessOsnapSuccess = osnapSuccess;
 
-                // 2. 치수 추출 (T-028: 2D 출력 엔진과 동일 경로)
+                // 2. 치수 추출 (T-028: 2D 출력 엔진과 동일 경로 / T-032: 성능 측정 + Osnap 맵 재사용)
                 if (osnapSuccess && osnapPointsWithNames.Count > 0)
                 {
                     ShowBusyOverlay("치수 계산 중...");
@@ -413,11 +413,18 @@ namespace A2Z
                             visibleMembers.Add(bom.Index);
                     }
 
+                    // T-032: CollectAllOsnap이 채운 _lastCollectedNodeOsnapMap을 전달해
+                    //         ComputeViewDimensionsForMembers 내부 GetOsnapPoint 중복 호출 제거
+                    var swCompute = System.Diagnostics.Stopwatch.StartNew();
                     chainDimensionList.Clear();
                     chainDimensionList.AddRange(
-                        ComputeViewDimensionsForMembers(visibleMembers, null, tolerance));
+                        ComputeViewDimensionsForMembers(visibleMembers, null, tolerance, _lastCollectedNodeOsnapMap));
+                    swCompute.Stop();
 
-                    DiagLog($"T-028 치수 계산: visibleMembers={visibleMembers.Count} chain={chainDimensionList.Count}");
+                    DiagLog($"T-032 치수 계산: visibleMembers={visibleMembers.Count} " +
+                        $"osnapMapNodes={_lastCollectedNodeOsnapMap.Count} " +
+                        $"chain={chainDimensionList.Count} " +
+                        $"ComputeViewDimensionsForMembers={swCompute.ElapsedMilliseconds}ms");
 
                     // ListView에 추가 및 치수 번호 설정
                     lvDimension.Items.Clear();
@@ -483,13 +490,15 @@ namespace A2Z
         // AutoProcessModel → Clash 이벤트 간 상태 전달용 필드
 
         /// <summary>
-        /// 전체 Osnap 수집 (내부 메서드)
+        /// 전체 Osnap 수집 (내부 메서드).
+        /// T-032: 같이 `_lastCollectedNodeOsnapMap`(부재별 Osnap 맵)도 채워 후속 `ComputeViewDimensionsForMembers` 호출 시 GetOsnapPoint 중복 호출 제거.
         /// </summary>
         private bool CollectAllOsnap()
         {
             osnapPoints.Clear();
             osnapPointsWithNames.Clear();
             lvOsnap.Items.Clear();
+            _lastCollectedNodeOsnapMap.Clear();
 
             try
             {
@@ -528,6 +537,9 @@ namespace A2Z
 
                     if (osnapList != null && osnapList.Count > 0)
                     {
+                        // T-032: 부재별 Osnap 맵에도 추가 (ComputeViewDimensionsForMembers에서 재사용)
+                        var nodeOsnapPts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+
                         foreach (var osnap in osnapList)
                         {
                             switch (osnap.Kind)
@@ -538,12 +550,14 @@ namespace A2Z
                                         var startVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
                                         osnapPoints.Add(startVertex);
                                         osnapPointsWithNames.Add((startVertex, partName));
+                                        nodeOsnapPts.Add((startVertex, partName));
                                     }
                                     if (osnap.End != null)
                                     {
                                         var endVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
                                         osnapPoints.Add(endVertex);
                                         osnapPointsWithNames.Add((endVertex, partName));
+                                        nodeOsnapPts.Add((endVertex, partName));
                                     }
                                     break;
 
@@ -557,10 +571,14 @@ namespace A2Z
                                         var pointVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(pointVertex);
                                         osnapPointsWithNames.Add((pointVertex, partName));
+                                        nodeOsnapPts.Add((pointVertex, partName));
                                     }
                                     break;
                             }
                         }
+
+                        if (nodeOsnapPts.Count > 0)
+                            _lastCollectedNodeOsnapMap[node.Index] = nodeOsnapPts;
                     }
                 }
 

@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-029 3D 뷰 치수 렌더링은 글로벌 뷰 버튼으로 지연)
+last_updated: 2026-04-22 (T-032 Osnap 맵 재사용으로 치수 계산 성능 개선)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -73,8 +73,8 @@ flowchart TD
 ### `CompleteMainDimensionPostClash` (공용, 판정 통과 이후)
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
-| 12 | Osnap 수집 | Form1 | `ShowBusyOverlay("Osnap 수집 중...")` → `CollectAllOsnap()` → `_autoProcessOsnapSuccess` 저장 (`osnapPointsWithNames`·`lvOsnap` 갱신) |
-| 13 | **치수 계산 통합** (T-028) | Form1 | `ShowBusyOverlay("치수 계산 중...")` → visible 부재 목록 산출 → `ComputeViewDimensionsForMembers(visibleMembers, null, 0.5f)` 한 번 호출로 3뷰(X/Y/Z) × 2축 = 6조합 치수 생성 + 중복 제거. 2D 출력(`GenerateSheetDrawing2D`)·글로벌 X/Y/Z 버튼·시트 선택 자동 치수 모두 이 공용 헬퍼 재사용 → 로직 일관 보장. `DiagLog T-028 치수 계산: visibleMembers=N chain=M` |
+| 12 | Osnap 수집 | Form1 | `ShowBusyOverlay("Osnap 수집 중...")` → `CollectAllOsnap()` → `_autoProcessOsnapSuccess` 저장 (`osnapPointsWithNames`·`lvOsnap` + **T-032**: 부재별 맵 `_lastCollectedNodeOsnapMap`도 같이 채움) |
+| 13 | **치수 계산 통합** (T-028 + T-032 최적화) | Form1 | `ShowBusyOverlay("치수 계산 중...")` → visible 부재 목록 산출 → `ComputeViewDimensionsForMembers(visibleMembers, null, 0.5f, _lastCollectedNodeOsnapMap)` 호출. **`_lastCollectedNodeOsnapMap` 전달로 GetOsnapPoint 중복 호출 제거** (T-032). 3뷰 × 2축 = 6조합 치수 생성 + 중복 제거. 2D 출력·글로벌 X/Y/Z·시트 선택 자동 모두 이 공용 헬퍼 재사용. `Stopwatch`로 소요 시간 측정, `DiagLog T-032 치수 계산: visibleMembers=N osnapMapNodes=K chain=M ComputeViewDimensionsForMembers=Xms` |
 | 14 | `lvDimension` 갱신 | UI | 번호·축·뷰이름·거리·좌표 표시 |
 | 14.5 | **3D 뷰 정리** (T-029) | SDK | `Review.Measure.Clear()` + `ShapeDrawing.Clear()` — 이전 렌더 잔존 제거. **3D 뷰 치수선은 그리지 않음**. 사용자가 글로벌 X/Y/Z 뷰 버튼 눌러야 `ShowAllDimensions(viewDir)`가 `chainDimensionList`에서 해당 뷰 필터링해 렌더링 |
 | 15 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End |
@@ -159,3 +159,4 @@ flowchart TD
 | 2026-04-22 | T-027: 치수 계산 단계(13) 직후 `FilterOsnapByViewDimensionUsage` 호출 추가(단계 13.5) — 도면 뷰×치수축 6개 조합의 1차 필터 endpoint 합집합만 `AddChainDimensionByAxis` 입력으로 사용. 3D 뷰 체인 치수 개수 감소(필터 전/후 DiagLog 기록). osnap 원본 리스트는 보존해 다른 기능(제작도·가공도) 영향 없음. 방식: (a) 체인 치수만 / β (endpoint 합집합 1회 산출 후 축별 1벌) | Claude |
 | 2026-04-22 | **T-028**: 4경로(치수추출·글로벌 X/Y/Z·2D 출력·시트 선택 자동) 치수 엔진 통합. 2D 출력 엔진(`nodeOsnapMap` + `FilterOsnapForDimAxis` + `AddChainDimensionByAxis(viewDirection)`)을 `ComputeViewDimensionsForMembers` 공용 헬퍼로 추출. 본 핸들러는 단계 13에서 visible 부재를 이 헬퍼에 넘겨 3뷰 × 2축 = 6조합 치수를 한 번에 생성(중복 제거 + `ViewDirection` 콤마 누적). T-027 `FilterOsnapByViewDimensionUsage` 제거. `ShowAllDimensions` 내부 분기 ①②③ 제거되어 표시 전용으로 단순화. 단계표 12·13·14 재번호 | Claude |
 | 2026-04-22 | **T-029**: 치수추출 버튼 완료 직후 `ShowAllDimensions()` 호출 **제거**. 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 이전 렌더 잔존 정리. 3D 뷰는 "치수선 없는 깨끗한 상태"로 종료되고, 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 실제 치수선이 그려짐. 단계 14.5 추가, 상태 변화에 `Review.Measure` 행 갱신 | Claude |
+| 2026-04-22 | **T-032**: `CollectAllOsnap` 내부에 **부재별 Osnap 맵**(`_lastCollectedNodeOsnapMap`) 병행 구축. `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` 파라미터 추가해 치수추출 버튼 경로에서 `GetOsnapPoint` 중복 호출 제거. `Stopwatch`로 소요 시간 측정, `DiagLog T-032` 기록. 시트 선택 자동 경로(다른 부재 집합)는 null 전달해 내부 재구축 유지. 단계 12·13 재기술 | Claude |

@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-04-22 — T-032 치수 계산 성능 최적화 (Osnap 맵 재사용)
+
+**유형**: perf
+**커밋**: `pending`
+**관련 TASK**: T-032
+**배경**: 사용자 피드백 "치수 계산 중 창이 오래 떠있음". 원인은 `CollectAllOsnap`과 `ComputeViewDimensionsForMembers`가 각 부재의 `GetOsnapPoint`를 **이중 호출**하던 것 (데이터 구조 차이로 재사용 안 됨)
+**선택한 방식**: 옵션 A — CollectAllOsnap이 수집 중 부재별 맵도 같이 구축, ComputeViewDimensionsForMembers가 재사용
+**변경 사항**:
+- **Form1.cs**: `_lastCollectedNodeOsnapMap` 필드 추가 (`Dictionary<int, List<(Vertex3D, string)>>`)
+- **Form1.BOM.cs `CollectAllOsnap`**: 각 부재의 Osnap을 플랫 리스트(`osnapPointsWithNames`)에 넣는 동시에 부재별 맵도 `_lastCollectedNodeOsnapMap`에 적재. 호출 초반 `Clear()` 추가로 이전 호출 잔존 방지
+- **Form1.Dimensions.cs `ComputeViewDimensionsForMembers`**: `preBuiltNodeOsnapMap` optional 파라미터 추가
+  - 있으면: `memberIndices` 부분만 필터해 재사용 (**GetOsnapPoint 호출 없음**)
+  - 없으면: 기존대로 내부에서 `GetOsnapPoint`로 구축 (시트 선택 자동 경로는 다른 부재 집합이라 null 전달)
+- **Form1.BOM.cs `CompleteMainDimensionPostClash`**: `_lastCollectedNodeOsnapMap` 전달 → GetOsnapPoint 중복 호출 제거. `Stopwatch` 측정으로 `DiagLog T-032 치수 계산: ... ComputeViewDimensionsForMembers=Xms` 기록
+- docs `main-dimension.md` 단계 12·13 재기술 + 변경 이력
+- MSBuild Debug 통과
+
+**영향 범위**: 치수추출 버튼 경로의 Osnap 중복 호출 제거로 계산 시간 감소 (대략 절반 수준 예상, 측정 필요). 시트 선택 자동 경로·기타 `ComputeViewDimensionsForMembers` 호출자는 무영향
+
+---
+
 ## 2026-04-22 — T-030 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
 
 **유형**: feat
