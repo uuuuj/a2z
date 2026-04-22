@@ -137,9 +137,9 @@ namespace A2Z
                 // 5-1. ORIENTATION UDA 기반 카메라 회전
                 ApplyOrientationRotation(bom.Index, viewDirection);
 
-                // 6. 화면 맞춤 + 은선 모드 (모든 조작 전에 기본 설정 완료)
+                // 6. 화면 맞춤 + 실선 모드 (T-031: 가공도 시트 선택 시 은선 처리 제거, SMOOTH 실선)
                 vizcore3d.View.FitToView();
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
                 // ※ Z 최장축 90° 회전은 모든 drawing 완료 후 마지막에 적용 (아래 참조)

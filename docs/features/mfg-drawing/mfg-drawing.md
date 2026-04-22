@@ -4,7 +4,7 @@ feature_name: 선택 부재 가공도 생성
 category: MfgDrawing
 trigger_type: User Action
 owner_module: Form1.MfgDrawing.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-22 (T-031 은선 처리 제거 — SMOOTH 실선 모드로 변경)
 code_reference: /docs/code-reference/form1-mfg-drawing.md#btnMfgDrawing_Click
 ---
 
@@ -111,7 +111,7 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | `vizcore3d.ShapeDrawing` | 이전 보조선 | Clear 후 새 보조선 |
 | `vizcore3d.Review.Note` | 이전 풍선 | Clear 후 새 풍선 |
 | `vizcore3d.ViewMode` | 이전 | `Both` |
-| `vizcore3d.View.RenderMode` | SOLID | DASH_LINE |
+| `vizcore3d.View.RenderMode` | 이전 모드 | **SMOOTH (실선)** — T-031 (2026-04-22) 이전에는 DASH_LINE(은선). 사용자 피드백 "가공도 눌렀을 때 은선 처리 안되게" 반영. 2D 캡처 내부(L820·L1582)는 여전히 DASH_LINE 유지 |
 | 카메라 | 이전 위치 | 최장축 기준 정면 |
 
 ## 8. 후행 기능 (Chained)
@@ -127,3 +127,4 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-22 | T-031: 가공도 시트 선택 시 3D 뷰 은선 처리(DASH_LINE) → 실선(SMOOTH)으로 변경. [Form1.MfgDrawing.cs L142](../../../A2Z/Form1.MfgDrawing.cs)의 `SetRenderMode(DASH_LINE)` → `SetRenderMode(SMOOTH)` 교체. 2D 캡처·PDF 출력 내부 경로(L820, L1582)는 은선 유지 (2D 도면의 내부 상세용). 상태 변화 표 갱신 | Claude |

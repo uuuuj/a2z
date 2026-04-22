@@ -28,22 +28,6 @@
 - **영향 파일**: A2Z/Form1.BOM.cs (CompleteMainDimensionPostClash), A2Z/Form1.Dimensions.cs (ComputeViewDimensionsForMembers)
 - **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
 
-### T-031 — 가공도 시트 선택 시 은선(DASH_LINE) 처리 비활성화
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 직접 지시)
-- **배경**: 가공도 시트 선택 시 3D 뷰가 점선(은선) 모드로 전환. 사용자는 이 은선 처리 없이 **실선(SMOOTH)** 으로 보고 싶음
-- **해당 위치**:
-  - [Form1.MfgDrawing.cs L142](../../A2Z/Form1.MfgDrawing.cs) `ExecuteMfgDrawing` 초반 `SetRenderMode(DASH_LINE)` — 가공도 시트 선택 시 주 경로
-  - (참고) Form1.MfgDrawing.cs L820, L1582 — 가공도 2D 캡처·PDF 출력용. 은선이 필요할 수 있음 → 확인
-  - (참고) Form1.DrawingSheets.cs L696, L729, L1433 — 시트 2D 렌더링 경로
-- **세부**:
-  - [ ] `ExecuteMfgDrawing` L142의 `SetRenderMode(DASH_LINE)` 호출 제거 또는 `RenderModes.SMOOTH`로 교체
-  - [ ] L820/L1582 등 2D 캡처·PDF 출력 경로는 DASH_LINE 필요 여부 확인 (사용자 의도 확인 필요)
-  - [ ] 시트 목록에서 가공도 선택·해제 시 은선 상태가 잔존하지 않도록 SMOOTH 복귀 보장
-  - [ ] docs features/drawing-sheets/ 관련 문서 갱신
-  - [ ] 사용자 실기 확인
-- **영향 파일**: A2Z/Form1.MfgDrawing.cs, (필요 시) A2Z/Form1.DrawingSheets.cs
 
 ### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
 - **생성일**: 2026-04-22
@@ -105,6 +89,19 @@
 ---
 
 ## IN_PROGRESS
+
+### T-031 — 가공도 시트 선택 시 은선(DASH_LINE) 처리 비활성화
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **구현**:
+  - [x] `ExecuteMfgDrawing` L142: `SetRenderMode(DASH_LINE)` → `SetRenderMode(SMOOTH)` 실선 모드로 교체
+  - [x] 2D 캡처·PDF 출력 내부(L820, L1582)는 DASH_LINE 유지 (2D 도면의 내부 상세 은선용)
+  - [x] docs/features/mfg-drawing/mfg-drawing.md 상태 변화 + 변경 이력 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (가공도 시트 선택 시 실선으로 나오는지)
+- **영향 파일**: A2Z/Form1.MfgDrawing.cs (1줄), docs/features/mfg-drawing/mfg-drawing.md
 
 ### T-029 — 치수추출 버튼은 3D 뷰 치수 렌더링하지 않음 (글로벌 뷰 버튼으로 지연)
 - **생성일**: 2026-04-22
