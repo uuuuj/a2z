@@ -373,118 +373,24 @@ namespace A2Z
         /// </summary>
         private List<int> ShowAllDimensions(string viewDirection = null, bool forDrawing2D = false)
         {
-            // 표시할 치수 필터링
+            // T-028: 치수 계산은 호출자가 chainDimensionList에 미리 채움 (치수추출·시트 선택·2D 출력 모두 동일).
+            // 본 메서드는 chainDimensionList를 viewDirection 기준으로 필터링해 3D 뷰에 표시하는 역할만.
+            if (chainDimensionList == null || chainDimensionList.Count == 0)
+                return new List<int>();
+
             List<ChainDimensionData> displayList;
-            bool useDirectChain = false; // Osnap 재추출 모드 (순차 체인 + 스마트 필터링 혼합)
-            bool isInstallationMode = false; // 설치도 모드 (필터링 우회)
-            if (viewDirection != null && osnapPointsWithNames != null && osnapPointsWithNames.Count > 0
-                && (chainDimensionList == null || chainDimensionList.Count == 0))
+            if (string.IsNullOrEmpty(viewDirection))
             {
-                // Osnap 직접 재추출 모드 (chainDimensionList가 없을 때만)
-                // chainDimensionList가 있으면 ❷분기(nodeOsnapMap 기반 필터링)를 우선
-                float tolerance = 0.5f;
-                var mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
-                displayList = new List<ChainDimensionData>();
-
-                List<string> visibleAxes = new List<string>();
-                switch (viewDirection)
-                {
-                    case "X": visibleAxes.Add("Y"); visibleAxes.Add("Z"); break;
-                    case "Y": visibleAxes.Add("X"); visibleAxes.Add("Z"); break;
-                    case "Z": visibleAxes.Add("X"); visibleAxes.Add("Y"); break;
-                }
-
-                foreach (var axis in visibleAxes)
-                {
-                    displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
-                }
-                useDirectChain = true; // Osnap 재추출 모드: 순차 체인 + 스마트 필터링
-            }
-            else if (viewDirection != null && chainDimensionList != null && chainDimensionList.Count > 0)
-            {
-                // 설치도 모드: 치수추출과 동일한 방식 (Osnap 수집 → MergeCoordinates → AddChainDimensionByAxis)
-                List<string> visibleAxes = new List<string>();
-                switch (viewDirection)
-                {
-                    case "X": visibleAxes.Add("Y"); visibleAxes.Add("Z"); break;
-                    case "Y": visibleAxes.Add("X"); visibleAxes.Add("Z"); break;
-                    case "Z": visibleAxes.Add("X"); visibleAxes.Add("Y"); break;
-                }
-
-                // 선택된 부재들의 Osnap 수집 (노드별 그룹 → 끝단만 유지)
-                var nodeOsnapMap = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>>();
-                if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
-                {
-                    List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                    if (allBodyNodes != null)
-                    {
-                        HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
-                        var bodyNodes = allBodyNodes.Where(n => selectedSet.Contains(n.Index)).ToList();
-                        foreach (var node in bodyNodes)
-                        {
-                            string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
-                            var pts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-                            try
-                            {
-                                var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
-                                if (osnapList != null)
-                                {
-                                    foreach (var osnap in osnapList)
-                                    {
-                                        switch (osnap.Kind)
-                                        {
-                                            case VIZCore3D.NET.Data.OsnapKind.LINE:
-                                                if (osnap.Start != null)
-                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), partName));
-                                                if (osnap.End != null)
-                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), partName));
-                                                break;
-                                            case VIZCore3D.NET.Data.OsnapKind.POINT:
-                                                if (osnap.Center != null)
-                                                    pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), partName));
-                                                break;
-                                        }
-                                    }
-                                }
-                            }
-                            catch { }
-                            if (pts.Count > 0)
-                                nodeOsnapMap[node.Index] = pts;
-                        }
-                    }
-                }
-
-                // 축별 Osnap 필터링 (공통 규칙: 주축/보조축 기반)
-                // 주축: MAX/MIN 극값 기준축, 보조축: 동률 시 타이브레이커
-                // X뷰(YZ): 주축=Z, 보조축=Y / Y뷰(XZ): 주축=Z, 보조축=X / Z뷰(XY): 주축=Y, 보조축=X
-                int totalOsnapCount = nodeOsnapMap.Values.Sum(p => p.Count);
-                if (totalOsnapCount >= 2)
-                {
-                    displayList = new List<ChainDimensionData>();
-                    isInstallationMode = true;
-                    float tolerance = 0.5f;
-
-                    foreach (var axis in visibleAxes)
-                    {
-                        // 공통 필터링 함수 호출
-                        var filteredPoints = FilterOsnapForDimAxis(nodeOsnapMap, axis, viewDirection, tolerance);
-                        var mergedPoints = MergeCoordinates(filteredPoints, tolerance);
-                        displayList.AddRange(AddChainDimensionByAxis(mergedPoints, axis, tolerance, viewDirection));
-                    }
-                }
-                else
-                {
-                    // Osnap 부족: 기존 chainDimensionList에서 해당 축만 필터링
-                    displayList = chainDimensionList.Where(d => visibleAxes.Contains(d.Axis)).ToList();
-                }
-            }
-            else if (chainDimensionList != null && chainDimensionList.Count > 0)
-            {
+                // 전체 치수 표시 (치수추출 버튼 직후 기본)
                 displayList = chainDimensionList;
             }
             else
             {
-                return new List<int>();
+                // 뷰별 필터: ChainDimensionData.ViewDirection 필드 기준 (콤마 구분 "X,Y" 지원)
+                displayList = chainDimensionList.Where(d =>
+                    string.IsNullOrEmpty(d.ViewDirection) ||
+                    d.ViewDirection.Split(',').Contains(viewDirection)
+                ).ToList();
             }
 
             if (displayList.Count == 0) return new List<int>();
@@ -510,24 +416,9 @@ namespace A2Z
                     }
                 }
 
-                // ========== Dimension Filtering (순차 체인 + 스마트 필터링 혼합) ==========
-                List<ChainDimensionData> filteredDims;
-                if (isInstallationMode)
-                {
-                    // 설치도 모드: 필터링 우회 (이미 필요한 치수만 구성됨)
-                    filteredDims = displayList;
-                }
-                else if (useDirectChain)
-                {
-                    // Osnap 재추출 순차 체인 + 스마트 필터링 혼합
-                    // 순차 체인에서 추출된 치수 중 필요한 치수만 선택
-                    filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 12, minTextSpace: 15.0f);
-                }
-                else
-                {
-                    // 일반 모드: 스마트 필터링 적용
-                    filteredDims = ApplySmartFiltering(displayList, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
-                }
+                // T-028: 단일 경로 스마트 필터링 (isInstallationMode / useDirectChain 분기 제거)
+                List<ChainDimensionData> filteredDims =
+                    ApplySmartFiltering(displayList, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
 
                 if (filteredDims.Count == 0)
                 {
@@ -638,10 +529,9 @@ namespace A2Z
                 var level1Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0).ToList();
                 var level2Dims = filteredDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0).ToList();
 
-                // 설치도 모드: Osnap 체인치수 100mm, 전체 길이 150mm 고정
-                // 일반 모드: baseOffset + levelSpacing 기반
-                float level1Offset = isInstallationMode ? 100.0f : baseOffset;
-                float level2Offset = isInstallationMode ? 100.0f : baseOffset + levelSpacing;
+                // T-028: 오프셋 단일화 (isInstallationMode 분기 제거) — baseOffset 기반 적응형
+                float level1Offset = baseOffset;
+                float level2Offset = baseOffset + levelSpacing;
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 foreach (var dim in level1Dims)
@@ -665,7 +555,7 @@ namespace A2Z
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이)
                 int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
-                float level0Offset = isInstallationMode ? 150.0f : baseOffset + (levelSpacing * maxLevelUsed);
+                float level0Offset = baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
@@ -1997,6 +1887,7 @@ namespace A2Z
                     {
                         Axis = axis,
                         ViewName = GetViewNameByAxis(axis),
+                        ViewDirection = viewDirection,  // T-028: 뷰 필터용
                         Distance = distance,
                         StartPoint = sortedPoints[i],
                         EndPoint = sortedPoints[i + 1],
@@ -2021,6 +1912,7 @@ namespace A2Z
                     {
                         Axis = axis,
                         ViewName = GetViewNameByAxis(axis),
+                        ViewDirection = viewDirection,  // T-028
                         Distance = totalDistance,
                         StartPoint = first,
                         EndPoint = last,
@@ -2036,70 +1928,125 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-027: 도면 뷰별 치수 계산에 쓰이는 Osnap endpoint의 합집합을 반환.
+        /// T-028: 2D 출력 엔진과 동일한 로직으로 주어진 부재 집합의 치수 계산.
         ///
-        /// 동작:
-        ///   - 뷰 방향 3종(X/Y/Z) × 치수축 3종(X/Y/Z) 중 viewDir ≠ dimAxis인 6개 조합에 대해
-        ///   - AddChainDimensionByAxis의 1차 필터(같은 치수축 값 중 필터축 최소 1점) 로직을 재현해
-        ///   - 각 조합에서 살아남은 점들을 합집합해 반환
+        /// 흐름: nodeOsnapMap 구축 → (뷰×치수축 조합 루프) → FilterOsnapForDimAxis →
+        ///       MergeCoordinates → AddChainDimensionByAxis(axis, viewDirection)
         ///
-        /// 목적: 치수추출 시 3D 뷰에 표시되는 체인 치수 개수를 도면에 실제로 남는 Osnap만으로 제한해 가독성 개선.
-        /// osnap 원본 리스트(osnapPointsWithNames, lvOsnap)는 건드리지 않아 제작도·가공도와 호환.
+        /// 파라미터:
+        ///   memberIndices: 대상 부재 Body 인덱스 리스트 (전체 visible 또는 시트 부재 등)
+        ///   viewDirection: null → 3뷰(X/Y/Z) × 2축 = 6조합 모두 생성 / "X"/"Y"/"Z" → 해당 뷰 2축만
+        ///   tolerance: MergeCoordinates 허용오차 (기본 0.5mm)
         ///
-        /// 입력:
-        ///   mergedPoints: MergeCoordinates 결과 (0.5mm 이내 병합된 좌표)
-        ///   tolerance: RoundToTolerance 반올림 단위 (AddChainDimensionByAxis와 동일)
-        /// 반환: 뷰×축 필터 endpoint 합집합. 원 순서 보존, 좌표 3자리 반올림 기준 중복 제거.
+        /// 반환: 체인 치수 리스트. 같은 (Axis, StartPoint, EndPoint) 3자리 반올림 기준 중복 제거,
+        ///       ViewDirection은 콤마 구분으로 누적 병합 (예: "X,Y" = X·Y 뷰 양쪽에 표시).
+        ///
+        /// 기준: ShowAllDimensions(viewDirection) 분기 ② 로직 = 2D 출력(GenerateSheetDrawing2D)에서 사용하는 것.
         /// </summary>
-        private List<VIZCore3D.NET.Data.Vector3D> FilterOsnapByViewDimensionUsage(
-            List<VIZCore3D.NET.Data.Vector3D> mergedPoints, float tolerance)
+        private List<ChainDimensionData> ComputeViewDimensionsForMembers(
+            List<int> memberIndices, string viewDirection = null, float tolerance = 0.5f)
         {
-            if (mergedPoints == null || mergedPoints.Count == 0)
-                return mergedPoints;
+            List<ChainDimensionData> result = new List<ChainDimensionData>();
+            if (memberIndices == null || memberIndices.Count == 0) return result;
 
-            HashSet<string> seenKeys = new HashSet<string>();
-            List<VIZCore3D.NET.Data.Vector3D> result = new List<VIZCore3D.NET.Data.Vector3D>();
+            // 1. nodeOsnapMap 구축 — 부재별 Osnap(LINE 끝점, POINT)
+            Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> nodeOsnapMap =
+                new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
 
-            string[] axes = new string[] { "X", "Y", "Z" };
-            foreach (string viewDir in axes)
+            List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
+            if (allBodyNodes == null || allBodyNodes.Count == 0) return result;
+
+            HashSet<int> memberSet = new HashSet<int>(memberIndices);
+            var bodyNodes = allBodyNodes.Where(n => memberSet.Contains(n.Index)).ToList();
+
+            foreach (var node in bodyNodes)
             {
-                foreach (string dimAxis in axes)
+                string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
+                var pts = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                try
                 {
-                    if (viewDir == dimAxis) continue;  // 뷰 방향 = 치수축: 해당 뷰에 표현 불가
-
-                    string filterAxisName = GetRemainingAxis(viewDir, dimAxis);
-                    Dictionary<string, VIZCore3D.NET.Data.Vector3D> grouped =
-                        new Dictionary<string, VIZCore3D.NET.Data.Vector3D>();
-
-                    foreach (var pt in mergedPoints)
+                    var osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
+                    if (osnapList != null)
                     {
-                        float dimValue = RoundToTolerance(GetAxisValue(pt, dimAxis), tolerance);
-                        float filterValue = GetAxisValue(pt, filterAxisName);
-                        string key = dimValue.ToString("F1");
-
-                        if (!grouped.ContainsKey(key))
+                        foreach (var osnap in osnapList)
                         {
-                            grouped[key] = pt;
-                        }
-                        else
-                        {
-                            float existingFilter = GetAxisValue(grouped[key], filterAxisName);
-                            if (filterValue < existingFilter)
-                                grouped[key] = pt;
+                            switch (osnap.Kind)
+                            {
+                                case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                    if (osnap.Start != null)
+                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), partName));
+                                    if (osnap.End != null)
+                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), partName));
+                                    break;
+                                case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                    if (osnap.Center != null)
+                                        pts.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), partName));
+                                    break;
+                            }
                         }
                     }
+                }
+                catch { }
+                if (pts.Count > 0)
+                    nodeOsnapMap[node.Index] = pts;
+            }
 
-                    foreach (var pt in grouped.Values)
-                    {
-                        string ptKey = $"{pt.X:F3},{pt.Y:F3},{pt.Z:F3}";
-                        if (seenKeys.Add(ptKey))
-                            result.Add(pt);
-                    }
+            if (nodeOsnapMap.Count == 0) return result;
+
+            // 2. 처리할 뷰 목록
+            string[] viewsToProcess = string.IsNullOrEmpty(viewDirection)
+                ? new string[] { "X", "Y", "Z" }
+                : new string[] { viewDirection };
+
+            // 3. 뷰 × 치수축 조합별 치수 계산
+            List<ChainDimensionData> raw = new List<ChainDimensionData>();
+            foreach (string view in viewsToProcess)
+            {
+                List<string> visibleAxes = new List<string>();
+                switch (view)
+                {
+                    case "X": visibleAxes.Add("Y"); visibleAxes.Add("Z"); break;
+                    case "Y": visibleAxes.Add("X"); visibleAxes.Add("Z"); break;
+                    case "Z": visibleAxes.Add("X"); visibleAxes.Add("Y"); break;
+                }
+
+                foreach (string axis in visibleAxes)
+                {
+                    var filteredPts = FilterOsnapForDimAxis(nodeOsnapMap, axis, view, tolerance);
+                    var mergedPts = MergeCoordinates(filteredPts, tolerance);
+                    raw.AddRange(AddChainDimensionByAxis(mergedPts, axis, tolerance, view));
                 }
             }
 
+            // 4. 중복 제거 (Axis, Start, End 3자리 반올림 기준) + ViewDirection 콤마 병합
+            Dictionary<string, ChainDimensionData> keyToDim = new Dictionary<string, ChainDimensionData>();
+            foreach (var dim in raw)
+            {
+                string key = $"{dim.Axis}|{dim.StartPoint.X:F1},{dim.StartPoint.Y:F1},{dim.StartPoint.Z:F1}|{dim.EndPoint.X:F1},{dim.EndPoint.Y:F1},{dim.EndPoint.Z:F1}";
+                if (keyToDim.TryGetValue(key, out var existing))
+                {
+                    if (!string.IsNullOrEmpty(dim.ViewDirection) &&
+                        (existing.ViewDirection == null || !existing.ViewDirection.Split(',').Contains(dim.ViewDirection)))
+                    {
+                        existing.ViewDirection = string.IsNullOrEmpty(existing.ViewDirection)
+                            ? dim.ViewDirection
+                            : $"{existing.ViewDirection},{dim.ViewDirection}";
+                    }
+                }
+                else
+                {
+                    keyToDim[key] = dim;
+                }
+            }
+
+            result.AddRange(keyToDim.Values);
             return result;
         }
+
+        // T-027 FilterOsnapByViewDimensionUsage 제거 (2026-04-22, T-028 통합).
+        //   사유: 2D 출력 엔진(FilterOsnapForDimAxis + nodeOsnapMap)과 로직이 달라 치수 결과 불일치를 유발.
+        //   대체: ComputeViewDimensionsForMembers(memberIndices, viewDirection, tolerance)
+        //   과거 코드는 git 이력(커밋 bb48a16) 참조.
 
         /// <summary>
         /// Osnap 필터링 공통 함수 — X/Y/Z 보기 모두 동일 규칙 적용

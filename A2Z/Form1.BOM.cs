@@ -398,31 +398,26 @@ namespace A2Z
                 bool osnapSuccess = CollectAllOsnap();
                 _autoProcessOsnapSuccess = osnapSuccess;
 
-                // 2. 치수 추출 (Osnap이 있을 때만)
+                // 2. 치수 추출 (T-028: 2D 출력 엔진과 동일 경로)
                 if (osnapSuccess && osnapPointsWithNames.Count > 0)
                 {
                     ShowBusyOverlay("치수 계산 중...");
                     float tolerance = 0.5f;
-                    List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
 
-                    // T-027: 3D 뷰 치수선 개수 제한 — 도면 뷰별(X/Y/Z) 치수 계산에서
-                    // 살아남는 Osnap endpoint의 합집합 S만 체인 치수 입력으로 사용.
-                    // osnap 원본 리스트는 유지되므로 제작도·가공도 등 다른 기능은 영향 없음.
-                    int beforeCount = mergedPoints.Count;
-                    List<VIZCore3D.NET.Data.Vector3D> filteredPoints =
-                        FilterOsnapByViewDimensionUsage(mergedPoints, tolerance);
-                    DiagLog($"T-027 Osnap filter: merged={beforeCount} → filtered={filteredPoints.Count}");
+                    // visible 부재 대상으로 공용 엔진 호출 — 3뷰(X/Y/Z) × 2축 = 6조합 치수 계산 + 중복 제거
+                    List<int> visibleMembers = new List<int>();
+                    foreach (var bom in bomList)
+                    {
+                        var real = vizcore3d.Object3D.FromIndex(bom.Index);
+                        if (real != null && real.Visible)
+                            visibleMembers.Add(bom.Index);
+                    }
 
                     chainDimensionList.Clear();
+                    chainDimensionList.AddRange(
+                        ComputeViewDimensionsForMembers(visibleMembers, null, tolerance));
 
-                    var xDimensions = AddChainDimensionByAxis(filteredPoints, "X", tolerance);
-                    chainDimensionList.AddRange(xDimensions);
-
-                    var yDimensions = AddChainDimensionByAxis(filteredPoints, "Y", tolerance);
-                    chainDimensionList.AddRange(yDimensions);
-
-                    var zDimensions = AddChainDimensionByAxis(filteredPoints, "Z", tolerance);
-                    chainDimensionList.AddRange(zDimensions);
+                    DiagLog($"T-028 치수 계산: visibleMembers={visibleMembers.Count} chain={chainDimensionList.Count}");
 
                     // ListView에 추가 및 치수 번호 설정
                     lvDimension.Items.Clear();

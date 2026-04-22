@@ -561,18 +561,43 @@ namespace A2Z
 
                 vizcore3d.EndUpdate();
 
-                // 설치도 시트: 부재 바운딩박스 경계 기반 체인치수
-                // 가공도 시트: 단일 부재 가공도 출력
-                // 일반 시트: Osnap 기반 체인치수
-                if (sheet.BaseMemberIndex == -3) // 가공도
+                // T-028: 시트 유형별 치수 분기
+                //   가공도(-3): ExecuteMfgDrawing (기존 유지 — 단일 부재 가공도)
+                //   설치도(-2): ExtractInstallationDimensions (BBox 기반, 부재 간 간격·전체 조립 치수)
+                //   그 외(Sheet 1, Sheet 2+): ComputeViewDimensionsForMembers (Osnap 기반, 2D 출력과 동일 엔진)
+                if (sheet.BaseMemberIndex == -3)
                 {
                     ExecuteMfgDrawing(sheet.MemberIndices[0]);
                 }
+                else if (sheet.BaseMemberIndex == -2)
+                {
+                    // 설치도 BBox 분기 — 추후 옵션 A(완전 폐기)로 전환 가능
+                    ExtractInstallationDimensions(sheet.MemberIndices);
+                }
                 else
                 {
-                    // 설치도 개념: 부재 바운딩박스 기반 설치 치수 추출
-                    // (부재 전체 길이 + 부재간 설치 위치 정보)
-                    ExtractInstallationDimensions(sheet.MemberIndices);
+                    // 일반 시트 — 2D 출력과 동일한 Osnap 엔진 (3뷰 × 2축 = 6조합 + 중복 제거)
+                    chainDimensionList.Clear();
+                    lvDimension.Items.Clear();
+                    chainDimensionList.AddRange(
+                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+
+                    int no = 1;
+                    foreach (var dim in chainDimensionList)
+                    {
+                        dim.No = no;
+                        ListViewItem lvi = new ListViewItem(no.ToString());
+                        lvi.SubItems.Add(dim.Axis);
+                        lvi.SubItems.Add(dim.ViewName);
+                        lvi.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
+                        lvi.SubItems.Add(dim.StartPointStr);
+                        lvi.SubItems.Add(dim.EndPointStr);
+                        lvi.Tag = dim;
+                        lvDimension.Items.Add(lvi);
+                        no++;
+                    }
+                    ShowAllDimensions();
+                    DiagLog($"T-028 시트 선택 자동 치수: sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} chain={chainDimensionList.Count}");
                 }
             }
             catch (Exception ex)

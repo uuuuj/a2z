@@ -14,6 +14,11 @@ namespace A2Z
         public int No { get; set; }
         public string Axis { get; set; }
         public string ViewName { get; set; }
+        /// <summary>
+        /// 이 치수가 보이는 뷰 방향 (T-028). "X"/"Y"/"Z" 또는 콤마 구분 "X,Y"(중복 제거 병합 시).
+        /// null/공백 = 모든 뷰 공통. 글로벌 X/Y/Z 버튼 누르면 이 필드로 필터링.
+        /// </summary>
+        public string ViewDirection { get; set; }
         public float Distance { get; set; }
         public VIZCore3D.NET.Data.Vector3D StartPoint { get; set; }
         public VIZCore3D.NET.Data.Vector3D EndPoint { get; set; }

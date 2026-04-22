@@ -6,10 +6,34 @@
 
 ---
 
+## 2026-04-22 — T-028 치수 로직 4경로 통합 (2D 출력 엔진 기준)
+
+**유형**: refactor + feat
+**커밋**: `pending`
+**관련 TASK**: T-028 (T-027 대체)
+**배경**: 4개 경로(치수추출·글로벌 X/Y/Z 버튼·2D 출력·시트 선택 자동)의 치수 로직이 각기 달라 결과 불일치. 사용자 요구: "2D 출력에서 사용하는 Osnap·로직 기준으로 모두 통일"
+**변경 사항**:
+- **`ChainDimensionData.ViewDirection` 필드 추가** ([Models.cs](../../A2Z/Models.cs)) — 이 치수가 보이는 뷰("X"/"Y"/"Z" 또는 콤마 구분 "X,Y"). 글로벌 뷰 버튼 필터링용
+- **`AddChainDimensionByAxis` 반환 `ChainDimensionData`에 `ViewDirection = viewDirection` 기록** — 체인·전체 치수 양쪽
+- **공용 헬퍼 `ComputeViewDimensionsForMembers(memberIndices, viewDirection, tolerance)`** 신설 ([Form1.Dimensions.cs](../../A2Z/Form1.Dimensions.cs))
+  - 2D 출력 엔진(`nodeOsnapMap` + `FilterOsnapForDimAxis` + `AddChainDimensionByAxis(axis, viewDirection)`) 완전 재사용
+  - `viewDirection == null` → 3뷰 × 2축 = 6조합 모두 / `"X"/"Y"/"Z"` → 해당 뷰 2축만
+  - 중복 제거: `(Axis, Start, End)` 3자리 반올림 기준, `ViewDirection`은 콤마 누적 (같은 치수가 여러 뷰에 속하면 "X,Y" 식)
+- **`ShowAllDimensions` 대폭 단순화** — 내부 분기 ①(Osnap 재추출)·②(nodeOsnapMap 재계산)·③(그대로) 제거. `chainDimensionList`에서 `ViewDirection.Split(',').Contains(viewDirection)` 필터링 + 스마트 필터링만. `isInstallationMode`·`useDirectChain` 변수 제거, 오프셋 분기 단일화
+- **`FilterOsnapByViewDimensionUsage`(T-027) 제거** — 2D 출력 로직과 달라 혼동 유발. 대체는 `ComputeViewDimensionsForMembers`
+- **`CompleteMainDimensionPostClash` 간소화** ([Form1.BOM.cs](../../A2Z/Form1.BOM.cs)) — visible 부재 계산 후 공용 헬퍼 1회 호출로 대체. `DiagLog T-028 치수 계산: visibleMembers=N chain=M`
+- **`LvDrawingSheet_SelectedIndexChanged` 분기 재작성** ([Form1.DrawingSheets.cs](../../A2Z/Form1.DrawingSheets.cs)) — 가공도(-3) `ExecuteMfgDrawing` / **설치도(-2) `ExtractInstallationDimensions`(BBox 유지, 추후 A 전환 여지)** / 그 외 공용 헬퍼
+- docs 갱신: `main-dimension.md` 단계 13·변경 이력 / `lv-sheet-selected.md` 분기 A 재작성·변경 이력
+- MSBuild Debug 통과
+
+**영향 범위**: 치수 로직 대폭 통합. 4경로가 같은 Osnap 엔진(`nodeOsnapMap` + `FilterOsnapForDimAxis`) 공유. 설치도 시트만 BBox 기반 유지 — 사용자가 나중에 "완전 Osnap 통일(A)"로 전환 가능하도록 분리된 구조
+
+---
+
 ## 2026-04-22 — T-027 치수추출 Osnap 선별 (뷰×축 필터 endpoint 합집합)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `bb48a16`
 **관련 TASK**: T-027
 **배경**: 치수 추출 결과 3D 뷰에 체인 치수가 과밀(로그상 chain=32~52). 사용자 의도는 "도면 뷰별 치수 계산에서 살아남는 Osnap만 남기고 나머지는 치수선 생성에 쓰지 말자"
 **변경 사항**:
