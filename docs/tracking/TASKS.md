@@ -8,24 +8,6 @@
 
 ## TODO
 
-### T-023 — 치수추출 사전조건 강화 (단일 모델 또는 선택상태만 허용)
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 직접 지시)
-- **배경**: 현재 `btnMainDimension_Click`은 모델이 로드되어 있으면 무조건 실행 → 여러 부재가 보이는 상태에서도 치수 추출 시도 → 결과가 의미 없거나 혼란스러울 수 있음. 사용자 요구: "치수추출의 기준은 3D View에 모델 하나만 띄워져 있을 때"
-- **허용 조건 (후보)**:
-  - (A) 3D View에 visible 부재가 **정확히 1개**일 때 (기본 안전망)
-  - (B) T-022 구현 후, "선택상태(빨간색)" 부재가 1개일 때 해당 부재만으로 추출 (대안)
-  - (A)를 기본으로 하고 (B)는 선택 기능 확정 시 추가
-- **세부**:
-  - [ ] `btnMainDimension_Click` 시작 지점에 visible 부재 카운트 계산 로직 추가 (`bomList` 중 `Object3D.FromIndex(idx).Visible == true` 개수)
-  - [ ] visible != 1이면 MessageBox "치수 추출은 단일 부재만 표시된 상태에서 가능합니다" 안내 후 return
-  - [ ] T-022 통과 시 "selected == 1"을 대안 허용 조건으로 병행
-  - [ ] docs/features/bom/main-dimension.md 사전조건 섹션·예외 섹션 갱신
-  - [ ] docs/사용자-매뉴얼/1.기본-작업/치수 추출.md 선결조건 명시
-- **영향 파일**: A2Z/Form1.BOM.cs (btnMainDimension_Click), docs/features/bom/main-dimension.md, docs/사용자-매뉴얼/1.기본-작업/치수%20추출.md
-- **연관**: T-022
-
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -118,6 +100,27 @@
   - `A2Z/Form1.DrawingSheets.cs` (+10줄 × 2곳)
   - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
 - **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
+
+### T-023 — 치수추출 사전조건 강화 (단일 모델 또는 선택상태만 허용)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **허용 조건** (확정):
+  - visible 부재 == 1 OR selected 부재 == 1 → 통과
+  - 그 외 → MessageBox 후 return (차단)
+- **세부** (완료):
+  - [x] `btnMainDimension_Click` 진입부에 가드 추가 — `GetPartialNode(false,false,true)` 순회로 visible 카운트, `FromFilter(SELECTED_TOP)`로 selected 카운트
+  - [x] 둘 다 ≠ 1이면 MessageBox("치수 추출은 3D View에 부재가 하나만 표시되거나 선택된 상태에서 가능합니다. 현재: 표시 N개, 선택 M개. 단일화 방법 안내") + `DiagLog BLOCKED` 기록
+  - [x] `docs/features/bom/main-dimension.md` 사전조건·단계 1.5·E03 추가(기존 E03은 E04로 재번호)
+  - [x] `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` 선결조건·단계 1-2·에러 ③ 추가
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (다중 부재 상태 클릭 시 차단, 단일화 후 정상 통과)
+- **영향 파일**:
+  - `A2Z/Form1.BOM.cs` (+27줄 가드 블록)
+  - `docs/features/bom/main-dimension.md`
+  - `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md`
+- **연관**: T-022 (selected==1 조건의 하이라이트 상태 제공)
 
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21

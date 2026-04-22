@@ -334,6 +334,34 @@ namespace A2Z
                 return;
             }
 
+            // T-023: 치수추출 사전조건 — 3D View에 부재가 "표시 1개" 또는 "선택 1개"일 때만 허용
+            int visibleCount = 0;
+            var allForCheck = vizcore3d.Object3D.GetPartialNode(false, false, true);
+            if (allForCheck != null)
+            {
+                foreach (var n in allForCheck)
+                {
+                    var real = vizcore3d.Object3D.FromIndex(n.Index);
+                    if (real != null && real.Visible) visibleCount++;
+                }
+            }
+            var selectedForCheck = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.SELECTED_TOP);
+            int selectedCount = selectedForCheck != null ? selectedForCheck.Count : 0;
+
+            if (visibleCount != 1 && selectedCount != 1)
+            {
+                MessageBox.Show(
+                    "치수 추출은 3D View에 부재가 **하나만** 표시되거나 선택된 상태에서 가능합니다.\n\n" +
+                    $"현재: 표시 {visibleCount}개, 선택 {selectedCount}개\n\n" +
+                    "해결 방법:\n" +
+                    "- 도면 시트 목록 또는 BOM 테이블에서 하나를 선택\n" +
+                    "- 모델트리에서 원하는 부재만 체크박스 on\n" +
+                    "- 3D 뷰에서 단일 부재 클릭",
+                    "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                DiagLog($"btnMainDimension BLOCKED visible={visibleCount} selected={selectedCount}");
+                return;
+            }
+
             // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Osnap → 치수 → Clash 시작까지 약 5초)
             ShowBusyOverlay("치수 추출 중...");
 

@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-22 — T-023 치수추출 사전조건 가드 (단일 부재)
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-023
+**변경 사항**:
+- `btnMainDimension_Click` 진입부에 단일 부재 가드 추가
+  - `GetPartialNode(false,false,true)` 순회로 visible 부재 카운트
+  - `Object3D.FromFilter(Object3dFilter.SELECTED_TOP)`로 selected 카운트 (T-022로 확보한 선택상태 API 활용)
+  - 둘 다 ≠ 1이면 MessageBox로 차단 + `DiagLog BLOCKED visible=N selected=M` 기록
+  - 허용 케이스: 시트/BOM 행 선택 → T-022로 selected==1 / 모델트리 체크박스로 visible==1 / 3D 뷰 단일 클릭
+- 개발자 문서 `main-dimension.md`: 사전조건 항목 1건·단계 1.5·에러 E03 추가 (기존 E03은 E04로 재번호)
+- 사용자 매뉴얼 `치수 추출.md`: 선결조건·단계 1-2·에러 ③ 추가
+- MSBuild Debug 통과
+
+**영향 범위**: 자동 치수 추출 진입 조건. 다중 부재 상태에서 실행은 이제 차단됨 (안전망). 기존에 전체 보기 상태에서 치수 추출을 쓰던 흐름은 단일화 절차가 필요 — UX 전환
+
+---
+
 ## 2026-04-22 — T-024 단일 부재 치수추출 시 시트 목록 미갱신 버그 수정
 
 **유형**: fix

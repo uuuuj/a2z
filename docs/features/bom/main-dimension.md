@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-018 진행 오버레이 추가)
+last_updated: 2026-04-22 (T-018 오버레이 + T-024 fallback + T-023 사전조건 가드)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -22,6 +22,7 @@ code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 
 ## 3. 사전 조건
 - [ ] 3D 모델 로드됨 ([BOM-002](./open-model.md))
+- [ ] **3D View에 부재가 "표시 1개" 또는 "선택 1개" 상태** (T-023) — 다중 부재 상태에서는 [E03] 차단
 
 ## 4. 전체 동작 흐름 (Happy Path)
 
@@ -45,6 +46,7 @@ flowchart TD
 | # | 단계 | 주체 | 설명 |
 |---|---|---|---|
 | 1 | 모델 확인 | Form1 | `vizcore3d.Model.IsOpen()` → [E01] |
+| 1.5 | **단일 부재 가드** (T-023) | Form1 | `GetPartialNode`로 visible 카운트 + `FromFilter(SELECTED_TOP)`로 selected 카운트. 둘 다 ≠ 1이면 MessageBox 후 return → [E03] |
 | 2 | **오버레이 표시** (T-018) | UI | `ShowBusyOverlay("치수 추출 중...")` — 3D 뷰어 중앙에 "처리 중" 라벨 띄워 5초 공백 동안 UI 반응 표시. try 직전 호출, finally에서 `HideBusyOverlay()` |
 | 3 | BOM 재수집 | Form1 | `CollectBOMData()` — 가시성 반영 위해 매번 재수집 |
 | 4 | BOM 확인 | Form1 | `bomList.Count == 0` → [E02] |
@@ -88,7 +90,8 @@ flowchart TD
 |---|---|---|---|---|
 | E01 | 모델 미로드 | return | MessageBox "먼저 파일을 열어주세요." | 상태 변화 없음 |
 | E02 | `bomList.Count == 0` | return | MessageBox "BOM 데이터를 수집할 수 없습니다." | BOM 재수집만 시도됨 |
-| E03 | 처리 중 예외 | catch | MessageBox "치수 추출 중 오류: {msg}" | 부분 반영 가능 |
+| E03 | **표시·선택 부재 ≠ 1** (T-023) | return | MessageBox "치수 추출은 3D View에 부재가 **하나만** 표시되거나 선택된 상태에서 가능합니다. 현재: 표시 N개, 선택 M개. (시트/BOM 행 선택 또는 모델트리 체크박스로 단일화)" | 상태 변화 없음, `DiagLog`에 `BLOCKED visible=N selected=M` 기록 |
+| E04 | 처리 중 예외 | catch | MessageBox "치수 추출 중 오류: {msg}" | 부분 반영 가능 |
 
 ## 7. 상태 변화 (Before / After)
 
@@ -118,3 +121,4 @@ flowchart TD
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-018: 3D 뷰어 중앙 "처리 중..." 오버레이 라벨 추가 — BOM 수집 → Osnap → 치수 계산 → Clash 시작의 각 단계 진입 시 라벨 메시지 갱신. 공통 헬퍼 `ShowBusyOverlay`/`HideBusyOverlay`는 [Form1.cs](/docs/code-reference/form1-bom.md)에 신설. 핸들러는 try/finally로 감싸 예외 시에도 오버레이 해제 보장. 5초 공백 UX 문제 해결 | Claude |
 | 2026-04-22 | T-024: `DetectClash()` 반환값을 받아 **`clashStarted == false`일 때 fallback 경로** 추가 — 단일 부재(쌍 0개)·SDK 예외는 `Clash_OnClashTestFinishedEvent` 미발동이므로 `GenerateDrawingSheets()` + 요약 MessageBox를 직접 호출해 시트 목록 미갱신 버그 해결. 단계표 10→13 재번호, 분기 C 신설 | Claude |
+| 2026-04-22 | T-023: 단일 부재 가드 추가 — `IsOpen` 확인 직후 `GetPartialNode` + `FromFilter(SELECTED_TOP)`로 visible·selected 카운트 계산, 둘 다 ≠ 1이면 MessageBox 후 return. 사전 조건에 항목 추가, 단계 1.5 추가, E03 신설, 기존 E03은 E04로 재번호 | Claude |
