@@ -8,6 +8,59 @@
 
 ## TODO
 
+### T-032 — 치수 계산 성능 측정 + Osnap 중복 호출 최적화
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 피드백 "치수 계산 중 창이 오래 떠있음")
+- **원인 가설**: `CompleteMainDimensionPostClash`에서 **Osnap 수집이 이중 호출**됨
+  1. `CollectAllOsnap()` — 전체 visible 부재 `GetOsnapPoint(idx)` 호출해 `osnapPointsWithNames`·`lvOsnap` 채움
+  2. `ComputeViewDimensionsForMembers(visibleMembers, null)` 내부 `nodeOsnapMap` 구축 시 **다시** 부재별 `GetOsnapPoint(idx)` 호출
+  - 데이터 구조 차이(플랫 리스트 vs node→Osnap 맵) 때문에 재사용 안 됨
+  - 부재 수 × Osnap 수 만큼 SDK 왕복 호출 중복
+- **세부**:
+  - [ ] `CompleteMainDimensionPostClash` 각 단계에 DiagLog로 소요 시간 기록 (`CollectAllOsnap`, `ComputeViewDimensionsForMembers`, `lvDimension 채움`)
+  - [ ] 병목 구간 특정 후 최적화:
+    - (A) `CollectAllOsnap`이 수집하는 동안 `nodeOsnapMap`도 같이 구축 → `ComputeViewDimensionsForMembers`에 이미 구축된 맵 전달
+    - (B) `CollectAllOsnap` 호출 제거하고 `ComputeViewDimensionsForMembers` 내부 `nodeOsnapMap`에서 역으로 `osnapPointsWithNames`·`lvOsnap` 구성
+    - (C) Osnap 수집 자체가 느리면 `GetOsnapPoint` 호출 수 줄이는 방향 (예: Part 단위 배치 API 검토)
+  - [ ] 오버레이 메시지 세분화 — 현재 "치수 계산 중..."으로 뭉뚱그려 있어 체감 시간 김. "Osnap 수집 중 {n/N}" 등 진행률 표시 검토
+  - [ ] docs/features/bom/main-dimension.md 성능 측정 결과 + 최적화 내용 기록
+- **영향 파일**: A2Z/Form1.BOM.cs (CompleteMainDimensionPostClash), A2Z/Form1.Dimensions.cs (ComputeViewDimensionsForMembers)
+- **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
+
+### T-031 — 가공도 시트 선택 시 은선(DASH_LINE) 처리 비활성화
+- **생성일**: 2026-04-22
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시)
+- **배경**: 가공도 시트 선택 시 3D 뷰가 점선(은선) 모드로 전환. 사용자는 이 은선 처리 없이 **실선(SMOOTH)** 으로 보고 싶음
+- **해당 위치**:
+  - [Form1.MfgDrawing.cs L142](../../A2Z/Form1.MfgDrawing.cs) `ExecuteMfgDrawing` 초반 `SetRenderMode(DASH_LINE)` — 가공도 시트 선택 시 주 경로
+  - (참고) Form1.MfgDrawing.cs L820, L1582 — 가공도 2D 캡처·PDF 출력용. 은선이 필요할 수 있음 → 확인
+  - (참고) Form1.DrawingSheets.cs L696, L729, L1433 — 시트 2D 렌더링 경로
+- **세부**:
+  - [ ] `ExecuteMfgDrawing` L142의 `SetRenderMode(DASH_LINE)` 호출 제거 또는 `RenderModes.SMOOTH`로 교체
+  - [ ] L820/L1582 등 2D 캡처·PDF 출력 경로는 DASH_LINE 필요 여부 확인 (사용자 의도 확인 필요)
+  - [ ] 시트 목록에서 가공도 선택·해제 시 은선 상태가 잔존하지 않도록 SMOOTH 복귀 보장
+  - [ ] docs features/drawing-sheets/ 관련 문서 갱신
+  - [ ] 사용자 실기 확인
+- **영향 파일**: A2Z/Form1.MfgDrawing.cs, (필요 시) A2Z/Form1.DrawingSheets.cs
+
+### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
+- **생성일**: 2026-04-22
+- **상태**: TODO (사용자 확인 대기 — 렌더링 제거할지 vs 유지할지)
+- **관련**: — (사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음")
+- **배경**: 치수추출 버튼은 T-029로 3D 뷰 치수 렌더링을 제거했지만, **시트 선택 자동 치수**(`LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기)에는 아직 `ShowAllDimensions()` 호출이 남아 시트 클릭 시 치수가 나타남. UX 일관성을 위해 시트 선택도 "치수 계산만 하고 렌더링은 안 함, 글로벌 뷰 버튼 눌러야 등장" 정책 확장 검토
+- **결정 필요**:
+  - (a) T-029 정책 확장: 시트 선택 시 `chainDimensionList` 교체 + `lvDimension` 갱신만 하고 3D 뷰는 깨끗하게. 글로벌 뷰 버튼 눌러야 치수 등장
+  - (b) 현행 유지: 시트 선택 시 자동 렌더링 (치수추출 버튼과 UX 상이)
+  - (c) 중간: 설치도(-2)는 자동 렌더링 유지, 일반 시트만 T-029 정책
+- **세부** (a 선택 시):
+  - [ ] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거
+  - [ ] `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 깨끗한 상태 마감
+  - [ ] 설치도(-2) 시트 `ExtractInstallationDimensions` 경로도 동일하게 처리할지 검토
+  - [ ] docs/features/drawing-sheets/lv-sheet-selected.md 갱신
+  - [ ] 사용자 실기 확인
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/lv-sheet-selected.md
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -110,152 +163,6 @@
   - `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 치수 블록 -15줄)
   - `A2Z/Form1.DrawingSheets.cs` (LvDrawingSheet_SelectedIndexChanged 분기 +10줄)
   - docs: `main-dimension.md`, `generate-sheets.md`, `lv-sheet-selected.md`
-
-### T-027 — 치수추출 Osnap 선별 (뷰×축 필터 endpoint 합집합)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 중)
-- **관련**: — (사용자 직접 지시)
-- **배경**: 현재 `btnMainDimension_Click` → `CompleteMainDimensionPostClash`가 `MergeCoordinates` 결과(수백 개)를 그대로 `AddChainDimensionByAxis` 3회(X/Y/Z)에 입력해 체인 치수 생성. 실기 로그 기준 chain=32~52. 3D 뷰 치수선이 과밀해 가독성 저하
-- **사용자 의도**: "도면 추출 시 X뷰/Y뷰/Z뷰에서 치수 계산할 때 남기는 Osnap들 외엔 다 지우자"
-- **확정 방식**: **(a) 체인 치수만** 줄이되 osnap 원본 리스트는 보존 + **β 방식**(endpoint 합집합 S 1회 산출 후 축별 체인 1벌)
-- **뷰×축 매트릭스** (X뷰·Y뷰·Z뷰 각각 2개 치수축 → 6개 조합):
-  - X뷰(Y-Z 평면): Y축 치수 + Z축 치수
-  - Y뷰(X-Z 평면): X축 치수 + Z축 치수
-  - Z뷰(X-Y 평면): X축 치수 + Y축 치수
-- **알고리즘**:
-  1. `CollectAllOsnap` → `MergeCoordinates` (기존 그대로)
-  2. 6개 조합 각각에 대해 `AddChainDimensionByAxis` 내부 1차 필터(같은 치수축 값 중 필터축 최소 1점) 재현 → endpoint 수집
-  3. 6개 endpoint 집합의 **합집합 S**
-  4. S를 `AddChainDimensionByAxis(S, axis, tolerance, viewDirection=null)` 3회 호출해 체인 치수 구성 → 기존 3D 표시·`lvDimension`과 호환
-- **세부**:
-  - [x] `Form1.Dimensions.cs`에 `FilterOsnapByViewDimensionUsage(mergedPoints, tolerance) → List<Vector3D>` 신설 — 기존 `GetRemainingAxis`, `GetAxisValue`, `RoundToTolerance` 재사용
-  - [x] `Form1.BOM.cs` `CompleteMainDimensionPostClash` 수정 — `MergeCoordinates` 직후 필터 호출, 결과를 `AddChainDimensionByAxis` 입력으로 사용
-  - [x] DiagLog로 필터 전/후 점 수 기록 (`T-027 Osnap filter: merged=N → filtered=M`)
-  - [x] osnap 원본 리스트(`osnapPointsWithNames`, `lvOsnap`)는 **건드리지 않음** (제작도·가공도 등 다른 기능이 공유)
-  - [x] docs/features/bom/main-dimension.md 단계표 갱신 (Osnap 필터 단계 13.5 추가)
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 — 치수선 개수 감소 체감, 필요한 치수는 유지 (DiagLog에서 merged·filtered 숫자 비교 가능)
-- **예상 효과**: 체인 치수 수 대폭 감소(로그 측정 후 정량화)
-- **영향 파일**:
-  - `A2Z/Form1.Dimensions.cs` (+약 40줄 — 새 헬퍼)
-  - `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 치수 블록 1줄 추가 + DiagLog)
-  - `docs/features/bom/main-dimension.md`
-
-### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **원인 확정** (코드 추적):
-  - `DetectClash`([Form1.Clash.cs:307~376](../../A2Z/Form1.Clash.cs)) 내부 루프 `for j = i+1`이 `targetNodes.Count == 1`이면 전혀 돌지 않음 → `clashCount == 0` → `return false` (L366)
-  - `PerformInterferenceCheck()` 미호출 → `Clash_OnClashTestFinishedEvent` 이벤트 자체가 발동 안 함
-  - 기존 `btnMainDimension_Click`은 `DetectClash()` 반환값을 무시 → 이벤트 대기 상태로 종료되지만 영영 발동 안 함
-  - `GenerateDrawingSheets`는 `Clash_OnClashTestFinishedEvent`에서 호출되는데 이벤트 미발동 → 시트 목록 미갱신
-  - 부가: 간섭 없는 다중 부재도 `Clash_OnClashTestFinishedEvent` 내 `if (clashList.Count > 0) GenerateDrawingSheets();` 조건에 걸려 시트 생성 안 되던 숨은 버그 존재
-- **구현** (2026-04-22):
-  - [x] `Form1.BOM.cs` `btnMainDimension_Click` — `DetectClash()` 반환값 `clashStarted` 수신. false면 `GenerateDrawingSheets()` + "Clash: 검사 대상 부재가 1개 이하 (간섭검사 건너뜀)" MessageBox 직접 호출
-  - [x] `Form1.Clash.cs` `Clash_OnClashTestFinishedEvent` — `if (clashList.Count > 0)` 조건 제거, `GenerateDrawingSheets()`를 **항상** 호출 (간섭 없는 다중 부재 대응)
-  - [x] `GenerateDrawingSheets` 내부 `bomList.Count > 0` 가드로 안전성 확인 — 수정 불필요
-  - [x] `docs/features/bom/main-dimension.md` 단계표 10→13, 분기 C 신설, 변경 이력
-  - [x] `docs/features/clash/clash-finished-event.md` 단계 10 재기술, 분기 A 수정, 변경 이력
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (부재 1개만 띄운 상태에서 치수추출 → Sheet 1·설치도·가공도_1 생성 확인)
-- **영향 파일**:
-  - `A2Z/Form1.BOM.cs` (+15줄 fallback 블록)
-  - `A2Z/Form1.Clash.cs` (조건부 호출 → 무조건 호출, 설명 주석)
-  - `docs/features/bom/main-dimension.md`, `docs/features/clash/clash-finished-event.md`
-
-### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **SDK 확정** (sdk-verifier 결과):
-  - `vizcore3d.Object3D.Select(List<int>, bool selection, bool pivot)` — 선택상태 설정/해제
-  - `Object3D.Select(Object3dSelectionModes.DESELECT_ALL)` — 전체 해제
-  - 기본 강조색 = 빨강 (`ViewManager.SelectionColor`로 커스텀 가능)
-  - `OnObject3DSelected` 이벤트 피드백 루프 위험 분석: 우리 앱 `Object3D_OnObject3DSelected`는 `dgvAttributes` 갱신만 수행, ListView 선택은 건드리지 않음 → **루프 없음**. 부수효과로 **부재 정보 탭도 자동 갱신**되어 UX 향상
-- **세부** (1차 완료):
-  - [x] SDK API 조사 (sdk-verifier) — `Object3D.Select` 확정
-  - [x] `LvDrawingSheet_SelectedIndexChanged` — `DESELECT_ALL` → 기준부재 `Select(indices, true, false)`. Sheet 1·설치도 생략, 가공도(`MemberIndices[0]`) / Sheet 2+(`BaseMemberIndex`) 구분
-  - [x] `LvDrawingBOMInfo_SelectedIndexChanged` — `DESELECT_ALL` → 단일 부재 Select (visibility 유지)
-  - [x] `pivot=false`로 회전 피봇 간섭 방지
-  - [x] docs/features/drawing-sheets/lv-sheet-selected.md 단계표·상태·이력 갱신
-  - [x] docs/features/drawing-sheets/lv-bom-info-selected.md 단계표·상태·이력 갱신
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (시트·BOM 행 선택 시 빨간 하이라이트 + 속성 탭 자동 갱신)
-- **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (+10줄 × 2곳)
-  - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
-- **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
-
-### T-023 — 치수추출 사전조건 (연결성 1덩어리 판정)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22 (재재설계 3번째)
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **최종 의도** (2026-04-22, 3차 확정):
-  - "부재 개수" / "STRU 단위" 모두 기각
-  - 판정 기준: **Clash 인접 그래프 기준 연결 성분 == 1**
-  - 떨어진 부재가 하나라도 있으면(간섭 없이 분리된 그룹이 2개 이상) 차단
-  - 사용자 근거: "3D View에서 모두 하나의 부재로 연결되어 있지 않고, 멀리 떨어져 있는 부재가 하나라도 있으면 치수추출 하면 안 될 것 같다"
-- **구현** (커밋 예정):
-  - [x] `Form1.BOM.cs`에서 STRU 주석 블록 2개 전부 제거 (호출부 + 하단 헬퍼)
-  - [x] `btnMainDimension_Click` 리팩토링: BOM 수집 + Clash 시작까지만 수행 → 반환. Osnap/치수/요약/시트는 Clash 이벤트로 이동. finally 제거, 오류·early return 시 명시적 `HideBusyOverlay`
-  - [x] `CompleteMainDimensionPostClash(bool isSingleMember, int clashTestCount)` 신설 ([Form1.BOM.cs](../../A2Z/Form1.BOM.cs)) — Osnap 수집 → 체인 치수 → 요약 MessageBox → `GenerateDrawingSheets` 묶음. finally에서 오버레이 해제
-  - [x] `Form1.Clash.cs` `Clash_OnClashTestFinishedEvent` 확장 — clashList 수집 후 `IsSingleConnectedComponent(out n)` 판정, n≠1이면 차단 MessageBox + return, n==1이면 `CompleteMainDimensionPostClash(false, testCount)` 호출
-  - [x] `IsSingleConnectedComponent(out int)` 헬퍼 신설 — Part→Body 역매핑으로 양방향 Clash 인접 그래프 구축 후 BFS, ≥2 발견 시 early exit
-  - [x] 단일 부재(clashStarted=false) fallback은 Post 메서드 직접 호출(isSingleMember=true)로 통합 → T-024 로직 흡수
-  - [x] docs 3종 전면 갱신: `main-dimension.md` 흐름도·단계표(3섹션)·분기 C·D·E03/E04 / `clash-finished-event.md` 단계 9·10·분기 B·E03·상태 변화 / 사용자 매뉴얼 `치수 추출.md` 내부 흐름·분기·에러 ③
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 — 떨어진 부재 2덩어리 → 차단 / 한 덩어리 → 정상 / 단일 부재 → 정상
-- **영향 파일**:
-  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 약 -90줄, +CompleteMainDimensionPostClash 약 90줄, STRU 주석 -120줄)
-  - `A2Z/Form1.Clash.cs` (Clash_OnClashTestFinishedEvent +30줄, IsSingleConnectedComponent +70줄)
-  - `docs/features/bom/main-dimension.md`, `docs/features/clash/clash-finished-event.md`, `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md`
-- **연관**: T-018 (오버레이), T-024 (단일 부재 fallback), T-025 (Sheet 1 BOM 자동), T-026 (xray 클리어)
-
-### T-026 — 치수추출 진입 시 이전 xray 선택 잔존 클리어
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백 + 로그 근거)
-- **증상**: 부재 1개만 띄운 상태에서 치수추출 → 다시 전체를 띄우고 치수추출해도 **1개 부재 기준 결과가 그대로 재현**
-- **원인 확정**: `LvDrawingSheet_SelectedIndexChanged` ([Form1.DrawingSheets.cs:526](../../A2Z/Form1.DrawingSheets.cs:526))가 시트 선택 시 `xraySelectedNodeIndices = new List<int>(sheet.MemberIndices)`를 설정. 이 잔존 값이 `CollectBOMData` ([Form1.BOM.cs:591](../../A2Z/Form1.BOM.cs:591))의 X-Ray 우선 필터에 계속 걸려 "그 부재만" 수집. 사용자가 3D 뷰 visibility를 전체로 돌려도 내부 필드는 안 지워짐
-- **로그 근거** (2026-04-22 10:58):
-  ```
-  [10:58:25.952] LvDrawingSheet_SelectedIndexChanged sheet#=1 members=1 → xray=1 설정
-  [10:58:34.372] btnMainDimension ENTER xray=1 chain=3 osnap=276 bom=1 → 재실행인데 xray=1 그대로
-  [10:58:35.481] EXIT OK chain=32 osnap=276 → 여전히 1개 기준 결과
-  ```
-- **구현**:
-  - [x] `btnMainDimension_Click` 진입부(IsOpen 가드 직후)에 `xraySelectedNodeIndices.Clear()` 추가 — "치수추출 버튼은 항상 현재 visible 기준" 원칙
-  - [x] docs/features/bom/main-dimension.md 단계 1.3 추가 + 변경 이력
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (1개 띄우고 치수추출 → 전체 띄우고 치수추출 → 전체 기준 결과 정상)
-- **UX 충돌 없음**: 특정 부재 치수는 시트/BOM 행 선택 경로(`LvDrawing*_SelectedIndexChanged`)에서 자동 수행되므로, `btnMainDimension`을 "현재 visible 기준"으로 굳혀도 부재 단위 치수 기능은 그대로 유지
-- **T-016과의 구분**: T-016은 "3회 이상 반복 누적"으로 재현 조건 미확정 간헐 버그. 본 T-026은 **명확한 잔존 상태**로 재현 조건 확정. 서로 다른 케이스
-- **영향 파일**:
-  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 진입부 +4줄)
-  - `docs/features/bom/main-dimension.md`
-
-### T-025 — 치수추출 직후 Sheet 1 기준 BOM 테이블 자동 출력
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백)
-- **배경**: 치수추출 완료 후 `lvDrawingBOMInfo`(도면정보 탭 BOM 테이블)가 **빈 상태**로 남음. 사용자가 시트 목록에서 Sheet 1을 직접 클릭해야만 `LvDrawingSheet_SelectedIndexChanged` → `CollectBOMInfo`가 트리거되어 채워짐. 사용자 요구: "치수추출 직후 Sheet 1(전체) 기준 BOM 테이블이 자동 표시"
-- **구현**:
-  - [x] `GenerateDrawingSheets()` 내부 ListView 갱신 직전에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가
-  - [x] try/catch로 감싸 SDK 예외 시 DiagLog만 기록 (앱 흐름 보호)
-  - [x] visibility·카메라는 건드리지 않음 (시트 선택 이벤트의 부수효과 회피)
-  - [x] docs/features/drawing-sheets/generate-sheets.md 단계 9.5 추가 + 변경 이력
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (치수추출 버튼 누르면 도면정보 탭에 전체 BOM이 즉시 표시되는지)
-- **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (GenerateDrawingSheets +13줄)
-  - `docs/features/drawing-sheets/generate-sheets.md`
 
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21
@@ -373,6 +280,67 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-026 — 치수추출 진입 시 이전 xray 선택 잔존 클리어
+- **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)
+- **관련**: — (사용자 피드백 + 로그 근거)
+- **커밋**: `7614417`
+- **요약**:
+  - 증상: 부재 1개 띄우고 치수추출 → 전체 띄우고 다시 치수추출 → 1개 기준 결과 반복
+  - 원인: `LvDrawingSheet_SelectedIndexChanged`가 설정한 `xraySelectedNodeIndices` 값이 잔존 → `CollectBOMData` L591의 X-Ray 우선 필터에 걸려 "그 부재만" 수집
+  - 수정: `btnMainDimension_Click` 진입부에 `xraySelectedNodeIndices.Clear()` 추가 — "치수추출 버튼은 항상 현재 visible 기준"
+
+### T-025 — 치수추출 직후 Sheet 1 기준 BOM 테이블 자동 출력
+- **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)
+- **관련**: — (사용자 피드백)
+- **커밋**: `7614417`
+- **요약**:
+  - 치수추출 완료 후 `lvDrawingBOMInfo`(도면정보 탭 BOM 테이블)가 빈 상태로 남던 문제
+  - `GenerateDrawingSheets()` ListView 갱신 직전에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가 → Sheet 1(전체) 기준 BOM 테이블 자동 채움
+  - visibility·카메라 무영향 (try/catch로 SDK 예외 보호)
+
+### T-023 — 치수추출 사전조건 (연결성 1덩어리 판정)
+- **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)
+- **관련**: — (사용자 직접 지시, 3차 재설계 후 확정)
+- **커밋**: `1620289`(v1 visible/selected==1, 의도 불일치로 원복) → `2a216b5`(v2 STRU UDA 주석 블록, 보류 후 원복) → **`cc72e94`**(v3 Clash 기반 연결성 — 최종 채택)
+- **최종 판정**: Clash 인접 그래프 기준 연결 성분 == 1일 때만 치수추출 허용. 떨어진 부재가 있으면 차단
+- **요약**:
+  - `IsSingleConnectedComponent(out int)` 헬퍼 신설 (Part→Body 역매핑 양방향 인접 그래프 + BFS + early exit)
+  - `Clash_OnClashTestFinishedEvent`에서 clashList 수집 후 판정, n≠1이면 차단 MessageBox
+  - 파이프라인 재배치: `btnMainDimension_Click`은 BOM+Clash 시작까지만, Osnap/치수/요약/시트는 `CompleteMainDimensionPostClash`로 분리
+  - 단일 부재(clashStarted=false)는 판정 스킵하고 Post 메서드 직접 호출 (T-024 fallback과 통합)
+  - docs 3종(main-dimension.md / clash-finished-event.md / 사용자 매뉴얼 치수 추출.md) 전면 재작성
+  - v1/v2 주석 블록·헬퍼 모두 제거 완료
+
+### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
+- **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)
+- **관련**: — (사용자 직접 지시)
+- **커밋**: `06a1395` → `cc72e94` (T-023 v3 구현에서 fallback 경로 통합)
+- **원인 + 수정**:
+  - 원인: `DetectClash`가 targetNodes=1이면 `clashCount=0` → return false → `PerformInterferenceCheck` 미호출 → Clash 이벤트 미발동 → `GenerateDrawingSheets` 미호출
+  - 부가: 간섭 없는 다중 부재도 이벤트 내 `if (clashList.Count > 0)` 조건에 걸려 시트 생성 안 되던 숨은 버그 공존
+  - 수정 1 (06a1395): `btnMainDimension_Click`이 `DetectClash` 반환값을 받아 false면 시트+요약 직접 수행
+  - 수정 2 (06a1395): `Clash_OnClashTestFinishedEvent` 조건부 호출 → 무조건 호출
+  - 통합 (cc72e94): 단일 부재 fallback이 `CompleteMainDimensionPostClash(isSingleMember=true, 0)`으로 통일
+
+### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
+- **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)
+- **관련**: — (사용자 직접 지시)
+- **커밋**: `ab8313e`
+- **SDK**: `vizcore3d.Object3D.Select(List<int>, true, false)` + `Select(DESELECT_ALL)` (sdk-verifier로 VIZCore3D.NET.xml L51882~51946 검증)
+- **요약**:
+  - `LvDrawingSheet_SelectedIndexChanged`에 기준부재 빨간 하이라이트 (Sheet 1·설치도 제외, 가공도는 MemberIndices[0], 일반은 BaseMemberIndex)
+  - `LvDrawingBOMInfo_SelectedIndexChanged`에 단일 부재 하이라이트 + FlyToObject3d
+  - 피드백 루프 분석 완료 — `Object3D_OnObject3DSelected`가 속성탭만 갱신하므로 안전. 부수효과로 부재 정보 탭 자동 갱신 (UX 향상)
+
+### T-027 — 치수추출 Osnap 선별 (T-028로 대체됨)
+- **완료일**: 2026-04-22 (REPLACED BY T-028)
+- **관련**: — (사용자 직접 지시)
+- **커밋**: `bb48a16` (신설 → 체인 치수 수 감소) → `375d66f` (T-028 엔진 통합에서 제거)
+- **요약**:
+  - `FilterOsnapByViewDimensionUsage` 헬퍼로 뷰×축 6조합 필터 endpoint 합집합 구현 → 체인 치수 수 감소
+  - 하지만 2D 출력 엔진(`FilterOsnapForDimAxis`)과 로직이 달라 4경로 일관성 문제 발생 → 사용자 재피드백 "같은 Osnap·같은 로직"
+  - **T-028**에서 엔진 통합(`ComputeViewDimensionsForMembers`)하며 본 T-027 헬퍼 제거. 당시 기능은 T-028의 6조합 중복 제거에 흡수됨
 
 ### T-017 — 라이선스 인증 코드를 Form1.BOM.cs에서 분리
 - **완료일**: 2026-04-22 (사용자 실기 테스트 통과)
