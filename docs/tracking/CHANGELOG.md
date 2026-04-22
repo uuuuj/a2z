@@ -6,10 +6,26 @@
 
 ---
 
+## 2026-04-22 — T-029 치수추출 버튼의 3D 뷰 치수 렌더링 제거
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-029
+**배경**: T-028로 chainDimensionList가 6조합까지 채워지니 치수추출 직후 3D 뷰 치수가 과밀. 사용자 피드백: "글로벌 뷰 버튼 누르면 보여주는 것으로 충분"
+**변경 사항**:
+- `CompleteMainDimensionPostClash` 치수 블록 끝에서 `ShowAllDimensions()` 호출 **제거**
+- 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 호출 — 이전 렌더 잔존 제거로 "치수선 없는 깨끗한 상태" 마감
+- `chainDimensionList`·`lvDimension`은 T-028대로 채움 → 글로벌 X/Y/Z 뷰 버튼이나 2D 출력 시 `ShowAllDimensions(viewDirection)`이 해당 뷰 치수만 필터해 렌더
+- docs `main-dimension.md` 단계 14.5(3D 뷰 정리) 추가, 상태 변화에 `Review.Measure` 행 갱신, 변경 이력
+
+**영향 범위**: 치수추출 UX만 변경. 치수 데이터·시트 생성·2D 출력 모두 그대로. 사용자가 뷰 버튼을 눌러야 치수가 나오는 2단계 UX
+
+---
+
 ## 2026-04-22 — T-028 치수 로직 4경로 통합 (2D 출력 엔진 기준)
 
 **유형**: refactor + feat
-**커밋**: `pending`
+**커밋**: `375d66f`
 **관련 TASK**: T-028 (T-027 대체)
 **배경**: 4개 경로(치수추출·글로벌 X/Y/Z 버튼·2D 출력·시트 선택 자동)의 치수 로직이 각기 달라 결과 불일치. 사용자 요구: "2D 출력에서 사용하는 Osnap·로직 기준으로 모두 통일"
 **변경 사항**:

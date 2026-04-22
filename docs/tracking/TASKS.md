@@ -53,6 +53,21 @@
 
 ## IN_PROGRESS
 
+### T-029 — 치수추출 버튼은 3D 뷰 치수 렌더링하지 않음 (글로벌 뷰 버튼으로 지연)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **배경**: 치수추출 버튼 누르면 3D 뷰에 6조합 치수(T-028)가 모두 렌더링되어 과밀. 사용자 의견: "글로벌 뷰 버튼 누르면 보여주는 것으로 충분"
+- **구현**:
+  - [x] `CompleteMainDimensionPostClash`에서 `ShowAllDimensions()` 호출 제거
+  - [x] 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가 — 이전 렌더 잔존 제거로 "깨끗한 상태" 마감
+  - [x] `chainDimensionList`·`lvDimension`은 그대로 채움 → 글로벌 뷰 버튼·2D 출력에서 자동 활용
+  - [x] MSBuild Debug 통과
+  - [x] docs main-dimension.md 단계 14.5·상태 변화·변경 이력 갱신
+  - [ ] 사용자 실기 확인 (치수추출 후 3D 뷰 깨끗, 글로벌 X/Y/Z 누르면 치수 등장)
+- **영향 파일**: `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 4줄), `docs/features/bom/main-dimension.md`
+
 ### T-028 — 치수 로직 통합 (2D 출력 기준 + 설치도 BBox 분기)
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22

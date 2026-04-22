@@ -4,16 +4,16 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-028 4경로 치수 로직 통합 — 2D 출력 엔진 기준)
+last_updated: 2026-04-22 (T-029 3D 뷰 치수 렌더링은 글로벌 뷰 버튼으로 지연)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
 # 메인 체인 치수 추출 (자동 파이프라인)
 
 ## 1. 개요
-**원클릭 통합 처리 버튼**: BOM 수집 → **Clash 검사 → 연결성 판정** → Osnap 수집 → X/Y/Z 체인 치수 계산 → 치수 표시 → 요약 → 시트 생성. Clash가 먼저 수행되고 **모든 부재가 한 덩어리로 연결되어 있어야** Osnap·치수 파이프라인이 이어진다 (T-023 v3, 2026-04-22 재배치).
+**원클릭 통합 처리 버튼**: BOM 수집 → **Clash 검사 → 연결성 판정** → Osnap 수집 → X/Y/Z 체인 치수 계산 → `lvDimension` 목록 갱신 → 요약 → 시트 생성. Clash가 먼저 수행되고 **모든 부재가 한 덩어리로 연결되어 있어야** Osnap·치수 파이프라인이 이어진다 (T-023 v3, 2026-04-22 재배치).
 
-> 치수·시트가 실제로 만들어지는 시점은 `Clash_OnClashTestFinishedEvent`(비동기). 본 핸들러는 BOM 수집 + Clash 시작까지만 수행하고 반환한다.
+> **T-029 이후**: 본 버튼은 `chainDimensionList`·`lvDimension` 데이터만 채우고 **3D 뷰에 치수선은 그리지 않는다**. 실제 3D 뷰 치수 렌더링은 사용자가 글로벌 X/Y/Z 뷰 버튼(`ApplyGlobalView`)을 눌러 `ShowAllDimensions(viewDirection)`이 호출될 때 수행. 치수·시트가 실제로 만들어지는 시점은 `Clash_OnClashTestFinishedEvent`(비동기).
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -76,6 +76,7 @@ flowchart TD
 | 12 | Osnap 수집 | Form1 | `ShowBusyOverlay("Osnap 수집 중...")` → `CollectAllOsnap()` → `_autoProcessOsnapSuccess` 저장 (`osnapPointsWithNames`·`lvOsnap` 갱신) |
 | 13 | **치수 계산 통합** (T-028) | Form1 | `ShowBusyOverlay("치수 계산 중...")` → visible 부재 목록 산출 → `ComputeViewDimensionsForMembers(visibleMembers, null, 0.5f)` 한 번 호출로 3뷰(X/Y/Z) × 2축 = 6조합 치수 생성 + 중복 제거. 2D 출력(`GenerateSheetDrawing2D`)·글로벌 X/Y/Z 버튼·시트 선택 자동 치수 모두 이 공용 헬퍼 재사용 → 로직 일관 보장. `DiagLog T-028 치수 계산: visibleMembers=N chain=M` |
 | 14 | `lvDimension` 갱신 | UI | 번호·축·뷰이름·거리·좌표 표시 |
+| 14.5 | **3D 뷰 정리** (T-029) | SDK | `Review.Measure.Clear()` + `ShapeDrawing.Clear()` — 이전 렌더 잔존 제거. **3D 뷰 치수선은 그리지 않음**. 사용자가 글로벌 X/Y/Z 뷰 버튼 눌러야 `ShowAllDimensions(viewDir)`가 `chainDimensionList`에서 해당 뷰 필터링해 렌더링 |
 | 15 | ListView 갱신 | UI | No/Axis/ViewName/Distance/Start/End |
 | 16 | 치수 3D 표시 | SDK | `ShowAllDimensions()` |
 | 17 | 요약 MessageBox | UI | BOM/Osnap/치수/Clash 개수 통합 (단일 부재 시 "간섭검사 건너뜀") |
@@ -129,11 +130,11 @@ flowchart TD
 |---|---|---|
 | `bomList` | 이전 상태 | 재수집 완료 |
 | `osnapPoints`, `osnapPointsWithNames` | 이전 | 현재 모델 Osnap (LINE/POINT만, CIRCLE 제외) |
-| `chainDimensionList` | 이전 | X/Y/Z 축별 체인 치수, No 부여 |
+| `chainDimensionList` | 이전 | 6조합 치수 + 중복 제거 (T-028) |
 | `_autoProcessOsnapSuccess` | 이전 | 현재 수집 성공 여부 |
 | `clashList` | 이전 | (비동기 완료 후 갱신) |
 | `lvDimension` | 이전 | 갱신된 치수 행 |
-| SDK Measure 표시 | 이전 | 모든 치수 표시 중 |
+| **3D 뷰 치수(`Review.Measure`)** (T-029) | 이전 렌더 | **비어 있음**. 글로벌 뷰 버튼 클릭 시 `ShowAllDimensions(viewDir)`이 렌더 |
 
 ## 8. 후행 기능 (Chained)
 - [Clash 완료 콜백](../clash/clash-finished-event.md) — 자동 호출
@@ -157,3 +158,4 @@ flowchart TD
 | 2026-04-22 | **T-023 v3 재재설계** — "STRU 단위"에서 **"Clash 기반 물리적 연결성 1덩어리"** 로 변경. 사용자 결정(정확성 우선). STRU 주석 블록 2개 제거. 파이프라인 순서 재배치 — Osnap/치수 로직을 `btnMainDimension_Click`에서 **`CompleteMainDimensionPostClash`** 공용 메서드로 분리하고, `Clash_OnClashTestFinishedEvent`에서 `IsSingleConnectedComponent` 판정 후 호출. 단일 부재(clashStarted=false)는 판정 생략하고 Post 메서드 직접 호출(T-024와 통합). 흐름도·단계표(3섹션)·분기 C·D·E03·E04·last_updated 모두 갱신 | Claude |
 | 2026-04-22 | T-027: 치수 계산 단계(13) 직후 `FilterOsnapByViewDimensionUsage` 호출 추가(단계 13.5) — 도면 뷰×치수축 6개 조합의 1차 필터 endpoint 합집합만 `AddChainDimensionByAxis` 입력으로 사용. 3D 뷰 체인 치수 개수 감소(필터 전/후 DiagLog 기록). osnap 원본 리스트는 보존해 다른 기능(제작도·가공도) 영향 없음. 방식: (a) 체인 치수만 / β (endpoint 합집합 1회 산출 후 축별 1벌) | Claude |
 | 2026-04-22 | **T-028**: 4경로(치수추출·글로벌 X/Y/Z·2D 출력·시트 선택 자동) 치수 엔진 통합. 2D 출력 엔진(`nodeOsnapMap` + `FilterOsnapForDimAxis` + `AddChainDimensionByAxis(viewDirection)`)을 `ComputeViewDimensionsForMembers` 공용 헬퍼로 추출. 본 핸들러는 단계 13에서 visible 부재를 이 헬퍼에 넘겨 3뷰 × 2축 = 6조합 치수를 한 번에 생성(중복 제거 + `ViewDirection` 콤마 누적). T-027 `FilterOsnapByViewDimensionUsage` 제거. `ShowAllDimensions` 내부 분기 ①②③ 제거되어 표시 전용으로 단순화. 단계표 12·13·14 재번호 | Claude |
+| 2026-04-22 | **T-029**: 치수추출 버튼 완료 직후 `ShowAllDimensions()` 호출 **제거**. 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 이전 렌더 잔존 정리. 3D 뷰는 "치수선 없는 깨끗한 상태"로 종료되고, 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 실제 치수선이 그려짐. 단계 14.5 추가, 상태 변화에 `Review.Measure` 행 갱신 | Claude |

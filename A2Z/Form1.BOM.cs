@@ -436,7 +436,11 @@ namespace A2Z
                         no++;
                     }
 
-                    ShowAllDimensions();
+                    // T-029: 치수추출 버튼은 chainDimensionList만 계산하고 3D 뷰 렌더링은 하지 않음.
+                    // 실제 3D 뷰 치수 표시는 글로벌 X/Y/Z 뷰 버튼(ShowAllDimensions(viewDir))에서 수행.
+                    // 이전 렌더 잔존 제거 (Review.Measure + ShapeDrawing) — "치수 없는 깨끗한 상태"로 마감.
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
                 }
 
                 // 3. 요약 MessageBox
