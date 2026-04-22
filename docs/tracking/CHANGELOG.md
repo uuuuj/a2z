@@ -6,10 +6,34 @@
 
 ---
 
+## 2026-04-23 — T-034/T-036 후속 패치 (사용자 실기 피드백 반영)
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-034 (후속), T-036 (수정)
+**사용자 피드백**:
+- T-033 ✓ 통과 / T-034 ✓ 통과 (단 BOM 테이블 선택 → 글로벌 ISO 시 **은선 복귀** 발견) / T-036 "가공도 선택 시 세로축이 더 길게 나옴, 가로여야 하는데"
+
+**변경 사항**:
+- **T-034 후속** [Form1.DrawingSheets.cs `ApplyDrawingSheetView`](../../A2Z/Form1.DrawingSheets.cs): 내부 2곳(L702 ISO / L735 X·Y·Z) `SetRenderMode(DASH_LINE)` → `SMOOTH`
+  - 사용자가 BOM 테이블에서 행을 선택한 상태로 글로벌 ISO/X/Y/Z 버튼을 누르면 `ApplyGlobalView`의 첫 분기(`tabPageDrawing + lvDrawingSheet 선택됨`) 통과 → `ApplyDrawingSheetView`로 진입 → 여기 DASH_LINE 잔존으로 은선 복귀
+  - L1433(2D 캡처 경로)은 건드리지 않음
+- **T-036 수정** [Form1.MfgDrawing.cs `ExecuteMfgDrawing`](../../A2Z/Form1.MfgDrawing.cs): L215 `if (use1803d)` → `if (use1803d && longestAxis != "Z")` 가드 추가
+  - 원인 확정: Z 최장축 + `use180` 조합에서 180° + 90° = 270° 회전 → Z축이 수평 아닌 세로로 뒤집힘
+  - 수정: Z 최장축일 때 180° 스킵 → 뒤에 이어지는 L532 90° 회전만 적용 → Z 수평 배치 보장
+  - 트레이드오프: Z 최장축일 때 "수직 뒤집기" 효과 잃음 (부재의 비대칭 방향 조정 부분 상실). 가로 배치 우선이 사용자 의도와 일치하므로 수용. 재현 데이터 더 모이면 축 기반으로 180° 재설계 예정
+
+- docs: `global-iso.md` 변경 이력(T-034 후속) / `mfg-drawing.md` 변경 이력(T-036 수정)
+- MSBuild Debug 통과
+
+**영향 범위**: 글로벌 뷰 전환 시 은선 복귀 / 가공도 Z 최장축 부재 세로 배치 두 케이스. T-035(선택 해제)는 그대로 작동
+
+---
+
 ## 2026-04-22 — T-033/T-034/T-035/T-036 UX 후속 개선 4건
 
 **유형**: feat + fix
-**커밋**: `pending`
+**커밋**: `230e45f`
 **관련 TASK**: T-033, T-034, T-035, T-036
 **사용자 피드백 반영**:
 - T-033 "자동 처리 완료 팝업 후에도 치수 계산 중 창이 2초 더 떠있음"

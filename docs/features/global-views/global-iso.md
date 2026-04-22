@@ -4,7 +4,7 @@ feature_name: 글로벌 ISO 뷰
 category: GlobalViews
 trigger_type: User Action
 owner_module: Form1.GlobalViews.cs
-last_updated: 2026-04-22 (T-034 실선 모드 + T-035 선택 해제)
+last_updated: 2026-04-23 (T-034 후속 — ApplyDrawingSheetView도 SMOOTH)
 code_reference: /docs/code-reference/form1-global-views.md#btnGlobalISO_Click
 ---
 
@@ -88,3 +88,4 @@ flowchart TD
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-034: `ApplyFullModelView`·`ApplySelectedNodesView`의 `SetRenderMode(DASH_LINE)` → `SMOOTH` 실선 모드로 교체. 부재가 은선 처리 없이 잘 보이도록. `ApplyDrawingSheetView`(시트 선택 경로)는 그대로 | Claude |
 | 2026-04-22 | T-035: 두 경로 시작에 `Object3D.Select(DESELECT_ALL)` 추가. 글로벌 뷰 버튼 클릭 시 이전 시트/BOM 선택으로 남은 빨간 하이라이트 제거 | Claude |
+| 2026-04-23 | T-034 후속: **`ApplyDrawingSheetView`(Form1.DrawingSheets.cs)** 내부 2곳(L702 ISO 분기·L735 X/Y/Z 분기) `SetRenderMode(DASH_LINE)` → `SMOOTH`도 교체. 사용자 시나리오 "BOM 테이블 선택 → 글로벌 ISO/X/Y/Z" 경로에서 은선 복귀되던 문제 해결 (이 경로가 `ApplyGlobalView`의 `tabPageDrawing + 시트 선택` 분기 통과해 `ApplyDrawingSheetView`로 진입). 2D 캡처용 DASH_LINE(L1433)은 유지 | Claude |

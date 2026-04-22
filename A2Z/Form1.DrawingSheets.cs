@@ -699,7 +699,9 @@ namespace A2Z
                     // 설치도 개념: 부재 바운딩박스 기반 설치 치수 추출
                     ExtractInstallationDimensions(sheet.MemberIndices);
 
-                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                    // T-034 후속 (2026-04-23): BOM 테이블 행 선택 → 글로벌 ISO 버튼 경로에서
+                    // 여기 분기 탐 → 실선으로 부재가 잘 보이도록 SMOOTH 모드로 교체
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     // 선택된 부재에 맞춰 화면 조정 (반복 호출 시 줌 누적 방지)
                     vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.0f);
@@ -732,7 +734,8 @@ namespace A2Z
                     vizcore3d.Review.Note.Clear();
                     vizcore3d.Review.Measure.Clear();
                     vizcore3d.ShapeDrawing.Clear();
-                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                    // T-034 후속 (2026-04-23): X/Y/Z 뷰 경로도 SMOOTH 실선으로 통일
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
 
                     // 카메라 방향 설정
                     switch (viewDirection)

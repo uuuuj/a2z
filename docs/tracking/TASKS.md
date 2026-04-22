@@ -46,9 +46,9 @@
   - [x] 두 호출 `RenderModes.SMOOTH`로 교체
   - [x] docs/features/global-views/global-iso.md 상태 변화·이력 갱신
   - [x] MSBuild Debug 통과
-  - [ ] `ApplyDrawingSheetView` 쪽 DASH_LINE 호출(Form1.DrawingSheets.cs L696/L729/L1433) 필요 여부 — 시트 선택 후 글로벌 뷰 전환 경로라 추가 조사 필요 (현재 후속)
-  - [ ] 사용자 실기 확인
-- **영향 파일**: A2Z/Form1.GlobalViews.cs
+  - [x] **후속 (2026-04-23)**: 사용자 실기 "BOM 테이블 선택 → 글로벌 ISO" 시 은선 복귀 확인. `ApplyDrawingSheetView`(Form1.DrawingSheets.cs L702 ISO / L735 X/Y/Z) DASH_LINE → SMOOTH 교체. L1433(2D 캡처용)은 유지
+  - [ ] 사용자 실기 확인 (후속 패치 적용 후)
+- **영향 파일**: A2Z/Form1.GlobalViews.cs, A2Z/Form1.DrawingSheets.cs (ApplyDrawingSheetView 내부 2곳)
 
 ### T-033 — 오버레이 해제 타이밍 (MessageBox 전에 해제)
 - **생성일**: 2026-04-22

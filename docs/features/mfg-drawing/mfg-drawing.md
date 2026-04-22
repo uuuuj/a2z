@@ -4,7 +4,7 @@ feature_name: 선택 부재 가공도 생성
 category: MfgDrawing
 trigger_type: User Action
 owner_module: Form1.MfgDrawing.cs
-last_updated: 2026-04-22 (T-036 선택상태 해제 + 회전 진단 로그)
+last_updated: 2026-04-23 (T-036 Z 최장축 180° 스킵으로 가로 배치 복구)
 code_reference: /docs/code-reference/form1-mfg-drawing.md#btnMfgDrawing_Click
 ---
 
@@ -129,3 +129,4 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-031: 가공도 시트 선택 시 3D 뷰 은선 처리(DASH_LINE) → 실선(SMOOTH)으로 변경. [Form1.MfgDrawing.cs L142](../../../A2Z/Form1.MfgDrawing.cs)의 `SetRenderMode(DASH_LINE)` → `SetRenderMode(SMOOTH)` 교체. 2D 캡처·PDF 출력 내부 경로(L820, L1582)는 은선 유지 (2D 도면의 내부 상세용). 상태 변화 표 갱신 | Claude |
 | 2026-04-22 | T-036: `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가 — 이전 시트/BOM 선택 잔존 해제. 말미 `DiagLog T-036 MfgDrawing bom=... sizeXYZ=... longestAxis=... isPadOrPlate=... viewDir=...` 추가 — 사용자가 "최장축이 가로로 배치 안 되는 경우" 재현 시 분석용. Z 최장축 90° 회전과 L215 180° 회전이 합쳐져 270° 되는 케이스 의심 | Claude |
+| 2026-04-23 | T-036 수정: 사용자 실기 "Z 최장축인데 세로로 배치" 확정 → **Z 최장축일 땐 use180 180° 회전 스킵**. L215 `if (use1803d && longestAxis != "Z")` 가드 추가. 뒤에 이어지는 L532 90° 회전이 온전히 작용해 Z축이 수평으로 배치됨. Z 최장축 + use180 조합의 "수직 뒤집기" 효과는 잃지만 가로 배치 복구가 우선. 재현 데이터 더 확보되면 정교화 예정 | Claude |
