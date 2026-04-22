@@ -4,7 +4,7 @@ feature_name: 도면 시트 선택 시 X-Ray 표시
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-13
+last_updated: 2026-04-22 (T-022 선택상태 하이라이트)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingSheet_SelectedIndexChanged
 ---
 
@@ -53,9 +53,10 @@ flowchart TD
 | 7 | xray 인덱스 저장 | Form1 | 글로벌 뷰 버튼용 |
 | 8 | 카메라 이동 | SDK | `FlyToObject3d(MemberIndices, 1.2f)` |
 | 9 | 심볼/풍선 제거 | SDK | `Clash.ClearResultSymbol()`, `Review.Note.Clear()` |
-| 10 | EndUpdate | SDK | — |
-| 11 | 치수 분기 | Form1 | [분기 A] |
-| 12 | BOM 정보 재집계 | Form1 | `CollectBOMInfo(false)` — 알람 없음 |
+| 10 | **기준부재 선택상태** (T-022) | SDK | `Object3D.Select(DESELECT_ALL)` → 기준부재 하나만 `Select(indices, true, false)` → 3D View에서 빨간색 하이라이트. Sheet 1(-1)·설치도(-2)는 생략, 가공도(-3)는 `MemberIndices[0]`, Sheet 2+는 `BaseMemberIndex` |
+| 11 | EndUpdate | SDK | — |
+| 12 | 치수 분기 | Form1 | [분기 A] |
+| 13 | BOM 정보 재집계 | Form1 | `CollectBOMInfo(false)` — 알람 없음 |
 
 ## 5. 주요 분기 처리
 
@@ -79,6 +80,8 @@ flowchart TD
 | `lvDimension` | 이전 | 재표시 |
 | `lvDrawingBOMInfo` | 이전 | 시트 기준 그룹 |
 | 카메라 | 이전 | 시트 부재 확대 |
+| **3D View 선택상태** (T-022) | 이전 선택 | **기준부재만 빨간 하이라이트** (Sheet 1·설치도는 선택 없음) |
+| `selectedAttributeNodeIndex` | 이전 | 기준부재 인덱스 (연쇄: `Object3D_OnObject3DSelected` → `UpdateAttributeTable`) |
 
 ## 8. 후행 기능 (Chained)
 - [시트 ISO/축 뷰](./drawing-iso.md)
@@ -91,3 +94,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-04-22 | T-022: 시트의 "기준부재"를 3D View에서 `Object3D.Select`로 빨간 하이라이트. `DESELECT_ALL` 선행으로 이전 선택 누적 방지. 가공도(`MemberIndices[0]`) / Sheet 2+(`BaseMemberIndex`) 구분, Sheet 1·설치도는 생략. 단계 10 추가, 상태 변화 2행 추가 | Claude |

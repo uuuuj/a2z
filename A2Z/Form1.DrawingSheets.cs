@@ -534,6 +534,17 @@ namespace A2Z
                 // 기존 풍선(Note) 제거
                 vizcore3d.Review.Note.Clear();
 
+                // T-022: 기준부재를 "선택상태"(빨간색 하이라이트)로 설정
+                vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+                int highlightIdx = -1;
+                if (sheet.BaseMemberIndex == -3 && sheet.MemberIndices.Count > 0)
+                    highlightIdx = sheet.MemberIndices[0];    // 가공도: 단일 부재
+                else if (sheet.BaseMemberIndex >= 0)
+                    highlightIdx = sheet.BaseMemberIndex;     // 일반 시트: 기준부재
+                // Sheet 1(-1) · 설치도(-2)는 기준부재 개념이 없어 하이라이트 생략
+                if (highlightIdx >= 0)
+                    vizcore3d.Object3D.Select(new List<int> { highlightIdx }, true, false);
+
                 vizcore3d.EndUpdate();
 
                 // 설치도 시트: 부재 바운딩박스 경계 기반 체인치수
@@ -587,6 +598,11 @@ namespace A2Z
             try
             {
                 vizcore3d.BeginUpdate();
+
+                // T-022: 선택 행 부재를 "선택상태"(빨간색)로
+                vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+                vizcore3d.Object3D.Select(new List<int> { bodyIdx }, true, false);
+
                 vizcore3d.View.FlyToObject3d(new List<int> { bodyIdx }, 1.2f);
                 vizcore3d.EndUpdate();
             }

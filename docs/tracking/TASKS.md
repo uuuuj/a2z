@@ -44,26 +44,6 @@
 - **영향 파일**: A2Z/Form1.BOM.cs (btnMainDimension_Click), docs/features/bom/main-dimension.md, docs/사용자-매뉴얼/1.기본-작업/치수%20추출.md
 - **연관**: T-022
 
-### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 직접 지시)
-- **배경**: 현재 `lvDrawingSheet`·`lvDrawingBOMInfo` 선택 시 `FlyToObject3d`로 카메라만 이동. 3D View의 "선택상태(빨간색 하이라이트)"는 설정되지 않음. 사용자는 모델트리 이름 클릭·3D View 부재 클릭과 동일한 시각 피드백을 원함
-- **"선택상태" 정의** (사용자 설명):
-  - 3D View에서 부재 클릭 → 빨간색 변환
-  - 모델트리 이름 클릭(체크박스 아님) → 3D View에서 빨간색
-  - 체크박스는 visibility ON/OFF (별개 개념)
-- **세부**:
-  - [ ] SDK에 "프로그래밍 방식 선택상태 설정" API 존재 여부 확인 (`sdk-verifier` 호출 — `Object3D.Select*`, `Selection.Set`, `Highlight` 등 후보 전수)
-  - [ ] 확인 결과에 따라 `LvDrawingSheet_SelectedIndexChanged`에 기준부재(BaseMemberIndex) 선택상태 동기화 추가
-  - [ ] `LvDrawingBOMInfo_SelectedIndexChanged`에 해당 행 부재 선택상태 동기화 추가
-  - [ ] 시트 변경·초기화·Open 시 선택상태 해제 보장
-  - [ ] 빌드 + 실기 테스트 (빨간 하이라이트 확인)
-  - [ ] docs/features/drawing-sheets/lv-sheet-selected.md, lv-bom-info-selected.md 갱신
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/*
-- **선결 조건**: 없음 (SDK API 조회가 우선)
-- **연관**: T-023 (선택상태 기반 치수추출)
-
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -108,6 +88,30 @@
 ---
 
 ## IN_PROGRESS
+
+### T-022 — 시트/BOM 선택 시 3D View 부재 "선택상태" 동기화
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 직접 지시)
+- **SDK 확정** (sdk-verifier 결과):
+  - `vizcore3d.Object3D.Select(List<int>, bool selection, bool pivot)` — 선택상태 설정/해제
+  - `Object3D.Select(Object3dSelectionModes.DESELECT_ALL)` — 전체 해제
+  - 기본 강조색 = 빨강 (`ViewManager.SelectionColor`로 커스텀 가능)
+  - `OnObject3DSelected` 이벤트 피드백 루프 위험 분석: 우리 앱 `Object3D_OnObject3DSelected`는 `dgvAttributes` 갱신만 수행, ListView 선택은 건드리지 않음 → **루프 없음**. 부수효과로 **부재 정보 탭도 자동 갱신**되어 UX 향상
+- **세부** (1차 완료):
+  - [x] SDK API 조사 (sdk-verifier) — `Object3D.Select` 확정
+  - [x] `LvDrawingSheet_SelectedIndexChanged` — `DESELECT_ALL` → 기준부재 `Select(indices, true, false)`. Sheet 1·설치도 생략, 가공도(`MemberIndices[0]`) / Sheet 2+(`BaseMemberIndex`) 구분
+  - [x] `LvDrawingBOMInfo_SelectedIndexChanged` — `DESELECT_ALL` → 단일 부재 Select (visibility 유지)
+  - [x] `pivot=false`로 회전 피봇 간섭 방지
+  - [x] docs/features/drawing-sheets/lv-sheet-selected.md 단계표·상태·이력 갱신
+  - [x] docs/features/drawing-sheets/lv-bom-info-selected.md 단계표·상태·이력 갱신
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (시트·BOM 행 선택 시 빨간 하이라이트 + 속성 탭 자동 갱신)
+- **영향 파일**:
+  - `A2Z/Form1.DrawingSheets.cs` (+10줄 × 2곳)
+  - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
+- **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
 
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21

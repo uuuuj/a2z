@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-04-22 — T-022 시트/BOM 선택 시 3D View 선택상태 동기화
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-022
+**변경 사항**:
+- `vizcore3d.Object3D.Select(List<int>, true, false)` + `Select(DESELECT_ALL)` 조합으로 "선택상태(빨간 하이라이트)" 구현
+- `LvDrawingSheet_SelectedIndexChanged` — 시트의 **기준부재** 하이라이트
+  - Sheet 1(-1)·설치도(-2) 생략 (기준부재 개념 없음)
+  - 가공도(-3) → `MemberIndices[0]` / Sheet 2+ → `BaseMemberIndex`
+- `LvDrawingBOMInfo_SelectedIndexChanged` — **단일 부재** 하이라이트 + 카메라 fit (visibility 유지)
+- `pivot=false`로 회전 피봇 간섭 방지, `DESELECT_ALL` 선행으로 누적 방지
+- **피드백 루프 분석**: `Object3D_OnObject3DSelected`는 `dgvAttributes`만 갱신하고 ListView는 건드리지 않아 안전. 부수효과로 **부재 정보 탭이 자동 갱신**되어 UX 향상
+- SDK 확정 경로: `sdk-verifier` 서브에이전트로 `VIZCore3D.NET.xml` L51882~51946 검증
+- docs 2종(`lv-sheet-selected.md`, `lv-bom-info-selected.md`) 단계표·상태 변화·변경 이력 갱신
+
+**영향 범위**: 도면정보 탭 UX (시트·BOM 행 선택). 기존 카메라 fit·visibility 동작은 그대로, 선택상태만 추가
+
+---
+
 ## 2026-04-22 — T-018 장시간 작업 진행 오버레이 (1차: 치수 추출)
 
 **유형**: feat

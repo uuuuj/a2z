@@ -4,7 +4,7 @@ feature_name: BOM 정보 행 선택 시 부재 카메라 fit
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-21
+last_updated: 2026-04-22 (T-022 선택상태 하이라이트)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingBOMInfo_SelectedIndexChanged
 ---
 
@@ -48,9 +48,10 @@ flowchart TD
 | 3 | No. 파싱 | Form1 | `row.SubItems[0].Text` → `int itemNo` (`TryParse` 실패 시 return) |
 | 4 | 범위 검사 | Form1 | `itemNo < 1 || itemNo > bomList.Count` → return |
 | 5 | Body 인덱스 조회 | Form1 | `bomList[itemNo - 1].Index` (No = bomList 순서 i+1, CollectBOMInfo 매핑과 일치) |
-| 6 | 카메라 fit | SDK | `vizcore3d.View.FlyToObject3d(new List<int>{bodyIdx}, 1.2f)` — margin 1.2 |
+| 6 | **선택상태 하이라이트** (T-022) | SDK | `Object3D.Select(DESELECT_ALL)` → `Object3D.Select({bodyIdx}, true, false)` → 3D View 빨간색. 기존 선택이 있으면 해제 후 단일 부재만 강조 |
+| 7 | 카메라 fit | SDK | `vizcore3d.View.FlyToObject3d(new List<int>{bodyIdx}, 1.2f)` — margin 1.2 |
 
-> 시트 선택 핸들러와 달리 `Object3D.Show`·`Clear`·`ClearResultSymbol`을 호출하지 않는다. 현재 표시 중인 시트 부재들 사이에서 카메라 초점만 이동.
+> 시트 선택 핸들러와 달리 `Object3D.Show`·`Clear`·`ClearResultSymbol`을 호출하지 않는다. visibility는 현재 시트 그대로, 카메라+선택상태만 단일 부재로 이동.
 
 ## 5. 주요 분기 처리
 
@@ -71,6 +72,8 @@ flowchart TD
 |---|---|---|
 | 부재 가시성 | 현재 시트 상태 | **그대로 유지** |
 | 카메라 | 이전 위치 | 선택 부재 확대 |
+| **3D View 선택상태** (T-022) | 이전 선택 | **단일 부재 빨간 하이라이트** |
+| `selectedAttributeNodeIndex` | 이전 | 선택 부재 인덱스 (연쇄: `Object3D_OnObject3DSelected` → 속성 탭 자동 갱신) |
 | `xraySelectedNodeIndices` | 이전 | **그대로 유지** |
 | `chainDimensionList` | 이전 | **그대로 유지** |
 
@@ -86,3 +89,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-21 | 초안 작성 — T-021 BOM 행 선택 카메라 fit 기능 신설 | Claude |
+| 2026-04-22 | T-022: `Object3D.Select` 호출로 3D View 빨간 하이라이트 동기화. `DESELECT_ALL` 선행으로 이전 선택 해제, `pivot=false`로 회전 피봇 간섭 방지. 단계 6(선택상태) 추가, 상태 변화 2행 추가 | Claude |
