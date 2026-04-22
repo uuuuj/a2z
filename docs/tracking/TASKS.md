@@ -101,27 +101,6 @@
   - `docs/features/drawing-sheets/lv-sheet-selected.md`, `lv-bom-info-selected.md`
 - **연관**: T-023 (이제 selected==1 조건으로 치수추출 가드 가능)
 
-### T-023 — 치수추출 사전조건 강화 (단일 모델 또는 선택상태만 허용)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **허용 조건** (확정):
-  - visible 부재 == 1 OR selected 부재 == 1 → 통과
-  - 그 외 → MessageBox 후 return (차단)
-- **세부** (완료):
-  - [x] `btnMainDimension_Click` 진입부에 가드 추가 — `GetPartialNode(false,false,true)` 순회로 visible 카운트, `FromFilter(SELECTED_TOP)`로 selected 카운트
-  - [x] 둘 다 ≠ 1이면 MessageBox("치수 추출은 3D View에 부재가 하나만 표시되거나 선택된 상태에서 가능합니다. 현재: 표시 N개, 선택 M개. 단일화 방법 안내") + `DiagLog BLOCKED` 기록
-  - [x] `docs/features/bom/main-dimension.md` 사전조건·단계 1.5·E03 추가(기존 E03은 E04로 재번호)
-  - [x] `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` 선결조건·단계 1-2·에러 ③ 추가
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (다중 부재 상태 클릭 시 차단, 단일화 후 정상 통과)
-- **영향 파일**:
-  - `A2Z/Form1.BOM.cs` (+27줄 가드 블록)
-  - `docs/features/bom/main-dimension.md`
-  - `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md`
-- **연관**: T-022 (selected==1 조건의 하이라이트 상태 제공)
-
 ### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
 - **생성일**: 2026-04-21
 - **착수일**: 2026-04-22
@@ -205,6 +184,35 @@
   - 근본 설계 전환: Sheet2+ 렌더링에서 bgObj+obj 분리 구조 자체를 폐기하고 **단일 객체 + 컬러/라인 스타일 분기**로 처리
 - **진단 로그**: `OPT-B` / `OPT-B2` 라벨로 3D/화면/이동량 실측 출력 중 (Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~)
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
+
+### T-023 — 치수추출 사전조건 강화 (STRU 단위만 허용)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **차단일**: 2026-04-22 (UDA 키·값 확정 대기)
+- **상태**: BLOCKED (로직은 완성, 실제 UDA 키 확정 시 주석 해제로 활성화)
+- **관련**: — (사용자 직접 지시)
+- **최종 의도** (2026-04-22 사용자 교정):
+  - 단위는 **부재 개수**가 아니라 **"STRU" 단위** (모델트리 특정 상위 노드에 UDA 키=`STRU` 값이 붙은 단위)
+  - 허용 조건:
+    1. Object3D.Select 상태 부재들의 조상 STRU 집합 크기가 정확히 1
+    2. 선택이 없으면 visible 부재들의 조상 STRU 집합 크기가 정확히 1
+  - 여러 STRU 동시 표시 / 서로 다른 STRU 하위 부재 혼합 선택 → 차단
+- **1차 구현(제거됨)**: "visible==1 or selected==1" — 의도와 달라 원복 (커밋 `1620289` → 본 변경으로 코드 제거)
+- **현 상태**: `Form1.BOM.cs` 하단에 `FindAncestorByUda` + `CheckSingleStruCondition` 헬퍼 2개를 **완성 형태 + 블록 주석**으로 보존. `btnMainDimension_Click`의 호출부도 주석. 컴파일 영향 없음
+- **활성화 절차** (UDA 확정 시):
+  1. Form1.BOM.cs 내 `STRU_UDA_KEY` / `STRU_UDA_VALUE` 상수를 실제 값으로 교체
+  2. 헬퍼 블록 `/* */` 주석 제거
+  3. `btnMainDimension_Click`의 `CheckSingleStruCondition()` 호출 주석 제거
+  4. docs 3종(main-dimension.md E04 / 사용자 매뉴얼 예고 / TASKS BLOCKED → DONE) 갱신
+- **차단 해제 필요 정보**:
+  - [ ] UDA 키 이름 (예: `UNIT_TYPE`, `SPREF` 등 — 담당자가 확정)
+  - [ ] UDA 값 확정 (현재 `STRU` 가정, 변경 가능)
+  - [ ] 실기 테스트 샘플 모델 (여러 STRU · 단일 STRU · STRU 없는 부재 각 케이스)
+- **영향 파일** (현재 상태):
+  - `A2Z/Form1.BOM.cs` — L346~L360 호출부 주석, L1521~L1640 헬퍼 블록 주석
+  - `docs/features/bom/main-dimension.md` — 단계 1.5 / 분기 D / E04 "비활성" 표기
+  - `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` — 향후 예고 문구
+- **연관**: T-022 (Object3D.Select 상태 API 제공)
 
 ### T-016 — 치수 추출 3회 이상 시 반복 누적 버그
 - **생성일**: 2026-04-20

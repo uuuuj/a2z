@@ -334,33 +334,29 @@ namespace A2Z
                 return;
             }
 
-            // T-023: 치수추출 사전조건 — 3D View에 부재가 "표시 1개" 또는 "선택 1개"일 때만 허용
-            int visibleCount = 0;
-            var allForCheck = vizcore3d.Object3D.GetPartialNode(false, false, true);
-            if (allForCheck != null)
-            {
-                foreach (var n in allForCheck)
-                {
-                    var real = vizcore3d.Object3D.FromIndex(n.Index);
-                    if (real != null && real.Visible) visibleCount++;
-                }
-            }
-            var selectedForCheck = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.SELECTED_TOP);
-            int selectedCount = selectedForCheck != null ? selectedForCheck.Count : 0;
-
-            if (visibleCount != 1 && selectedCount != 1)
-            {
-                MessageBox.Show(
-                    "치수 추출은 3D View에 부재가 **하나만** 표시되거나 선택된 상태에서 가능합니다.\n\n" +
-                    $"현재: 표시 {visibleCount}개, 선택 {selectedCount}개\n\n" +
-                    "해결 방법:\n" +
-                    "- 도면 시트 목록 또는 BOM 테이블에서 하나를 선택\n" +
-                    "- 모델트리에서 원하는 부재만 체크박스 on\n" +
-                    "- 3D 뷰에서 단일 부재 클릭",
-                    "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                DiagLog($"btnMainDimension BLOCKED visible={visibleCount} selected={selectedCount}");
-                return;
-            }
+            // ============================================================
+            // T-023 (STRU 단위 가드) — **현재 비활성**, UDA 키 확정 시 활성화
+            //
+            // 의도: 치수 추출은 "하나의 STRU(구조 단위)" 범위에서만 의미 있음.
+            //       STRU는 모델트리의 특정 상위 노드에 UDA 키 값이 `STRU`인 것.
+            //
+            // 허용 조건:
+            //   (a) Object3D.Select 상태의 부재들이 모두 같은 1개의 STRU 하위
+            //   (b) 선택이 없으면 visible 부재들이 모두 같은 1개의 STRU 하위
+            //   → 둘 중 하나라도 충족이면 통과
+            //
+            // 활성화 방법:
+            //   1) 아래 STRU_UDA_KEY / STRU_UDA_VALUE 상수를 실제 값으로 교체
+            //   2) `/* */` 블록 주석 2곳 (헬퍼 2개 + 호출부) 제거
+            //
+            // 구현 메모:
+            //   - UDA 부모 탐색 패턴은 Form1.Clash.cs `CollectBOMInfo`에서 재사용
+            //   - `Object3dFilter.SELECTED`로 프로그래매틱 선택 상태도 포함
+            //   - 실패 시 MessageBox + DiagLog `BLOCKED visible=N selected=M`
+            // ============================================================
+            /*
+            if (!CheckSingleStruCondition()) return;
+            */
 
             // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Osnap → 치수 → Clash 시작까지 약 5초)
             ShowBusyOverlay("치수 추출 중...");
@@ -1537,5 +1533,120 @@ namespace A2Z
                 MessageBox.Show("로드된 모델이 없거나 BOM 수집에 실패했습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
+
+        // ============================================================
+        // T-023 STRU 단위 가드 — **현재 비활성** (UDA 키 확정 후 활성화)
+        //
+        // 활성화 절차:
+        //   1) 아래 블록 주석 `/* */` 제거
+        //   2) STRU_UDA_KEY / STRU_UDA_VALUE 상수를 실제 UDA 키·값으로 교체
+        //   3) btnMainDimension_Click의 `CheckSingleStruCondition()` 호출 주석 해제
+        //
+        // 설계:
+        //   - `FindAncestorByUda(nodeIndex, key, value)` : 주어진 Body/Part에서
+        //     부모로 올라가며 UDA(key)==value인 조상 노드 인덱스를 반환 (없으면 -1)
+        //     → Form1.Clash.cs `CollectBOMInfo`의 부모 탐색 패턴 재사용
+        //   - `CheckSingleStruCondition()` :
+        //       (a) Object3D.Select 상태 부재들이 있으면 그들의 조상 STRU 집합 계산
+        //           → 집합 크기 1이면 통과, 2+면 차단, 0(STRU 조상 없음)이면 (b)로 폴백
+        //       (b) visible 부재들의 조상 STRU 집합 계산 → 크기 1이면 통과, 아니면 차단
+        //   - 실패 시 MessageBox + DiagLog `BLOCKED visibleStru=N selectedStru=M`
+        // ============================================================
+        /*
+        /// <summary>
+        /// 주어진 노드 인덱스에서 부모로 올라가며 UDA 키=값인 첫 조상의 인덱스를 반환.
+        /// 없으면 -1. 무한 루프 방지를 위해 maxDepth 제한.
+        /// </summary>
+        private int FindAncestorByUda(int startIndex, string udaKey, string udaValue, int maxDepth = 10)
+        {
+            int currentIdx = startIndex;
+            for (int depth = 0; depth < maxDepth; depth++)
+            {
+                if (currentIdx < 0) return -1;
+
+                try
+                {
+                    var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, udaKey);
+                    string valStr = (val != null) ? val.ToString().Trim() : "";
+                    if (string.Equals(valStr, udaValue, StringComparison.OrdinalIgnoreCase))
+                        return currentIdx;
+                }
+                catch { }
+
+                try
+                {
+                    var parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                    if (parentNode == null) return -1;
+                    if (parentNode.ParentIndex == currentIdx) return -1; // 루트 도달
+                    currentIdx = parentNode.ParentIndex;
+                }
+                catch { return -1; }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// T-023 치수추출 사전조건: "하나의 STRU 단위"만 허용.
+        /// 선택 기반 → visible 기반 순서로 평가. 통과 시 true, 차단 시 MessageBox 후 false.
+        /// </summary>
+        private bool CheckSingleStruCondition()
+        {
+            // TODO: 담당자 확정 UDA 키·값으로 교체
+            const string STRU_UDA_KEY = "UNIT_TYPE";
+            const string STRU_UDA_VALUE = "STRU";
+
+            // (a) Object3D.Select 기반 평가
+            var selectedNodes = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.SELECTED);
+            HashSet<int> selectedStruSet = new HashSet<int>();
+            if (selectedNodes != null && selectedNodes.Count > 0)
+            {
+                foreach (var n in selectedNodes)
+                {
+                    int struIdx = FindAncestorByUda(n.Index, STRU_UDA_KEY, STRU_UDA_VALUE);
+                    if (struIdx >= 0) selectedStruSet.Add(struIdx);
+                }
+
+                if (selectedStruSet.Count == 1) return true;
+
+                if (selectedStruSet.Count > 1)
+                {
+                    MessageBox.Show(
+                        $"선택된 부재들이 서로 다른 {selectedStruSet.Count}개의 STRU에 속합니다.\n" +
+                        "같은 STRU 하위 부재만 선택한 뒤 다시 시도해주세요.",
+                        "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    DiagLog($"btnMainDimension BLOCKED selectedStru={selectedStruSet.Count}");
+                    return false;
+                }
+                // selectedStruSet.Count == 0 → 선택은 있으나 STRU 조상 없음 → visible 폴백
+            }
+
+            // (b) Visible 기반 평가
+            HashSet<int> visibleStruSet = new HashSet<int>();
+            var allBodies = vizcore3d.Object3D.GetPartialNode(false, false, true);
+            if (allBodies != null)
+            {
+                foreach (var body in allBodies)
+                {
+                    var real = vizcore3d.Object3D.FromIndex(body.Index);
+                    if (real == null || !real.Visible) continue;
+                    int struIdx = FindAncestorByUda(body.Index, STRU_UDA_KEY, STRU_UDA_VALUE);
+                    if (struIdx >= 0) visibleStruSet.Add(struIdx);
+                }
+            }
+
+            if (visibleStruSet.Count == 1) return true;
+
+            MessageBox.Show(
+                "치수 추출은 **하나의 STRU 단위**에서만 가능합니다.\n\n" +
+                $"현재: 표시된 STRU {visibleStruSet.Count}개, 선택된 STRU {selectedStruSet.Count}개\n\n" +
+                "해결 방법:\n" +
+                "- 한 STRU만 표시되도록 가시성 조정\n" +
+                "- 한 STRU 또는 그 하위 부재들만 선택\n" +
+                "- 도면 시트 목록 / BOM 테이블에서 해당 STRU 선택",
+                "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            DiagLog($"btnMainDimension BLOCKED visibleStru={visibleStruSet.Count} selectedStru={selectedStruSet.Count}");
+            return false;
+        }
+        */
     }
 }

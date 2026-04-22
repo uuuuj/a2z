@@ -6,10 +6,33 @@
 
 ---
 
+## 2026-04-22 — T-023 재설계: STRU 단위 가드로 변경 (현재 비활성)
+
+**유형**: refactor
+**커밋**: `pending`
+**관련 TASK**: T-023
+**변경 사항**:
+- 사용자 의도 재확인: "부재 개수 1"이 아니라 **"STRU(모델트리 상위 UDA 단위) 1개"** 기준
+- 직전 `1620289`의 "visible/selected == 1" 가드 **제거** (사용자 의도와 불일치)
+- 새 `FindAncestorByUda(startIndex, key, value, maxDepth)` + `CheckSingleStruCondition()` 헬퍼를 **완성 형태 + 블록 주석**(`/* */`)으로 `Form1.BOM.cs` 하단에 보존
+  - 선택 기반 → visible 기반 순서로 평가, 공통 조상 STRU 집합 크기 1일 때만 통과
+  - 부모 탐색은 `CollectBOMInfo`의 UDA 순회 패턴 재사용
+  - `Object3dFilter.SELECTED`로 프로그래매틱 선택 상태까지 포함
+  - 실패 시 MessageBox + `DiagLog BLOCKED visibleStru=N selectedStru=M`
+- `btnMainDimension_Click` 진입부의 호출도 `/* */` 주석 처리
+- 상수 `STRU_UDA_KEY="UNIT_TYPE"`, `STRU_UDA_VALUE="STRU"`는 임시 placeholder (`TODO:` 주석). UDA 확정 시 이 두 상수 교체 + 주석 제거만으로 활성화
+- docs 원복: `main-dimension.md` 단계 1.5 · 분기 D · E04를 "비활성" 표기로 교체, 사용자 매뉴얼 `치수 추출.md` 에러 ③/단계 1-2 삭제 후 "향후 추가 예정" 예고 문구로 치환
+- TASKS T-023 상태: `IN_PROGRESS` → `BLOCKED` (UDA 키·값 확정 대기)
+- MSBuild Debug 통과 (주석 블록이라 컴파일 영향 없음)
+
+**영향 범위**: 치수 추출 가드 일시 비활성 — 현재는 기존처럼 모델 로드 + 예외만 검사. STRU 가드는 UDA 확정 시 활성화
+
+---
+
 ## 2026-04-22 — T-023 치수추출 사전조건 가드 (단일 부재)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `1620289`
 **관련 TASK**: T-023
 **변경 사항**:
 - `btnMainDimension_Click` 진입부에 단일 부재 가드 추가
@@ -28,7 +51,7 @@
 ## 2026-04-22 — T-024 단일 부재 치수추출 시 시트 목록 미갱신 버그 수정
 
 **유형**: fix
-**커밋**: `pending`
+**커밋**: `06a1395`
 **관련 TASK**: T-024
 **변경 사항**:
 - **원인**: `DetectClash` 내부 루프가 `targetNodes.Count == 1`이면 쌍 없어 `clashCount == 0` → return false → `PerformInterferenceCheck` 미호출 → `Clash_OnClashTestFinishedEvent` 미발동 → 이벤트에서 호출되던 `GenerateDrawingSheets` 미실행 → 시트 목록 갱신 안 됨. 부가적으로 간섭 없는 다중 부재도 이벤트 내 `if (clashList.Count > 0)` 조건에 걸려 시트 안 생기던 숨은 버그 공존
@@ -44,7 +67,7 @@
 ## 2026-04-22 — T-022 시트/BOM 선택 시 3D View 선택상태 동기화
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `ab8313e`
 **관련 TASK**: T-022
 **변경 사항**:
 - `vizcore3d.Object3D.Select(List<int>, true, false)` + `Select(DESELECT_ALL)` 조합으로 "선택상태(빨간 하이라이트)" 구현
@@ -64,7 +87,7 @@
 ## 2026-04-22 — T-018 장시간 작업 진행 오버레이 (1차: 치수 추출)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `ccb9cb4`
 **관련 TASK**: T-018
 **변경 사항**:
 - 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 ([Form1.cs](../../A2Z/Form1.cs) L183~L222)
