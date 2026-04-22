@@ -6,10 +6,36 @@
 
 ---
 
-## 2026-04-23 — T-036 추가 보강: BeginUpdate 감싸기 + Z90 FitToView
+## 2026-04-23 — T-036 재수정: Z90 FitToView 제거 (직전 커밋 부분 되돌림)
 
 **유형**: fix
 **커밋**: `pending`
+**관련 TASK**: T-036
+**배경**: 직전 커밋(`e08cb5c`)에서 Z 최장축 90° 회전 직후 `FitToView()` 추가. 사용자 DiagLog 공유:
+```
+T-036 MfgDrawing bom=11 sizeXYZ=(65,65,1050) longestAxis=Z
+  use180=False useMinus=True Z90Applied=True R180Applied=False
+```
+**사용자 관찰 "누르는 순간 가로로 변하고 치수 보임 → 0.5초 뒤 FitToView로 세로로 변함"** → **직전 커밋의 FitToView가 바로 그 리셋의 주범** 확정
+
+**원인**: ExecuteMfgDrawing 원본 코드의 L532 근처 주석이 이미 경고:
+> "반드시 모든 drawing 완료 후 마지막에 적용해야 유지됨. LockZAxis를 false로 유지 (true로 복원하면 렌더링 엔진이 회전을 리셋)"
+
+즉 `ScreenAxisRotation`으로 적용한 회전은 후속 카메라 동작(특히 FitToView)이 리셋시키는 SDK 동작이 있음. 내가 추가한 FitToView가 이 케이스에 정확히 해당
+
+**변경 사항**:
+- L538 `vizcore3d.View.FitToView();` **제거**
+- 주석 강화: "이 회전 직후 FitToView 호출 절대 금지 — ScreenAxisRotation 회전을 리셋해 Z가 다시 세로로 복구됨"
+- `BeginUpdate/EndUpdate` 감싸기는 그대로 유지 (중간 깜빡임 차단 역할은 부작용 없음)
+
+**영향 범위**: Z 최장축 부재의 가공도 렌더만. 다른 longestAxis(X/Y) 케이스는 영향 없음
+
+---
+
+## 2026-04-23 — T-036 추가 보강: BeginUpdate 감싸기 + Z90 FitToView
+
+**유형**: fix
+**커밋**: `e08cb5c`
 **관련 TASK**: T-036
 **배경**: 사용자 재보고 "가로로 누워있다가 카메라 재조정/fit 과정 중 갑자기 세로로 변함 (Z축 세운 모델들에서)". 진단: `ExecuteMfgDrawing` 내부 `MoveCamera`·`FitToView`·`RotateCameraByScreenAxis` 여러 단계가 즉시 반영되어 **중간 상태가 화면 깜빡임으로 노출**. `BeginUpdate/EndUpdate` 없이 구현되어 있었음
 **변경 사항**:

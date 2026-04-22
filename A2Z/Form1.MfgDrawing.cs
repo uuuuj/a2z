@@ -540,13 +540,14 @@ namespace A2Z
                 // 10. Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
                 //     반드시 모든 drawing 완료 후 마지막에 적용해야 유지됨
                 //     LockZAxis를 false로 유지 (true로 복원하면 렌더링 엔진이 회전을 리셋)
+                //     ※ 이 회전 직후 FitToView 호출 절대 금지 — ScreenAxisRotation 회전을 리셋해 Z가 다시 세로로 복구됨
                 if (longestAxis == "Z")
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    // T-036 (2026-04-23): 90° 회전 직후 FitToView 누락되어 있었음 → 추가.
-                    // 회전 후 화면 중앙·스케일 재조정이 안 돼서 최종 결과가 왜곡되던 원인 중 하나.
-                    vizcore3d.View.FitToView();
+                    // T-036 (2026-04-23 재수정): 직전 커밋에서 FitToView 추가했지만 사용자 실기 로그상
+                    // "0.5초 뒤 FitToView로 세로로 변함"으로 이 FitToView가 회전 리셋 원인 확정 → 제거.
+                    // (원본 주석의 "마지막에 적용해야 유지됨" 경고가 정확했음)
                 }
 
                 // T-036 (2026-04-23 강화): 회전 단계별 상세 진단 로그
