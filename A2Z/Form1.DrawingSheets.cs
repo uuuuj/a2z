@@ -596,8 +596,14 @@ namespace A2Z
                         lvDimension.Items.Add(lvi);
                         no++;
                     }
-                    ShowAllDimensions();
-                    DiagLog($"T-028 시트 선택 자동 치수: sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} chain={chainDimensionList.Count}");
+
+                    // T-030: 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
+                    // chainDimensionList·lvDimension은 채우지만 ShowAllDimensions()는 호출하지 않음.
+                    // 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 해당 뷰 치수가 3D 뷰에 등장.
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
+
+                    DiagLog($"T-030 시트 선택 자동 치수: sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} chain={chainDimensionList.Count} (3D 미렌더)");
                 }
             }
             catch (Exception ex)

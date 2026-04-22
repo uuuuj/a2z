@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-22 — T-030 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-030
+**배경**: T-029로 치수추출 버튼의 3D 뷰 치수 렌더링을 제거했지만, 시트 선택 자동 치수는 여전히 렌더링됨. 사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음"
+**결정**: (a) 채택 — 일반 시트 분기에서도 같은 정책 적용
+**변경 사항**:
+- `LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거
+- 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 3D 뷰를 **치수선 없는 깨끗한 상태**로 마감
+- `chainDimensionList` · `lvDimension`은 그대로 채움 → 2D 출력·글로벌 뷰 버튼(`ShowAllDimensions(viewDir)`)에서 자동 활용
+- `DiagLog "T-030 시트 선택 자동 치수: sheet#=N members=M chain=K (3D 미렌더)"` 기록
+- 설치도(-2) 시트는 `ExtractInstallationDimensions`가 이미 3D 미렌더라 그대로 유지 (BBox 기반 데이터만 채움)
+- docs `lv-sheet-selected.md` 분기 A 재기술 + 변경 이력
+
+**영향 범위**: 시트 선택 시 UX. 치수 데이터·시트 생성·2D 출력 모두 그대로. 글로벌 뷰 버튼을 눌러야 치수가 보이는 일관된 2단계 UX (T-029 ↔ T-030)
+
+---
+
 ## 2026-04-22 — T-031 가공도 시트 선택 시 은선 처리 제거 (SMOOTH 실선)
 
 **유형**: feat

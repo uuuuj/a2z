@@ -29,22 +29,6 @@
 - **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
 
 
-### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
-- **생성일**: 2026-04-22
-- **상태**: TODO (사용자 확인 대기 — 렌더링 제거할지 vs 유지할지)
-- **관련**: — (사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음")
-- **배경**: 치수추출 버튼은 T-029로 3D 뷰 치수 렌더링을 제거했지만, **시트 선택 자동 치수**(`LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기)에는 아직 `ShowAllDimensions()` 호출이 남아 시트 클릭 시 치수가 나타남. UX 일관성을 위해 시트 선택도 "치수 계산만 하고 렌더링은 안 함, 글로벌 뷰 버튼 눌러야 등장" 정책 확장 검토
-- **결정 필요**:
-  - (a) T-029 정책 확장: 시트 선택 시 `chainDimensionList` 교체 + `lvDimension` 갱신만 하고 3D 뷰는 깨끗하게. 글로벌 뷰 버튼 눌러야 치수 등장
-  - (b) 현행 유지: 시트 선택 시 자동 렌더링 (치수추출 버튼과 UX 상이)
-  - (c) 중간: 설치도(-2)는 자동 렌더링 유지, 일반 시트만 T-029 정책
-- **세부** (a 선택 시):
-  - [ ] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거
-  - [ ] `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 깨끗한 상태 마감
-  - [ ] 설치도(-2) 시트 `ExtractInstallationDimensions` 경로도 동일하게 처리할지 검토
-  - [ ] docs/features/drawing-sheets/lv-sheet-selected.md 갱신
-  - [ ] 사용자 실기 확인
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/lv-sheet-selected.md
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -89,6 +73,22 @@
 ---
 
 ## IN_PROGRESS
+
+### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
+- **생성일**: 2026-04-22
+- **착수일**: 2026-04-22
+- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
+- **관련**: — (사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음")
+- **결정**: (a) T-029 정책 확장 — 일반 시트 분기에서 `ShowAllDimensions()` 제거, 3D 뷰는 깨끗하게. 글로벌 뷰 버튼 눌러야 치수 등장. 설치도(-2)는 `ExtractInstallationDimensions`가 이미 3D 미렌더라 그대로 유지
+- **구현**:
+  - [x] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거
+  - [x] `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 "깨끗한 상태" 마감
+  - [x] `chainDimensionList`·`lvDimension`은 계속 채움 (2D 출력·글로벌 뷰 버튼에서 자동 활용)
+  - [x] `DiagLog T-030 시트 선택 자동 치수: ... (3D 미렌더)` 기록
+  - [x] docs/features/drawing-sheets/lv-sheet-selected.md 분기 A 재기술·변경 이력
+  - [x] MSBuild Debug 통과
+  - [ ] 사용자 실기 확인 (시트 선택 시 3D 뷰 깨끗, 글로벌 X/Y/Z 누르면 해당 뷰 치수 등장)
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs (LvDrawingSheet_SelectedIndexChanged 일반 시트 분기 +4줄), docs/features/drawing-sheets/lv-sheet-selected.md
 
 ### T-031 — 가공도 시트 선택 시 은선(DASH_LINE) 처리 비활성화
 - **생성일**: 2026-04-22

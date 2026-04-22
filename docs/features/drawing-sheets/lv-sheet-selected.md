@@ -4,7 +4,7 @@ feature_name: 도면 시트 선택 시 X-Ray 표시
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-22 (T-028 시트 유형별 치수 분기 3종)
+last_updated: 2026-04-22 (T-030 일반 시트 3D 뷰 치수 미렌더 — T-029 정책 확장)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingSheet_SelectedIndexChanged
 ---
 
@@ -60,12 +60,12 @@ flowchart TD
 
 ## 5. 주요 분기 처리
 
-### [분기 A] 시트 유형 (T-028 재작성)
+### [분기 A] 시트 유형 (T-028 재작성 + T-030 렌더 정책)
 | 조건 | 처리 |
 |---|---|
-| `sheet.BaseMemberIndex == -3` (가공도) | `ExecuteMfgDrawing(sheet.MemberIndices[0])` |
-| `sheet.BaseMemberIndex == -2` (설치도) | `ExtractInstallationDimensions(sheet.MemberIndices)` — **BBox 기반 유지**. 부재 간 간격·전체 조립 치수 표현용. 추후 옵션 A(완전 폐기)로 전환 가능 |
-| 그 외 (Sheet 1 전체, Sheet 2+ 개별 기준부재) | **공용 엔진 사용** — `chainDimensionList = ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f)` + `lvDimension` 갱신 + `ShowAllDimensions()`. 2D 출력·글로벌 X/Y/Z 버튼과 동일한 Osnap 로직 |
+| `sheet.BaseMemberIndex == -3` (가공도) | `ExecuteMfgDrawing(sheet.MemberIndices[0])` — T-031로 은선(DASH_LINE) → 실선(SMOOTH) |
+| `sheet.BaseMemberIndex == -2` (설치도) | `ExtractInstallationDimensions(sheet.MemberIndices)` — **BBox 기반 유지**. 부재 간 간격·전체 조립 치수 표현용. 3D 뷰 치수는 자체적으로 미렌더(chainDimensionList만 채움). 추후 옵션 A(완전 폐기)로 전환 가능 |
+| 그 외 (Sheet 1 전체, Sheet 2+ 개별 기준부재) | **공용 엔진 사용** — `chainDimensionList = ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f)` + `lvDimension` 갱신. **T-030부터 `ShowAllDimensions()` 호출 제거 + `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 3D 뷰 깨끗하게 마감**. 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 해당 뷰 치수가 3D에 등장 (T-029 정책과 일관) |
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |
@@ -97,3 +97,4 @@ flowchart TD
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-022: 시트의 "기준부재"를 3D View에서 `Object3D.Select`로 빨간 하이라이트. `DESELECT_ALL` 선행으로 이전 선택 누적 방지. 가공도(`MemberIndices[0]`) / Sheet 2+(`BaseMemberIndex`) 구분, Sheet 1·설치도는 생략. 단계 10 추가, 상태 변화 2행 추가 | Claude |
 | 2026-04-22 | **T-028**: 시트 유형별 치수 분기 3종 재작성. 가공도(-3)는 `ExecuteMfgDrawing`, 설치도(-2)는 `ExtractInstallationDimensions`(BBox 유지), 그 외는 `ComputeViewDimensionsForMembers`(2D 출력·글로벌 버튼과 동일 Osnap 엔진). 분기 A 재기술 | Claude |
+| 2026-04-22 | **T-030**: 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거, `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 3D 뷰를 "치수 없는 깨끗한 상태"로 마감 (T-029 정책 확장). `chainDimensionList`·`lvDimension`은 계속 채워 2D 출력·글로벌 뷰 버튼에서 재사용. 분기 A 재기술, `DiagLog T-030 시트 선택 자동 치수` 추가 | Claude |
