@@ -8,6 +8,112 @@
 
 ## TODO
 
+### T-037 — 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장
+- **생성일**: 2026-04-24
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시, T-006/FB-003 심화)
+- **배경**: 2D 출력 시 BOM 셀에 긴 텍스트가 들어가면 `IsTextWrapped=true`로 wrap되면서 행 높이가 늘어나 14행 레이아웃이 깨짐. ITEM 열 값은 UDA `SPREF`에서 "/" 제거 후 ":" split로 추출 — 사용자 요구로 추가 split 기준(`-` / `/` 등) 포함 필요
+- **사용자 확인 필요**:
+  - [ ] **실제 SPREF 값 예시 2~3건 공유** (UDA 원본과 원하는 ITEM 결과 표기)
+  - [ ] split 우선순위 확정 (`:` → `-` → `/` 순서? 가장 짧은 유효 토큰 택일?)
+- **세부**:
+  - [ ] sdk-verifier: `TemplateTableData.FontSize` / `AutoFit` / `CellFontHeight` 류 프로퍼티 존재 확인
+  - [ ] 옵션 A: `IsTextWrapped=false` + 셀 폭 초과분 "..." 말줄임
+  - [ ] 옵션 B (SDK 지원 시): 폰트 자동 축소 속성
+  - [ ] 옵션 C: ITEM 추가 split 구현 (사용자 답변 후 확정)
+  - [ ] 열 너비 재분배 검토 (ITEM 17mm가 충분한지)
+  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 갱신
+- **영향 파일**:
+  - `A2Z/Form1.Clash.cs` (CollectBOMInfo — SPREF 파싱)
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D BOM 테이블 블록 L1218~1269)
+
+### T-038 — 2D 출력 셀 크기 기반 모델 스케일 + 여백 예산
+- **생성일**: 2026-04-24
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시, T-006 2차 실험 흡수)
+- **배경**: 현재 `targetH=40f` 하드코드. 셀 높이 ≈ 95mm이므로 58% 여유 공간 낭비. 모델을 키우고 싶지만 그리드 이탈·풍선/라벨/치수선 겹침 위험
+- **제안 여백 예산** (사용자 승인 필요):
+  - 셀 95×92mm 기준: 상단 라벨 8mm + 풍선 영역 12mm + 하단 치수 15mm + 모델 60mm
+  - 좌우: 치수 영역 10×2mm + 모델 72mm
+- **사용자 확인 필요**:
+  - [ ] 위 예산 수용 여부 (모델 60×72mm 영역 OK인지)
+  - [ ] 뷰별 스케일 통일(모든 뷰 동일 비율) vs. 뷰별 개별 최대화 선호
+- **세부**:
+  - [ ] sdk-verifier: `GridStructure.GetGridCellSize(row,col)` / `GetCellBounds` 류 API 존재 확인
+  - [ ] `RenderSheetViewForDrawing`의 `targetHeight` 파라미터를 예산 기반 동적 계산으로 교체
+  - [ ] Sheet 2+ ISO의 `bgObjId`·`objId` 공통 스케일 유지 (현재 따로 놀 위험)
+  - [ ] 그리드 이탈 감지 — `GetObjectBounds(id)` 호출 후 셀 영역과 비교
+  - [ ] docs 갱신
+- **영향 파일**:
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D L1298~1311, RenderSheetViewForDrawing L1430~)
+- **선행**: sdk-verifier 조사 먼저
+- **연관**: T-039(치수 offset 동기화)는 이 작업 완료 후 진행
+
+### T-039 — 치수 생성 타이밍 재설계 + offset 고정 (2D 공간 기준)
+- **생성일**: 2026-04-24
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시, T-038 후속)
+- **배경**: 모델 `RescaleObject` 시 치수선도 같이 확대되어 offset이 `ratio`배로 폭주하고 텍스트가 과도하게 작아짐. 치수선이 셀 경계를 벗어나 인접 셀 침범 (T-006 FB 중 "치수선 셀 이탈"과 동일)
+- **근본 원인**: `ShowAllDimensions`로 **3D Measure 생성 → 2D 변환 → 모델과 함께 스케일** 순서라 치수가 모델 크기의 함수로 움직임
+- **해결 방향**:
+  - [ ] 치수 생성 순서를 **모델 스케일 확정 이후**로 지연
+  - [ ] 3D 좌표 → 2D 투영 후 **2D 공간에서 고정 offset(mm 단위)** 재배치
+  - [ ] 치수 텍스트 높이를 셀 크기 비례 동적값(`cellH × 0.05` 등)으로 — 현재 `Set2DViewCreateObjectItemMeasureTextHeight(5f)` 하드코드
+  - [ ] 보조선(extension line) 길이도 절대값(mm)으로 고정
+- **사용자 확인 필요**:
+  - [ ] 실기에서 offset 폭주·텍스트 과소화가 보이는 구체 시트 스크린샷 1~2건 공유 (재현 케이스 확정용)
+- **세부**:
+  - [ ] sdk-verifier: `Set2DViewCreateObjectItemMeasureTextPosition` / `Object2D.SetObjectScaleLocked` 류 API
+  - [ ] 치수 ID 수집 후 모델과 **다른 스케일** 적용 가능한지 SDK 확인
+  - [ ] PoC: 단일 시트로 고정 offset 방식 검증
+  - [ ] docs 갱신 (단계표 재작성)
+- **영향 파일**:
+  - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing L1560~1600 스케일 블록)
+  - `A2Z/Form1.Dimensions.cs` (ShowAllDimensions 2D 경로)
+- **선행**: T-038 필수
+
+### T-040 — 치수 텍스트 ↔ 치수선 겹침 감지·회피 (가시성)
+- **생성일**: 2026-04-24
+- **상태**: TODO
+- **관련**: — (사용자 직접 지시)
+- **배경**: 치수 숫자와 치수선/보조선이 겹쳐 숫자가 안 보이는 가시성 문제. "어떻게 감지하고 어떻게 회피할지 고민 필요" — 사용자 지시
+- **감지 전략** (2D 공간 기준):
+  - 각 치수 텍스트의 bounding box (중앙점 + 폰트 높이 × 예상 문자 폭)
+  - 같은 뷰의 다른 치수선 segment들과 AABB ↔ 선분 충돌 테스트
+  - 보조선·모델 라인도 충돌 대상 포함 여부 결정 필요
+- **회피 전략 3단**:
+  | Tier | 방법 | 구현 비용 | 근본 해결 |
+  |---|---|---|---|
+  | T1 | 치수 텍스트 뒤 **흰색 배경 마스크** | 낮음 | X (시각만) |
+  | T2 | 평행 치수 **층별 오프셋** (동일 축 N번째 = +N×8mm) | 중간 | 부분 |
+  | T3 | **Leader line + 자유 배치** (겹치면 텍스트만 측면으로 빼고 지시선 연결) | 높음 | O |
+- **사용자 확인 필요**:
+  - [ ] 우선순위 T1만 먼저 → T2 추가 → T3는 PoC 후 판단 수용 여부
+  - [ ] 실기 겹침 사례 스크린샷 2~3건 (패턴 분석용)
+- **세부**:
+  - [ ] sdk-verifier: 텍스트 배경색·마스크 API (`Set2DMeasureTextBackground` 등)
+  - [ ] T1 구현
+  - [ ] 겹침 감지 유틸 신설 (Form1.Dimensions.cs)
+  - [ ] T2 층별 오프셋 로직
+  - [ ] docs 갱신
+- **영향 파일**:
+  - `A2Z/Form1.Dimensions.cs` (AddChainDimensionByAxis, 겹침 검사 유틸 신설)
+  - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing 치수 후처리)
+- **선행**: T-039 완료 후 (치수 배치 기준 확정돼야 겹침 판정 유의미)
+
+### T-041 — 치수 Leader line 방식 PoC (T-040 T3 심화)
+- **생성일**: 2026-04-24
+- **상태**: TODO
+- **관련**: — (T-040 후속, 조선 도면 표준 부합성 평가용)
+- **배경**: T1·T2로 해결 안 되는 치밀 밀집 구간을 위한 leader line(지시선) 방식. 텍스트는 여유 공간으로 빼고 치수선과 가는 선으로 연결
+- **세부**:
+  - [ ] 사용자/담당자에게 leader line 허용 여부 확인 (조선 도면 표준 관례)
+  - [ ] 단일 복잡 시트로 PoC
+  - [ ] 여유 공간 탐색 알고리즘 (모델 BBox 바깥 clear area 찾기)
+  - [ ] 수용 결정 후 프로덕션 적용 or 기각
+- **영향 파일**: A2Z/Form1.Dimensions.cs, A2Z/Form1.DrawingSheets.cs
+- **선행**: T-040 결과 후 판단
+
 ### T-036 — 가공도 시트: 선택상태 해제 + ISO 뷰 느낌 해결
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22
@@ -30,49 +136,14 @@
   - [x] **후속 (2026-04-23)**: 사용자 "카메라 재조정 중 가로→세로 깜빡" 관찰 → `ExecuteMfgDrawing` 전체를 `BeginUpdate/EndUpdate`로 감싸 중간 상태 노출 차단 + Z 최장축 90° 회전 직후 누락됐던 `FitToView` 추가
   - [x] **재수정 (2026-04-23)**: 사용자 DiagLog 공유 → "누르는 순간 가로 → 0.5초 뒤 FitToView로 세로" 확정 → **직전 커밋의 FitToView가 바로 원인**. 제거. 원본 주석 경고 "LockZAxis false 유지 — true로 복원하면 렌더링 엔진이 회전을 리셋"이 FitToView에도 동일 적용
   - [x] **3차 수정 (2026-04-23, sdk-verifier 기반)**: 내부 FitToView 제거만으론 세로 복귀 여전. `LockZAxis`는 키보드용이라 무관 확정. SDK 정공법 `GetCameraData()` + `SetCameraData(data, false)` 스냅샷 복원 패턴 도입. Form1.cs에 `_mfgDrawingCameraSnapshot` 필드 추가, ExecuteMfgDrawing Z 90° 직후 `GetCameraData()` 저장, `LvDrawingSheet_SelectedIndexChanged` 말미에 가공도(-3) 확인 후 `SetCameraData(snapshot, false)` 복원
-  - [ ] 사용자 실기 재재재확인 — Z 최장축 부재가 0.5초 뒤에도 가로 유지되는지
+  - [x] **사용자 실기 재보고 (2026-04-24)**: "아직도 세로로 출력되는 부재들이 있음" → 3차 수정으로 일부는 해결됐으나 **여전히 세로 잔존 부재 존재**. 새 가설 필요
+  - [ ] 사용자 정보 수집 필요: 어떤 부재가 세로로 남는지 DiagLog (`T-036 MfgDrawing` 라인 + `T-036 카메라 스냅샷 복원` 라인) 비교 — Z 최장축 케이스인지 / non-Z 케이스인지 / 스냅샷이 저장됐는지 / SetCameraData 호출됐는지
+  - [ ] **새 가설 후보**:
+    1. Z 최장축이 아닌 X·Y 최장축 부재가 카메라 회전이 아예 안 적용된 채 가공도 진입 (스냅샷은 Z 케이스에만 저장됨)
+    2. 가공도 시트가 처음 선택될 때만 스냅샷 적용 — 다른 시트 거쳤다 다시 같은 가공도로 돌아오면 스냅샷이 다른 가공도 것으로 덮어써졌을 가능성 (가공도가 여러 개일 때)
+    3. SetCameraData(false) 후에도 외부 어딘가가 카메라 재변경
+  - [ ] 위 가설 검증 위해 `_mfgDrawingCameraSnapshot`을 **Dictionary<int, CameraData>** (가공도 번호 키)로 확장 검토
 - **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/features/mfg-drawing/mfg-drawing.md, docs/features/drawing-sheets/lv-sheet-selected.md
-
-### T-035 — 글로벌 ISO/X/Y/Z 뷰 버튼 클릭 시 부재 선택상태 해제
-- **생성일**: 2026-04-22
-- **상태**: TODO
-- **관련**: — (사용자 피드백)
-- **배경**: T-022로 시트/BOM 행 선택 시 빨간 하이라이트 적용. 글로벌 뷰 버튼 누르면 이 상태 잔존. 글로벌 뷰는 "전체 관찰" 모드이므로 선택 없는 상태 기대
-- **세부**:
-  - [x] `ApplyFullModelView`·`ApplySelectedNodesView` 시작부에 `Object3D.Select(DESELECT_ALL)` 추가
-  - [x] `ApplyDrawingSheetView`는 T-022 기준부재 하이라이트 유지 (건드리지 않음)
-  - [x] docs/features/global-views/global-iso.md 상태 변화·이력 갱신
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인
-- **영향 파일**: A2Z/Form1.GlobalViews.cs
-
-### T-034 — 글로벌 ISO/X/Y/Z 뷰 버튼: 은선(DASH_LINE) → 실선(SMOOTH)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백 "글로벌 뷰에서도 은선 처리되는 거 같아 잘 보이게")
-- **해당 위치**: [Form1.GlobalViews.cs L100](../../A2Z/Form1.GlobalViews.cs) `ApplySelectedNodesView` + L150 `ApplyFullModelView` 두 곳의 `SetRenderMode(DASH_LINE)`
-- **세부**:
-  - [x] 두 호출 `RenderModes.SMOOTH`로 교체
-  - [x] docs/features/global-views/global-iso.md 상태 변화·이력 갱신
-  - [x] MSBuild Debug 통과
-  - [x] **후속 (2026-04-23)**: 사용자 실기 "BOM 테이블 선택 → 글로벌 ISO" 시 은선 복귀 확인. `ApplyDrawingSheetView`(Form1.DrawingSheets.cs L702 ISO / L735 X/Y/Z) DASH_LINE → SMOOTH 교체. L1433(2D 캡처용)은 유지
-  - [ ] 사용자 실기 확인 (후속 패치 적용 후)
-- **영향 파일**: A2Z/Form1.GlobalViews.cs, A2Z/Form1.DrawingSheets.cs (ApplyDrawingSheetView 내부 2곳)
-
-### T-033 — 오버레이 해제 타이밍 (MessageBox 전에 해제)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백 "자동 처리 완료 팝업 후에도 치수 계산 중 창이 2초 더 떠있음")
-- **배경**: 현재 순서 `Osnap → 치수 → 요약 MessageBox → GenerateDrawingSheets → finally HideBusyOverlay` → 팝업 뜰 때 오버레이 잔존, 팝업 닫힌 후 시트 생성까지 오버레이 지속
-- **세부**:
-  - [x] 순서 재배치: `Osnap → 치수 → GenerateDrawingSheets → HideBusyOverlay → MessageBox`
-  - [x] finally의 HideBusyOverlay는 예외 안전망으로 유지 (중복 호출 OK)
-  - [x] docs/features/bom/main-dimension.md 변경 이력 갱신
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (팝업 뜰 때 오버레이 없는 상태인지)
-- **영향 파일**: A2Z/Form1.BOM.cs (CompleteMainDimensionPostClash)
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -143,50 +214,6 @@
 - **영향 파일**: A2Z/Form1.cs (+1 필드), A2Z/Form1.BOM.cs (CollectAllOsnap 루프, CompleteMainDimensionPostClash), A2Z/Form1.Dimensions.cs (ComputeViewDimensionsForMembers 파라미터 추가)
 - **연관**: T-018 (오버레이 UX), T-028 (치수 엔진 통합)
 
-### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음")
-- **결정**: (a) T-029 정책 확장 — 일반 시트 분기에서 `ShowAllDimensions()` 제거, 3D 뷰는 깨끗하게. 글로벌 뷰 버튼 눌러야 치수 등장. 설치도(-2)는 `ExtractInstallationDimensions`가 이미 3D 미렌더라 그대로 유지
-- **구현**:
-  - [x] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 일반 시트 분기에서 `ShowAllDimensions()` 호출 제거
-  - [x] `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가로 "깨끗한 상태" 마감
-  - [x] `chainDimensionList`·`lvDimension`은 계속 채움 (2D 출력·글로벌 뷰 버튼에서 자동 활용)
-  - [x] `DiagLog T-030 시트 선택 자동 치수: ... (3D 미렌더)` 기록
-  - [x] docs/features/drawing-sheets/lv-sheet-selected.md 분기 A 재기술·변경 이력
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (시트 선택 시 3D 뷰 깨끗, 글로벌 X/Y/Z 누르면 해당 뷰 치수 등장)
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs (LvDrawingSheet_SelectedIndexChanged 일반 시트 분기 +4줄), docs/features/drawing-sheets/lv-sheet-selected.md
-
-### T-031 — 가공도 시트 선택 시 은선(DASH_LINE) 처리 비활성화
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **구현**:
-  - [x] `ExecuteMfgDrawing` L142: `SetRenderMode(DASH_LINE)` → `SetRenderMode(SMOOTH)` 실선 모드로 교체
-  - [x] 2D 캡처·PDF 출력 내부(L820, L1582)는 DASH_LINE 유지 (2D 도면의 내부 상세 은선용)
-  - [x] docs/features/mfg-drawing/mfg-drawing.md 상태 변화 + 변경 이력 갱신
-  - [x] MSBuild Debug 통과
-  - [ ] 사용자 실기 확인 (가공도 시트 선택 시 실선으로 나오는지)
-- **영향 파일**: A2Z/Form1.MfgDrawing.cs (1줄), docs/features/mfg-drawing/mfg-drawing.md
-
-### T-029 — 치수추출 버튼은 3D 뷰 치수 렌더링하지 않음 (글로벌 뷰 버튼으로 지연)
-- **생성일**: 2026-04-22
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 직접 지시)
-- **배경**: 치수추출 버튼 누르면 3D 뷰에 6조합 치수(T-028)가 모두 렌더링되어 과밀. 사용자 의견: "글로벌 뷰 버튼 누르면 보여주는 것으로 충분"
-- **구현**:
-  - [x] `CompleteMainDimensionPostClash`에서 `ShowAllDimensions()` 호출 제거
-  - [x] 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()` 추가 — 이전 렌더 잔존 제거로 "깨끗한 상태" 마감
-  - [x] `chainDimensionList`·`lvDimension`은 그대로 채움 → 글로벌 뷰 버튼·2D 출력에서 자동 활용
-  - [x] MSBuild Debug 통과
-  - [x] docs main-dimension.md 단계 14.5·상태 변화·변경 이력 갱신
-  - [ ] 사용자 실기 확인 (치수추출 후 3D 뷰 깨끗, 글로벌 X/Y/Z 누르면 치수 등장)
-- **영향 파일**: `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 4줄), `docs/features/bom/main-dimension.md`
-
 ### T-028 — 치수 로직 통합 (2D 출력 기준 + 설치도 BBox 분기)
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22
@@ -229,28 +256,6 @@
   - `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 치수 블록 -15줄)
   - `A2Z/Form1.DrawingSheets.cs` (LvDrawingSheet_SelectedIndexChanged 분기 +10줄)
   - docs: `main-dimension.md`, `generate-sheets.md`, `lv-sheet-selected.md`
-
-### T-018 — 장시간 작업 진행 UX 표시 (치수 추출 5초 공백 개선)
-- **생성일**: 2026-04-21
-- **착수일**: 2026-04-22
-- **상태**: IN_PROGRESS (1차 구현 완료, 사용자 실기 확인 대기)
-- **관련**: — (사용자 피드백)
-- **선택 옵션**: **(b) 오버레이 라벨** — 3D 뷰어 중앙에 "처리 중..." 반투명 라벨 (위험 최소 + 시각 효과 충분)
-- **세부** (1차 완료):
-  - [x] 공통 헬퍼 `ShowBusyOverlay(msg)` / `HideBusyOverlay()` 신설 → [Form1.cs](../../A2Z/Form1.cs) L183~L222
-  - [x] `busyOverlay` 필드(Label) 추가 — 최초 호출 시 지연 생성, panelViewer 중앙 자동 배치
-  - [x] `btnMainDimension_Click` try/finally 구조 + 각 단계 진입 시 메시지 갱신 ("치수 추출 중..." → "Osnap 수집 중..." → "치수 계산 중..." → "간섭검사 실행 중...")
-  - [x] `finally`에서 `HideBusyOverlay()` 호출 — 정상·예외 모두 해제
-  - [x] MSBuild Debug 통과 (경고 0)
-  - [x] docs/features/bom/main-dimension.md 단계표·변경 이력 갱신
-  - [ ] 사용자 실기 확인 (오버레이 보이고 처리 완료 시 사라지는지)
-- **2차 확장 (검토)**:
-  - [ ] 다른 장시간 작업 적용 여부 — 2D 도면 생성(`GenerateSheetDrawing2D`), 가공도(`ExecuteMfgDrawing`), PDF 배치(`btnExportAllPDF`), 시트 생성(`GenerateDrawingSheets`). 1차 UX 반응 보고 결정
-- **영향 파일**:
-  - `A2Z/Form1.cs` (busyOverlay 필드 + 헬퍼 2개, +40줄)
-  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click try/finally 구조 + 오버레이 4곳 호출)
-  - `docs/features/bom/main-dimension.md`
-- **우선순위**: MEDIUM
 
 ### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정 + 뷰 내부 clip (T-007 흡수)
 - **생성일**: 2026-04-15
@@ -346,6 +351,41 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-018 — 장시간 작업 진행 UX 표시 (오버레이 라벨)
+- **완료일**: 2026-04-24 (사용자 묵시 OK — 오버레이 동작 정상 관찰)
+- **관련**: — (사용자 피드백)
+- **요약**: ShowBusyOverlay/HideBusyOverlay 헬퍼로 panelViewer 중앙 반투명 라벨. btnMainDimension_Click의 4단계("간섭검사 실행 중..." → "Osnap 수집 중..." → "치수 계산 중..." → 해제). 사용자가 동작 보고 "이 오버레이가 뭐 하는 거지" 질문할 정도로 UX 확립
+
+### T-029 — 치수추출 버튼은 3D 뷰 치수 렌더링하지 않음
+- **완료일**: 2026-04-24 (사용자 "치수추출, 시트 선택하면 깨끗해 글로벌 버튼 누르면 치수 잘나와")
+- **관련**: — (사용자 직접 지시)
+- **요약**: `CompleteMainDimensionPostClash`에서 `ShowAllDimensions()` 호출 제거 + `Review.Measure.Clear()` + `ShapeDrawing.Clear()`. chainDimensionList는 채워둠 → 글로벌 버튼·2D 출력에서 재사용
+
+### T-030 — 시트 선택 시 3D 뷰 치수 렌더링 제거
+- **완료일**: 2026-04-24 (T-029와 함께 확인)
+- **관련**: — (사용자 피드백 "시트 눌렀을 때 치수가 나오는데 왜 나오는지 모르겠음")
+- **요약**: T-029 정책의 시트 선택 분기 확장 — 일반 시트에서도 깨끗한 3D 뷰 유지
+
+### T-031 — 가공도 시트 실선(SMOOTH) 처리
+- **완료일**: 2026-04-24 (사용자 "가공도 선택 시 실선으로 잘 나와")
+- **관련**: — (사용자 직접 지시)
+- **요약**: `ExecuteMfgDrawing` L142 `SetRenderMode(DASH_LINE)` → `SMOOTH` 교체. 2D 캡처 내부의 DASH_LINE은 유지
+
+### T-033 — 오버레이 해제 타이밍
+- **완료일**: 2026-04-24 (사용자 "T-33은 해결됐어")
+- **관련**: — (사용자 피드백)
+- **요약**: `Osnap → 치수 → GenerateDrawingSheets → HideBusyOverlay → MessageBox` 순서로 재배치. 팝업 뜰 때 오버레이 깨끗
+
+### T-034 — 글로벌 뷰 실선(SMOOTH) 처리
+- **완료일**: 2026-04-24 (사용자 "T-34실선으로 잘 나와")
+- **관련**: — (사용자 피드백)
+- **요약**: `ApplySelectedNodesView`·`ApplyFullModelView` + `ApplyDrawingSheetView`(ISO/X/Y/Z 4곳) DASH_LINE → SMOOTH
+
+### T-035 — 글로벌 뷰 버튼 클릭 시 부재 선택 해제
+- **완료일**: 2026-04-24 (사용자 "T-35 해결")
+- **관련**: — (사용자 피드백)
+- **요약**: `ApplyFullModelView`·`ApplySelectedNodesView` 시작부에 `Object3D.Select(DESELECT_ALL)` 추가
 
 ### T-026 — 치수추출 진입 시 이전 xray 선택 잔존 클리어
 - **완료일**: 2026-04-22 (사용자 "처리된 것 같아" 확인)

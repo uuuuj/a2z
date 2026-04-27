@@ -6,10 +6,38 @@
 
 ---
 
+## 2026-04-24 — T-036 4차 (1~5단계) + 7건 일괄 DONE 정리 + T-037~041 신규 등록
+
+**유형**: fix + chore
+**커밋**: `pending`
+**관련 TASK**: T-036(4차 1~5단계), T-018/T-029/T-030/T-031/T-033/T-034/T-035 DONE, T-037~T-041 신규
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**T-036 4차 — 가공도 시트 ScreenAxisRotation 보존 (5단계 진행)**:
+- **1단계** (Form1.MfgDrawing.cs): R180 회전 직후 `FitToView()` 제거 (Z90의 교훈 동일 적용). 스냅샷 저장 조건을 `longestAxis=="Z"`에서 `Z || use1803d || isMinusCamera3d`로 확장. → 사용자 로그에서 첫 1~2번 클릭 Z 케이스 세로 잔존 확인
+- **2단계** (Form1.MfgDrawing.cs): 스냅샷 캡처를 try/finally 밖, EndUpdate 직후로 이동. `shouldSnapshotMfgCamera` 플래그 + `Application.DoEvents()` 추가 (BeginUpdate 안에선 ScreenAxisRotation commit 전 상태 캡처 우려)
+- **3단계 (근본 원인 발견)** (Form1.cs + Form1.DrawingSheets.cs): sdk-verifier로 `CameraData` 명세 재확인 → **ScreenAxisRotation은 CameraData에 미포함**(XML L2552-2606). `_mfgDrawingZ90Applied`/`_mfgDrawingR180Applied` bool 필드 신설, ExecuteMfgDrawing이 추적, 복원 블록에서 SetCameraData 후 `RotateCameraByScreenAxis` 재호출
+- **4단계 (시각 정돈)** (Form1.DrawingSheets.cs): 사용자 "카메라 이동 후 회전 2단계 시각 잔존" 보고 → 복원 블록 전체를 BeginUpdate/EndUpdate로 감쌈. DoEvents 제거
+- **5단계 (SetCameraData 제거)** (Form1.DrawingSheets.cs): 4단계로도 첫 클릭 2단계 시각 잔존 → 가설은 SetCameraData가 ScreenAxisRotation 동기 리셋 + paint 트리거로 BeginUpdate 우회. 외부 카메라 변경 경로(FlyToObject3d 가공도 분기 스킵 + R180 FitToView 제거)가 모두 차단됐으므로 SetCameraData 자체 불필요. 회전 재적용만 유지
+
+**Tracking 정리**:
+- `TASKS.md` IN_PROGRESS → DONE 이동 7건: T-018(오버레이 라벨), T-029(치수추출 후 3D 깨끗), T-030(시트 선택 후 3D 깨끗), T-031(가공도 SMOOTH), T-033(오버레이 해제 타이밍), T-034(글로벌뷰 SMOOTH), T-035(글로벌뷰 선택 해제) — 사용자 실기 확인 완료분
+- `TASKS.md` 신규 5건 등록: T-037(BOM 줄바꿈+ITEM split), T-038(셀 크기 기반 모델 스케일), T-039(치수 offset 재설계), T-040(치수 텍스트 겹침 감지·회피), T-041(Leader line PoC)
+- `TASKS.md` T-036에 4차 5단계 진행·가설 모두 기록
+
+**관련 docs**:
+- `mfg-drawing.md` 4차 1~5단계 변경 이력 추가
+- `lv-sheet-selected.md` 4차 3·4·5단계 변경 이력 추가
+
+**영향 범위**: 가공도 시트 선택 시 카메라 회전 보존 메커니즘만. 일반 시트·설치도·치수추출·글로벌뷰 영향 없음.
+
+---
+
 ## 2026-04-23 — T-036 3차: CameraData 스냅샷 복원으로 외부 FitToView 리셋 방어
 
 **유형**: fix
-**커밋**: `pending`
+**커밋**: `acc359d`
 **관련 TASK**: T-036
 **배경**: 직전 커밋(`e9547a1`)으로 ExecuteMfgDrawing 내부 FitToView는 제거했지만 사용자 실기 "세로로 안 되거든" 재보고. 즉 **외부 경로**에서 FitToView가 0.5초 뒤 호출되어 ScreenAxisRotation 회전을 리셋. 사용자 힌트 "Z축 고정 푸는 API"
 **SDK 조사** (sdk-verifier):

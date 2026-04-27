@@ -54,6 +54,11 @@ namespace A2Z
             BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
             if (bom == null) return;
 
+            // T-036 (2026-04-24 4차): 스냅샷 저장 여부 플래그 — try 블록 안에서 결정,
+            //   finally 다음에 EndUpdate 후 GetCameraData() 호출. BeginUpdate 스코프 내부에서는
+            //   ScreenAxisRotation이 commit 전 상태로 캡처돼 click-order 의존 버그 발생.
+            bool shouldSnapshotMfgCamera = false;
+
             // T-036 (2026-04-23 재시도): 함수 전체를 BeginUpdate/EndUpdate로 감싸
             // 중간 카메라 회전(MoveCamera → FitToView → RotateCamera 여러 회)이 화면에 실시간
             // 노출돼 "가로 → 세로 깜빡" 현상이 보이던 문제 방지. 최종 결과만 화면에 반영.
@@ -257,11 +262,14 @@ namespace A2Z
 
                     // T-036 (2026-04-23 재조정): 사용자 "ISO 뷰 느낌" 문제는 LvDrawingSheet 공통 FlyToObject3d
                     // 잔존이 원인으로 판명 (아래 분리 처리). L215 180° 스킵 가드 원복 — 원래 180° 회전 복원.
+                    // T-036 (2026-04-24 4차): Z 케이스에서 학습한 "회전 직후 FitToView 호출 절대 금지" 교훈을
+                    //   R180 케이스에도 적용. 사용자 로그에서 Y 최장축 부재가 longestAxis=Y, R180Applied=True인데도
+                    //   세로로 출력되는 현상 확정 → 이 FitToView가 ScreenAxisRotation 회전을 리셋하는 동일 메커니즘
                     if (use1803d)
                     {
                         vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                         vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                        vizcore3d.View.FitToView();
+                        // FitToView 제거 — 회전 리셋 방지
                     }
                 }
 
@@ -545,16 +553,19 @@ namespace A2Z
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                }
 
-                    // T-036 (2026-04-23 3차): 사용자 실기 "0.5초 뒤 외부 FitToView가 회전 리셋"
-                    // → 회전 직후 CameraData 스냅샷 저장. LvDrawingSheet_SelectedIndexChanged 말미에서
-                    //   SetCameraData(snapshot, false)로 복원해 최종 상태를 가로로 되돌림.
-                    _mfgDrawingCameraSnapshot = vizcore3d.View.GetCameraData();
-                }
-                else
-                {
-                    _mfgDrawingCameraSnapshot = null;
-                }
+                // T-036 (2026-04-24 4차): 스냅샷 저장 여부만 여기서 결정.
+                //   실제 GetCameraData() 호출은 EndUpdate 이후로 미룸 (아래 finally 다음 블록).
+                //   이유: BeginUpdate 스코프 내에서는 ScreenAxisRotation 회전이 commit 전 상태일 수 있음 →
+                //   "첫 1~2번 클릭은 세로, 이후 클릭은 가로"라는 click-order 의존 버그의 원인.
+                //   사용자 4차 테스트 로그(2026-04-24 01:28)에서 클릭 순서 8/9/10/11 → 8,9 세로, 10,11 가로 패턴 확인.
+                shouldSnapshotMfgCamera = (longestAxis == "Z" || use1803d || isMinusCamera3d);
+
+                // T-036 (2026-04-24 4차 3단계): SDK 검증 결과 CameraData는 ScreenAxisRotation을 별개로 관리.
+                //   회전 플래그를 추적해 복원 시 재적용. Z90/R180 어느 쪽이 적용됐는지 정확히 기록.
+                _mfgDrawingZ90Applied = (longestAxis == "Z");
+                _mfgDrawingR180Applied = use1803d;
 
                 // T-036 (2026-04-23 강화): 회전 단계별 상세 진단 로그
                 //   ISO 뷰 느낌·세로 배치 원인 특정용 — 사용자 재현 시 이 라인 공유 요청
@@ -574,6 +585,18 @@ namespace A2Z
             {
                 // T-036: BeginUpdate 짝 (예외 시에도 해제 보장)
                 vizcore3d.EndUpdate();
+            }
+
+            // T-036 (2026-04-24 4차): EndUpdate 이후에 스냅샷 캡처 — 실제 commit된 카메라 상태 반영.
+            //   Application.DoEvents()로 SDK 렌더링 파이프라인이 회전을 완전히 적용할 시간 확보.
+            if (shouldSnapshotMfgCamera)
+            {
+                System.Windows.Forms.Application.DoEvents();
+                _mfgDrawingCameraSnapshot = vizcore3d.View.GetCameraData();
+            }
+            else
+            {
+                _mfgDrawingCameraSnapshot = null;
             }
         }
 

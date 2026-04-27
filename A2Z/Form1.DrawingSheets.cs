@@ -626,19 +626,42 @@ namespace A2Z
             // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
             CollectBOMInfo(false);
 
-            // T-036 (2026-04-23 3차): 가공도 시트이고 Z 최장축 스냅샷이 있으면
-            // 핸들러 말미에서 카메라 복원 — ExecuteMfgDrawing 이후 외부 FitToView가
-            // ScreenAxisRotation 회전을 리셋한 경우를 방어. `animation=false`로 즉시 적용.
-            if (sheet.BaseMemberIndex == -3 && _mfgDrawingCameraSnapshot != null)
+            // T-036 (2026-04-23 3차 → 2026-04-24 4차 3·4단계 → 5단계): 가공도 시트 카메라 복원.
+            //   진화 경로:
+            //     - 3차: SetCameraData(snapshot)로 카메라 복원
+            //     - 4차 3단계: SetCameraData + Rotate 재적용 (ScreenAxisRotation은 CameraData에 미포함)
+            //     - 4차 4단계: BeginUpdate/EndUpdate로 감쌌으나 사용자 "카메라 이동 후 회전" 2단계 시각 잔존 보고
+            //     - **4차 5단계 (현재)**: SetCameraData가 ScreenAxisRotation을 리셋하면서 paint를 동기 트리거 →
+            //       BeginUpdate가 막지 못함. ExecuteMfgDrawing 이후 외부 FitToView가 모두 제거됐으므로
+            //       카메라 위치는 변하지 않음 → **SetCameraData 호출 불필요**. ScreenAxisRotation만 재적용.
+            //       (만약 회전이 ExecuteMfgDrawing 직후 그대로 유지된다면 이 블록 자체도 no-op)
+            if (sheet.BaseMemberIndex == -3 && (_mfgDrawingZ90Applied || _mfgDrawingR180Applied))
             {
                 try
                 {
-                    vizcore3d.View.SetCameraData(_mfgDrawingCameraSnapshot, false);
-                    DiagLog($"T-036 카메라 스냅샷 복원: sheet#={sheet.SheetNumber}");
+                    // BeginUpdate로 감싸 회전 적용 시점을 1회 paint로 통합
+                    vizcore3d.BeginUpdate();
+
+                    if (_mfgDrawingZ90Applied)
+                    {
+                        vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    }
+                    if (_mfgDrawingR180Applied)
+                    {
+                        vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                    }
+
+                    vizcore3d.EndUpdate();
+
+                    DiagLog($"T-036 카메라 회전 재적용: sheet#={sheet.SheetNumber} " +
+                        $"Z90={_mfgDrawingZ90Applied} R180={_mfgDrawingR180Applied}");
                 }
                 catch (Exception ex)
                 {
-                    DiagLog($"T-036 SetCameraData FAIL {ex.Message}");
+                    DiagLog($"T-036 카메라 회전 재적용 FAIL {ex.Message}");
+                    try { vizcore3d.EndUpdate(); } catch { }
                 }
             }
         }
