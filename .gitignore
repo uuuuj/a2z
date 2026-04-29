@@ -78,3 +78,8 @@ Desktop.ini
 *.tmp
 *.swp
 *~
+
+# Claude Code state (auto-generated, machine-local)
+.claude/projects/
+.claude/todos/
+.claude/.cache/
