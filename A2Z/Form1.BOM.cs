@@ -143,6 +143,10 @@ namespace A2Z
             // 시작 시 모델트리 표시
             vizcore3d.ModelTreeVisible = true;
 
+            // T-050: 3D View 좌측하단에 X/Y/Z 축 표시기(Marine Axis triad) 표시
+            // 회사 doc 긴급하 1: "도면상에서는 축을 확인가능하나 3D View 창에서는 확인 불가" 해소
+            vizcore3d.View.MarineAxis.Visible = true;
+
             // VIZCore3D 초기화 완료 후 간섭검사 이벤트 등록
             vizcore3d.Clash.OnClashTestFinishedEvent += Clash_OnClashTestFinishedEvent;
 

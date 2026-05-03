@@ -4,7 +4,7 @@ feature_name: VIZCore3D 초기화 완료
 category: BOM
 trigger_type: Event Callback
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-017 라이선스 코드 분리)
+last_updated: 2026-05-02 (T-050 Marine Axis triad 추가)
 code_reference: /docs/code-reference/form1-bom.md#vizcore3d-oninitialized
 ---
 
@@ -32,6 +32,7 @@ VIZCore3D 컨트롤이 완전히 초기화된 직후 발생하는 이벤트. 라
 | 1 | 라이선스 초기화 | Form1.License | `InitializeLicense()` 위임 — `License.LicenseServer("127.0.0.1", 8901)` + 실패 시 MessageBox·return, 성공 시 30분 갱신 타이머 시작 (→ [E01], [Form1.License.cs](/docs/code-reference/form1-license.md)) |
 | 2 | 2D 툴바 표시 | SDK | `vizcore3d.ToolbarDrawing2D.Visible = true` |
 | 3 | 모델 트리 표시 | SDK | `vizcore3d.ModelTreeVisible = true` |
+| 3.5 | **3D 축 표시기(Marine Axis triad) 켜기** (T-050) | SDK | `vizcore3d.View.MarineAxis.Visible = true` — 3D 뷰 좌측하단에 X/Y/Z 좌표축 ISO 트라이어드 표시. 회사 doc "긴급하 1": 도면에선 축 표시되나 3D View 창에서 확인 불가 문제 해소. 크기·위치 조정은 `Length`(0~1) / `Position`(0~1), 라벨 변경은 `SetText("X","Y","Z")` 가능 |
 | 4 | Clash 콜백 구독 | Form1 | `Clash.OnClashTestFinishedEvent += Clash_OnClashTestFinishedEvent` |
 | 5 | 선택 이벤트 구독 | Form1 | `Object3D.OnObject3DSelected += Object3D_OnObject3DSelected` |
 | 6 | 엣지 데이터 활성화 | SDK | `Model.GenerateEdgeData = true`, `LoadEdgeData = true` |
@@ -56,6 +57,7 @@ VIZCore3D 컨트롤이 완전히 초기화된 직후 발생하는 이벤트. 라
 | `licenseRefreshTimer` | null | Running (30분 주기) |
 | `vizcore3d.ToolbarDrawing2D.Visible` | false | true |
 | `vizcore3d.ModelTreeVisible` | false | true |
+| `vizcore3d.View.MarineAxis.Visible` | false | **true** (T-050) |
 | `vizcore3d.Clash.OnClashTestFinishedEvent` | 구독자 0 | Form1 구독 |
 | `vizcore3d.Object3D.OnObject3DSelected` | 구독자 0 | Form1 구독 |
 | `vizcore3d.Model.GenerateEdgeData` | false | true |
@@ -77,3 +79,4 @@ VIZCore3D 컨트롤이 완전히 초기화된 직후 발생하는 이벤트. 라
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
 | 2026-04-22 | T-017: 라이선스 설정·갱신 타이머 로직을 `Form1.License.cs` partial로 분리. 본 핸들러는 `InitializeLicense()` 한 줄로 대체. 단계표·에러 테이블·관련 링크 갱신 | Claude |
+| 2026-05-02 | **T-050**: 단계 3.5 신설 — `vizcore3d.View.MarineAxis.Visible = true` 한 줄 추가. 회사 doc "긴급하 1" 요구 (3D View 창 축 확인 불가 문제) 해소. SDK의 `MarineAxisManager`는 `Visible/Length/Position/FontSize/FontBold/SetText(x,y,z)` 옵션 지원 — 추가 미세 조정 필요 시 본 핸들러에 한두 줄 더 추가하면 됨. sdk-verifier 결과: `vizcore3d.View.MarineAxis` (XML L59877) 진입점, `MarineAxisManager` (XML L43019). 기존 코드 사용 0건 → 신규 도입 | Claude |

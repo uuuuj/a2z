@@ -6,10 +6,51 @@
 
 ---
 
+## 2026-05-02 (오후) — 회사 doc 동기화 추가 3건 (T-049 + T-050 + T-052)
+
+**유형**: feat + docs
+**커밋**: `pending`
+**관련 TASK**: T-049(완료), T-050(완료), T-052(완료)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**T-049 — 치수 캐시 라이프사이클 문서화 (회사 doc 긴급중 3)**:
+- main-dimension.md Section 7.5 신설 — 회사 doc "치수추출 버튼 앞뒤 로직" 의문 답변
+- `chainDimensionList`를 단일 진실 공급원으로, 4경로(치수추출 / 글로벌 X/Y/Z / 2D 출력 / 일반 시트 / 가공도) + 캐시 사용 양상을 mermaid + 표로 명시
+- 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계 포함
+- 코드 변경 없음, docs만
+
+**T-050 — 3D View 축 표시기 (회사 doc 긴급하 1)**:
+- sdk-verifier 결과 `vizcore3d.View.MarineAxis` 공식 지원 확인 (`MarineAxisManager`, XML L43019)
+- Form1.BOM.cs `Vizcore3d_OnInitializedVIZCore3D` 단계 3.5에 `vizcore3d.View.MarineAxis.Visible = true` 한 줄 추가
+- 결과: 3D 뷰 좌측하단에 ISO X/Y/Z triad 표시
+- 추가 미세 조정(Length / Position / SetText) 필요 시 같은 위치에 보강 가능
+
+**T-052 — Sheet1 포함부재 표기 (회사 doc 긴급하 3)**:
+- Form1.DrawingSheets.cs ListView 단계의 `BaseMemberIndex == -1` 분기 제거 → 일반 시트와 동일 로직으로 통합
+- 결과: Sheet 1 포함부재 셀이 "전체" → "1, 2, 3, ..., N"
+- BOM 14건 초과 시 ListView 컬럼 폭 처리는 사용자 실기 후 후속 조정
+
+**Tracking**:
+- TASKS.md TODO → DONE 3건 이동
+- STATUS.md 마지막 작업 / WIP / 다음 할 것 갱신
+
+**관련 docs (갱신)**:
+- main-dimension.md (Section 7.5 "치수 캐시 라이프사이클" 신설)
+- vizcore3d-initialized.md (단계 3.5 + 상태 변화 + 변경 이력, T-050)
+- generate-sheets.md (변경 이력, T-052)
+
+**영향 범위**:
+- 코드 변경: 초기화 1줄(T-050) + ListView 분기 통합(T-052). 컴파일 영향 무
+- 빌드 검증: A2Z.exe 실행 중이라 bin/Debug dll 복사만 잠금으로 실패. 컴파일 자체는 통과 — exe 닫고 재빌드 필요
+- 사용자 실기 검증: 3D 뷰 축 표시기 가시성 / Sheet 1 포함부재 셀 표기
+
+---
+
 ## 2026-05-02 — 회사 doc 동기화 잔여 4건 (T-046 확장 + T-053 + T-055/T-056)
 
 **유형**: feat + fix + docs
-**커밋**: `pending`
+**커밋**: `8081688`
 **관련 TASK**: T-046(확장 완료), T-053(완료), T-055(완료), T-056(완료)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: —

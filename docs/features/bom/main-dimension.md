@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-04-22 (T-033 오버레이 해제 타이밍 조정)
+last_updated: 2026-05-02 (T-049 치수 캐시 라이프사이클 섹션 추가)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -136,6 +136,59 @@ flowchart TD
 | `lvDimension` | 이전 | 갱신된 치수 행 |
 | **3D 뷰 치수(`Review.Measure`)** (T-029) | 이전 렌더 | **비어 있음**. 글로벌 뷰 버튼 클릭 시 `ShowAllDimensions(viewDir)`이 렌더 |
 
+## 7.5. 치수 캐시 라이프사이클 (T-049)
+
+회사 doc "긴급중 3" 의문 — *"치수 추출 후 3D View창에 치수 표기 안되게 처리 했는데 치수가 저장되어 있는건지 어떻게 되는건지 치수추출 버튼 누르면 앞뒤로 무슨 로직이 돌아가는지"* — 에 대한 정리.
+
+### 7.5.1. 캐시의 정체
+
+`chainDimensionList` (Form1.cs 멤버) 가 **단일 진실 공급원**. 본 버튼이 BOM 수집 → 연결성 판정 → Osnap 수집 후 `ComputeViewDimensionsForMembers(visibleMembers, viewDirection: null)` 한 번 호출로 **3뷰 × 2축 = 6조합 치수**를 사전 계산해 이 리스트에 적재. 이후 **모든 사용 경로는 이 리스트를 읽기만 함** (재계산 없음).
+
+각 `ChainDimensionData`는 [`Models.cs:9~49`](../../../A2Z/Models.cs)에 정의되며, 핵심 필드:
+- `Axis` (`X`/`Y`/`Z`) — 치수가 측정하는 축
+- `ViewDirection` (`X`/`Y`/`Z` 또는 콤마 구분 `"X,Y"`) — 이 치수가 보이는 뷰 (T-028에서 도입)
+- `StartPoint`/`EndPoint` — 3D 좌표
+- `Distance` / `IsTotal` / `Priority` / `IsVisible`
+
+### 7.5.2. 4경로 + 캐시 흐름
+
+```mermaid
+flowchart LR
+    BTN[치수추출 버튼<br/>btnMainDimension_Click] --> CACHE[(chainDimensionList<br/>6조합 사전 계산)]
+    CACHE --> P1[글로벌 X/Y/Z 버튼<br/>ShowAllDimensions viewDir]
+    CACHE --> P2[2D 출력<br/>GenerateSheetDrawing2D]
+    CACHE --> P3[일반 시트 선택<br/>LvDrawingSheet 자동]
+    GUKDO[가공도 시트 선택<br/>ExecuteMfgDrawing] -.별도 경로.-> NOCACHE[캐시 미사용<br/>자체 치수 생성]
+
+    P1 -.|ViewDirection 필터링|.-> RENDER[3D 렌더]
+    P2 -.|ViewDirection 필터링|.-> RENDER2D[2D 도면]
+    P3 -.|시트 부재 기준 재계산|.-> RECALC[ComputeViewDimensions ForMembers sheet.MemberIndices]
+    RECALC --> RENDER3[3D 렌더]
+```
+
+### 7.5.3. 경로별 사용 양상
+
+| 경로 | 캐시 사용 방식 | 재계산 여부 |
+|---|---|---|
+| **치수추출 버튼** (`CompleteMainDimensionPostClash`) | 6조합 신규 작성 → `chainDimensionList`에 저장. 3D 뷰는 `Measure.Clear()` + `ShapeDrawing.Clear()`만 (T-029) | 신규 계산 (1회) |
+| **글로벌 X/Y/Z 버튼** (`ApplyGlobalView` → `ShowAllDimensions(viewDirection)`) | `chainDimensionList`에서 `ViewDirection.Contains(viewDirection)` 항목 필터링해 `Review.Measure`로 렌더. 추가 계산 없음 | 없음 |
+| **2D 출력** (`GenerateSheetDrawing2D` → `ShowAllDimensions("X" 등, forDrawing2D=true)`) | 위와 동일한 필터링 + 2D 변환 (`Add2DMeasureFrom3DMeasure`) | 없음 |
+| **일반 시트 선택** (`LvDrawingSheet_SelectedIndexChanged`, `BaseMemberIndex >= 0` 또는 `-1`/`-2`) | **시트마다 부재 집합이 다르므로 재계산 필요**. `chainDimensionList = ComputeViewDimensionsForMembers(sheet.MemberIndices, null)` 으로 덮어씀 | **재계산** (시트 클릭 시) |
+| **가공도 시트 선택** (`-3`, `ExecuteMfgDrawing`) | **별도 경로** — 단일 부재 기준 자체 치수 생성 (`mfgDimensions` 임시 리스트). `chainDimensionList`와 무관 | 별도 |
+
+### 7.5.4. 사용자 시각으로
+
+1. **치수추출 버튼 클릭** → 3D 뷰는 깨끗 (T-029). `lvDimension`에 결과 행만 표시. `chainDimensionList`에 6조합 저장
+2. **글로벌 X 버튼 클릭** → `chainDimensionList`에서 X 뷰 항목 필터링해 3D 뷰에 렌더. **재계산 없음** — 즉시 표시
+3. **2D 출력 버튼** → `chainDimensionList` 그대로 사용해 2D 도면 생성. 캐시 덕분에 빠름
+4. **일반 시트 선택** → 시트가 바뀌면 그 시트의 부재 집합으로 **다시 계산**해 `chainDimensionList`를 덮어씀. 이 시점부터는 글로벌 X/Y/Z도 시트 부재 기준으로 작동
+
+### 7.5.5. T-032 성능 최적화 연계
+
+치수추출 버튼 경로에서 `CollectAllOsnap`이 부재별 맵(`_lastCollectedNodeOsnapMap`)도 함께 구축 → `ComputeViewDimensionsForMembers`가 그 맵을 재사용해 `GetOsnapPoint` 중복 호출 제거. 시트 선택 자동 경로(다른 부재 집합)는 `null` 전달 → 내부에서 재구축. 자세한 내용은 단계 12·13 참고.
+
+---
+
 ## 8. 후행 기능 (Chained)
 - [Clash 완료 콜백](../clash/clash-finished-event.md) — 자동 호출
 - 이후 [시트 자동 분할](../drawing-sheets/generate-sheets.md) — Clash 결과 있으면 자동
@@ -161,3 +214,4 @@ flowchart TD
 | 2026-04-22 | **T-029**: 치수추출 버튼 완료 직후 `ShowAllDimensions()` 호출 **제거**. 대신 `Review.Measure.Clear()` + `ShapeDrawing.Clear()`로 이전 렌더 잔존 정리. 3D 뷰는 "치수선 없는 깨끗한 상태"로 종료되고, 사용자가 글로벌 X/Y/Z 뷰 버튼을 눌러야 실제 치수선이 그려짐. 단계 14.5 추가, 상태 변화에 `Review.Measure` 행 갱신 | Claude |
 | 2026-04-22 | **T-032**: `CollectAllOsnap` 내부에 **부재별 Osnap 맵**(`_lastCollectedNodeOsnapMap`) 병행 구축. `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` 파라미터 추가해 치수추출 버튼 경로에서 `GetOsnapPoint` 중복 호출 제거. `Stopwatch`로 소요 시간 측정, `DiagLog T-032` 기록. 시트 선택 자동 경로(다른 부재 집합)는 null 전달해 내부 재구축 유지. 단계 12·13 재기술 | Claude |
 | 2026-04-22 | **T-033**: `CompleteMainDimensionPostClash` 후반 순서 재배치 — 기존 `MessageBox → GenerateDrawingSheets → finally HideBusyOverlay` → 신 `GenerateDrawingSheets → HideBusyOverlay → MessageBox`. 팝업 뜰 때 오버레이 잔존 + 팝업 닫힌 후 시트 생성 중 오버레이 2초 더 떠있던 UX 문제 해결. finally의 HideBusyOverlay는 예외 안전망으로 유지 | Claude |
+| 2026-05-02 | **T-049**: Section 7.5 "치수 캐시 라이프사이클" 신설 — 회사 doc "긴급중 3" 의문(*"치수추출 버튼 누르면 앞뒤로 무슨 로직이 돌아가는지"*)에 대한 답변 정리. `chainDimensionList`를 단일 진실 공급원으로, 4경로(치수추출 / 글로벌 X/Y/Z / 2D 출력 / 일반 시트 / 가공도) + 캐시 사용 양상을 mermaid + 표로 명시. 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계 포함. 코드 변경은 없으며 회사 답변용 docs 보강 | Claude |

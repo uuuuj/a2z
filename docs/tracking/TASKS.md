@@ -101,39 +101,6 @@
 - **세부**: 재현 후 진단
 - **영향 파일**: A2Z/Form1.MfgDrawing.cs (EA 두 번째 뷰 생성 블록 L1880~L1905)
 
-### T-049 — 치수 추출 백엔드 로직 문서화 (사전 추출 vs 즉시 추출)
-- **생성일**: 2026-04-28
-- **상태**: TODO (대화 답변은 완료, 문서화 대기)
-- **회사 매핑**: 확인 중 / 긴급중 3
-- **관련**: 사용자 직접 지시
-- **회사 원문**:
-  > 치수 추출 후 3D View창에 치수 표기 안되게 처리 했는데 치수가 저장되어 있는건지 어떻게 되는건지 치수추출 버튼 누르면 앞뒤로 무슨 로직이 돌아가는지 정리 필요
-- **이미 답변됨** (2026-04-28 대화):
-  - 치수추출 버튼: `chainDimensionList`에 6조합(3뷰×2축) **사전 계산** 후 저장
-  - 글로벌 X/Y/Z 버튼: 캐시에서 `ViewDirection.Contains(...)` 필터링만 (재계산 없음)
-  - 시트 선택 (일반): 시트 부재 기준으로 **재계산** (시트마다 다름)
-  - 가공도: `ExecuteMfgDrawing`이 별도 경로
-  - 2D 출력: 캐시 사용
-- **세부**:
-  - [ ] 위 내용을 docs/features/bom/main-dimension.md에 "치수 캐시 라이프사이클" 섹션으로 추가
-  - [ ] mermaid 다이어그램 추가 (4경로 + 캐시)
-- **영향 파일**: docs/features/bom/main-dimension.md (문서만)
-
-### T-050 — 3D View에서 X/Y/Z 축 표시 기능 추가
-- **생성일**: 2026-04-28
-- **상태**: TODO (요구사항 명확화 필요)
-- **회사 매핑**: 확인 중 / 긴급하 1
-- **관련**: 사용자 직접 지시
-- **회사 원문**:
-  > 도면상에서는 축을 확인가능하나 3D View 창에서는 확인 불가
-- **사용자 확인 필요**:
-  - [ ] SDK 기능 — VIZCore3D에 3D View용 축(triad/gnomon) 표시 옵션 있는지 (sdk-verifier로 즉시 확인 가능)
-  - [ ] 표시 방식 — 좌하단 작은 축, 또는 모델 중심 큰 축?
-- **세부**:
-  - [ ] sdk-verifier: `View.ShowAxis` / `View.AxisTriad` / `Gnomon` 류 API 존재 확인
-  - [ ] 있으면 옵션 ON, 없으면 SDK 추가 요청 후보
-- **영향 파일**: A2Z/Form1.cs 또는 Form1.GlobalViews.cs
-
 ### T-051 — Osnap 생성 기준 문서화 (Softhills 답변 정리)
 - **생성일**: 2026-04-28
 - **상태**: TODO (자료 수집 단계)
@@ -147,19 +114,6 @@
   - [ ] 답변 받으면 한국어로 정리 + Osnap 종류(LINE/CIRCLE/POINT) 별 생성 조건 명기
   - [ ] 우리 코드의 `vizcore3d.Object3D.GetOsnapPoint(idx)` 사용처와 cross-ref
 - **영향 파일**: docs/technical-notes/osnap-generation.md (신규)
-
-### T-052 — Sheet1 포함부재 표기 "전체" → "1, 2, 3, ..." 개별 item 번호
-- **생성일**: 2026-04-28
-- **상태**: TODO
-- **회사 매핑**: 확인 중 / 긴급하 3
-- **관련**: T-014 보강. 사용자 직접 지시
-- **회사 원문**:
-  > Sheet1 포함 부재를 "전체" → Item 1, 2, 3... 으로 수정
-- **세부**:
-  - [ ] [Form1.DrawingSheets.cs L278~280](../../A2Z/Form1.DrawingSheets.cs:278) Sheet1 분기 includedText `"전체"` → `string.Join(", ", 1..N)` 로 교체
-  - [ ] BOM 14건 초과 시 줄바꿈/잘림 처리 (긴 문자열 ListView 컬럼 폭 영향)
-  - [ ] docs/features/drawing-sheets/generate-sheets.md 갱신
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets ListView 분기)
 
 ### T-054 — 풍선·심볼 반영 기준 정의 (도메인 정의)
 - **생성일**: 2026-04-28
@@ -521,23 +475,38 @@
 
 ## DONE (최근 20개)
 
-### T-046 — 가공도 치수 보조선 이중쇄선 → 가는 실선 (확장: 모든 보조선 + gap)
+### T-049 — 치수 추출 백엔드 로직 문서화 (사전 추출 vs 즉시 추출)
 - **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc 긴급중 3)
+- **요약**: [docs/features/bom/main-dimension.md](../features/bom/main-dimension.md) Section 7.5 "치수 캐시 라이프사이클" 신설. `chainDimensionList`를 단일 진실 공급원으로 한 4경로(치수추출/글로벌 X/Y/Z/2D 출력/일반 시트/가공도) + 캐시 mermaid + 표 + 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계. 회사 doc "치수추출 버튼 앞뒤 로직" 의문 답변. 코드 변경 없음, docs만
+
+### T-050 — 3D View에서 X/Y/Z 축 표시 기능 추가
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc 긴급하 1)
+- **요약**: sdk-verifier 결과 SDK 직접 지원 확인 — `vizcore3d.View.MarineAxis.Visible = true` 한 줄로 가능 (`MarineAxisManager`, XML L43019). [Form1.BOM.cs](../../A2Z/Form1.BOM.cs) `Vizcore3d_OnInitializedVIZCore3D` 단계 3.5에 추가. 결과: 3D 뷰 좌측하단에 ISO X/Y/Z triad 표시. 회사 doc "도면 외 3D View 축 미확인" 문제 해소. 추가 미세 조정(Length/Position/SetText) 필요 시 같은 위치에 보강 가능
+
+### T-052 — Sheet1 포함부재 표기 "전체" → "1, 2, 3, ..." 개별 item 번호
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc 긴급하 3, T-014 보강)
+- **요약**: [Form1.DrawingSheets.cs](../../A2Z/Form1.DrawingSheets.cs) ListView 단계의 `BaseMemberIndex == -1` 분기 제거 → 일반 시트(`>=0`)와 동일 로직(`bomIndexToItemNo` 매핑 + 정렬 + `string.Join`)으로 통합. 결과: Sheet 1의 포함부재 셀이 "전체" → "1, 2, 3, ..., N" 명시. 설치도(`-2`)도 같은 분기로 들어가지만 이전부터 동일 처리. BOM 14건 초과 시 ListView 컬럼 폭은 사용자 실기 후 조정
+
+### T-046 — 가공도 치수 보조선 이중쇄선 → 가는 실선 (확장: 모든 보조선 + gap)
+- **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc 긴급상 10 + 사용자 확장 — 모든 경로 + 모델 표면 gap)
 - **요약**: 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출)의 보조선을 `DrawDimension` 단일 지점에서 일괄 처리. (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴 제거. (2) `OffsetTowardLineEnd` 헬퍼 + `ExtensionLineGap = 10.0f` 상수 신설 (Form1.Dimensions.cs) — 보조선 시작점이 모델 표면에서 10mm 떨어져 시작 (사용자 실기 후 1mm → 10mm 상향). 통합 사양: [docs/technical-notes/dimension-extension-line.md](../technical-notes/dimension-extension-line.md)
 
 ### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc 긴급하 4)
 - **요약**: `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `for (int i; i < drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i + 1` 일괄 재채번. 일반 시트 빠진 자리만큼 후속 시트(설치도·가공도)도 자동 정합. 가공도 sheetLabel은 MfgDrawingNo 기반이라 표시 영향 없음 (데이터 일관성 목적). [generate-sheets.md](../features/drawing-sheets/generate-sheets.md) 단계 9.3 + mermaid + 변경 이력 갱신
 
 ### T-055 — 검증 보고서: Osnap 기준점 코드 동작 확인
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc "완료 3" 의문 답변용)
 - **요약**: 4경로 보조선 데이터 흐름 + 부재별/전체 풀 동시 적재 + X/Y/Z 뷰별 primary/secondary 매핑 + 4단 dedup(부재 → 전역 dimAxis → MergeCoordinates 0.5mm → keyToDim) 코드 트레이스 완료. 결론 **부분 일치** — 핵심 의도(코너 우선 + 중복 제거)는 모두 구현되었으나, 부재 단위에서 4코너가 아니라 1점만 남기는 점이 명세 문구와 다름. 산출물: [docs/technical-notes/osnap-criteria.md](../technical-notes/osnap-criteria.md)
 
 ### T-056 — 검증 보고서: Sheet1 부재 이름 부여 기준 (Z-MAX 정렬)
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc "완료 5" + "수정 후 확인 필요 2" 의문 답변용)
 - **요약**: 현재 코드는 `BBox.MaxZ` (Form1.BOM.cs:735) 기준 정렬, 회사 명세는 `max(Osnap.Z)` 기준 — 데이터 출처 차이. 직립 H빔·평판 등 일반 철골 형상에선 두 값이 동등하므로 정렬 결과 같음. 경사 부재·곡면 Body에서 수 mm 차이 발생 가능 (정렬 1~2칸 흔들림). 결론 **부분 일치** — 회사 답변에 따라 후속 작업(Form1.BOM.cs:688 osnapList 활용) 신설 가능. 산출물: [docs/technical-notes/sheet1-naming-criteria.md](../technical-notes/sheet1-naming-criteria.md)
 

@@ -278,17 +278,15 @@ namespace A2Z
                 }
 
                 // 포함부재 표시 (T-014: item 번호 오름차순, 가공도는 빈칸)
+                // T-052: Sheet 1도 "전체" → "1, 2, 3, ..." 명시. 일반 시트와 동일 로직 사용
                 string includedText;
                 if (sheet.BaseMemberIndex == -3)        // 가공도
                 {
                     includedText = "";
                 }
-                else if (sheet.BaseMemberIndex == -1)   // Sheet 1
-                {
-                    includedText = "전체";
-                }
                 else
                 {
+                    // Sheet 1(-1) / 설치도(-2) / 일반(>=0) 모두 동일 처리
                     List<int> nums = new List<int>();
                     foreach (int idx in sheet.MemberIndices)
                     {
