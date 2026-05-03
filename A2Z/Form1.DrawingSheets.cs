@@ -212,6 +212,14 @@ namespace A2Z
                     new HashSet<int>(s.MemberIndices).SetEquals(sheet1Members));
             }
 
+            // T-053: 중복 시트 제거 후 SheetNumber 전체 재채번 (1부터 순차).
+            // Sheet 1(-1) → 일반 시트(>=0) → 설치도(-2) → 가공도(-3) 순서는 보존되며 번호만 정합 유지.
+            // 가공도 sheetLabel은 MfgDrawingNo를 사용하므로 표시 영향 없음 (데이터 일관성 목적).
+            for (int i = 0; i < drawingSheetList.Count; i++)
+            {
+                drawingSheetList[i].SheetNumber = i + 1;
+            }
+
             // BOM 인덱스 → item 번호 매핑 (bomList 순서 = ISO 풍선 번호 = BOM 정보 탭 No.)
             // T-014: 기준부재/포함부재 컬럼을 부재 이름 대신 item 번호로 표시
             Dictionary<int, int> bomIndexToItemNo = new Dictionary<int, int>();

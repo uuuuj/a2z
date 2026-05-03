@@ -6,6 +6,54 @@
 
 ---
 
+## 2026-05-02 — 회사 doc 동기화 잔여 4건 (T-046 확장 + T-053 + T-055/T-056)
+
+**유형**: feat + fix + docs
+**커밋**: `pending`
+**관련 TASK**: T-046(확장 완료), T-053(완료), T-055(완료), T-056(완료)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**T-046 확장 — 모든 보조선 가는 실선 + 모델 표면 10mm gap**:
+- 회사 doc "긴급상 10" 원문은 가공도 보조선만 명시했으나 사용자 확장 지시로 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출) 일괄 적용
+- (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴(`SOLID` 복원 호출) 제거로 단순화
+- (2) `Form1.Dimensions.cs`에 헬퍼 `OffsetTowardLineEnd(from, to, distance)` + 상수 `ExtensionLineGap = 10.0f` 신설. `DrawDimension` 보조선 시작점이 모델 표면에서 10mm 외향 이동 후 시작
+- 우아한 발견: 4경로 보조선이 모두 `DrawDimension` 단일 함수를 거치므로 한 곳 변경으로 자동 적용
+- 사용자 실기 후 1mm → 10mm 상향 (1mm는 시각적으로 식별 어려움)
+- SDK 조사 결과 보조선 offset 직접 옵션 미지원 → ShapeDrawing 좌표 보정 우회로
+
+**T-053 — 중복 Sheet 삭제 후 SheetNumber 재채번**:
+- `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `drawingSheetList` 전체 순회하며 `SheetNumber = i + 1` 일괄 재할당 (Form1.DrawingSheets.cs:215~221)
+- 순서(Sheet 1 → 일반 → 설치도 → 가공도) 보존, 번호만 1부터 빈틈없이 정합
+- 가공도는 sheetLabel이 `MfgDrawingNo` 기반이라 표시 영향 없음 (데이터 일관성 목적)
+- `generate-sheets.md` 단계 9.3 + mermaid + 변경 이력 갱신
+
+**T-055 — Osnap 기준점 검증 보고서 (회사 "완료 3" 의문 답변)**:
+- 4경로 보조선 데이터 흐름 + 부재별/전체 풀 동시 적재 + X/Y/Z 뷰별 primary/secondary 매핑 + 4단 dedup(부재 → 전역 dimAxis → MergeCoordinates 0.5mm → keyToDim) 코드 트레이스 완료
+- 결론 **부분 일치** — 핵심 의도(코너 우선 + 중복 제거 + 부재/전체 분리)는 모두 구현되었으나, 부재 단위에서 4코너가 아니라 1점만 남기는 점이 명세 문구와 다름
+- 산출물: `docs/technical-notes/osnap-criteria.md` (회사 doc 갱신용 단답 포함)
+
+**T-056 — Sheet1 Z-MAX 정렬 검증 보고서 (회사 "완료 5" + "수정 후 확인 필요 2" 의문 답변)**:
+- 현재 코드는 `BBox.MaxZ`(Form1.BOM.cs:735) 기준 정렬, 회사 명세는 `max(Osnap.Z)` 기준 — 데이터 출처 차이
+- 직립 H빔·평판 등 일반 철골 형상에선 두 값이 동등하여 정렬 결과 같음. 경사 부재·곡면 Body에서 수 mm 차이로 정렬 1~2칸 흔들림 가능
+- 결론 **부분 일치** — 회사 답변에 따라 후속 작업(Form1.BOM.cs:688 osnapList 활용 한 줄 변경) 신설 가능
+- 산출물: `docs/technical-notes/sheet1-naming-criteria.md`
+
+**Tracking**:
+- `TASKS.md` TODO → DONE 4건 이동
+- `STATUS.md` 마지막 작업 / WIP / 다음 할 것 갱신
+- `CHANGELOG.md` 본 항목 추가
+
+**관련 docs (신규/갱신)**:
+- 신규: `docs/technical-notes/dimension-extension-line.md`, `osnap-criteria.md`, `sheet1-naming-criteria.md`
+- 갱신: `docs/features/drawing-sheets/generate-sheets.md`, `docs/features/mfg-drawing/mfg-drawing.md`
+
+**영향 범위**:
+- 코드 변경: 보조선 시각·`SheetNumber` 데이터만. 컴파일·런타임 핵심 로직 영향 없음
+- 사용자 실기 검증 권장: 보조선 SOLID + 10mm gap 4경로 일관성, SheetNumber ListView 정합
+
+---
+
 ## 2026-04-24 — T-036 4차 (1~5단계) + 7건 일괄 DONE 정리 + T-037~041 신규 등록
 
 **유형**: fix + chore

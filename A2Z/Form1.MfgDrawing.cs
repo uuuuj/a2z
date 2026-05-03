@@ -1535,13 +1535,13 @@ namespace A2Z
                 }
             }
 
-            // 12. 3D→2D 변환: ShapeDrawing(보조선) → 2D (0.5 굵기 + 대쉬더블돗트)
+            // 12. 3D→2D 변환: ShapeDrawing(보조선) → 2D (0.5 굵기 + 가는 실선)
+            // T-046: 가공도 보조선을 DASHED_DOUBLEDOTTED → SOLID 로 통일 (전 경로 일관성)
             if (shapeDrawingIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.5f);
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.DASHED_DOUBLEDOTTED);
-                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
+                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
             }
 
             // Note(풍선) → 2D (텍스트 높이 50% 축소)
@@ -1893,13 +1893,13 @@ namespace A2Z
                     float frontScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
                     vizcore3d.Drawing2D.Object2D.RescaleObject(topObjId, frontScale);
 
-                    // ShapeDrawing(보조선) → 2D (0.5 굵기)
+                    // ShapeDrawing(보조선) → 2D (0.5 굵기 + 가는 실선)
+                    // T-046: EA 두 번째 뷰 보조선도 가공도 메인과 동일 SOLID
                     if (eaShapeIds.Count > 0)
                     {
                         vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.5f);
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.DASHED_DOUBLEDOTTED);
-                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(eaShapeIds);
                         vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
+                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(eaShapeIds);
                     }
 
                     // Measure(치수선) → 2D (0.5 굵기)

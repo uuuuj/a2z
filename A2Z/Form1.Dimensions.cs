@@ -1087,16 +1087,47 @@ namespace A2Z
             }
 
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
-            // 실제 Osnap 좌표에서 치수선까지 직선으로 연결
+            // T-046: 모델 표면에서 ExtensionLineGap(1mm)만큼 떨어져 시작 (시각적 가독성)
+            //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(originalStart);
+            extLine1.Add(OffsetTowardLineEnd(originalStart, startVertex, ExtensionLineGap));
             extLine1.Add(startVertex);
             extensionLines.Add(extLine1);
 
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(originalEnd);
+            extLine2.Add(OffsetTowardLineEnd(originalEnd, endVertex, ExtensionLineGap));
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
+        }
+
+        /// <summary>
+        /// T-046 보조선 gap (모델 좌표 mm). 모델 표면에서 보조선이 떨어져 시작하는 거리.
+        /// 가공도 보조선 오프셋(100~300mm)에 비례해 시각적으로 명확히 보이는 10mm로 설정.
+        /// 작은 부재라도 헬퍼의 안전장치(`distance >= len ? to`)로 역전 방지.
+        /// </summary>
+        private const float ExtensionLineGap = 10.0f;
+
+        /// <summary>
+        /// from 점에서 to 점 방향으로 distance만큼 이동한 점을 반환.
+        /// distance가 |from-to|보다 크거나 같으면 to를 반환(보조선 역전 방지).
+        /// T-046 보조선 gap 적용 — DrawDimension의 보조선 시작점 계산에 사용.
+        /// </summary>
+        private VIZCore3D.NET.Data.Vertex3D OffsetTowardLineEnd(
+            VIZCore3D.NET.Data.Vertex3D from,
+            VIZCore3D.NET.Data.Vertex3D to,
+            float distance)
+        {
+            float dx = to.X - from.X;
+            float dy = to.Y - from.Y;
+            float dz = to.Z - from.Z;
+            float len = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-3f || distance >= len)
+                return new VIZCore3D.NET.Data.Vertex3D(to.X, to.Y, to.Z);
+            float ratio = distance / len;
+            return new VIZCore3D.NET.Data.Vertex3D(
+                from.X + dx * ratio,
+                from.Y + dy * ratio,
+                from.Z + dz * ratio);
         }
 
         /// <summary>

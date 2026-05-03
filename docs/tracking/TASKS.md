@@ -76,21 +76,6 @@
 - **세부**: 사용자 답변 후 격상
 - **영향 파일**: A2Z/Form1.Clash.cs (CollectBOMInfo SPREF 파싱), A2Z/Form1.DrawingSheets.cs (BOM 테이블 컬럼)
 
-### T-046 — 가공도 치수 보조선 이중쇄선 → 가는 실선
-- **생성일**: 2026-04-28
-- **상태**: TODO
-- **회사 매핑**: 확인 중 / 긴급상 10
-- **관련**: 사용자 직접 지시
-- **회사 원문**:
-  > 가공도에서 치수 보조선이 이중 쇄선으로 표현됨 → 가는 실선으로 반영
-- **사용자 확인 필요**:
-  - [ ] 교체 대상 정확히 — `DASHED_DOUBLEDOTTED` → `SOLID`(가는 실선)? 또는 `DASHED`(단순 점선)도 검토?
-- **세부**:
-  - [ ] [Form1.MfgDrawing.cs L1542·L1900](../../A2Z/Form1.MfgDrawing.cs) `Set2DViewCreateObjectItemLineType(DASHED_DOUBLEDOTTED)` → `SOLID` 교체
-  - [ ] 다른 보조선 사용처가 영향받는지 사전 확인 (Explore agent)
-  - [ ] docs/features/mfg-drawing/mfg-drawing.md 갱신
-- **영향 파일**: A2Z/Form1.MfgDrawing.cs (2곳)
-
 ### T-047 — Slot홀·Hole 종류 가공도 반영
 - **생성일**: 2026-04-28
 - **상태**: TODO (요구사항 명확화 필요)
@@ -176,20 +161,6 @@
   - [ ] docs/features/drawing-sheets/generate-sheets.md 갱신
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets ListView 분기)
 
-### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번
-- **생성일**: 2026-04-28
-- **상태**: TODO
-- **회사 매핑**: 확인 중 / 긴급하 4
-- **관련**: T-015 후속. 사용자 직접 지시
-- **회사 원문**:
-  > 중복 Sheet 삭제 후 Sheet 번호 다시 채번
-- **현재 동작**: [Form1.DrawingSheets.cs L206~213](../../A2Z/Form1.DrawingSheets.cs:206) Sheet1과 동일 구성 시트 자동 제거. 하지만 **번호는 재채번 안 함** → 원래 5번이었던 시트가 4번으로 자동 보정 안 됨
-- **세부**:
-  - [ ] 중복 제거 직후 `for (int i=0; i<drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i+1` 재채번
-  - [ ] 가공도 시트(-3)는 SheetNumber 동일 + MfgDrawingNo 별도 유지 — 그대로 둘지 재채번할지 확인
-  - [ ] docs/features/drawing-sheets/generate-sheets.md 갱신
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets 단계 9 직후)
-
 ### T-054 — 풍선·심볼 반영 기준 정의 (도메인 정의)
 - **생성일**: 2026-04-28
 - **상태**: TODO (정의 책임자 확인 필요)
@@ -205,34 +176,6 @@
   - [ ] 용어집(`docs/_glossary.md`)에 두 정의 등록
   - [ ] 기존 코드에서 혼용된 부분 검토 (`Note.Add*` vs `ShapeDrawing.Add*`)
 - **영향 파일**: docs/_glossary.md, 코드 검토 후 추가
-
-### T-055 — 검증 보고서: Osnap 기준점 코드 동작 확인
-- **생성일**: 2026-04-28
-- **상태**: TODO (단발성 보고서)
-- **회사 매핑**: 회사 "완료 3" 의문 답변용
-- **회사 의문**:
-  > 치수 생성 기준 Osnap — X/Y/Z 시점별 부재의 기준점과 전체의 기준점 작성. 전체에서 제일 위 제일 오른쪽, 전체에서 오른쪽 끝 제일 위, ... 부재에서 오른쪽 끝 제일 위 — 이렇게 남겨서 중복 제거 (제거하나? 확인해야함). 코드 보고 확인해야됨 이게 실제로 맞는지
-- **세부**:
-  - [ ] `CollectAllOsnap` 코드 트레이스 (Form1.BOM.cs)
-  - [ ] `FilterOsnapForDimAxis` 동작 분석 (Form1.Dimensions.cs)
-  - [ ] `MergeCoordinates` 중복 제거 로직 검증 (tolerance=0.5f)
-  - [ ] 결과: 부재별/전체별 분리 여부 + 중복 제거 알고리즘 + 기준점 정의 문서화
-- **산출물**: docs/technical-notes/osnap-criteria.md 신규 + 회사 doc 갱신용 단답
-- **에이전트 활용**: general-purpose 1회 (병렬 가능)
-
-### T-056 — 검증 보고서: Sheet1 부재 이름 부여 기준 (Z-MAX 정렬)
-- **생성일**: 2026-04-28
-- **상태**: TODO (단발성 보고서)
-- **회사 매핑**: 회사 "완료 5" + "수정 후 확인 필요 2" 의문 답변용
-- **회사 의문 (양쪽 동일)**:
-  > 전체 ITem의 기준 부재 이름 부여 기준 확인 필요 — GetPartialNode API를 사용하여 Node 리스트 생성 후 Osnap 추출 후 각 부재의 최상단 Osnap을 기준으로 Z-MAX 순서대로 내림차순 정렬. 근데 이거 맞게 처리된건지 확인 필요
-- **세부**:
-  - [ ] `CollectBOMData` 코드 트레이스 (Form1.BOM.cs L624~)
-  - [ ] `bomList.Sort((a, b) => b.MaxZ.CompareTo(a.MaxZ))` 라인 검증 — 회사 명세 일치 여부
-  - [ ] "최상단 Osnap" vs "BBox MaxZ" 차이 분석 (현재 코드는 BBox MaxZ 기준 — 회사 명세는 Osnap 최상단)
-  - [ ] 차이 있으면 코드 수정 필요 / 동등하면 OK 보고
-- **산출물**: 회사 doc 갱신용 단답 + 필요시 후속 수정 작업 분기
-- **에이전트 활용**: general-purpose 1회 (병렬 가능)
 
 ### T-037 — 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장
 - **생성일**: 2026-04-24
@@ -577,6 +520,26 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-046 — 가공도 치수 보조선 이중쇄선 → 가는 실선 (확장: 모든 보조선 + gap)
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc 긴급상 10 + 사용자 확장 — 모든 경로 + 모델 표면 gap)
+- **요약**: 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출)의 보조선을 `DrawDimension` 단일 지점에서 일괄 처리. (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴 제거. (2) `OffsetTowardLineEnd` 헬퍼 + `ExtensionLineGap = 10.0f` 상수 신설 (Form1.Dimensions.cs) — 보조선 시작점이 모델 표면에서 10mm 떨어져 시작 (사용자 실기 후 1mm → 10mm 상향). 통합 사양: [docs/technical-notes/dimension-extension-line.md](../technical-notes/dimension-extension-line.md)
+
+### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc 긴급하 4)
+- **요약**: `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `for (int i; i < drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i + 1` 일괄 재채번. 일반 시트 빠진 자리만큼 후속 시트(설치도·가공도)도 자동 정합. 가공도 sheetLabel은 MfgDrawingNo 기반이라 표시 영향 없음 (데이터 일관성 목적). [generate-sheets.md](../features/drawing-sheets/generate-sheets.md) 단계 9.3 + mermaid + 변경 이력 갱신
+
+### T-055 — 검증 보고서: Osnap 기준점 코드 동작 확인
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc "완료 3" 의문 답변용)
+- **요약**: 4경로 보조선 데이터 흐름 + 부재별/전체 풀 동시 적재 + X/Y/Z 뷰별 primary/secondary 매핑 + 4단 dedup(부재 → 전역 dimAxis → MergeCoordinates 0.5mm → keyToDim) 코드 트레이스 완료. 결론 **부분 일치** — 핵심 의도(코너 우선 + 중복 제거)는 모두 구현되었으나, 부재 단위에서 4코너가 아니라 1점만 남기는 점이 명세 문구와 다름. 산출물: [docs/technical-notes/osnap-criteria.md](../technical-notes/osnap-criteria.md)
+
+### T-056 — 검증 보고서: Sheet1 부재 이름 부여 기준 (Z-MAX 정렬)
+- **완료일**: 2026-05-02 (커밋 `pending`)
+- **관련**: — (회사 doc "완료 5" + "수정 후 확인 필요 2" 의문 답변용)
+- **요약**: 현재 코드는 `BBox.MaxZ` (Form1.BOM.cs:735) 기준 정렬, 회사 명세는 `max(Osnap.Z)` 기준 — 데이터 출처 차이. 직립 H빔·평판 등 일반 철골 형상에선 두 값이 동등하므로 정렬 결과 같음. 경사 부재·곡면 Body에서 수 mm 차이 발생 가능 (정렬 1~2칸 흔들림). 결론 **부분 일치** — 회사 답변에 따라 후속 작업(Form1.BOM.cs:688 osnapList 활용) 신설 가능. 산출물: [docs/technical-notes/sheet1-naming-criteria.md](../technical-notes/sheet1-naming-criteria.md)
 
 ### T-018 — 장시간 작업 진행 UX 표시 (오버레이 라벨)
 - **완료일**: 2026-04-24 (사용자 묵시 OK — 오버레이 동작 정상 관찰)

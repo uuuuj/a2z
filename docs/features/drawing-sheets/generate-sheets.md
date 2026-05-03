@@ -4,7 +4,7 @@ feature_name: 도면 시트 자동 분할 (BFS)
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-22 (T-025 BOM 정보 자동 수집)
+last_updated: 2026-05-02 (T-053 SheetNumber 재채번)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheets_Click
 ---
 
@@ -39,7 +39,8 @@ flowchart TD
     H --> I[설치도 Sheet]
     I --> J[가공도 Sheet<br/>각 부재마다 1개]
     J --> K[Sheet 1과 동일 구성 제거]
-    K --> L[lvDrawingSheet 갱신]
+    K --> K2[SheetNumber 1부터 재채번<br/>T-053]
+    K2 --> L[lvDrawingSheet 갱신]
     L --> M[완료 MessageBox]
 ```
 
@@ -54,6 +55,7 @@ flowchart TD
 | 7 | 설치도 Sheet | Form1 | BFS로 모든 연결된 부재 + 독립 부재 모두 포함 (사실상 전체 BOM). `BaseMemberIndex = -2`, `BaseMemberName = "설치도"` |
 | 8 | 가공도 Sheet | Form1 | `bomList`의 각 부재마다 독립 시트 1개 (개당 1부재). `BaseMemberIndex = -3`, `MfgDrawingNo` 순번 |
 | 9 | Sheet 1 중복 제거 | Form1 | 일반 시트 중 Sheet 1과 구성 완전 동일한 시트 삭제 (설치도·가공도 제외) |
+| 9.3 | **SheetNumber 재채번** (T-053) | Form1 | 단계 9에서 시트가 제거됐을 수 있으므로 `drawingSheetList`를 순회하며 `SheetNumber = i + 1` 일괄 재할당. Sheet 1(-1) → 일반(>=0) → 설치도(-2) → 가공도(-3) 순서는 보존되고 번호만 1부터 빈틈없이 정합. 가공도는 `sheetLabel`이 `MfgDrawingNo` 기반이라 표시 영향 없음 — 데이터 일관성 목적 |
 | 9.5 | **Sheet 1 기준 BOM 정보 자동 수집** (T-025) | Form1 | `drawingSheetList.Count > 0`일 때 `CollectBOMInfo(false, drawingSheetList[0])` 호출 — 치수추출 직후 사용자가 시트를 클릭하지 않아도 전체 BOM 테이블(`lvDrawingBOMInfo`)이 즉시 채워짐. visibility는 건드리지 않음 (시트 선택 이벤트와 달리 카메라·Show/Hide 스킵) |
 | 10 | ListView 갱신 | UI | SheetNumber / 기준부재(item 번호) / 포함부재(item 번호 콤마) / 부재 수. **item 번호 = `bomList` 순서(i+1) = ISO 풍선 번호 = BOM 정보 탭 No.** (T-014). Sheet 1은 "전체", 설치도는 "설치도", 가공도는 기준부재를 단일 번호로 표기하고 포함부재 컬럼은 공란 |
 | 11 | 완료 알림 | UI | MessageBox "도면 시트 {N}개가 생성되었습니다." |
@@ -120,3 +122,4 @@ flowchart TD
 | 2026-04-21 | T-015: 시트 생성 로직 재설계 — `appearedAsIncluded` 스킵 로직 제거. 이전엔 "포함부재로 등장한 부재는 기준부재가 될 수 없음"이라 1-2-3-4 연쇄 Clash 시 Sheet 2~3 두 개만 생성되던 문제. 이제 모든 부재가 각자 기준부재 시트를 가짐 (4개 생성, 단계 9 중복 제거로 과잉 자동 정리). 흐름도·단계표·분기·상태 섹션 전면 갱신 | Claude |
 | 2026-04-21 | T-014: `lvDrawingSheet` 기준부재/포함부재 컬럼을 부재 이름 대신 **item 번호**(= `bomList` 순서 i+1 = ISO 풍선 번호 = BOM 정보 탭 No.)로 표시. Sheet 1은 "전체", 설치도는 "설치도", 가공도는 `MemberIndices[0]`의 번호를 기준부재 셀에 표기하고 포함부재는 공란 유지. 생성 로직은 변경 없음(표시 전용) | Claude |
 | 2026-04-22 | T-025: ListView 갱신 직전에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가 — 치수추출 완료 직후 Sheet 1(전체) 기준 BOM 정보가 `lvDrawingBOMInfo`에 즉시 표시됨. 시트 선택 이벤트와 달리 visibility·카메라는 건드리지 않음. try/catch로 감싸 실패 시 DiagLog만 기록. 단계 9.5 추가 | Claude |
+| 2026-05-02 | T-053: 단계 9.3 신설 — 중복 시트 제거 직후 `drawingSheetList` 전체를 순회하며 `SheetNumber = i + 1`로 재할당. 회사 doc "중복 Sheet 삭제 후 Sheet 번호 다시 채번" 요구 반영. 일반 시트가 빠진 자리만큼 후속 시트(설치도·가공도) SheetNumber도 자동 당겨짐. ListView 표시는 일반 시트(`Sheet {N}`) 라벨에 즉시 반영, 가공도(`가공도_{MfgDrawingNo}`)는 라벨 영향 없음 | Claude |
