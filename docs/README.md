@@ -22,6 +22,7 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 - [용어집](./_glossary.md) — UDA, Osnap, BOM, Clash, Hidden Line 등
 - [문서 작성 가이드](./_authoring-guide.md) — 신규 기능 문서 작성 규칙 (R1~R7)
 - [빈 템플릿](./_template.md) — 새 핸들러 문서 생성 시 복사
+- [빌드 환경 셋업](./setup/build-environment.md) — 신규 PC 구성 / vendor dll 의존성 / 빌드 실패 트러블슈팅
 
 ### 개발 현황 추적
 - [tracking/](./tracking/README.md) — FEEDBACK / REQUESTS / TASKS / CHANGELOG / sessions 5축 관리

@@ -46,9 +46,8 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="VIZCore3D+.NET, Version=1.0.26.325, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\VIZCore3D+.NET.dll</HintPath>
+    <Reference Include="VIZCore3D+.NET">
+      <HintPath>..\..\..\..\내 드라이브\1. 회사\Digital Wave\Vibe 3D Lab\3. API 적용 참조 파일 (.dll)\03.VIZCore3D+.NET\VIZCore3D+.NET.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
