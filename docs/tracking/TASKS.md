@@ -476,17 +476,17 @@
 ## DONE (최근 20개)
 
 ### T-049 — 치수 추출 백엔드 로직 문서화 (사전 추출 vs 즉시 추출)
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `79876e2`)
 - **관련**: — (회사 doc 긴급중 3)
 - **요약**: [docs/features/bom/main-dimension.md](../features/bom/main-dimension.md) Section 7.5 "치수 캐시 라이프사이클" 신설. `chainDimensionList`를 단일 진실 공급원으로 한 4경로(치수추출/글로벌 X/Y/Z/2D 출력/일반 시트/가공도) + 캐시 mermaid + 표 + 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계. 회사 doc "치수추출 버튼 앞뒤 로직" 의문 답변. 코드 변경 없음, docs만
 
 ### T-050 — 3D View에서 X/Y/Z 축 표시 기능 추가
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `79876e2`)
 - **관련**: — (회사 doc 긴급하 1)
 - **요약**: sdk-verifier 결과 SDK 직접 지원 확인 — `vizcore3d.View.MarineAxis.Visible = true` 한 줄로 가능 (`MarineAxisManager`, XML L43019). [Form1.BOM.cs](../../A2Z/Form1.BOM.cs) `Vizcore3d_OnInitializedVIZCore3D` 단계 3.5에 추가. 결과: 3D 뷰 좌측하단에 ISO X/Y/Z triad 표시. 회사 doc "도면 외 3D View 축 미확인" 문제 해소. 추가 미세 조정(Length/Position/SetText) 필요 시 같은 위치에 보강 가능
 
 ### T-052 — Sheet1 포함부재 표기 "전체" → "1, 2, 3, ..." 개별 item 번호
-- **완료일**: 2026-05-02 (커밋 `pending`)
+- **완료일**: 2026-05-02 (커밋 `79876e2`)
 - **관련**: — (회사 doc 긴급하 3, T-014 보강)
 - **요약**: [Form1.DrawingSheets.cs](../../A2Z/Form1.DrawingSheets.cs) ListView 단계의 `BaseMemberIndex == -1` 분기 제거 → 일반 시트(`>=0`)와 동일 로직(`bomIndexToItemNo` 매핑 + 정렬 + `string.Join`)으로 통합. 결과: Sheet 1의 포함부재 셀이 "전체" → "1, 2, 3, ..., N" 명시. 설치도(`-2`)도 같은 분기로 들어가지만 이전부터 동일 처리. BOM 14건 초과 시 ListView 컬럼 폭은 사용자 실기 후 조정
 
