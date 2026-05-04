@@ -9,14 +9,58 @@
 ## TODO
 
 <!--
-회사 doc 동기화 시 ID 매핑 (2026-04-28):
-- 회사 "완료" 11건 → 우리 DONE 매핑 (T-001/003/010/008/009/014/015/021/022/024/025) + 검증 필요 2건(T-055, T-056) + 정보 부족 1건(에러)
-- 회사 "확인 중 긴급최우선" → T-042
-- 회사 "확인 중 긴급상" 10건 → T-043~T-046 (신규 4건) + T-038/039/040/013 (기존)
-- 회사 "확인 중 긴급중" 4건 → T-047/T-048/T-049 (신규 3건) + T-023(DONE)
-- 회사 "확인 중 긴급하" 4건 → T-050/T-051/T-052/T-053 (신규 4건)
-- 회사 "API 확인요청" 2건 → SDK-001, SDK-002 (외부 추적)
-- 회사 "수정 후 확인 필요" 4건 → T-054(신규) + T-016(BLOCKED) + T-023(DONE) + T-056(검증)
+회사 doc 동기화 — 2026-05-04 새 우선순위 문서 기준 (전 버전은 CHANGELOG 참조)
+
+### 개발 요청 — 상 (11건)
+| # | 회사 doc 요지 | 매핑 ID | 현재 상태 / 차단 사유 |
+|---|---|---|---|
+| 1 | Base Template 생성기준 | T-043 | TODO — 산출물 형식(개발자 doc / 다이어그램 / 매뉴얼) 결정 대기 |
+| 2 | Base Template 내 제작도 배치 기준(ISO/X/Y/Z) | T-043 | TODO — #1과 동일 작업 단위 |
+| 3 | 검토자 Excel Template 일치 검증 | T-057 (신규) | TODO — Excel 파일 수신 대기 |
+| 4 | Hole 풍선 제작도 X / 가공도 O 정리 | T-044 | TODO — 실기 확인 선행 |
+| 5 | 치수 Text 보조선 초과 시 우측 자동 배치 | T-058 (신규) | TODO — T-039 선행 |
+| 6 | 치수 Text-치수선 겹침 해결 | T-040 | TODO — T-039 선행 |
+| 7 | Item별 2D 출력(Sheet2~설치도 전) 점선/실선 + 위치 정합 | T-013 | BLOCKED — 옵션 A·B·B2 모두 실패, 새 접근 필요 |
+| 8 | 치수선-모델 거리 X/Y/Z 뷰별 보조선 길이 + offset 고정 | T-039 | TODO — T-038 선행 |
+| 9 | 치수선-치수선 offset 거리 다름 | T-039 | TODO — #8과 동일 작업 단위 |
+| 10 | BOM Size 열 Spec + 길이 표기 | T-045 | TODO — 결합 형식·단위·데이터 출처 결정 대기 |
+| 11 | XYZ축 치수가 다른 평면 길이 표시 검토 | T-059 (신규) | TODO — 재현 케이스(부재 Index + 스크린샷) 대기 |
+
+### 개발 요청 — 중 (2건)
+| # | 회사 doc 요지 | 매핑 ID | 현재 상태 / 차단 사유 |
+|---|---|---|---|
+| 1 | Slot Hole / Hole 제작도·가공도 기준 정리 | T-047 | TODO — T-044와 짝, 요구사항 명확화 필요 |
+| 2 | 가공도 EA Type 회전 오류 | T-048 | TODO — 재현 부재 Index 대기 |
+
+### Softhills API 확인요청 (4건, 외부 추적 — 우리 작업 아님)
+| # | 항목 | 추적 ID |
+|---|---|---|
+| 1 | Osnap 생성 기준 (Softhills 1차 답변 불충분) | T-051 (TODO, 추가 답변 대기) |
+| 2 | 점선이 PDF 출력에서 굵은 실선 표현 | SDK-003 (외부) |
+| 3 | 2D ISO 모델 모서리·홀 표현 누락 | SDK-004 (외부) |
+| 4 | 모델 트리 Body/Node/Part 구분 | SDK-005 (외부) |
+
+### 회사 doc 외 잔여 작업
+| ID | 작업 | 출처 / 상태 |
+|---|---|---|
+| T-004 | ALL 출력 후 시트별 도면 즉시 미리보기 | FB-001 / TODO |
+| T-005 | 치수 배치를 Osnap 외곽 방향으로 | FB-002 / TODO |
+| T-006 | 2D 도면 그리드 (1차 완료, 2차 SDK clip 조사 등 5건 묶음) | FB-003/004 / IN_PROGRESS |
+| T-012 | 엑셀 템플릿 하이브리드 실험 PoC | REQ-002 / TODO (T-057과 시너지) |
+| T-016 | 치수 추출 3회 이상 시 반복 누적 버그 | 사용자 피드백 / BLOCKED (간헐) |
+| T-028 | 치수 로직 4경로 통합 | 사용자 직접 / IN_PROGRESS (실기 확인 대기) |
+| T-032 | 치수 계산 성능 최적화 (Osnap 맵 재사용) | 사용자 피드백 / IN_PROGRESS (DiagLog 비교 대기) |
+| T-036 | 가공도 시트 카메라 회전 보존 (Z90, R180, EA 등) | 사용자 피드백 / IN_PROGRESS (4차 5단계 후 새 가설 검증) |
+| T-037 | 2D 출력 BOM 줄바꿈 + ITEM 열 분리 | 사용자 직접 / TODO (SPREF 예시 대기) |
+| T-038 | 2D 출력 셀 크기 기반 모델 스케일 + 여백 예산 | 사용자 직접 / TODO (예산 수용 대기) |
+| T-041 | 치수 Leader line PoC | T-040 후속 / TODO |
+| T-054 | 풍선·심볼 정의 | 사용자 직접 / TODO (정의 책임자 결정 대기) |
+
+### 즉시 진행 가능 (외부 입력 불필요, 사용자 컨펌 없이 가능)
+- T-058 (sdk-verifier 후 단순 구현) — 단, T-039 선행 권장
+- T-006 2차 — SDK 조사 단계부터 시작 가능
+- T-038 — sdk-verifier로 GridStructure API 조사 시작 가능
+
 -->
 
 ### T-043 — Base Template 생성 기준 + 제작도 배치 기준 분석·문서화
@@ -294,6 +338,60 @@
   - [ ] BOM 헤더/열너비/스타일 엑셀 외부화 가능성 평가 (데이터 행은 런타임 채움)
   - [ ] 결과 리포트: `docs/technical-notes/excel-template-experiment.md` 신설
 - **영향 파일**: 실험용 별도 메서드만 (기존 GenerateSheetDrawing2D 변경 없음)
+
+### T-057 — 검토자 Excel Template과 Base Template 일치 검증
+- **생성일**: 2026-05-04
+- **상태**: TODO (검토자 Excel 파일 수신 대기)
+- **회사 매핑**: 개발 요청 — 상 3
+- **관련**: T-043 (Base Template 정리)와 짝, T-012 (엑셀 PoC)와 시너지
+- **회사 원문**:
+  > Base Template의 생성 기준이 검토자가 전해준 Template(엑셀로 되어있음)이랑 맞는지?
+- **사용자 확인 필요**:
+  - [ ] 검토자 Excel 파일 수신·공유
+- **세부 (Excel 수신 후)**:
+  - [ ] 셀 구조·표 헤더·치수·BOM 컬럼을 우리 Base Template과 비교
+  - [ ] 차이점 표 작성 → 표준 결정 (회사 vs 우리)
+  - [ ] T-012 PoC와 연계 — Excel을 정답지로 활용 가능
+- **산출물**: `docs/technical-notes/excel-template-validation.md` (신규)
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs (차이 발견 시 GenerateSheetDrawing2D 수정)
+- **선행**: T-043 동시 진행 시 효율 ↑
+
+### T-058 — 치수 Text 보조선 초과 시 우측 자동 배치
+- **생성일**: 2026-05-04
+- **상태**: TODO (T-039 선행)
+- **회사 매핑**: 개발 요청 — 상 5
+- **관련**: T-040(겹침 회피)과 별개 — 보조선 초과만 발생 시 우측 자동 정렬
+- **회사 원문**:
+  > 치수 Text가 치수 보조선을 넘어 설 경우 → 오른쪽 배치로 협의 했으나 아직 반영 안됨
+- **배경**: 협의 완료된 사양인데 코드에 미반영. 구현 위주 작업
+- **세부**:
+  - [ ] sdk-verifier: `Set2DViewCreateObjectItemMeasureTextPosition` 류 SDK API 확인
+  - [ ] 텍스트 bbox 폭 vs 두 보조선 사이 간격 비교 → 초과 시 텍스트를 보조선 바깥(우측)으로 자동 이동
+  - [ ] 도면 시트 자동 갱신 시 매번 적용
+  - [ ] docs 갱신 (`generate-sheet-2d.md` 또는 통합 technical-note)
+- **영향 파일**:
+  - A2Z/Form1.Dimensions.cs (AddChainDimensionByAxis 후처리)
+  - A2Z/Form1.DrawingSheets.cs (RenderSheetViewForDrawing 치수 후처리)
+- **선행**: T-039 완료 후 (offset 기준 확정돼야 안정)
+
+### T-059 — XYZ축 치수 평면 필터링 검증·수정
+- **생성일**: 2026-05-04
+- **상태**: TODO (재현 케이스 대기)
+- **회사 매핑**: 개발 요청 — 상 11
+- **회사 원문**:
+  > XYZ축 기준 치수가 X축에서 봤을때 YZ평면이 아니라 YX나 ZX 처럼 다른 평면의 길이가 나올 떄가 있는데 검토 필요
+- **사용자 확인 필요**:
+  - [ ] 재현 부재 Index 1~2개 + 잘못 나오는 뷰 스크린샷
+  - [ ] 어느 축 뷰에서 어느 평면 길이가 섞이는지
+- **세부**:
+  - [ ] DiagLog로 각 뷰의 치수 ViewDirection·Axis 추적 (T-028 인프라 활용)
+  - [ ] X뷰에 ViewDirection="X" 치수 중 Axis가 잘못된 평면 컴포넌트 섞이는지 검증
+  - [ ] `FilterOsnapForDimAxis` / `ComputeViewDimensionsForMembers` 축 필터링 로직 점검
+  - [ ] 차이 있으면 코드 수정 + DiagLog 보강
+- **영향 파일**:
+  - A2Z/Form1.Dimensions.cs (FilterOsnapForDimAxis L2085~, ComputeViewDimensionsForMembers L1949~)
+  - A2Z/Models.cs (ChainDimensionData.ViewDirection 검증)
+- **선행**: T-028 DONE이라 코드 위치 명확
 
 ---
 
