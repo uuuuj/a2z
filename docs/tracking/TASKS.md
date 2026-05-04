@@ -21,16 +21,21 @@
 
 ### T-042 — 도면시트 목록 "기준부재" 컬럼에 부재 이름 추가 표시
 - **생성일**: 2026-04-28
-- **상태**: TODO (사용자 답변 대기)
+- **상태**: IN_PROGRESS (부분 적용 완료, Sheet 1 기준부재 표기는 사용자 결정 대기)
 - **회사 매핑**: 확인 중 / 긴급최우선 1
 - **관련**: T-014 (item 번호 표시) 보강. 사용자 직접 지시
 - **회사 원문**:
   > 기준 부재, 포함부재 표현 방식 수정 필요 — 도면번호 : 기준부재 : 포함부재 → Sheet1 : 전체Item(Item Node? 이름), 전체 Item(item 1,2,3,4,5...) Sheet2 : 1 ({부재이름}) : 1, 3 (기준부재, 기준부재와 연결된 부재) — 현재 Item이름은 안들어간 상태
 - **사용자 확인 필요**:
-  - [ ] 표기 포맷 확정 — `1 (부재이름) : 1, 3` / `1 부재이름 : 1, 3` / `1: 부재이름 / 1, 3` 중 선택
-  - [ ] Sheet1 기준부재 표기 — `전체Item(Item Node 이름)`로 할지 / 단순 `전체`만 유지할지
-- **세부**: 사용자 답변 후 격상
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets ListView 갱신 블록 L246~)
+  - [x] 표기 포맷 확정 — **`1 (BOM이름)`** 형태 (공백 + 괄호) 사용자 결정 (2026-05-04)
+  - [ ] Sheet1 기준부재 표기 — `전체Item(Item Node 이름)`로 할지 / 단순 `전체`만 유지할지 (현재는 "전체" 유지)
+- **부분 적용 완료** (2026-05-04, 커밋 `pending`):
+  - 일반 시트(`>=0`) 기준부재: `"1"` → `"1 (BOM이름)"` (`Form1.DrawingSheets.cs` ListView 갱신 단계)
+  - 가공도(-3) 기준부재: 동일 적용 (`MemberIndices[0]`의 BOMData.Name 사용)
+  - Sheet 1·설치도는 그대로 유지 (의미 다른 시트)
+  - 포맷: `$"{itemNo} ({sheet.BaseMemberName})"`, 매핑 실패 시 `sheet.BaseMemberName` fallback
+- **남은 작업**: Sheet 1 기준부재 표기 결정 시 추가 변경 (현재 "전체" → 회사 원문 "전체Item(Item Node 이름)")
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs (GenerateDrawingSheets ListView 갱신 블록 L256~)
 
 ### T-043 — Base Template 생성 기준 + 제작도 배치 기준 분석·문서화
 - **생성일**: 2026-04-28
@@ -495,10 +500,11 @@
 - **관련**: — (회사 doc 긴급상 10 + 사용자 확장 — 모든 경로 + 모델 표면 gap)
 - **요약**: 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출)의 보조선을 `DrawDimension` 단일 지점에서 일괄 처리. (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴 제거. (2) `OffsetTowardLineEnd` 헬퍼 + `ExtensionLineGap = 10.0f` 상수 신설 (Form1.Dimensions.cs) — 보조선 시작점이 모델 표면에서 10mm 떨어져 시작 (사용자 실기 후 1mm → 10mm 상향). 통합 사양: [docs/technical-notes/dimension-extension-line.md](../technical-notes/dimension-extension-line.md)
 
-### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번
-- **완료일**: 2026-05-02 (커밋 `8081688`)
+### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번 (v2 확장 포함)
+- **완료일**: 2026-05-02 (v1 커밋 `8081688`), 2026-05-04 (v2 커밋 `pending`)
 - **관련**: — (회사 doc 긴급하 4)
-- **요약**: `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `for (int i; i < drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i + 1` 일괄 재채번. 일반 시트 빠진 자리만큼 후속 시트(설치도·가공도)도 자동 정합. 가공도 sheetLabel은 MfgDrawingNo 기반이라 표시 영향 없음 (데이터 일관성 목적). [generate-sheets.md](../features/drawing-sheets/generate-sheets.md) 단계 9.3 + mermaid + 변경 이력 갱신
+- **v1 요약**: `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `for (int i; i < drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i + 1` 일괄 재채번. 일반 시트 빠진 자리만큼 후속 시트(설치도·가공도)도 자동 정합
+- **v2 확장 (2026-05-04)**: 자동 제거 범위를 "Sheet 1 동일 구성" 한정 → **"모든 일반 시트 쌍에서 부재 구성 동일 시 첫 등장만 살림"** 으로 확장 (사용자 결정: *"포함부재가 같으면 기준부재가 달라도 같은 형상이다"*). `MemberIndices.OrderBy` 정렬 키 + `HashSet<string>`로 첫 등장 추적. Sheet 1 / 설치도 / 가공도는 의미가 다른 시트라 검사 제외하고 보존. Sheet 1과 동일 구성인 일반 시트는 별도 RemoveAll로 추가 제거. [generate-sheets.md](../features/drawing-sheets/generate-sheets.md) 단계 9·9.3 + 분기 C + 변경 이력 갱신
 
 ### T-055 — 검증 보고서: Osnap 기준점 코드 동작 확인
 - **완료일**: 2026-05-02 (커밋 `8081688`)

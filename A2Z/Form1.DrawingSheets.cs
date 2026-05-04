@@ -202,9 +202,26 @@ namespace A2Z
                 mfgNo++;
             }
 
-            // Sheet 1과 부재 구성이 동일한 상세도 시트 자동 제거
+            // T-053 v2: 모든 시트 쌍에서 부재 구성 동일 시 중복 제거 (사용자 결정).
+            // "포함부재가 같으면 기준부재가 달라도 같은 형상이다" — Sheet 2와 Sheet 5의 MemberIndices가
+            // 동일하면 둘 다 같은 도면이므로 뒤쪽(Sheet 5)을 자동 제거. 첫 등장 순서 보존.
+            // 단 Sheet 1(-1) / 설치도(-2) / 가공도(-3)는 의미상 별도 시트라 중복 검사 대상에서 제외 후 보존.
+            // (Sheet 1 = 전체 도면 안내, 설치도 = 설치 가이드, 가공도 = 단일 부재 가공도)
             if (drawingSheetList.Count > 1)
             {
+                var seenMemberKey = new HashSet<string>();
+                drawingSheetList.RemoveAll(s =>
+                {
+                    // 의미가 다른 시트는 보존
+                    if (s.BaseMemberIndex < 0) return false;
+                    string memberKey = string.Join(",", s.MemberIndices.OrderBy(x => x));
+                    if (seenMemberKey.Contains(memberKey)) return true;
+                    seenMemberKey.Add(memberKey);
+                    return false;
+                });
+
+                // 일반 시트들 사이뿐 아니라 Sheet 1과 동일 구성인 일반 시트도 제거 대상.
+                // (Sheet 1은 위 RemoveAll에서 BaseMemberIndex==-1로 검사 제외되어 항상 보존됨)
                 HashSet<int> sheet1Members = new HashSet<int>(drawingSheetList[0].MemberIndices);
                 drawingSheetList.RemoveAll(s =>
                     s.BaseMemberIndex >= 0 &&
@@ -251,7 +268,9 @@ namespace A2Z
                 else
                     sheetLabel = $"Sheet {sheet.SheetNumber}";
 
-                // 기준부재 표시 (T-014: item 번호)
+                // 기준부재 표시
+                // T-014: item 번호로 표시. T-042 부분 적용 (2026-05-04): 일반/가공도 시트는
+                // "1 (BOM이름)" 포맷으로 BOM 이름 병기. Sheet 1·설치도는 의미가 다른 시트라 그대로.
                 string baseText;
                 if (sheet.BaseMemberIndex == -1)        // Sheet 1
                 {
@@ -266,14 +285,14 @@ namespace A2Z
                     int mfgBomIdx = sheet.MemberIndices.Count > 0 ? sheet.MemberIndices[0] : -1;
                     int mfgItemNo;
                     baseText = bomIndexToItemNo.TryGetValue(mfgBomIdx, out mfgItemNo)
-                        ? mfgItemNo.ToString()
+                        ? $"{mfgItemNo} ({sheet.BaseMemberName})"
                         : sheet.BaseMemberName;
                 }
                 else                                    // Sheet 2+ (개별 기준부재)
                 {
                     int baseNo;
                     baseText = bomIndexToItemNo.TryGetValue(sheet.BaseMemberIndex, out baseNo)
-                        ? baseNo.ToString()
+                        ? $"{baseNo} ({sheet.BaseMemberName})"
                         : sheet.BaseMemberName;
                 }
 

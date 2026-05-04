@@ -4,7 +4,7 @@ feature_name: 도면 시트 자동 분할 (BFS)
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-05-02 (T-053 SheetNumber 재채번 + T-052 Sheet 1 포함부재 표기)
+last_updated: 2026-05-04 (T-053 v2 모든 쌍 중복 제거 + T-042 부분 기준부재 BOM이름 병기)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheets_Click
 ---
 
@@ -54,10 +54,10 @@ flowchart TD
 | 6 | Sheet 2~N 생성 (**모든 부재**) | Form1 | `bomList` 순서대로 순회. **모든 부재가 기준부재**로 등장하며, 포함부재 = 자기 자신 + 1-hop 이웃. `BaseMemberIndex ≥ 0`, `BaseMemberName = bom.Name` |
 | 7 | 설치도 Sheet | Form1 | BFS로 모든 연결된 부재 + 독립 부재 모두 포함 (사실상 전체 BOM). `BaseMemberIndex = -2`, `BaseMemberName = "설치도"` |
 | 8 | 가공도 Sheet | Form1 | `bomList`의 각 부재마다 독립 시트 1개 (개당 1부재). `BaseMemberIndex = -3`, `MfgDrawingNo` 순번 |
-| 9 | Sheet 1 중복 제거 | Form1 | 일반 시트 중 Sheet 1과 구성 완전 동일한 시트 삭제 (설치도·가공도 제외) |
+| 9 | **모든 시트 쌍 중복 제거** (T-053 v2) | Form1 | 두 단계: (a) 일반 시트들(`BaseMemberIndex >= 0`) 중 `MemberIndices` 정렬 키가 동일한 쌍에서 첫 등장만 살리고 나머지 제거. (b) Sheet 1과 부재 구성 완전 동일한 일반 시트도 추가 제거. **"포함부재가 같으면 기준부재가 달라도 같은 형상"** (사용자 결정). 설치도(-2) / 가공도(-3)는 의미가 다른 시트라 보존 |
 | 9.3 | **SheetNumber 재채번** (T-053) | Form1 | 단계 9에서 시트가 제거됐을 수 있으므로 `drawingSheetList`를 순회하며 `SheetNumber = i + 1` 일괄 재할당. Sheet 1(-1) → 일반(>=0) → 설치도(-2) → 가공도(-3) 순서는 보존되고 번호만 1부터 빈틈없이 정합. 가공도는 `sheetLabel`이 `MfgDrawingNo` 기반이라 표시 영향 없음 — 데이터 일관성 목적 |
 | 9.5 | **Sheet 1 기준 BOM 정보 자동 수집** (T-025) | Form1 | `drawingSheetList.Count > 0`일 때 `CollectBOMInfo(false, drawingSheetList[0])` 호출 — 치수추출 직후 사용자가 시트를 클릭하지 않아도 전체 BOM 테이블(`lvDrawingBOMInfo`)이 즉시 채워짐. visibility는 건드리지 않음 (시트 선택 이벤트와 달리 카메라·Show/Hide 스킵) |
-| 10 | ListView 갱신 | UI | SheetNumber / 기준부재(item 번호) / 포함부재(item 번호 콤마) / 부재 수. **item 번호 = `bomList` 순서(i+1) = ISO 풍선 번호 = BOM 정보 탭 No.** (T-014). Sheet 1은 "전체", 설치도는 "설치도", 가공도는 기준부재를 단일 번호로 표기하고 포함부재 컬럼은 공란 |
+| 10 | ListView 갱신 | UI | SheetNumber / 기준부재 / 포함부재(item 번호 콤마) / 부재 수. **item 번호 = `bomList` 순서(i+1) = ISO 풍선 번호 = BOM 정보 탭 No.** (T-014). Sheet 1은 기준부재 "전체" / 포함부재 "1, 2, 3, ..., N" (T-052), 설치도는 "설치도" / 포함부재 동일, **일반 시트와 가공도는 기준부재 `"item번호 (BOM이름)"` 병기** (T-042 부분 적용). 가공도는 포함부재 컬럼은 공란 |
 | 11 | 완료 알림 | UI | MessageBox "도면 시트 {N}개가 생성되었습니다." |
 
 > 구현 상세는 [코드 레퍼런스](/docs/code-reference/form1-drawing-sheets.md#GenerateDrawingSheets) 참고
@@ -76,11 +76,12 @@ flowchart TD
 | 부재가 `adjacencyByIndex`에 있음 (Clash 연결 有) | Sheet 생성 + **자기 자신 + 1-hop 이웃** 포함 |
 | 부재가 `adjacencyByIndex`에 없음 (Clash 없는 독립 부재) | Sheet 생성 + **자기 자신만** 포함 (이웃 없음) |
 
-### [분기 C] Sheet 1 중복 제거 (단계 9)
+### [분기 C] 시트 중복 제거 (단계 9, T-053 v2 확장)
 | 조건 | 처리 |
 |---|---|
-| 일반 시트(`BaseMemberIndex ≥ 0`)의 MemberIndices가 Sheet 1과 완전 동일 | 시트 삭제 |
-| 설치도(-2) / 가공도(-3) | 제거 대상 제외 |
+| 일반 시트(`BaseMemberIndex ≥ 0`) 둘 이상이 동일 부재 구성 | 첫 등장만 살리고 나머지 삭제 (`MemberIndices.OrderBy` 정렬 키 기준) |
+| 일반 시트의 MemberIndices가 Sheet 1과 완전 동일 | 시트 삭제 (Sheet 1은 보존) |
+| 설치도(-2) / 가공도(-3) | 제거 대상 제외 (의미가 다른 시트로 보존) |
 
 ## 6. 예외 / 에러 처리
 
@@ -124,3 +125,5 @@ flowchart TD
 | 2026-04-22 | T-025: ListView 갱신 직전에 `CollectBOMInfo(false, drawingSheetList[0])` 호출 추가 — 치수추출 완료 직후 Sheet 1(전체) 기준 BOM 정보가 `lvDrawingBOMInfo`에 즉시 표시됨. 시트 선택 이벤트와 달리 visibility·카메라는 건드리지 않음. try/catch로 감싸 실패 시 DiagLog만 기록. 단계 9.5 추가 | Claude |
 | 2026-05-02 | T-053: 단계 9.3 신설 — 중복 시트 제거 직후 `drawingSheetList` 전체를 순회하며 `SheetNumber = i + 1`로 재할당. 회사 doc "중복 Sheet 삭제 후 Sheet 번호 다시 채번" 요구 반영. 일반 시트가 빠진 자리만큼 후속 시트(설치도·가공도) SheetNumber도 자동 당겨짐. ListView 표시는 일반 시트(`Sheet {N}`) 라벨에 즉시 반영, 가공도(`가공도_{MfgDrawingNo}`)는 라벨 영향 없음 | Claude |
 | 2026-05-02 | **T-052**: ListView 단계 10에서 Sheet 1(`BaseMemberIndex == -1`)의 포함부재 표기를 `"전체"` → `"1, 2, 3, ..."`(모든 item 번호 명시 나열)로 변경. 회사 doc "긴급하 3" 요구. 코드 단순화 — `-1` 별도 분기 제거하고 일반 시트(`>=0`) 분기와 동일 로직으로 통합 (`bomIndexToItemNo` 매핑 + `nums.Sort()` + `string.Join(", ", nums)`). 설치도(`-2`)도 같은 분기에 들어가 동일 결과지만 이전부터 동일 처리되어 있어 사용자 가시 변화는 Sheet 1만. BOM 14건 초과 시 ListView 컬럼 폭은 사용자 실기 후 조정 | Claude |
+| 2026-05-04 | **T-053 v2**: 단계 9 자동 제거를 "Sheet 1 동일 구성" 한정 → **"모든 일반 시트 쌍에서 부재 구성 동일 시 첫 등장만 살림"** 으로 확장 (사용자 결정 *"포함부재가 같으면 기준부재가 달라도 같은 형상이다"*). 알고리즘: `MemberIndices.OrderBy(x => x)` 정렬 키 + `HashSet<string>`로 첫 등장 추적, 중복은 `RemoveAll`. Sheet 1 / 설치도 / 가공도는 의미가 다른 시트라 검사 제외. Sheet 1과 동일 구성인 일반 시트는 별도 RemoveAll로 추가 제거 (Sheet 1 보존). 분기 C 갱신 | Claude |
+| 2026-05-04 | **T-042 부분 적용**: 단계 10 ListView 갱신에서 일반 시트(`>=0`)와 가공도(-3)의 기준부재 표기를 `"1"` → `"1 (BOM이름)"` 형태로 BOM 이름 병기. 회사 doc "긴급최우선 1" 사용자 결정. 포맷: `$"{itemNo} ({sheet.BaseMemberName})"`. 매핑 실패 시 `sheet.BaseMemberName` fallback. Sheet 1 기준부재("전체")와 설치도("설치도")는 의미 다르므로 그대로 유지 — 회사 원문 "Sheet1 : 전체Item(Item Node 이름)" 부분은 미적용 (사용자 추가 결정 대기). 단계 10 설명·last_updated 갱신 | Claude |
