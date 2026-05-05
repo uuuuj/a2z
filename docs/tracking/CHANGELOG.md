@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-05-06 — T-058 치수 Text 보조선 바깥 배치 (회사 doc 개발 요청 — 상 5)
+
+**유형**: feat (회사 doc 사양 반영)
+**커밋**: `pending`
+**관련 TASK**: T-058 (DONE)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**배경**: 회사 doc "개발 요청 — 상 5" 사양 *"치수 Text가 치수 보조선을 넘어 설 경우 → 오른쪽 배치로 협의 했으나 아직 반영 안됨"*. 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. T-039 선행 권장이었으나 sdk-verifier 결과 글로벌 옵션 1줄로 가능해 선행 무관하게 진행.
+
+**SDK 검증 결과** (sdk-verifier):
+- `MeasureStyle.AlignDistanceTextPosition` enum 등재 확인 (`VIZCore3D.NET.xml:9298`) — 0:아래 / 1:위 / **2:바깥쪽**
+- 치수별 개별 위치 옵션은 SDK 미지원 — 글로벌 옵션만 가능
+- 텍스트 폭 측정 API 부재 — 좁은 치수 선별 적용은 .NET `Graphics.MeasureString` + 수동 좌표 계산 필요 (옵션 B, 복잡)
+- → **옵션 A 채택**: 모든 치수 일괄 바깥쪽
+
+**코드 변경 (5곳, `= 0` → `= 2`)**:
+- `Form1.Dimensions.cs:51` — `btnDimensionShowSelected_Click` 선택 치수 표시
+- `Form1.Dimensions.cs:448` — `ShowAllDimensions` (T-028 4경로 본진: 글로벌 X/Y/Z + 시트 선택 + 2D 출력)
+- `Form1.MfgDrawing.cs:325` — 가공도 메인
+- `Form1.MfgDrawing.cs:1050` — 가공도 sub
+- `Form1.MfgDrawing.cs:1703` — 가공도 EA
+
+**docs**:
+- 신설: [docs/technical-notes/dimension-text-position.md](../technical-notes/dimension-text-position.md) (T-058 통합 사양)
+- 변경 이력: [show-selected.md](../features/dimensions/show-selected.md), [main-dimension.md](../features/bom/main-dimension.md), [mfg-drawing.md](../features/mfg-drawing/mfg-drawing.md)
+- TASKS.md 머릿주석 회사 doc 표 — 상 5 행을 DONE으로 표시
+- TASKS.md DONE 섹션에 T-058 항목 추가
+
+**회사 사양과의 차이**: 원문 *"초과할 때만"* vs 구현 *"항상 바깥쪽"*. SDK 치수별 옵션 부재로 글로벌 적용. 핵심 의도(침범 회피)는 충족, 넓은 치수에서도 바깥 배치라 시각적으로 다소 차이 있을 수 있음. 필요 시 옵션 B(선별)로 후속 가능.
+
+**영향 범위**: 5곳 코드 1줄씩 + technical-note 신설 + 3개 features doc 변경 이력 추가
+
+---
+
 ## 2026-05-05 (정정) — 검토 대기 11건 원상 복구 + 본인 개선 카테고리 정의 명확화
 
 **유형**: chore (tracking, 직전 커밋 `f6f8f35` 분류 정정)

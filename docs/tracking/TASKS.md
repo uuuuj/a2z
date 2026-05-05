@@ -18,7 +18,7 @@
 | 2 | Base Template 내 제작도 배치 기준(ISO/X/Y/Z) | T-043 | TODO — #1과 동일 작업 단위 |
 | 3 | 검토자 Excel Template 일치 검증 | T-057 (신규) | TODO — Excel 파일 수신 대기 |
 | 4 | Hole 풍선 제작도 X / 가공도 O 정리 | T-044 | TODO — 실기 확인 선행 |
-| 5 | 치수 Text 보조선 초과 시 우측 자동 배치 | T-058 (신규) | TODO — T-039 선행 |
+| 5 | 치수 Text 보조선 초과 시 우측 자동 배치 | T-058 | **DONE (2026-05-06)** — `AlignDistanceTextPosition = 2` 5곳 글로벌 적용 |
 | 6 | 치수 Text-치수선 겹침 해결 | T-040 | TODO — T-039 선행 |
 | 7 | Item별 2D 출력(Sheet2~설치도 전) 점선/실선 + 위치 정합 | T-013 | BLOCKED — 옵션 A·B·B2 모두 실패, 새 접근 필요 |
 | 8 | 치수선-모델 거리 X/Y/Z 뷰별 보조선 길이 + offset 고정 | T-039 | TODO — T-038 선행 |
@@ -374,23 +374,6 @@
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs (차이 발견 시 GenerateSheetDrawing2D 수정)
 - **선행**: T-043 동시 진행 시 효율 ↑
 
-### T-058 — 치수 Text 보조선 초과 시 우측 자동 배치
-- **생성일**: 2026-05-04
-- **상태**: TODO (T-039 선행)
-- **회사 매핑**: 개발 요청 — 상 5
-- **관련**: T-040(겹침 회피)과 별개 — 보조선 초과만 발생 시 우측 자동 정렬
-- **회사 원문**:
-  > 치수 Text가 치수 보조선을 넘어 설 경우 → 오른쪽 배치로 협의 했으나 아직 반영 안됨
-- **배경**: 협의 완료된 사양인데 코드에 미반영. 구현 위주 작업
-- **세부**:
-  - [ ] sdk-verifier: `Set2DViewCreateObjectItemMeasureTextPosition` 류 SDK API 확인
-  - [ ] 텍스트 bbox 폭 vs 두 보조선 사이 간격 비교 → 초과 시 텍스트를 보조선 바깥(우측)으로 자동 이동
-  - [ ] 도면 시트 자동 갱신 시 매번 적용
-  - [ ] docs 갱신 (`generate-sheet-2d.md` 또는 통합 technical-note)
-- **영향 파일**:
-  - A2Z/Form1.Dimensions.cs (AddChainDimensionByAxis 후처리)
-  - A2Z/Form1.DrawingSheets.cs (RenderSheetViewForDrawing 치수 후처리)
-- **선행**: T-039 완료 후 (offset 기준 확정돼야 안정)
 
 ### T-060 — 보조선 시작점이 모델과 겹쳐 보이는 케이스 회피 (본인 개선)
 - **생성일**: 2026-05-04
@@ -597,6 +580,11 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-058 — 치수 Text 보조선 초과 시 우측 자동 배치
+- **완료일**: 2026-05-06 (커밋 `pending`)
+- **관련**: — (회사 doc 개발 요청 — 상 5)
+- **요약**: sdk-verifier 검증 결과 `MeasureStyle.AlignDistanceTextPosition` enum (xml:9298, 0:아래/1:위/**2:바깥쪽**)로 글로벌 1줄 처리 가능. 기존 4곳 `=0` 설정 + EA 가공도 1곳 추가 = **5곳 동시 변경**: [Form1.Dimensions.cs:51](../../A2Z/Form1.Dimensions.cs) (선택 치수 표시), [Form1.Dimensions.cs:448](../../A2Z/Form1.Dimensions.cs) (`ShowAllDimensions` — 글로벌/시트/2D 출력 4경로 본진), [Form1.MfgDrawing.cs:325, 1050, 1703](../../A2Z/Form1.MfgDrawing.cs) (가공도 메인/sub/EA). 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. SDK가 치수별 개별 위치 옵션을 제공하지 않아 글로벌 적용(모든 치수 항상 바깥쪽), 회사 원문 "초과할 때만"과는 차이 있으나 핵심 의도(침범 회피) 충족. T-039 선행 무관(스타일 옵션은 offset 기준 결정 전에도 적용 가능). 통합 사양: [docs/technical-notes/dimension-text-position.md](../technical-notes/dimension-text-position.md)
 
 ### T-042 — 도면시트 목록 "기준부재" 컬럼에 부재 이름 추가 표시
 - **완료일**: 2026-05-04 (코드 커밋 `e09c945`, DONE 이동 커밋 `pending`)

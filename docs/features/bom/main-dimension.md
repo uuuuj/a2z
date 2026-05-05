@@ -4,7 +4,7 @@ feature_name: 메인 체인 치수 추출 (자동 파이프라인)
 category: BOM
 trigger_type: User Action
 owner_module: Form1.BOM.cs
-last_updated: 2026-05-02 (T-049 치수 캐시 라이프사이클 섹션 추가)
+last_updated: 2026-05-06 (T-058 치수 텍스트 보조선 바깥 배치)
 code_reference: /docs/code-reference/form1-bom.md#btnMainDimension_Click
 ---
 
@@ -215,3 +215,4 @@ flowchart LR
 | 2026-04-22 | **T-032**: `CollectAllOsnap` 내부에 **부재별 Osnap 맵**(`_lastCollectedNodeOsnapMap`) 병행 구축. `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` 파라미터 추가해 치수추출 버튼 경로에서 `GetOsnapPoint` 중복 호출 제거. `Stopwatch`로 소요 시간 측정, `DiagLog T-032` 기록. 시트 선택 자동 경로(다른 부재 집합)는 null 전달해 내부 재구축 유지. 단계 12·13 재기술 | Claude |
 | 2026-04-22 | **T-033**: `CompleteMainDimensionPostClash` 후반 순서 재배치 — 기존 `MessageBox → GenerateDrawingSheets → finally HideBusyOverlay` → 신 `GenerateDrawingSheets → HideBusyOverlay → MessageBox`. 팝업 뜰 때 오버레이 잔존 + 팝업 닫힌 후 시트 생성 중 오버레이 2초 더 떠있던 UX 문제 해결. finally의 HideBusyOverlay는 예외 안전망으로 유지 | Claude |
 | 2026-05-02 | **T-049**: Section 7.5 "치수 캐시 라이프사이클" 신설 — 회사 doc "긴급중 3" 의문(*"치수추출 버튼 누르면 앞뒤로 무슨 로직이 돌아가는지"*)에 대한 답변 정리. `chainDimensionList`를 단일 진실 공급원으로, 4경로(치수추출 / 글로벌 X/Y/Z / 2D 출력 / 일반 시트 / 가공도) + 캐시 사용 양상을 mermaid + 표로 명시. 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계 포함. 코드 변경은 없으며 회사 답변용 docs 보강 | Claude |
+| 2026-05-06 | **T-058**: `ShowAllDimensions`에서 `AlignDistanceTextPosition = 0 → 2` (보조선 바깥 배치). 회사 doc "개발 요청 — 상 5" 사양 반영, 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. SDK 글로벌 옵션이라 모든 치수 일괄 적용. 통합 사양: [docs/technical-notes/dimension-text-position.md](../../technical-notes/dimension-text-position.md) | Claude |

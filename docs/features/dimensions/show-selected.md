@@ -4,7 +4,7 @@ feature_name: 선택 치수 3D 표시
 category: Dimensions
 trigger_type: User Action
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-04-13
+last_updated: 2026-05-06
 code_reference: /docs/code-reference/form1-dimensions.md#btnDimensionShowSelected_Click
 ---
 
@@ -78,3 +78,4 @@ code_reference: /docs/code-reference/form1-dimensions.md#btnDimensionShowSelecte
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-05-06 | T-058: `AlignDistanceTextPosition = 0 → 2` (보조선 바깥 배치). [상세](../../technical-notes/dimension-text-position.md) | Claude |

@@ -48,7 +48,7 @@ namespace A2Z
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;     // 검은색
                 measureStyle.ArrowSize = 8;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 0;
+                measureStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -445,7 +445,7 @@ namespace A2Z
                 measureStyle.AssistantLine = false;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 0;
+                measureStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 

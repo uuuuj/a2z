@@ -4,7 +4,7 @@ feature_name: 선택 부재 가공도 생성
 category: MfgDrawing
 trigger_type: User Action
 owner_module: Form1.MfgDrawing.cs
-last_updated: 2026-04-24 (T-036 4차 5단계: 복원 블록에서 SetCameraData 제거)
+last_updated: 2026-05-06 (T-058 가공도 치수 텍스트 보조선 바깥 배치)
 code_reference: /docs/code-reference/form1-mfg-drawing.md#btnMfgDrawing_Click
 ---
 
@@ -140,3 +140,4 @@ BOM을 더블클릭하거나 글로벌 뷰 버튼을 누르면 내부에서 `Res
 | 2026-04-24 | **T-036 4차 (4단계, 시각 정돈)**: 3단계로 회전은 정상 동작하나 사용자가 "카메라 먼저 이동 → 그 뒤 가로 회전되는 2단계 시각 전환" 보고. 원인은 `lv-sheet-selected.md` 복원 블록의 SetCameraData / DoEvents / Rotate가 각각 paint 트리거. ExecuteMfgDrawing 본체는 변경 없음 — 복원 블록만 BeginUpdate/EndUpdate로 감싸 한 번에 적용 (자세한 내용은 [lv-sheet-selected.md](../drawing-sheets/lv-sheet-selected.md) 변경 이력 참조) | Claude |
 | 2026-04-24 | **T-036 4차 (5단계, SetCameraData 제거)**: 4단계 적용 후에도 첫 클릭 Z 케이스 2단계 시각 잔존. 가설은 SetCameraData가 ScreenAxisRotation을 동기적으로 리셋하며 BeginUpdate를 우회해 paint 트리거. ExecuteMfgDrawing 이후 외부 카메라 이동 경로가 모두 제거됐다는 점(1차 FlyToObject3d 스킵, 4차 1단계 R180 FitToView 제거)에 근거해 SetCameraData 호출 자체를 제거. ExecuteMfgDrawing 본체 변경 없음 — `_mfgDrawingZ90Applied`/`_mfgDrawingR180Applied` 플래그 추적과 `_mfgDrawingCameraSnapshot` 필드는 그대로 유지 (snapshot은 현재 미사용, 향후 외부 카메라 변경 재발 시 재활성화 대비) | Claude |
 | 2026-05-02 | **T-046**: 가공도 보조선 LineType을 `DASHED_DOUBLEDOTTED`(이중쇄선) → `SOLID`(가는 실선)로 변경 — 회사 doc "긴급상 10" + 사용자 확장 ("모든 보조선"). 적용 위치: 메인 보조선([Form1.MfgDrawing.cs:1542](../../../A2Z/Form1.MfgDrawing.cs)) + EA 두 번째 뷰 보조선([Form1.MfgDrawing.cs:1900](../../../A2Z/Form1.MfgDrawing.cs)). 토글 패턴(`SOLID`로 복원하던 호출)도 단일 SOLID 호출로 단순화. **추가**: 보조선 시작점이 모델 표면에서 1mm 떨어지게 gap 적용 — `DrawDimension` 단일 지점 변경으로 가공도(메인/본문/EA) + 일반 시트 + 글로벌 X/Y/Z + 치수추출 4경로 자동 적용. 통합 사양: [dimension-extension-line.md](../../technical-notes/dimension-extension-line.md). gap 값(`ExtensionLineGap = 1.0f`)은 [Form1.Dimensions.cs](../../../A2Z/Form1.Dimensions.cs) 한 줄로 조정 가능 | Claude |
+| 2026-05-06 | **T-058**: 가공도 3곳(`Form1.MfgDrawing.cs:325` 메인 / `:1050` sub / `:1703` EA) `AlignDistanceTextPosition = 0 → 2` (보조선 바깥 배치). 회사 doc "개발 요청 — 상 5" 사양. 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. 통합 사양: [dimension-text-position.md](../../technical-notes/dimension-text-position.md) | Claude |

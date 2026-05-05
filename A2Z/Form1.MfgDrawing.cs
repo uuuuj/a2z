@@ -322,7 +322,7 @@ namespace A2Z
                 mfgStyle.ArrowSize = 5;
                 mfgStyle.AssistantLine = false;
                 mfgStyle.AlignDistanceText = true;
-                mfgStyle.AlignDistanceTextPosition = 0;
+                mfgStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 mfgStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
@@ -1047,7 +1047,7 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;
-                    mfgStyle.AlignDistanceTextPosition = 0;
+                    mfgStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                     mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
@@ -1700,7 +1700,7 @@ namespace A2Z
                             eaStyle.ArrowSize = 5;
                             eaStyle.AssistantLine = false;
                             eaStyle.AlignDistanceText = true;
-                            eaStyle.AlignDistanceTextPosition = 0;
+                            eaStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                             eaStyle.AlignDistanceTextMargine = 3;
                             vizcore3d.Review.Measure.SetStyle(eaStyle);
 
