@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-05-05 — Z-MAX 정렬 출처 결정 (BBox 유지)
+
+**유형**: chore (tracking)
+**커밋**: `pending`
+**관련 TASK**: T-056 (DONE)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**결정**: 사용자 BBox.MaxZ 현행 유지. Osnap 기준 변경하지 않음.
+
+**이유**: A2Z 일반 데이터셋(직립 H빔·플레이트·앵글)에서 `BBox.MaxZ == max(Osnap.Z)`가 성립해 정렬 결과 동등. 차이 발생 케이스(경사·곡면 Body)도 정렬 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 [sheet1-naming-criteria.md](../technical-notes/sheet1-naming-criteria.md) § 7 단답을 그대로 사용 — "BBox 기준이지만 일반 형상에선 명세와 동일 결과"임을 설명. 차후 회사가 Osnap 자체를 강하게 요구하면 그때 신규 작업으로 변경(`Form1.BOM.cs:688` osnapList 1줄 교체) 진행.
+
+**Tracking 갱신**:
+- TASKS.md 검토 대기 항목 2 + T-056 본문 — 결정 반영
+- sheet1-naming-criteria.md § 6 최종 결정 + § 9 변경 이력 추가
+
+**영향 범위**: 코드 변경 없음, 추적·기술 문서만
+
+---
+
 ## 2026-05-04 (저녁 3차) — 사용자 결정 4건 반영 + T-060 신규 + 카테고리 재명명
 
 **유형**: chore (tracking)
