@@ -1,0 +1,100 @@
+# 2026-05-04 — 트래킹 카테고리 재정리 + 회사 doc 일괄 동기화
+
+## 주제
+회사 doc 동기화 7건 코드 처리 + 회사 새 우선순위 doc(13건) 매핑 + 사용자 정리 11건 매핑 → **검토 대기 / 본인 개선 사항 / 회사 doc 13건** 3개 카테고리로 트래킹 재구조화. 빌드 환경 정비도 함께.
+
+## 배경
+- 사내 PC와 데스크톱 dll 동기화 깨짐 (`VIZCore3D+.NET.dll` 1.0.26.130 → 1.0.26.325 교체 필요) 발견에서 시작
+- 작업 중 회사가 새 우선순위 doc 전달 (개발 요청 상 11건 + 중 2건 + Softhills 4건)
+- 사용자가 별도로 11건 정리해 검토자·회사 답변 받아야 할 항목 분류
+- 트래킹이 복잡해져 카테고리 재정리 필요 → 사용자가 "에이전트 여러 개로 정리" 지시
+
+## 한 일
+
+### 코드 처리 7건 (회사 doc + 사용자 확장)
+| 커밋 | 내용 |
+|---|---|
+| `cdd6806` | 빌드 환경 정비 — VIZCore3D dll 1.0.26.325 교체, Interop dll 보강, csproj 절대 경로 + 자가 진단 스크립트 (`scripts/check-build-env.ps1`), `docs/setup/build-environment.md` 신설 |
+| `8081688` | T-046 확장 (모든 보조선 SOLID + 1mm gap), T-053 v1 (SheetNumber 재채번), T-055/T-056 검증 보고서 |
+| `79876e2` | T-049 (치수 캐시 라이프사이클 main-dimension.md Section 7.5), T-050 (`MarineAxis.Visible=true`), T-052 (Sheet 1 포함부재 표기) |
+| `e09c945` | T-053 v2 (시트 중복 제거 확장 — 모든 일반 시트 쌍 부재 구성 동일 시 첫 등장만 살림), T-042 (기준부재 BOM이름 병기). T-046 gap 1mm → 10mm 상향 (사용자 실기 후) |
+| `735b814` | 치수 추출 매뉴얼 보강 — T-029 (3D 뷰 깨끗 정책) + T-023 v3 (연결성 에러 풀이) 사용자 매뉴얼 반영 |
+
+### 인프라·정책
+| 커밋 | 내용 |
+|---|---|
+| `78f3d45` | **CLAUDE.md R12 신설** — "검증 사이클은 push로 마감". 사용자가 사내 PC에서 검증하므로 push 안 된 변경분 도달 불가 → 코드 변경 후 검증 흐름 진입 전 자동 commit+push |
+| `badc4cb` | T-042 DONE 이동 — Sheet 1 "전체" 유지 사용자 결정 |
+
+### 트래킹 재구조화 (3개 커밋)
+| 커밋 | 내용 |
+|---|---|
+| `562dd9e` | 회사 doc 새 우선순위 13건 매핑. 팀에이전트 2개 활용. 기존 ID 8건 매핑 + 신규 T-057 (Excel 검증), T-058 (텍스트 우측 배치), T-059 (XYZ 평면 필터링) |
+| `3abca9b` | 사용자 정리 11건 매핑. **검토 대기 카테고리 신설**. T-054 / T-016 잔여에서 검토 대기로 이동. 차이·결정 필요 4건 발견 |
+| `4010d2d` | 사용자 결정 4건 반영. **T-060 신규 등록** (보조선 모델 겹침, 본인 발견). 카테고리 재명명: "회사 doc 외 잔여" → **"본인 개선 사항"** |
+
+### 주요 결정 포인트
+- **빌드 환경**: lib/ 폴더 시도 → 사용자 의도로 csproj 절대 경로 + Interop dll a2z 루트 구조 채택
+- **T-046 gap**: 1mm → 10mm 상향 (1mm는 시각적으로 식별 어려움)
+- **T-053 v2**: 사용자 결정 *"포함부재가 같으면 기준부재가 달라도 같은 형상"* → 모든 일반 시트 쌍 부재 구성 동일 시 자동 제거
+- **T-042 Sheet 1**: 첫 결정 "전체" 유지 → 사용자 새 아이디어 LCA 노드 이름 (사양 재정리 중)
+- **카테고리 분류**: 회사 doc 13건 / 검토 대기 (사용자 11건) / 본인 개선 사항 (11건, T-060 추가) / Softhills API 4건 (외부 추적)
+
+## 영향 범위
+- **코드 변경**: 11 커밋, 16 files, 1099 insertions / 173 deletions
+- **신규 파일**:
+  - `docs/setup/build-environment.md` (빌드 환경 가이드)
+  - `scripts/check-build-env.ps1` (자가 진단 스크립트)
+  - `docs/technical-notes/osnap-criteria.md` (T-055)
+  - `docs/technical-notes/sheet1-naming-criteria.md` (T-056)
+  - `docs/technical-notes/dimension-extension-line.md` (T-046 통합 사양)
+- **갱신 파일**: TASKS.md(+311줄), CHANGELOG.md(+286줄), STATUS.md, generate-sheets.md, main-dimension.md, vizcore3d-initialized.md, mfg-drawing.md, 치수 추출.md, .gitignore, A2Z.csproj
+- **신규 정책**: CLAUDE.md R12 (검증 사이클 push 마감)
+
+## 이어갈 지점 ⭐ (다음 세션 복원용)
+
+**현재 상태**: 회사 doc 동기화 코드 처리 8건 DONE + 트래킹 카테고리 3개로 재구조화 완료. push 4010d2d까지 완료. 사용자 결정 1건만 남음 (Z-MAX 정렬 출처).
+
+**다음 작업 후보** (우선순위 순):
+
+1. **사용자 Z-MAX 결정 받기** (가장 빠른 마무리)
+   - (a) 현행 BBox 유지 + T-056 보고서 그대로 회신
+   - (b) `Form1.BOM.cs:688`의 `osnapList` 활용 1줄 변경 (`osnapList.Max(o => o.Vertex.Z)`, BBox는 fallback)
+
+2. **T-042 사내 검증** — 기준부재 셀 `"1 (BOM이름)"` 표기 5분 실기
+
+3. **회사·검토자에게 검토 대기 11건 송부**
+   - T-049 (치수 캐시 라이프사이클 docs)
+   - T-055 / T-056 (검증 보고서)
+   - 치수 추출 매뉴얼 보강
+
+4. **즉시 진행 가능 작업** (외부 입력 불필요):
+   - T-058 — 치수 Text 우측 자동 배치 (sdk-verifier로 텍스트 위치 API 확인 후, T-039 선행 권장)
+   - T-006 2차 — 2D 도면 그리드 SDK 셀 clip API 조사
+   - T-038 — sdk-verifier로 GridStructure API 조사
+
+5. **외부 입력 받으면 시작**:
+   - 검토자 Excel 파일 → T-057
+   - T-038 예산 수용 → T-039 → T-040 → T-058 사슬
+   - T-043 산출물 형식 결정 → Base Template 분석
+   - 재현 케이스 → T-048 (EA Type) / T-059 (평면 필터링) / T-060 (보조선 겹침)
+
+**주의할 점**:
+- **R12 적용 중**: 코드 변경 시 자동 commit + push (사용자 컨펌 안 받고)
+- **T-042 LCA 사양**: 사용자가 사양 재정리 중이라 현재 "전체" 유지. 결정 받으면 새 작업으로 등록
+- **Sheet 1 표기 모순**: 직전 결정 "전체 유지" vs 새 doc "전체(BOM이름)" — 사용자 LCA 사양으로 통일 예정
+- **T-016 BLOCKED 유지**: 사용자 재현 정상이지만 간헐 버그라 다음 발생 대기 상태
+
+**관련 TASK**:
+- DONE: T-042, T-046 확장, T-049, T-050, T-052, T-053 v2, T-055, T-056
+- TODO 신규: T-057 (Excel), T-058 (텍스트 우측), T-059 (XYZ 평면), T-060 (보조선 겹침)
+- 검토 대기: T-054, T-016 + 사용자 11건 매핑
+- 미결정: Z-MAX (T-056 후속)
+
+## 참고 링크
+- 빌드 가이드: [docs/setup/build-environment.md](../../setup/build-environment.md)
+- 자가 진단: [scripts/check-build-env.ps1](../../../scripts/check-build-env.ps1)
+- 검증 보고서: [osnap-criteria.md](../../technical-notes/osnap-criteria.md), [sheet1-naming-criteria.md](../../technical-notes/sheet1-naming-criteria.md), [dimension-extension-line.md](../../technical-notes/dimension-extension-line.md)
+- 트래킹 진입: [TASKS.md](../TASKS.md) (머릿주석에 4개 카테고리 매핑 표)
+- 정책: [CLAUDE.md](../../../CLAUDE.md) R12
+- 직전 세션: [2026-05-04-build-environment-recovery.md](./2026-05-04-build-environment-recovery.md)
