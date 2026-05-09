@@ -1297,17 +1297,18 @@ namespace A2Z
                     }
 
                     table1.IsTextWrapped = true;
-                    // 열 너비 합 77mm — 흰선 내부 폭 추가 축소 (RenderTemplateOnGridStructure가 셀 92.3mm 내부에 추가 패딩 둠)
+                    // 열 너비 합 77mm 유지 — T-037: 헤더 폭 + 흔한 데이터 폭에 맞춰 재분배
+                    // (ITEM "Support Seat" 12자, SIZE "75x75x9" 7자 wrap 회피용)
                     table1.ColumnWidths = new Dictionary<int, int>()
                     {
-                        { 0, 6 },   // No
-                        { 1, 17 },  // ITEM
-                        { 2, 11 },  // MATERIAL
-                        { 3, 11 },  // SIZE
-                        { 4, 8 },   // Q'TY
-                        { 5, 12 },  // T/W
-                        { 6, 6 },   // MA
-                        { 7, 6 }    // FA
+                        { 0, 5 },   // No   (헤더 "No" 2자)
+                        { 1, 20 },  // ITEM (데이터 "Support Seat" 12자)
+                        { 2, 12 },  // MATERIAL (헤더 "MATERIAL" 8자)
+                        { 3, 14 },  // SIZE (데이터 "75x75x9" 7자)
+                        { 4, 7 },   // Q'TY (헤더 "Q'TY" 4자)
+                        { 5, 8 },   // T/W  (헤더 "T/W" 3자)
+                        { 6, 5 },   // MA   (헤더 "MA" 2자)
+                        { 7, 6 }    // FA   (헤더 "FA" 2자)
                     };
 
                     vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(1, 3,

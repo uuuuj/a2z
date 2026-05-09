@@ -182,18 +182,19 @@
 
 ### T-037 — 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장
 - **생성일**: 2026-04-24
-- **상태**: TODO
+- **착수일**: 2026-05-10
+- **상태**: IN_PROGRESS (1차 — 열 너비 재분배 적용, 사용자 실기 검증 대기)
 - **관련**: — (사용자 직접 지시, T-006/FB-003 심화)
 - **배경**: 2D 출력 시 BOM 셀에 긴 텍스트가 들어가면 `IsTextWrapped=true`로 wrap되면서 행 높이가 늘어나 14행 레이아웃이 깨짐. ITEM 열 값은 UDA `SPREF`에서 "/" 제거 후 ":" split로 추출 — 사용자 요구로 추가 split 기준(`-` / `/` 등) 포함 필요
 - **사용자 확인 필요**:
   - [ ] **실제 SPREF 값 예시 2~3건 공유** (UDA 원본과 원하는 ITEM 결과 표기)
   - [ ] split 우선순위 확정 (`:` → `-` → `/` 순서? 가장 짧은 유효 토큰 택일?)
 - **세부**:
-  - [ ] sdk-verifier: `TemplateTableData.FontSize` / `AutoFit` / `CellFontHeight` 류 프로퍼티 존재 확인
-  - [ ] 옵션 A: `IsTextWrapped=false` + 셀 폭 초과분 "..." 말줄임
-  - [ ] 옵션 B (SDK 지원 시): 폰트 자동 축소 속성
+  - [x] sdk-verifier (2026-05-10): `TemplateTableData.FontSize` / `AutoFit` / `CellFontHeight` **모두 부재**. `Set2DViewObjectItemTextHeight(objID, fHeight)`로 객체 단위 일괄 텍스트 높이만 가능, 셀별 폰트 X. `Set2DViewCreateWithTableByText`의 `updateCellAutoSize`는 별도 API라 현재 `RenderTemplateOnGridStructure` 흐름에서 직접 적용 불가
+  - [ ] 옵션 A: `IsTextWrapped=false` + 셀 폭 초과분 "..." 말줄임 — 미채택 (wrap 유지로 안전성 우선)
+  - [ ] 옵션 B (SDK 지원 시): 폰트 자동 축소 속성 — **SDK 직접 X**, 객체 단위 일괄 축소만 가능 (별도 설계 필요 시 진행)
   - [ ] 옵션 C: ITEM 추가 split 구현 (사용자 답변 후 확정)
-  - [ ] 열 너비 재분배 검토 (ITEM 17mm가 충분한지)
+  - [x] 열 너비 재분배 1차 (2026-05-10): ITEM 17→20 ("Support Seat" 12자), MATERIAL 11→12 (헤더 8자), SIZE 11→14 ("75x75x9" 7자), T/W 12→8, No 6→5, Q'TY 8→7, MA 6→5, FA 6 유지 — 합 77mm 유지
   - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 갱신
 - **영향 파일**:
   - `A2Z/Form1.Clash.cs` (CollectBOMInfo — SPREF 파싱)
