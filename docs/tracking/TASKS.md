@@ -182,22 +182,28 @@
 
 ### T-037 — 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장
 - **생성일**: 2026-04-24
-- **상태**: TODO
+- **착수일**: 2026-05-10
+- **상태**: IN_PROGRESS (2차 — 한 번 고정 폭 + 폰트 축소 시도, 사용자 실기 검증 대기)
 - **관련**: — (사용자 직접 지시, T-006/FB-003 심화)
 - **배경**: 2D 출력 시 BOM 셀에 긴 텍스트가 들어가면 `IsTextWrapped=true`로 wrap되면서 행 높이가 늘어나 14행 레이아웃이 깨짐. ITEM 열 값은 UDA `SPREF`에서 "/" 제거 후 ":" split로 추출 — 사용자 요구로 추가 split 기준(`-` / `/` 등) 포함 필요
+- **사용자 방침** (2026-05-11 확정): **테이블 열 너비는 한 번 정해서 고정** (콘텐츠 변동 따라 매번 바꾸는 거 지양). 폭 미세조정 + 폰트 전체 축소 조합 OK
 - **사용자 확인 필요**:
   - [ ] **실제 SPREF 값 예시 2~3건 공유** (UDA 원본과 원하는 ITEM 결과 표기)
   - [ ] split 우선순위 확정 (`:` → `-` → `/` 순서? 가장 짧은 유효 토큰 택일?)
 - **세부**:
-  - [ ] sdk-verifier: `TemplateTableData.FontSize` / `AutoFit` / `CellFontHeight` 류 프로퍼티 존재 확인
-  - [ ] 옵션 A: `IsTextWrapped=false` + 셀 폭 초과분 "..." 말줄임
-  - [ ] 옵션 B (SDK 지원 시): 폰트 자동 축소 속성
+  - [x] sdk-verifier (2026-05-10): `TemplateTableData.FontSize`/`AutoFit`/`CellFontHeight` **모두 부재**. `Set2DViewCreateObjectItemTextHeight(float)`는 일반 2D 객체 텍스트용으로 명시 — Template/Table 적용 보장 X (실기 시도로만 최종 확인 가능)
+  - [ ] 옵션 A: `IsTextWrapped=false` + 셀 폭 초과분 "..." 말줄임 — 미채택 (정보 손실 위험)
+  - [x] 옵션 B 변형 (2026-05-11): `Set2DViewCreateObjectItemTextHeight(4f)`로 BOM 렌더 직전 폰트 축소 시도 — **빌드 결과로 SDK 적용 가부 최종 판정 예정**
   - [ ] 옵션 C: ITEM 추가 split 구현 (사용자 답변 후 확정)
-  - [ ] 열 너비 재분배 검토 (ITEM 17mm가 충분한지)
+  - [x] 열 너비 1차 재분배 (2026-05-10, c635978) — 사용자 방침에 따라 revert (97c1cba)
+  - [x] 열 너비 2차 고정 (2026-05-11): No 5, ITEM 20, MATERIAL 12, SIZE 14, Q'TY 7, T/W 8, MA 5, FA 6 — 합 77mm 유지, **콘텐츠 맞춤 X 한 번 고정**
   - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 갱신
+- **잔여 옵션 (폰트 축소 안 먹을 경우)**:
+  - [ ] 헤더 약자화 ("MATERIAL"→"MAT", "Q'TY"→"Q", "T/W"→"TW") — 도면 표준 허용 여부 사용자 결정 필요
+  - [ ] Drawing2D 원시 API로 셀 자체 그리기 (별도 큰 작업)
 - **영향 파일**:
   - `A2Z/Form1.Clash.cs` (CollectBOMInfo — SPREF 파싱)
-  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D BOM 테이블 블록 L1218~1269)
+  - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D BOM 테이블 블록 L1218~1318)
 
 ### T-038 — 2D 출력 셀 크기 기반 모델 스케일 + 여백 예산
 - **생성일**: 2026-04-24

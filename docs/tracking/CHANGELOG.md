@@ -1,8 +1,41 @@
 # 변경 이력 (CHANGELOG)
 
-커밋·릴리즈 단위의 완료 기록입니다. **날짜 역순**으로 상단에 추가합니다. `/commit` 커맨드가 자동 갱신.
+커밋·릴리즈 단위의 완료 기록입니다. **날짜 역순**로 상단에 추가합니다. `/commit` 커맨드가 자동 갱신.
 
 > 형식: `## YYYY-MM-DD — 요약` + 세부 목록 + 커밋 해시 + 관련 ID
+
+---
+
+## 2026-05-11 — T-037 2차: BOM 고정 폭 + 폰트 축소 시도
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-037 (IN_PROGRESS, 2차)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**배경**: T-037 1차(`c635978`) 빌드 결과 — 여러 셀에서 wrap 잔존 (MATERIAL "IAL", SIZE "5x7.5", Q'TY "Y", T/W 5자 데이터 끝자, MA "A"). 헤더 자체도 셀 폭 안 들어가는 케이스 다수. **사용자 방침** *"테이블 열은 한 번 정해서 고정. 폭 미세조정 + 폰트 전체 축소 OK"* 확정.
+
+**사전 처리**:
+- `97c1cba` — T-037 1차 revert (사용자 "콘텐츠 맞춰 폭 변동 지양" 방침 반영)
+
+**SDK 재검증** (sdk-verifier 2026-05-11):
+- `Drawing2DObjectManager.Set2DViewCreateObjectItemTextHeight(float)` — XML 명시 범위는 일반 2D 드로잉 객체 텍스트 (Symbol/Point/Line/Polyline/...)
+- `Drawing2DTemplateManager.RenderTemplateOnGridStructure` / `TemplateTableData` / `GridStructure` 일체 XML 미등록(internal) → **테이블 셀 적용 보장 SDK 문서로 확인 불가**
+- 형제 네이밍(Item vs Measure 분리) 보면 테이블에는 미적용 가능성 높음
+- 다만 internal API라 동작 미확정 → 실기 시도가 최종 판정
+
+**코드 변경** ([A2Z/Form1.DrawingSheets.cs:1301](A2Z/Form1.DrawingSheets.cs:1301)):
+1. **ColumnWidths 재고정** (1차 값 재적용, 콘텐츠 맞춤 X — 한 번 박음): No 5 / ITEM 20 / MATERIAL 12 / SIZE 14 / Q'TY 7 / T/W 8 / MA 5 / FA 6 (합 77mm)
+2. **BOM 렌더 직전 폰트 축소** (L1317~): `Set2DViewCreateObjectItemTextHeight(4f)` → `RenderTemplateOnGridStructure` → `Set2DViewCreateObjectItemTextHeight(7f)` 기본 복원. 풍선용 글로벌 setter 패턴(L1835/1869) 동일 흐름
+
+**빌드 결과로 판정될 2갈래**:
+- 폰트 적용됨 → T-037 셀 텍스트 wrap 회피 완료 (DONE 후보)
+- 폰트 미적용됨 → SDK 한계 최종 확정, **잔여 옵션** 검토:
+  - 헤더 약자화 (사용자 결정 필요)
+  - Drawing2D 원시 API로 셀 자체 그리기 (별도 큰 작업)
+
+**영향 범위**: 2D 출력 BOM 테이블만. 흐름 변경 없는 상수 + setter 호출 2줄 → R1 docs 갱신 생략.
 
 ---
 

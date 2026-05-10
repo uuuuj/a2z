@@ -1297,16 +1297,16 @@ namespace A2Z
                     }
 
                     table1.IsTextWrapped = true;
-                    // 열 너비 합 77mm — 흰선 내부 폭 추가 축소 (RenderTemplateOnGridStructure가 셀 92.3mm 내부에 추가 패딩 둠)
+                    // T-037 2차: 한 번 정해서 고정한 열 너비 (콘텐츠 맞춤 X). 합 77mm 유지
                     table1.ColumnWidths = new Dictionary<int, int>()
                     {
-                        { 0, 6 },   // No
-                        { 1, 17 },  // ITEM
-                        { 2, 11 },  // MATERIAL
-                        { 3, 11 },  // SIZE
-                        { 4, 8 },   // Q'TY
-                        { 5, 12 },  // T/W
-                        { 6, 6 },   // MA
+                        { 0, 5 },   // No
+                        { 1, 20 },  // ITEM
+                        { 2, 12 },  // MATERIAL
+                        { 3, 14 },  // SIZE
+                        { 4, 7 },   // Q'TY
+                        { 5, 8 },   // T/W
+                        { 6, 5 },   // MA
                         { 7, 6 }    // FA
                     };
 
@@ -1314,7 +1314,11 @@ namespace A2Z
                         VIZCore3D.NET.Data.GridVerticalAlignment.Top);
                     vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(1, 3,
                         VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+
+                    // T-037 2차: BOM 셀 텍스트 폰트 축소 시도 (SDK 적용 보장 X — 실기 검증 필요)
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(4f);
                     vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(table1, 1, 3);
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);  // 기본 복원
                 }
 
                 // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
