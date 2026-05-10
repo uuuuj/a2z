@@ -6,48 +6,6 @@
 
 ---
 
-## 2026-05-10 — T-037 1차: BOM 테이블 열 너비 재분배 (헤더·데이터 폭 기준)
-
-**유형**: fix
-**커밋**: `pending`
-**관련 TASK**: T-037 (IN_PROGRESS, 1차)
-**관련 FEEDBACK**: —
-**관련 REQUEST**: —
-
-**배경**: 2D 출력 BOM 테이블에서 ITEM 열 "Support Seat" (12자) → "Suppor tS\neat" 줄바꿈, SIZE 열 "75x75x9" (7자) → "75x75x\n9" 줄바꿈으로 행 높이 폭주. 사용자 요청 *"열 이름 너비에 맞춰 테이블 너비를 정하고 줄바꿈 값 폰트 축소 가능?"*.
-
-**SDK 검증 결과** (sdk-verifier 2026-05-10):
-- `TemplateTableData.FontSize` / `AutoFit` / `CellFontHeight` **모두 부재** — 셀 단위 폰트 직접 X
-- 우회: `Set2DViewObjectItemTextHeight(objID, fHeight)` 객체 단위 일괄 축소만 가능
-- 텍스트 배경 마스크(2D 도면 측정용) **부재** (T-040 T1 SDK 직접 X 확정)
-- 그리드 셀 좌표(`GetGridCellSize`) **부재** — 캔버스 크기 / 분할로 직접 계산 필요
-- → 이번 라운드 폰트 자동 축소 옵션 채택 보류, **열 너비 재분배만** 적용
-
-**코드 변경** ([A2Z/Form1.DrawingSheets.cs:1301](A2Z/Form1.DrawingSheets.cs:1301)):
-| 열 | 이전 | 변경 후 | 사유 |
-|---|---|---|---|
-| No | 6 | 5 | 헤더 "No" 2자 |
-| ITEM | 17 | **20** | 데이터 "Support Seat" 12자 |
-| MATERIAL | 11 | **12** | 헤더 "MATERIAL" 8자 |
-| SIZE | 11 | **14** | 데이터 "75x75x9" 7자 |
-| Q'TY | 8 | 7 | 헤더 "Q'TY" 4자 |
-| T/W | 12 | 8 | 헤더 "T/W" 3자 |
-| MA | 6 | 5 | 헤더 "MA" 2자 |
-| FA | 6 | 6 | 유지 (합 77mm 균형) |
-
-합계 77mm 유지 (셀 폭 변경 없음).
-
-**미진행 (T-037 잔여)**:
-- BOM 객체 일괄 폰트 축소(`Set2DViewObjectItemTextHeight`) — 객체 ID 추적·회귀 위험 검토 필요
-- ITEM SPREF split 기준 확장 (`:` → `-` → `/`) — 사용자 답변 대기
-- docs/features/drawing-sheets/generate-sheet-2d.md 갱신
-
-**영향 범위**: 2D 출력 시 BOM 테이블만. 흐름 변경 없는 상수 조정 → R1 docs 갱신 생략.
-
-**다음 검증 예상**: 사용자 실기에서 (1) ITEM "Support Seat" 한 줄 표시 (2) SIZE "75x75x9" 한 줄 표시 (3) 다른 부재명·재질에서 회귀 없는지
-
----
-
 ## 2026-05-06 — T-058 치수 Text 보조선 바깥 배치 (회사 doc 개발 요청 — 상 5)
 
 **유형**: feat (회사 doc 사양 반영)
