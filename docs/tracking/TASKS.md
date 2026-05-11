@@ -208,7 +208,10 @@
 ### T-038 — 2D 출력 셀 크기 기반 모델 스케일 + 여백 예산
 - **생성일**: 2026-04-24
 - **착수일**: 2026-05-12
-- **상태**: IN_PROGRESS (T-039와 결합 — 보조선 50/100mm 고정 PoC 1차, 일반 시트만)
+- **상태**: IN_PROGRESS (step B 완료 — `targetH = 0f` 적용. step C 대기: 동적 마진)
+- **사용자 사양 (2026-05-12)**: 모델 셀 가득 + 보조선 영역 확보 (단계별 — B 모델부터, C 동적 마진)
+- **step B (2026-05-12)**: `targetH = 40f → 0f` (Form1.DrawingSheets.cs:1372). `FitObjectToGridCellAspect`만 사용, 추가 스케일 건너뜀
+- **step C 계획**: 셀 가용 높이 = cellH - 라벨박스H(약 10~15mm) - 풍선 영역(약 10~12mm) - 보조선 영역(보조선 max 길이 + 텍스트 마진). 동적 targetH 계산
 - **관련**: — (사용자 직접 지시, T-006 2차 실험 흡수)
 - **배경**: 현재 `targetH=40f` 하드코드. 셀 높이 ≈ 95mm이므로 58% 여유 공간 낭비. 모델을 키우고 싶지만 그리드 이탈·풍선/라벨/치수선 겹침 위험
 - **제안 여백 예산** (사용자 승인 필요):
@@ -232,14 +235,18 @@
 - **생성일**: 2026-04-24
 - **착수일**: 2026-05-12
 - **상태**: IN_PROGRESS (T-038과 결합 — 일반 시트 보조선 50/100mm 고정 PoC 1차, 가공도 별도)
-- **사용자 사양 (2026-05-12)**: 모델을 2D View에 표현한 후 *2D 캔버스 절대 좌표*에서 1단(체인치수) 50mm / 2단(전체치수) 100mm 고정. 기준=보조선 끝점. 텍스트 마진(`AlignDistanceTextMargine`) 보정 X
-- **구현 핵심 (1차)**: `ShowAllDimensions(viewDirection, forDrawing2D)`가 `RescaleObject`보다 *먼저* 호출되는 구조라 **fit scale 사전 추정** 필요. `EstimateFitScaleForCell(row, col, viewDirection, memberIndices)` 신설 — 셀 크기 80% / 모델 BBox 2D 투영 비율로 추정. `ShowAllDimensions` 시그니처에 `baseOffsetOverride`/`levelSpacingOverride` 추가, 호출자가 `50/scale, (100-50)/scale = 50/scale` 전달
-- **세부 (1차)**:
-  - [x] `ShowAllDimensions` 시그니처 확장 — `baseOffsetOverride = -1f`, `levelSpacingOverride = -1f` (Form1.Dimensions.cs:378)
-  - [x] `baseOffset` / `levelSpacing` 변수 override 적용 (Form1.Dimensions.cs:493~495)
-  - [x] `EstimateFitScaleForCell` 헬퍼 신설 (Form1.DrawingSheets.cs:1498)
-  - [x] `RenderSheetViewForDrawing` L1603 호출 직전 estimate + override 전달
-  - [ ] **빌드 통과 후 사용자 사내 PC 실기 — 보조선 시각적 길이가 *모델 스케일과 무관하게* 일정한지 확인. DiagLog `T-038+039 EstimateFitScaleForCell` 값 비교**
+- **사용자 사양 v1 (2026-05-12 초)**: 1단=50mm / 2단=100mm 고정 (캔버스 절대). 기준=보조선 끝점. 텍스트 마진 보정 X
+- **사용자 사양 v2 (2026-05-12)**: 각 뷰의 치수 max 기준 동적 분기
+  - max > 1000mm → 보조선 1단=10mm / 2단=20mm (캔버스 절대)
+  - max ≤ 1000mm → 보조선 1단=20mm / 2단=40mm (≤500 포함)
+  - 큰 치수일수록 보조선 짧게 (시각 균형)
+- **구현 핵심 (v2)**: `ShowAllDimensions` 내부에서 `filteredDims.Max(d => d.Distance)` 계산 후 분기. `ShowAllDimensions` 시그니처 단순화 — 두 override(`baseOffsetOverride`, `levelSpacingOverride`) 제거, `canvasScaleOverride` 하나로 통합. 호출자는 scale 추정만 전달, 분기 로직은 내부 책임.
+- **세부 (v2)**:
+  - [x] `ShowAllDimensions` 시그니처 단순화 — `canvasScaleOverride = -1f` (Form1.Dimensions.cs:378)
+  - [x] 내부 분기 — `maxDist > 1000` 기준 canvasBase/canvasLvl 결정 후 `/ scale`로 모델좌표 변환 (Form1.Dimensions.cs:497~)
+  - [x] `EstimateFitScaleForCell` 헬퍼 그대로 사용 (Form1.DrawingSheets.cs:1498)
+  - [x] `RenderSheetViewForDrawing` L1603 호출 — `estScale`만 전달 (분기 로직 호출자 제거)
+  - [ ] **빌드 통과 후 사용자 사내 PC 실기 — 큰 치수 시트(>1000) 보조선 10/20mm, 작은 시트(≤1000) 20/40mm 도달 확인. DiagLog `T-038+039 v2 maxDist=N` 값 비교**
 - **잔여 (2차 — 가공도 적용)**:
   - [ ] Form1.MfgDrawing.cs L365 `mfgChainOff1 = 100.0f * offFactor_3d` 식 동일 패턴 적용
   - [ ] EA 신규 뷰(L1746), MULTI 가공도(L1229) 동일

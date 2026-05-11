@@ -1368,8 +1368,10 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(5f);
 
                 // ── 5. 4개 뷰 투영 + 스케일 조정 + 풍선/치수 변환 ──
-                // targetHeight: 세로 40mm 기준 스케일 조정 (RescaleObject → Note/Measure 변환 순서)
-                float targetH = 40f;  // 목표 세로 크기 (mm)
+                // T-038 (2026-05-12 사용자 사양): 모델을 셀 가득 — FitObjectToGridCellAspect만 사용.
+                // targetH = 0f면 RescaleObject 추가 스케일 건너뜀 (RenderSheetViewForDrawing L1702 분기).
+                // 차후 C단계: 라벨/보조선 영역 확보 위해 동적 targetH 도입 예정.
+                float targetH = 0f;  // 모델 가득 (이전 40f → 셀의 30%만 차지하던 문제 해소)
 
                 // [1,1] ISO — 풍선번호
                 RenderSheetViewForDrawing(1, 1, "ISO", sheet, targetH);
@@ -1654,14 +1656,12 @@ namespace A2Z
             else
             {
                 // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선 ShapeDrawing ID 수집)
-                // T-038+039: 캔버스 절대 mm로 보조선 길이 고정 — 1단=50mm, 2단=100mm.
-                // 모델 좌표 mm로 역산: baseOffset = 50/scale, levelSpacing = (100-50)/scale = 50/scale.
-                // ShowAllDimensions가 RescaleObject 전에 호출되므로 사전 추정 scale 사용.
+                // T-038+039 v2: 치수 max 기반 동적 분기 — ShowAllDimensions가 내부에서 결정.
+                //   max > 1000mm: 보조선 10/20mm / max ≤ 1000mm: 20/40mm (캔버스 절대 mm).
+                // 호출자는 scale만 추정해 전달. ShowAllDimensions가 RescaleObject 전이라 사전 추정 필요.
                 float estScale = EstimateFitScaleForCell(row, col, viewDirection,
                     isIsoFullView ? allBomIndices : sheet.MemberIndices);
-                float baseOff = 50.0f / estScale;
-                float lvlSpace = 50.0f / estScale;  // 100mm - 50mm = 50mm 차분
-                shapeDrawingIds = ShowAllDimensions(viewDirection, true, baseOff, lvlSpace);
+                shapeDrawingIds = ShowAllDimensions(viewDirection, true, estScale);
             }
 
             // ── 5. 2패스 2D 투영 (Sheet 2+ ISO: 나머지 부재 가는점선 + 시트 부재 굵은실선) ──

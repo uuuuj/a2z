@@ -6,6 +6,81 @@
 
 ---
 
+## 2026-05-12 — T-038 step B: 모델 셀 가득 (targetH 40f → 0f)
+
+**유형**: feat (사용자 사양 — T-038 본진 1차)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 (IN_PROGRESS)
+**관련 FEEDBACK**: FB-004
+
+**사용자 사양 (2026-05-12)**: *"각 그리드에 꽉 차게 하고 싶다. 모델은 꽉차면서 보조선 영역도 확보해야 — 단계별로 모델부터 키우자."*
+
+**현상 (T-038+039 v2 push 후 사용자 스크린샷)**: 4뷰가 셀의 약 30%만 차지. 보조선 길이는 줄어들었으나 모델 자체가 작음.
+
+**원인**: `Form1.DrawingSheets.cs:1372` `float targetH = 40f` 하드코딩. `RenderSheetViewForDrawing` → `FitObjectToGridCellAspect` 후 추가로 *세로 40mm* RescaleObject 호출 → 셀(약 128mm) 대비 30%로 축소.
+
+**변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.DrawingSheets.cs:1372](A2Z/Form1.DrawingSheets.cs:1372) | `float targetH = 40f` → `float targetH = 0f` |
+
+**동작 변화**: `RenderSheetViewForDrawing` L1702 `if (targetHeight > 0)` 분기 false → 추가 RescaleObject 건너뜀 → `FitObjectToGridCellAspect`만 사용 → 모델이 셀 비율 유지하며 가득 채움.
+
+**기대 효과**:
+- 4뷰 모델이 셀의 약 90~100% 차지
+- 보조선 캔버스 절대 길이(10/20mm 또는 20/40mm)는 그대로 — 모델 가까이 그려짐
+- 풍선·라벨 영역 충돌 가능성 있음 — 다음 step C에서 동적 마진 도입 예정
+
+**다음 단계 (C — 사용자 결정)**:
+- 라벨 영역(셀 하단 라벨 박스) + 풍선 영역 + 보조선 영역 차감
+- 동적 targetH 계산 — 셀 가용 높이 = cellH - 라벨H - 풍선H - 보조선H
+- 모델은 그 가용 영역 안에서 가득
+
+**검증 포인트** (사용자 사내 PC):
+- 4뷰 모델이 이전(스크린샷) 대비 *눈에 띄게* 큼
+- 셀 밖으로 보조선·풍선·치수 텍스트가 *튀어나가는지* 확인 (튀어나가면 step C 필요)
+- 라벨(예: "ISO", "LOOKING Z") 박스와 모델 겹치는지
+
+---
+
+## 2026-05-12 — T-038+T-039 v2: 치수 max 기반 보조선 길이 동적 분기
+
+**유형**: feat (사용자 사양 v2 — v1 50/100mm 교체)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 + T-039 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**사용자 사양 v2 (2026-05-12)**: *"각 뷰에서 치수를 표시할 때 뷰의 치수 중 가장 큰 치수를 기준으로 1000이 넘는 치수면 보조선 길이를 10mm, 20mm로 하고 500 이하면 20mm, 40mm."* — 큰 치수일수록 보조선 짧게 (시각 균형).
+
+**v1 (50/100mm 고정)과의 차이**: 정적 → 동적. 뷰의 치수 max 기준 분기.
+
+**구현 (v2 — v1 교체)**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.Dimensions.cs:378](A2Z/Form1.Dimensions.cs:378) | `ShowAllDimensions` 시그니처 **단순화** — v1의 `baseOffsetOverride / levelSpacingOverride` 두 파라미터 제거, `canvasScaleOverride = -1f` 하나로 통합 |
+| [Form1.Dimensions.cs:497~](A2Z/Form1.Dimensions.cs:497) | 내부 분기 — `filteredDims.Max(d => d.Distance)` 후 `(maxDist > 1000f) ? 10f : 20f` (1단 캔버스 mm), `(maxDist > 1000f) ? 10f : 20f` (차분). 모델좌표 = canvasMm / canvasScale |
+| [Form1.DrawingSheets.cs:1603](A2Z/Form1.DrawingSheets.cs:1603) | 호출자 단순화 — `EstimateFitScaleForCell` 후 `estScale`만 전달 (분기 로직 ShowAllDimensions 내부로 이관) |
+
+**분기 매트릭스**:
+| 치수 max | 1단 캔버스 | 2단 캔버스 | 1단 모델좌표 | 2단 모델좌표 |
+|---|---|---|---|---|
+| > 1000mm | 10mm | 20mm | 10/scale | 20/scale |
+| ≤ 1000mm | 20mm | 40mm | 20/scale | 40/scale |
+
+**다른 ShowAllDimensions 호출자**: 5곳 모두 `canvasScaleOverride` 생략 → default `-1f` → 기존 100/80mm 모델좌표 동작 보존.
+
+**DiagLog**: `T-038+039 v2 view=X maxDist=N.N canvasBase=N canvasLvl=N scale=N.NNNN → baseOffset_3d=N.NN levelSpacing_3d=N.NN`
+
+**검증 포인트** (사용자 사내 PC):
+- 치수 1000mm 초과 부재 시트: 보조선 10mm/20mm 시각 도달
+- 치수 1000mm 이하 부재 시트: 20mm/40mm 도달
+- 큰·작은 부재 시트 보조선이 *시각적으로* 균형 (큰 부재일수록 짧음)
+
+---
+
 ## 2026-05-12 — T-038+T-039: 일반 시트 보조선 길이 캔버스 절대 50/100mm 고정 (1차 PoC)
 
 **유형**: feat (사용자 사양)

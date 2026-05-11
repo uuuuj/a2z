@@ -378,8 +378,7 @@ namespace A2Z
         private List<int> ShowAllDimensions(
             string viewDirection = null,
             bool forDrawing2D = false,
-            float baseOffsetOverride = -1f,
-            float levelSpacingOverride = -1f)
+            float canvasScaleOverride = -1f)
         {
             // T-028: 치수 계산은 호출자가 chainDimensionList에 미리 채움 (치수추출·시트 선택·2D 출력 모두 동일).
             // 본 메서드는 chainDimensionList를 viewDirection 기준으로 필터링해 3D 뷰에 표시하는 역할만.
@@ -494,10 +493,26 @@ namespace A2Z
                 float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
                 // 오프셋 (3D/2D 동일 — 2D 변환 시 좌표가 함께 변환되므로 동일 값 사용)
-                // T-038+039: 호출자가 캔버스 절대 mm 목표(예: 1단=50mm, 2단=100mm)에서 역산한
-                // 모델 좌표 값을 override로 전달 가능. -1f면 기존 default 사용.
-                float baseOffset = (baseOffsetOverride > 0f) ? baseOffsetOverride : 100.0f;
-                float levelSpacing = (levelSpacingOverride > 0f) ? levelSpacingOverride : 80.0f;
+                // T-038+039 v2 (2026-05-12): canvasScaleOverride 전달 시 *치수 max 기반 동적 분기*.
+                //   max > 1000mm : 보조선 캔버스 절대 1단=10mm / 2단=20mm
+                //   max ≤ 1000mm : 보조선 캔버스 절대 1단=20mm / 2단=40mm
+                //   (사용자 사양 — 큰 치수일수록 보조선 짧게, 시각 균형)
+                // 모델좌표 변환: canvasOffsetMm / canvasScale
+                float baseOffset, levelSpacing;
+                if (canvasScaleOverride > 0f && filteredDims.Count > 0)
+                {
+                    float maxDist = filteredDims.Max(d => d.Distance);
+                    float canvasBase = (maxDist > 1000f) ? 10f : 20f;       // 1단 캔버스 mm
+                    float canvasLvl  = (maxDist > 1000f) ? 10f : 20f;       // 차분 (20-10) or (40-20)
+                    baseOffset = canvasBase / canvasScaleOverride;
+                    levelSpacing = canvasLvl / canvasScaleOverride;
+                    DiagLog($"T-038+039 v2 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
+                }
+                else
+                {
+                    baseOffset = 100.0f;
+                    levelSpacing = 80.0f;
+                }
 
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
