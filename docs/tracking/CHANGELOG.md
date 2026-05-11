@@ -6,6 +6,62 @@
 
 ---
 
+## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 3 (JSON 파싱 → 우리가 직접 렌더, 옵션 A 본진)
+
+**유형**: feat (PoC)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-012 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-002
+
+**Step 2 검증 결과** (사용자 사내 PC):
+- Reflection으로 internal `Draw2DViewTemplate(string)` / `Set2DViewDefaultTemplate(string)` 호출 — 모두 *예외 없이* "성공"으로 표시되지만 캔버스 빔
+- 즉 SDK dll obfuscation 보호로 internal 메서드가 외부 호출 시 **silent fail** (void 반환, 내부 검증 실패)
+- xlsx 경로, -1 등 시도 모두 같은 결과
+- 추가 후보(JSON 경로, Template_0, SHI)도 같은 패턴일 가능성 매우 큼
+
+**결론**: SDK의 사용자 추가 템플릿 자동 적용 API는 **외부에서 호출 불가**. SDK 자동 적용 경로 폐기. **옵션 A 본진(JSON 직접 파싱 + 우리 렌더)** 진입.
+
+**옵션 A 전략 검증** (사용자 질의 "JSON 파싱해서 직접 그리면 원래 방식이랑 다른가?"에 대한 답):
+- 엑셀 외부 관리 가치 **그대로 유지** (사용자 엑셀 편집 → SDK 분석 → 우리 렌더 3단계)
+- 원래 GenerateSheetDrawing2D(코드 하드코딩) 대비 양식 수정 시 재빌드 X
+- REQ-002의 "시나리오 2 (하이브리드 추천안)"과 일치
+
+**SDK reflection 분석으로 발견한 핵심 public API**:
+
+| 메서드 | 가시성 | 용도 |
+|---|---|---|
+| `ShapeDrawingManager.AddLine(List<Vertex3DItemCollection>, ...)` → int | PUBLIC | 3D 공간 라인 세그먼트 일괄 추가, ID 반환 |
+| `Drawing2DObjectManager.Add2DObjectFromShapeDrawing(List<int>)` | PUBLIC | **3D ShapeDrawing → 2D 캔버스 변환 핵심** |
+| `ShapeDrawingManager.Clear()` | PUBLIC | 기존 ShapeDrawing 제거 |
+| `TextDrawingManager.Add(Vertex3D, Vector3D, Vector3D, float, Color, string)` | PUBLIC | 3D 텍스트 (Step 4 후보) |
+| `NoteManager.AddNote2D(...)` | PUBLIC (단 VIZCore3DControl 미노출) | Step 4 별도 경로 탐색 필요 |
+
+**Step 3 변경 — Line만 PoC (Text는 Step 4)**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.ExcelTemplate.cs](A2Z/Form1.ExcelTemplate.cs) | 전면 재작성 — JSON 자동 검색(`%APPDATA%\SOFTHILLS\VIZCore3D+.NET\Template\Template_0\*.json`) + `JavaScriptSerializer` 파싱 + InputBox 모드(1=Line 10개, 2=Line 전체, 0=Clear) + `ShapeDrawing.AddLine` → `Add2DObjectFromShapeDrawing` |
+| [A2Z.csproj:48](A2Z/A2Z.csproj:48) | `<Reference Include="System.Web.Extensions" />` 추가 (JSON 직렬화) |
+
+**Text 처리 보류 사유**: `vizcore3d.Note`가 VIZCore3DControl에 노출 안 됨 (PowerShell reflection 검증). Step 4에서 `TextDrawing.Add` (3D 텍스트 + 2D 변환) 또는 NoteManager 직접 인스턴스화 등 별도 탐색.
+
+**JSON 파싱 데이터** (사용자 SHI Rev_01 export 기준):
+- Line 1539 / Text 2201 / Image 4
+- 좌표 단위 mm, 범위 X 0~355.6 / Y 0~227.3 (W/H 1.565, A4 비율 1.414 근접)
+
+**사용자 검증 대기** (사내 PC):
+1. `git pull` + 빌드 + A2Z.exe 실행
+2. "엑셀 PoC" 클릭 → InputBox에 **"1"** 입력 (Line 10개 시각 검증)
+3. 2D View 캔버스 확인:
+   - ✅ 라인 일부 보임 → Step 4 (Text + 전체 그리기) 진행
+   - 일부만 보임 → 좌표/스케일 분석
+   - ❌ 안 보임 → ShapeDrawing이 *모델 좌표 공간*에 그려졌을 가능성. 카메라 시점 또는 모드 진입 필요
+
+**docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) Step 3 흐름 + 핵심 SDK API 표 갱신
+
+---
+
 ## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 2 (Reflection 우회 호출)
 
 **유형**: feat (PoC)

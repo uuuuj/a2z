@@ -1,186 +1,171 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using VIZCore3D.NET.Data;
 
 namespace A2Z
 {
     public partial class Form1
     {
         /// <summary>
-        /// REQ-002 / T-012 PoC Step 1 — 엑셀 템플릿을 2D View 캔버스에 import 단독 검증.
-        /// 기존 GenerateSheetDrawing2D는 건드리지 않고 별도 경로로 시각 결과만 확인.
-        /// 호출 후 사내 PC에서 결과를 보고 Step 2(셀 좌표 매핑 → 모델 배치) 진행 여부 결정.
+        /// REQ-002 / T-012 PoC Step 3 (옵션 A 본진) —
+        /// SDK가 ImportExcel로 생성한 JSON을 우리가 직접 파싱하고,
+        /// ShapeDrawing.AddLine + Drawing2D.Object2D.Add2DObjectFromShapeDrawing 으로 2D 캔버스에 직접 렌더.
+        /// SDK 자동 적용(Step 1/2)이 사용자 추가 템플릿에 동작 안 함이 확정되어 우리가 렌더 책임.
         /// </summary>
         private void btnExcelTemplatePoC_Click(object sender, EventArgs e)
         {
-            string baseDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "";
+            // 1. JSON 경로 자동 검색 — SDK 내부 폴더의 가장 오래된 SHI(Template_0)
+            string sdkTemplateRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SOFTHILLS", "VIZCore3D+.NET", "Template");
 
-            // 후보 경로 (실행 폴더 → 솔루션 루트 → a2z 루트)
-            string[] candidates = new[]
+            string jsonPath = null;
+            string candidate = Path.Combine(sdkTemplateRoot, "Template_0", "사용자템플릿_엑셀_Rev_01.json");
+            if (File.Exists(candidate))
             {
-                Path.Combine(baseDir, "사용자템플릿_엑셀_Rev_01.xlsx"),
-                Path.Combine(baseDir, "..", "..", "..", "사용자템플릿_엑셀_Rev_01.xlsx"),
-                Path.Combine(baseDir, "..", "..", "사용자템플릿_엑셀_Rev_01.xlsx"),
-            };
-            string excelPath = candidates
-                .Select(p =>
-                {
-                    try { return Path.GetFullPath(p); }
-                    catch { return null; }
-                })
-                .FirstOrDefault(p => p != null && File.Exists(p));
-
-            if (excelPath == null)
+                jsonPath = candidate;
+            }
+            else if (Directory.Exists(sdkTemplateRoot))
             {
-                using (var ofd = new OpenFileDialog())
+                // Template_0 이름 변경됐을 경우 최신 폴더 검색
+                var folders = Directory.GetDirectories(sdkTemplateRoot, "Template_*")
+                    .OrderBy(d => new DirectoryInfo(d).CreationTime)
+                    .ToList();
+                foreach (var folder in folders)
                 {
-                    ofd.Title = "엑셀 템플릿 선택 (PoC)";
-                    ofd.Filter = "Excel files (*.xlsx)|*.xlsx";
-                    ofd.InitialDirectory = baseDir;
-                    if (ofd.ShowDialog() != DialogResult.OK) return;
-                    excelPath = ofd.FileName;
+                    var jsonFiles = Directory.GetFiles(folder, "*.json");
+                    if (jsonFiles.Length > 0)
+                    {
+                        jsonPath = jsonFiles[0];
+                        break;
+                    }
                 }
             }
 
-            DiagLog($"[PoC-Excel-Step2] 시작 path={excelPath}");
+            if (jsonPath == null)
+            {
+                using (var ofd = new OpenFileDialog())
+                {
+                    ofd.Title = "SDK 변환 JSON 파일 선택";
+                    ofd.Filter = "JSON files (*.json)|*.json";
+                    ofd.InitialDirectory = sdkTemplateRoot;
+                    if (ofd.ShowDialog() != DialogResult.OK) return;
+                    jsonPath = ofd.FileName;
+                }
+            }
+
+            DiagLog($"[PoC-Excel-Step3] 시작 jsonPath={jsonPath}");
 
             try
             {
-                var templateManager = vizcore3d.Drawing2D.Template;
-                var managerType = templateManager.GetType();
+                // 2. JSON 파싱
+                var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+                var jsonText = File.ReadAllText(jsonPath);
+                var data = serializer.Deserialize<Dictionary<string, object>>(jsonText);
 
-                // (1) TemplatePath 읽기 — SDK 데이터 폴더 위치 확인
-                string sdkTemplatePath = "(unknown)";
-                try
-                {
-                    var prop = managerType.GetProperty("TemplatePath",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (prop != null)
-                    {
-                        sdkTemplatePath = prop.GetValue(templateManager) as string ?? "(null)";
-                    }
-                }
-                catch (Exception inner)
-                {
-                    sdkTemplatePath = $"(read failed: {inner.Message})";
-                }
-                DiagLog($"[PoC-Excel-Step2] SDK TemplatePath = {sdkTemplatePath}");
+                var lineArr = data.ContainsKey("Line") ? data["Line"] as ArrayList : null;
+                var textArr = data.ContainsKey("Text") ? data["Text"] as ArrayList : null;
+                var imageArr = data.ContainsKey("Image") ? data["Image"] as ArrayList : null;
 
-                // (2) ImportExcel 재실행 여부 — 누적 방지
-                string reimportInput = Microsoft.VisualBasic.Interaction.InputBox(
-                    "ImportExcel 재실행? (트리 누적 방지)\n\n" +
-                    "  Y : 엑셀을 다시 import (트리에 새 항목 추가됨)\n" +
-                    "  N : skip, 기존 등록 그대로 사용 (인덱스 시도만)",
-                    "PoC-Excel Step 2",
-                    "N");
-                if (string.IsNullOrEmpty(reimportInput)) return;
+                int lineCount = lineArr?.Count ?? 0;
+                int textCount = textArr?.Count ?? 0;
+                int imageCount = imageArr?.Count ?? 0;
+                DiagLog($"[PoC-Excel-Step3] JSON 파싱 OK: Line={lineCount} Text={textCount} Image={imageCount}");
 
-                if (reimportInput.Trim().Equals("Y", StringComparison.OrdinalIgnoreCase))
-                {
-                    templateManager.ImportExcel(excelPath);
-                    DiagLog("[PoC-Excel-Step2] ImportExcel 재호출 완료");
-                }
-                else
-                {
-                    DiagLog("[PoC-Excel-Step2] ImportExcel 재호출 skip");
-                }
+                // 3. InputBox — 시도 모드 선택 (Step 3 PoC: Line만. Text는 별도 API 탐색 필요)
+                string mode = Microsoft.VisualBasic.Interaction.InputBox(
+                    "그리기 모드 선택 (Line만 — Text는 다음 단계):\n\n" +
+                    "  1 : Line 10개만 (시각 검증)\n" +
+                    "  2 : Line 전체 (" + lineCount + "개)\n" +
+                    "  0 : 기존 ShapeDrawing 모두 제거 (clear)",
+                    "PoC-Excel Step 3",
+                    "1");
+                if (string.IsNullOrEmpty(mode)) return;
+                mode = mode.Trim();
 
-                // (3) 적용 시도 — filePath 후보 입력
-                string defaultFp = excelPath;
-                string filePathInput = Microsoft.VisualBasic.Interaction.InputBox(
-                    "Draw2DViewTemplate(filePath) reflection 호출용 경로:\n\n" +
-                    "후보:\n" +
-                    "  (a) 원본 xlsx — 위 기본값\n" +
-                    "  (b) export JSON — C:\\Users\\duddl\\Desktop\\Template\\Template_0\\사용자템플릿_엑셀_Rev_01.json\n" +
-                    "  (c) SDK 내부 폴더 = " + sdkTemplatePath + "\n\n" +
-                    "한 후보씩 시도. 빈값이면 reflection skip하고 int(-1)만 호출.",
-                    "PoC-Excel Step 2",
-                    defaultFp);
-
-                if (string.IsNullOrEmpty(filePathInput))
+                if (mode == "0")
                 {
-                    // skip → 빈 템플릿(-1)으로 캔버스 초기화 후 종료
-                    try
-                    {
-                        templateManager.Set2DViewDefaultTemplate(-1);
-                        DiagLog("[PoC-Excel-Step2] Set2DViewDefaultTemplate(-1) — 빈 템플릿 호출");
-                    }
-                    catch (Exception clearEx)
-                    {
-                        DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(-1) 실패 {clearEx.Message}");
-                    }
+                    try { vizcore3d.ShapeDrawing.Clear(); DiagLog("[PoC-Excel-Step3] ShapeDrawing.Clear 호출"); }
+                    catch (Exception clearEx) { DiagLog($"[PoC-Excel-Step3] ShapeDrawing.Clear 실패 {clearEx.Message}"); }
+                    MessageBox.Show("ShapeDrawing 제거 시도 완료. 캔버스 확인.", "PoC-Excel Step 3");
                     return;
                 }
 
-                string filePath = filePathInput.Trim();
+                int lineLimit = (mode == "1") ? 10 : lineCount;
 
-                // Reflection — Draw2DViewTemplate(string) 호출
-                bool drawCalled = false;
-                try
+                // 4. Line 그리기 — ShapeDrawing.AddLine(List<Vertex3DItemCollection>)
+                int linesDrawn = 0;
+                int shapeId = -1;
+                if (lineArr != null && lineLimit > 0)
                 {
-                    var drawMethod = managerType.GetMethod("Draw2DViewTemplate",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new[] { typeof(string) }, null);
-                    if (drawMethod != null)
+                    var allLines = new List<Vertex3DItemCollection>();
+                    for (int i = 0; i < Math.Min(lineLimit, lineArr.Count); i++)
                     {
-                        drawMethod.Invoke(templateManager, new object[] { filePath });
-                        DiagLog($"[PoC-Excel-Step2] Draw2DViewTemplate(\"{filePath}\") reflection 호출 성공");
-                        drawCalled = true;
-                    }
-                    else
-                    {
-                        DiagLog("[PoC-Excel-Step2] Draw2DViewTemplate(string) 메서드 못 찾음");
-                    }
-                }
-                catch (Exception drawEx)
-                {
-                    var real = drawEx.InnerException ?? drawEx;
-                    DiagLog($"[PoC-Excel-Step2] Draw2DViewTemplate reflection 실패 {real.GetType().Name}: {real.Message}");
-                }
+                        var ln = lineArr[i] as Dictionary<string, object>;
+                        if (ln == null) continue;
 
-                // Reflection — Set2DViewDefaultTemplate(string) 호출 (fallback)
-                bool setStringCalled = false;
-                try
-                {
-                    var setMethod = managerType.GetMethod("Set2DViewDefaultTemplate",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null, new[] { typeof(string) }, null);
-                    if (setMethod != null)
-                    {
-                        setMethod.Invoke(templateManager, new object[] { filePath });
-                        DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(\"{filePath}\") reflection 호출 성공");
-                        setStringCalled = true;
+                        float minX = Convert.ToSingle(ln["minX"]);
+                        float minY = Convert.ToSingle(ln["minY"]);
+                        float maxX = Convert.ToSingle(ln["maxX"]);
+                        float maxY = Convert.ToSingle(ln["maxY"]);
+
+                        var seg = new Vertex3DItemCollection();
+                        seg.Add(new Vertex3D(minX, minY, 0f));
+                        seg.Add(new Vertex3D(maxX, maxY, 0f));
+                        allLines.Add(seg);
+                        linesDrawn++;
                     }
-                    else
+
+                    try
                     {
-                        DiagLog("[PoC-Excel-Step2] Set2DViewDefaultTemplate(string) 메서드 못 찾음");
+                        shapeId = vizcore3d.ShapeDrawing.AddLine(allLines, -1, System.Drawing.Color.Black, 0.3f, true);
+                        DiagLog($"[PoC-Excel-Step3] ShapeDrawing.AddLine OK count={linesDrawn} shapeId={shapeId}");
                     }
-                }
-                catch (Exception setEx)
-                {
-                    var real = setEx.InnerException ?? setEx;
-                    DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(string) reflection 실패 {real.GetType().Name}: {real.Message}");
+                    catch (Exception lineEx)
+                    {
+                        DiagLog($"[PoC-Excel-Step3] ShapeDrawing.AddLine 실패 {lineEx.GetType().Name}: {lineEx.Message}");
+                    }
+
+                    // 3D ShapeDrawing → 2D 캔버스로 변환
+                    if (shapeId > 0)
+                    {
+                        try
+                        {
+                            vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(new List<int> { shapeId });
+                            DiagLog($"[PoC-Excel-Step3] Add2DObjectFromShapeDrawing OK shapeId={shapeId}");
+                        }
+                        catch (Exception conv2dEx)
+                        {
+                            DiagLog($"[PoC-Excel-Step3] Add2DObjectFromShapeDrawing 실패 {conv2dEx.GetType().Name}: {conv2dEx.Message}");
+                        }
+                    }
                 }
 
                 MessageBox.Show(
-                    $"Reflection 호출 결과:\n" +
-                    $"  - SDK TemplatePath: {sdkTemplatePath}\n" +
-                    $"  - filePath: {filePath}\n" +
-                    $"  - Draw2DViewTemplate: {(drawCalled ? "호출됨" : "실패")}\n" +
-                    $"  - Set2DViewDefaultTemplate(str): {(setStringCalled ? "호출됨" : "실패")}\n\n" +
-                    "2D View 캔버스 확인. logs/diag-yyyy-mm-dd.log 에 상세 기록.",
-                    "PoC-Excel Step 2",
+                    $"PoC Step 3 결과 (Line만):\n" +
+                    $"  - JSON: {Path.GetFileName(jsonPath)}\n" +
+                    $"  - Line 추가: {linesDrawn}/{lineCount} (shapeId={shapeId})\n" +
+                    $"  - Text({textCount}) / Image({imageCount}): 다음 단계\n\n" +
+                    "2D View 캔버스 확인.\n" +
+                    "  - 셀 테두리가 보이면 → 좌표·렌더 성공! Text/Image 단계 진행\n" +
+                    "  - 안 보이면 → 좌표 단위 mismatch 또는 2D 모드 진입 필요\n" +
+                    "  - 일부만 보이면 → 좌표 범위 OK, 일부 누락 원인 분석",
+                    "PoC-Excel Step 3",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                DiagLog($"[PoC-Excel-Step2] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                DiagLog($"[PoC-Excel-Step3] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show(
-                    $"오류: {ex.GetType().Name}\n{ex.Message}\n\n자세한 내용은 logs/diag-yyyy-mm-dd.log 참고.",
-                    "PoC-Excel Step 2 실패",
+                    $"오류: {ex.GetType().Name}\n{ex.Message}\n\nlogs/diag-yyyy-mm-dd.log 참고.",
+                    "PoC-Excel Step 3 실패",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
