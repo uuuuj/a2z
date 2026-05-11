@@ -1792,7 +1792,9 @@ namespace A2Z
                 float tolerance = 0.5f;  // 허용 오차 0.5mm
 
                 // 좌표 병합 (허용 오차 내 같은 좌표로 그룹화)
-                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
+                // REQ-003 (2026-05-11): osnapPointsWithNames는 3원소(axis 포함)지만 MergeCoordinates는 2원소만 받음 → 변환
+                var osnapPts2 = osnapPointsWithNames.Select(p => (p.point, p.nodeName)).ToList();
+                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPts2, tolerance);
 
                 // X축 방향 체인 치수 (Y, Z가 같은 점들)
                 var xDimensions = AddChainDimensionByAxis(mergedPoints, "X", tolerance);
@@ -1854,7 +1856,7 @@ namespace A2Z
         /// 좌표 병합 (허용 오차 내 같은 좌표로 그룹화)
         /// </summary>
         private List<VIZCore3D.NET.Data.Vector3D> MergeCoordinates(
-            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName, string axis)> points, float tolerance)
+            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> points, float tolerance)
         {
             List<VIZCore3D.NET.Data.Vector3D> result = new List<VIZCore3D.NET.Data.Vector3D>();
 

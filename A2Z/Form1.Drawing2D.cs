@@ -505,18 +505,16 @@ namespace A2Z
                             switch (osnap.Kind)
                             {
                                 case VIZCore3D.NET.Data.OsnapKind.LINE:
-                                    // 선: 시작점과 끝점 추가
-                                    if (osnap.Start != null)
+                                    // 선: 시작점과 끝점 추가 (REQ-003: 축 추정)
+                                    if (osnap.Start != null && osnap.End != null)
                                     {
+                                        string lineAxis = EstimateOsnapLineAxis(osnap.Start, osnap.End);
                                         var startVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
                                         osnapPoints.Add(startVertex);
-                                        osnapPointsWithNames.Add((startVertex, nodeName));
-                                    }
-                                    if (osnap.End != null)
-                                    {
+                                        osnapPointsWithNames.Add((startVertex, nodeName, lineAxis));
                                         var endVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
                                         osnapPoints.Add(endVertex);
-                                        osnapPointsWithNames.Add((endVertex, nodeName));
+                                        osnapPointsWithNames.Add((endVertex, nodeName, lineAxis));
                                     }
                                     lineCount++;
                                     break;
@@ -527,12 +525,12 @@ namespace A2Z
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.POINT:
-                                    // 점: 중심점 추가
+                                    // 점: 중심점 추가 (REQ-003: 축 없음)
                                     if (osnap.Center != null)
                                     {
                                         var pointVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(pointVertex);
-                                        osnapPointsWithNames.Add((pointVertex, nodeName));
+                                        osnapPointsWithNames.Add((pointVertex, nodeName, ""));
                                     }
                                     pointCount++;
                                     break;
@@ -559,15 +557,13 @@ namespace A2Z
                     for (int i = 0; i < osnapPointsWithNames.Count; i++)
                     {
                         var item = osnapPointsWithNames[i];
+                        // REQ-003: 컬럼 순서 No / 축 / 부재이름 / X / Y / Z
                         ListViewItem lvi = new ListViewItem((i + 1).ToString());
+                        lvi.SubItems.Add(item.axis);
                         lvi.SubItems.Add(item.nodeName);
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
-                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
-                        lvi.SubItems.Add(sizes.holeSize);
-                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
                 }
@@ -600,7 +596,9 @@ namespace A2Z
                 float tolerance = 0.5f;  // 허용 오차 0.5mm
 
                 // 좌표 병합 (허용 오차 내 같은 좌표로 그룹화)
-                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPointsWithNames, tolerance);
+                // REQ-003: osnapPointsWithNames 3원소 → MergeCoordinates 2원소 변환
+                var osnapPts2_d2 = osnapPointsWithNames.Select(p => (p.point, p.nodeName)).ToList();
+                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPts2_d2, tolerance);
 
                 // X축 방향 체인 치수 (Y, Z가 같은 점들)
                 var xDimensions = AddChainDimensionByAxis(mergedPoints, "X", tolerance);
@@ -727,19 +725,17 @@ namespace A2Z
                 }
 
                 osnapPoints.Add(point);
-                osnapPointsWithNames.Add((point, nodeName));
+                // REQ-003: 수동 추가는 축 정보 없음 → ""
+                osnapPointsWithNames.Add((point, nodeName, ""));
 
-                // ListView에 추가
+                // ListView에 추가 (REQ-003: No / 축 / 부재이름 / X / Y / Z)
                 int newIndex = osnapPointsWithNames.Count;
                 ListViewItem lvi = new ListViewItem(newIndex.ToString());
+                lvi.SubItems.Add("");
                 lvi.SubItems.Add(nodeName);
                 lvi.SubItems.Add(point.X.ToString("F2"));
                 lvi.SubItems.Add(point.Y.ToString("F2"));
                 lvi.SubItems.Add(point.Z.ToString("F2"));
-                var matchBom = bomList?.FirstOrDefault(b => b.Name == nodeName);
-                var sizes = GetHoleOrSlotForPoint(matchBom, point.X, point.Y, point.Z);
-                lvi.SubItems.Add(sizes.holeSize);
-                lvi.SubItems.Add(sizes.slotHoleSize);
                 lvOsnap.Items.Add(lvi);
             }
             catch (Exception ex)
