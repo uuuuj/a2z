@@ -499,6 +499,13 @@ namespace A2Z
                 //   (사용자 사양 — 큰 치수일수록 보조선 짧게, 시각 균형)
                 // 모델좌표 변환: canvasOffsetMm / canvasScale
                 float baseOffset, levelSpacing;
+
+                // T-038+039 v3 (2026-05-12 사용자 사양): 짧은 축 치수의 보조선만 절반
+                //   "한쪽 전체 치수가 다른쪽보다 1/3 이하면 보조선 길이를 또 절반"
+                //   예: 높이 max=500 / 너비 max=60 → 60 < 500/3 → 너비(짧은 축)의 보조선 절반
+                // axisShortHalf Dict — true면 해당 축 치수의 보조선 0.5배
+                var axisShortHalf = new HashSet<string>();
+
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
                     float maxDist = filteredDims.Max(d => d.Distance);
@@ -506,7 +513,20 @@ namespace A2Z
                     float canvasLvl  = (maxDist > 1000f) ? 10f : 20f;       // 차분 (20-10) or (40-20)
                     baseOffset = canvasBase / canvasScaleOverride;
                     levelSpacing = canvasLvl / canvasScaleOverride;
-                    DiagLog($"T-038+039 v2 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
+
+                    // 축별 max 계산 → 1/3 이하인 축 식별
+                    var axisMaxes = filteredDims.GroupBy(d => d.Axis)
+                        .ToDictionary(g => g.Key, g => g.Max(d => d.Distance));
+                    if (axisMaxes.Count >= 2)
+                    {
+                        float globalMaxMax = axisMaxes.Max(kv => kv.Value);
+                        foreach (var kv in axisMaxes)
+                        {
+                            if (kv.Value < globalMaxMax / 3f)
+                                axisShortHalf.Add(kv.Key);
+                        }
+                    }
+                    DiagLog($"T-038+039 v3 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} shortAxes=[{string.Join(",", axisShortHalf)}] axisMaxes=[{string.Join(",", axisMaxes.Select(kv => $"{kv.Key}={kv.Value:F0}"))}]");
                 }
                 else
                 {
@@ -562,12 +582,14 @@ namespace A2Z
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
+                // T-038+039 v3 (2026-05-12): axisShortHalf 축의 dim은 offset 절반
                 foreach (var dim in level1Dims)
                 {
                     applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                    float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        level1Offset, globalMinX, globalMinY, globalMinZ,
+                        lv1, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
@@ -577,8 +599,9 @@ namespace A2Z
                 {
                     applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                    float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        level2Offset, globalMinX, globalMinY, globalMinZ,
+                        lv2, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
@@ -590,8 +613,9 @@ namespace A2Z
                 {
                     applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                    float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        level0Offset, globalMinX, globalMinY, globalMinZ,
+                        lv0, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }

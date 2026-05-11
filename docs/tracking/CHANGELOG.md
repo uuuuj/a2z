@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v3 + step B-3: 짧은 축 보조선 절반 + 모델 0.75배 + 텍스트 5배
+
+**유형**: feat (사용자 사양 4건)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-005 / T-038 / T-039 (모두 IN_PROGRESS)
+**관련 FEEDBACK**: FB-002, FB-004
+
+**사용자 사양 4건 (2026-05-12)**:
+1. 모델 스케일 0.85 → **0.75**
+2. ISO/평면도 라벨: 이미 셀 하단이라 skip
+3. 수치 텍스트·풍선 **5배 키움** (코드 적용 검증용 임시)
+4. **짧은 축 치수의 보조선 절반** — *"높이 max 500, 너비 max 60이면 60을 표현하려고 생기는 보조선의 길이를 줄임"*
+
+**구현**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1 | [Form1.DrawingSheets.cs:1731, 1907](A2Z/Form1.DrawingSheets.cs:1731) | `0.85f` → `0.75f` (bgObjId / objId 양쪽) |
+| 3a | [Form1.DrawingSheets.cs:1368](A2Z/Form1.DrawingSheets.cs:1368) | `Set2DViewCreateObjectItemMeasureTextHeight(5f → 25f)` |
+| 3b | [Form1.DrawingSheets.cs:1935](A2Z/Form1.DrawingSheets.cs:1935) | `Set2DViewCreateObjectItemTextHeight(5.25f → 26.25f)` (풍선) |
+| 4a | [Form1.Dimensions.cs:497~](A2Z/Form1.Dimensions.cs:497) | `axisShortHalf` HashSet 신설 — `filteredDims.GroupBy(Axis).Max(Distance)` 계산 후 `< globalMaxMax / 3` 축을 짧은 축으로 식별 |
+| 4b | [Form1.Dimensions.cs:585, 596, 612](A2Z/Form1.Dimensions.cs:585) | foreach level1/2/0 dims에서 `dim.Axis in axisShortHalf`면 `offset × 0.5f` |
+
+**알고리즘 (v3 짧은 축 보조선 절반)**:
+```
+axisMaxes = filteredDims.GroupBy(Axis).ToDict(g.Max(Distance))
+globalMax = axisMaxes.Max()
+axisShortHalf = { axis | axisMaxes[axis] < globalMax / 3 }
+```
+
+foreach `DrawDimension` 호출 직전:
+```
+offsetForThisDim = axisShortHalf.Contains(dim.Axis) ? levelOffset * 0.5f : levelOffset
+```
+
+**DiagLog v3**: `T-038+039 v3 view=X maxDist=N canvasBase=N canvasLvl=N scale=N → baseOffset_3d=N levelSpacing_3d=N shortAxes=[X] axisMaxes=[X=500,Y=60]`
+
+**검증 포인트** (사용자 사내 PC):
+- 모델 셀의 약 75% 차지 (이전 85% → 더 줄어듦)
+- 수치 텍스트·풍선이 *눈에 띄게 큼* (5배 — 너무 크면 줄일 예정)
+- 짧은 축 (다른 축의 1/3 이하) 치수의 보조선이 *눈에 띄게 짧음* (절반)
+- 사용자 케이스 (Z뷰 Y- 침범) — 짧은 축이 X면 X 치수 보조선 절반 → Y- 방향 영역 좁아짐 → 침범 해소 기대
+
+**잔여**:
+- 텍스트 크기 5배는 *임시 검증값* — 결과 보고 적정 배수로 조정
+- 텍스트가 너무 크면 셀 침범 추가 가능 → 모델 스케일 추가 조정 또는 텍스트 배수 조정
+
+---
+
 ## 2026-05-12 — T-038 step B-2: 모델 0.85배 (셀 가득 후 15% 안전 마진)
 
 **유형**: fix (사용자 사양)

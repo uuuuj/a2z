@@ -1365,7 +1365,7 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
 
                 // 2D 치수 텍스트 크기 설정 (스케일 축소 후 가독성 유지를 위해 작게)
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(5f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(25f);  // 2026-05-12: 5f→25f 5배 (사용자 임시 검증)
 
                 // ── 5. 4개 뷰 투영 + 스케일 조정 + 풍선/치수 변환 ──
                 // T-038 (2026-05-12 사용자 사양): 모델을 셀 가득 — FitObjectToGridCellAspect만 사용.
@@ -1732,10 +1732,9 @@ namespace A2Z
                 }
                 else
                 {
-                    // T-038 step B-2 (2026-05-12 사용자 사양): FitObjectToGridCellAspect 후 추가 15% 축소
-                    // step B (targetH=0)에서 셀 가득 → 보조선·풍선 등 셀 밖 잘림. 0.85배로 안전 마진 확보.
+                    // T-038 step B-3 (2026-05-12): 0.85 → 0.75 (텍스트·풍선 5배 키움 + 보조선 절반 규칙 도입과 같이 적용)
                     float curScaleBg = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
-                    vizcore3d.Drawing2D.Object2D.RescaleObject(bgObjId, curScaleBg * 0.85f);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(bgObjId, curScaleBg * 0.75f);
                 }
 
                 // ── T-013 옵션 B — WorldToScreen 기반 3D→캔버스 좌표 변환 (2026-04-21) ──
@@ -1914,10 +1913,9 @@ namespace A2Z
                 }
                 else
                 {
-                    // T-038 step B-2 (2026-05-12 사용자 사양): FitObjectToGridCellAspect 후 추가 15% 축소
-                    // step B (targetH=0)에서 셀 가득 → 보조선/풍선/라벨 셀 밖 잘림. 0.85배로 안전 마진 확보.
+                    // T-038 step B-3 (2026-05-12): 0.85 → 0.75 (텍스트·풍선 5배 키움과 같이 적용)
                     float curScaleObj = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                    vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * 0.85f);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * 0.75f);
                 }
             }
 
@@ -1932,7 +1930,7 @@ namespace A2Z
             }
 
             // 풍선번호(Note) → 2D (텍스트 크기를 작게 설정하여 겹침 방지)
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(5.25f);
+            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(26.25f);  // 2026-05-12: 5.25f→26.25f 5배 (풍선 텍스트, 사용자 임시 검증)
             List<int> convertedNoteIndices = new List<int>();
             if (visibleNoteIds != null)
             {
