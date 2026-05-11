@@ -534,25 +534,14 @@ namespace A2Z
                 float level2Offset = baseOffset + levelSpacing;
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
-                // T-040v (2026-05-11): 같은 축 내에서 측정축 좌표 순 정렬 후 i%2 토글 offset
-                //   짝수 i: level1Offset(100mm), 홀수 i: level1Offset*0.5(50mm)
-                //   인접 치수 텍스트를 두 라인에 분산해 짧은 치수의 숫자 충돌 회피
-                var level1ByAxis = level1Dims.GroupBy(d => d.Axis);
-                foreach (var grp in level1ByAxis)
+                // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
+                foreach (var dim in level1Dims)
                 {
-                    var sortedGroupDims = grp.OrderBy(d =>
-                        Math.Min(GetAxisValue(d.StartPoint, grp.Key),
-                                 GetAxisValue(d.EndPoint, grp.Key))).ToList();
-                    for (int i = 0; i < sortedGroupDims.Count; i++)
-                    {
-                        var dim = sortedGroupDims[i];
-                        float thisOffset = (i % 2 == 0) ? level1Offset : level1Offset * 0.5f;
-                        bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                            thisOffset, globalMinX, globalMinY, globalMinZ,
-                            viewDirection, extensionLines,
-                            globalMaxX, globalMaxY, globalMaxZ, posOff);
-                    }
+                    bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                        level1Offset, globalMinX, globalMinY, globalMinZ,
+                        viewDirection, extensionLines,
+                        globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
                 // Level 2 치수 (중간)

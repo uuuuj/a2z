@@ -61,4 +61,5 @@ X축 방향 뷰로 카메라를 전환하고, X축 치수만 표시한다. 내�
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
 | 2026-05-11 | **T-040v: Level 1 치수 offset i%2 토글** (사용자 요청). 같은 축 내 측정축 좌표 순 정렬 후 짝수 i=`level1Offset(100mm)`, 홀수 i=`level1Offset*0.5(50mm)`. 인접 치수 텍스트를 두 라인에 분산해 짧은 치수 숫자 충돌 회피. Y/Z 뷰도 동일 (`ShowAllDimensions` 공유) | Claude |
+| 2026-05-11 | **T-040v 토글 취소** (사용자 결정: *"수치는 부재간의 연쇄치수가 첫번째, 전체 치수가 두번째로 2줄만 생성되어야 한다"*). Level 1 foreach를 원래 단순 형태로 복원 (모든 dim에 `level1Offset` 단일 적용). level2 적응형 충돌 회피(`ApplySmartFiltering`이 텍스트 폭 초과 시 자동 밀어내기)는 그대로 유지 — 별도 결정 시 폐기 가능 | Claude |
 | 2026-05-11 | `ApplySmartFiltering` 진단 DiagLog 추가 (axis별 level0/level1/total/hidden 카운트, `result.AddRange` 직전). 실제 분리 발생 여부 검증용 | Claude |

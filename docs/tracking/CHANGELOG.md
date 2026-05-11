@@ -6,10 +6,35 @@
 
 ---
 
+## 2026-05-11 — T-040v 토글 취소: 2줄만 생성 (사용자 결정)
+
+**유형**: fix (사용자 결정 — 외부 조건)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS, 1차 폐기)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**배경**: 사용자 요청 *"수치는 부재간의 연쇄치수가 첫번째, 전체 치수가 두번째로 2줄만 생성되어야 한다고 해서 다시 취소해줘"*. 회사·도면 표준 기준 외부 조건. T-040v 1차(`66ac0bb`)의 i%2 토글(100mm/50mm)은 3줄 결과를 만들어 기준 위반.
+
+**코드 변경** ([Form1.Dimensions.cs:537~553](A2Z/Form1.Dimensions.cs:537)):
+- Level 1 foreach 단순 형태로 복원 (axis 그룹화 + 정렬 + i%2 토글 폐기)
+- 모든 `level1Dims`에 단일 `level1Offset(100mm)` 적용
+- level2 적응형 충돌 회피(`ApplySmartFiltering`이 텍스트 폭 초과 시 일부 dim을 `DisplayLevel=1`로 밀어내기)는 **유지** — 잠재적 3줄 가능성 있음
+
+**검증 포인트**:
+- 인접 치수가 같은 라인(100mm)에 일렬 배치, 전체 치수는 가장 바깥(180mm 또는 그 이상)
+- ApplySmartFiltering 진단 로그(`level1>0`이면 level2 발생 — 2줄 위반 가능성 → 별도 결정 필요)
+
+**잔여 결정 필요**: level2 적응형 폐기 여부. 폐기 시 텍스트 충돌 발생해도 무조건 한 줄에 배치 → 일부 짧은 치수 안 보일 수 있음 (`IsVisible=false` 분기)
+
+**docs**: `dimensions/show-axis-x.md` 취소 이력 추가, `TASKS.md` T-040 갱신
+
+---
+
 ## 2026-05-11 — REQ-005: 체인치수 행 선택 강조 + ChainDimensionData.MemberIndices
 
 **유형**: feat (사용자 요청)
-**커밋**: `pending`
+**커밋**: `21bed37`
 **관련 TASK**: T-028 (디버깅 인프라 후속)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: REQ-005
@@ -83,7 +108,7 @@
 ## 2026-05-11 — T-040v 1차: 치수 offset i%2 토글 + 진단로그 + UI 높이 + Clash 강조
 
 **유형**: feat (사용자 요청 4건 묶음)
-**커밋**: `pending`
+**커밋**: `66ac0bb`
 **관련 TASK**: T-040 (IN_PROGRESS, 1차)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: REQ-006 (Clash 행 선택 강조)
