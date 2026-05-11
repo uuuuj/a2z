@@ -300,7 +300,7 @@ namespace A2Z
             this.groupBox5.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox5.Name = "groupBox5";
             this.groupBox5.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.groupBox5.Size = new System.Drawing.Size(443, 188);
+            this.groupBox5.Size = new System.Drawing.Size(443, 220);
             this.groupBox5.TabIndex = 4;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "체인 치수 목록";
@@ -354,7 +354,7 @@ namespace A2Z
             this.lvDimension.Location = new System.Drawing.Point(3, 22);
             this.lvDimension.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.lvDimension.Name = "lvDimension";
-            this.lvDimension.Size = new System.Drawing.Size(437, 162);
+            this.lvDimension.Size = new System.Drawing.Size(437, 194);
             this.lvDimension.TabIndex = 0;
             this.lvDimension.UseCompatibleStateImageBehavior = false;
             this.lvDimension.View = System.Windows.Forms.View.Details;

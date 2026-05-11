@@ -252,7 +252,8 @@
 
 ### T-040 — 치수 텍스트 ↔ 치수선 겹침 감지·회피 (가시성)
 - **생성일**: 2026-04-24
-- **상태**: TODO
+- **착수일**: 2026-05-11
+- **상태**: IN_PROGRESS (1차 — Level 1 offset i%2 토글 적용, 사용자 실기 검증 대기)
 - **관련**: — (사용자 직접 지시)
 - **배경**: 치수 숫자와 치수선/보조선이 겹쳐 숫자가 안 보이는 가시성 문제. "어떻게 감지하고 어떻게 회피할지 고민 필요" — 사용자 지시
 - **감지 전략** (2D 공간 기준):
@@ -269,11 +270,11 @@
   - [ ] 우선순위 T1만 먼저 → T2 추가 → T3는 PoC 후 판단 수용 여부
   - [ ] 실기 겹침 사례 스크린샷 2~3건 (패턴 분석용)
 - **세부**:
-  - [ ] sdk-verifier: 텍스트 배경색·마스크 API (`Set2DMeasureTextBackground` 등)
-  - [ ] T1 구현
-  - [ ] 겹침 감지 유틸 신설 (Form1.Dimensions.cs)
-  - [ ] T2 층별 오프셋 로직
-  - [ ] docs 갱신
+  - [x] sdk-verifier (2026-05-10): `Set2DMeasureTextBackground` 등 텍스트 배경색·마스크 API **부재**. T1 흰 마스크 SDK 직접 지원 X 확정
+  - [ ] T1 구현 — SDK 미지원으로 폐기 (자체 흰 사각형 그리기 옵션 별도 검토 가능)
+  - [ ] 겹침 감지 유틸 신설 (Form1.Dimensions.cs) — `ApplySmartFiltering`이 이미 텍스트 간격 검사로 부분 구현. 2026-05-11 진단 DiagLog 추가 (axis별 level0/level1 분포 검증용)
+  - [x] **T2 변형 (2026-05-11)**: 사용자 요청 — `level1Offset` i%2 토글. 짝수 i=100mm, 홀수 i=50mm. 같은 축 내 측정축 좌표 순 정렬 후 인접 쌍 두 라인 분산
+  - [ ] docs 갱신 (이번 라운드 show-axis-x.md 진행)
 - **영향 파일**:
   - `A2Z/Form1.Dimensions.cs` (AddChainDimensionByAxis, 겹침 검사 유틸 신설)
   - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing 치수 후처리)

@@ -6,10 +6,50 @@
 
 ---
 
+## 2026-05-11 — T-040v 1차: 치수 offset i%2 토글 + 진단로그 + UI 높이 + Clash 강조
+
+**유형**: feat (사용자 요청 4건 묶음)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS, 1차)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-006 (Clash 행 선택 강조)
+
+**배경**: 사용자 보고 (사진 + 직접 표현):
+1. 짧은 치수 텍스트끼리 같은 라인에 그려져 숫자가 이어져 보임 → offset i%2 토글 요청 (AB 100mm / BC 50mm / CD 100mm ...)
+2. `ApplySmartFiltering` 분리 효과를 "본 적 없다" → 작동 검증 진단 로그 요청
+3. 체인치수 ListView 28번째 항목이 살짝 가려짐 → UI 높이 키우기
+4. Clash Detection 결과 행 선택 시 두 부재 강조 + fit 요청 (BOM 행 선택 패턴 복제)
+
+**코드 변경**:
+
+| # | 작업 | 파일·위치 | 내용 |
+|---|---|---|---|
+| 1 | T-040v: Level 1 치수 offset i%2 토글 | [Form1.Dimensions.cs:537~556](A2Z/Form1.Dimensions.cs:537) | 같은 axis 내 측정축 좌표 순 정렬 → 짝수 i=`level1Offset(100mm)`, 홀수 i=`level1Offset*0.5(50mm)`. `level1Dims`만 영향, level0(전체)·level2 무관 |
+| 2 | ApplySmartFiltering 진단 DiagLog | [Form1.Dimensions.cs:1326~](A2Z/Form1.Dimensions.cs:1326) | axis별 한 줄 (`axis=Z level0=N level1=N total=N hidden=N in=M`). result.AddRange 직후. logs/diag-yyyy-MM-dd.log |
+| 3 | lvDimension UI 높이 +32px | [Form1.Designer.cs:303, 357](A2Z/Form1.Designer.cs:303) | `groupBox5.Size`: 188→220, `lvDimension.Size`: 162→194. Dock=Fill이라 부모 groupBox 같이 키워야 효과 발생 (Plan agent 통찰). 영향: groupBox3(Clash) 32px 축소 |
+| 4 | REQ-006: Clash 행 선택 3D 강조+fit | [Form1.Dimensions.cs:1530~](A2Z/Form1.Dimensions.cs:1530) | `LvClash_SelectedIndexChanged` foreach 직후 + SelectRelatedOsnapItems 호출 직전. 단일 선택일 때만 `Color.RestoreColorAll` + `Object3D.Select([Index1, Index2])` + `FlyToObject3d`. `LvClash_DoubleClick` 동일 패턴 |
+
+**Plan agent 3개 병렬 활용** (사용자 명시 "에이전트 여러개로 계획·검토"):
+- Plan A: 치수 작업 (offset 토글, 진단, UI 높이) — 코드 위치·diff·영향 분석
+- Plan B: Osnap 작업 (다음 commit)
+- Plan C: 강조+fit 패턴 (Clash + 체인치수, 일부 이번 commit 처리)
+
+**docs**: `dimensions/show-axis-x.md` + `dimensions/lvclash-selected.md` 변경 이력 추가
+
+**검증 포인트** (사용자 실기):
+- 한 축 4개 이상 인접 치수에서 짝수/홀수 두 라인 시각 분산
+- logs/diag-2026-05-11.log에 `ApplySmartFilter axis=X level0=N level1=N` 출력 확인 → level1 > 0이면 분리 작동 확정
+- 29개 항목 있을 때 28번째까지 보이는지 (혹시 부족하면 추가 +16 가능)
+- Clash 행 단일 클릭 → 두 부재 빨간 강조 + 카메라 fit. 다중 선택 시 fit 스킵 (가드)
+
+**다음 commit 예정**: REQ-003 Osnap 컬럼 축소 + REQ-004 Osnap 행 선택 강조 / REQ-005 체인치수 행 선택 강조 (`ChainDimensionData.MemberIndices` 신규 필드)
+
+---
+
 ## 2026-05-11 — T-028 진행: 체인치수 데이터 소스 통일 + 개별 부재 길이 블록 제거
 
 **유형**: refactor (사용자 요청, T-028 본진 부분 진행)
-**커밋**: `pending`
+**커밋**: `6c57e24`
 **관련 TASK**: T-028 (IN_PROGRESS)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: —

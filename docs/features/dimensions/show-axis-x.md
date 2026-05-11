@@ -4,7 +4,7 @@ feature_name: X축 뷰 + 치수 표시
 category: Dimensions
 trigger_type: User Action
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-04-13
+last_updated: 2026-05-11
 code_reference: /docs/code-reference/form1-dimensions.md#btnShowAxisX_Click
 ---
 
@@ -60,3 +60,5 @@ X축 방향 뷰로 카메라를 전환하고, X축 치수만 표시한다. 내�
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-05-11 | **T-040v: Level 1 치수 offset i%2 토글** (사용자 요청). 같은 축 내 측정축 좌표 순 정렬 후 짝수 i=`level1Offset(100mm)`, 홀수 i=`level1Offset*0.5(50mm)`. 인접 치수 텍스트를 두 라인에 분산해 짧은 치수 숫자 충돌 회피. Y/Z 뷰도 동일 (`ShowAllDimensions` 공유) | Claude |
+| 2026-05-11 | `ApplySmartFiltering` 진단 DiagLog 추가 (axis별 level0/level1/total/hidden 카운트, `result.AddRange` 직전). 실제 분리 발생 여부 검증용 | Claude |

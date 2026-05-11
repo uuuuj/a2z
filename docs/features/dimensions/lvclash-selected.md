@@ -4,7 +4,7 @@ feature_name: Clash 선택 시 Osnap·치수 자동 필터
 category: Dimensions
 trigger_type: Event Callback
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-04-13
+last_updated: 2026-05-11
 code_reference: /docs/code-reference/form1-dimensions.md#LvClash_SelectedIndexChanged
 ---
 
@@ -71,3 +71,4 @@ code_reference: /docs/code-reference/form1-dimensions.md#LvClash_SelectedIndexCh
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-05-11 | **REQ-D: 선택 시 3D 강조 + 카메라 fit 추가** (사용자 요청). 단일 선택일 때 `Object3D.Color.RestoreColorAll()` + `Object3D.Select([Index1, Index2])` + `View.FlyToObject3d(idxs, 1.2f)` 적용. `LvClash_DoubleClick` 동일 패턴 차용. 기존 자동 Osnap·Dimension 필터링은 그대로 유지 | Claude |

@@ -534,13 +534,25 @@ namespace A2Z
                 float level2Offset = baseOffset + levelSpacing;
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
-                foreach (var dim in level1Dims)
+                // T-040v (2026-05-11): 같은 축 내에서 측정축 좌표 순 정렬 후 i%2 토글 offset
+                //   짝수 i: level1Offset(100mm), 홀수 i: level1Offset*0.5(50mm)
+                //   인접 치수 텍스트를 두 라인에 분산해 짧은 치수의 숫자 충돌 회피
+                var level1ByAxis = level1Dims.GroupBy(d => d.Axis);
+                foreach (var grp in level1ByAxis)
                 {
-                    bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        level1Offset, globalMinX, globalMinY, globalMinZ,
-                        viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff);
+                    var sortedGroupDims = grp.OrderBy(d =>
+                        Math.Min(GetAxisValue(d.StartPoint, grp.Key),
+                                 GetAxisValue(d.EndPoint, grp.Key))).ToList();
+                    for (int i = 0; i < sortedGroupDims.Count; i++)
+                    {
+                        var dim = sortedGroupDims[i];
+                        float thisOffset = (i % 2 == 0) ? level1Offset : level1Offset * 0.5f;
+                        bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                            thisOffset, globalMinX, globalMinY, globalMinZ,
+                            viewDirection, extensionLines,
+                            globalMaxX, globalMaxY, globalMaxZ, posOff);
+                    }
                 }
 
                 // Level 2 치수 (중간)
@@ -1324,6 +1336,13 @@ namespace A2Z
                 }
 
                 result.AddRange(selectedDims);
+
+                // T-040 진단 (2026-05-11): 축별 필터링 결과 — 실제 Level 분리 동작 검증용
+                int l0 = selectedDims.Count(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0);
+                int l1 = selectedDims.Count(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0);
+                int t  = selectedDims.Count(d => d.IsTotal);
+                int h  = axisDims.Count(d => !d.IsVisible);
+                DiagLog($"ApplySmartFilter axis={axisGroup.Key} level0={l0} level1={l1} total={t} hidden={h} in={axisDims.Count}");
             }
 
             return result;
@@ -1507,6 +1526,25 @@ namespace A2Z
                                 Math.Max(bom1.MaxZ, bom2.MaxZ)
                             ));
                         }
+                    }
+                }
+
+                // REQ-D (2026-05-11): 선택된 Clash 두 부재 3D 강조 + 카메라 fit (LvClash_DoubleClick 패턴)
+                if (lvClash.SelectedItems.Count == 1)
+                {
+                    var clashHi = lvClash.SelectedItems[0].Tag as ClashData;
+                    if (clashHi != null && clashHi.Index1 >= 0 && clashHi.Index2 >= 0)
+                    {
+                        try
+                        {
+                            vizcore3d.BeginUpdate();
+                            vizcore3d.Object3D.Color.RestoreColorAll();
+                            List<int> clashIdxs = new List<int> { clashHi.Index1, clashHi.Index2 };
+                            vizcore3d.Object3D.Select(clashIdxs, true, false);
+                            vizcore3d.View.FlyToObject3d(clashIdxs, 1.2f);
+                            vizcore3d.EndUpdate();
+                        }
+                        catch (Exception ex) { DiagLog($"REQ-D LvClash 3D fit FAIL {ex.Message}"); }
                     }
                 }
 
