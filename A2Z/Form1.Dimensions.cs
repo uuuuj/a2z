@@ -1486,6 +1486,39 @@ namespace A2Z
         #endregion
 
         /// <summary>
+        /// REQ-005 (2026-05-11): lvDimension 행 선택 → 해당 치수의 두 부재 3D 강조 + 카메라 fit
+        /// ChainDimensionData.MemberIndices 활용. 비어있으면 skip (가드).
+        /// LvClash 흐름의 SelectRelatedDimensionItems 연쇄 트리거 가드: _suppressDimSelChanged
+        /// </summary>
+        private bool _suppressDimSelChanged = false;
+        private void LvDimension_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressDimSelChanged) return;
+            if (lvDimension.SelectedItems.Count == 0) return;
+
+            HashSet<int> indexSet = new HashSet<int>();
+            foreach (ListViewItem lvi in lvDimension.SelectedItems)
+            {
+                var dim = lvi.Tag as ChainDimensionData;
+                if (dim == null || dim.MemberIndices == null) continue;
+                foreach (int idx in dim.MemberIndices)
+                    if (idx >= 0) indexSet.Add(idx);
+            }
+            if (indexSet.Count == 0) return;
+
+            try
+            {
+                vizcore3d.BeginUpdate();
+                var indices = indexSet.ToList();
+                vizcore3d.Object3D.Color.RestoreColorAll();
+                vizcore3d.Object3D.Select(indices, true, false);
+                vizcore3d.View.FlyToObject3d(indices, 1.2f);
+                vizcore3d.EndUpdate();
+            }
+            catch (Exception ex) { DiagLog($"REQ-005 LvDimension_SelectedIndexChanged FAIL {ex.Message}"); }
+        }
+
+        /// <summary>
         /// Clash 리스트 선택 변경 시 뷰어에서 해당 충돌 지점 표시 및 관련 Osnap/치수 자동 선택
         /// </summary>
         private void LvClash_SelectedIndexChanged(object sender, EventArgs e)
@@ -1553,8 +1586,10 @@ namespace A2Z
                 try { SelectRelatedOsnapItems(relatedNodeNames, relatedBounds); }
                 finally { _suppressOsnapSelChanged = false; }
 
-                // 관련 치수 자동 선택
-                SelectRelatedDimensionItems(relatedBounds);
+                // 관련 치수 자동 선택 (REQ-005 가드: LvDimension_SelectedIndexChanged 연쇄 트리거 방지)
+                _suppressDimSelChanged = true;
+                try { SelectRelatedDimensionItems(relatedBounds); }
+                finally { _suppressDimSelChanged = false; }
             }
             catch
             {
@@ -2082,6 +2117,28 @@ namespace A2Z
 
             if (nodeOsnapMap.Count == 0) return result;
 
+            // REQ-005 (2026-05-11): 좌표 키 → 부재 인덱스 집합 사전 구축
+            //   결과 dim의 StartPoint/EndPoint 좌표로 lookup해 MemberIndices 채움 (lvDimension 행 선택 강조용)
+            //   tolerance 단위 반올림으로 동일 키 매핑
+            Dictionary<string, HashSet<int>> coordKeyToMembers = new Dictionary<string, HashSet<int>>();
+            foreach (var kv in nodeOsnapMap)
+            {
+                int nodeIdx = kv.Key;
+                foreach (var pt in kv.Value)
+                {
+                    float rx = RoundToTolerance(pt.point.X, tolerance);
+                    float ry = RoundToTolerance(pt.point.Y, tolerance);
+                    float rz = RoundToTolerance(pt.point.Z, tolerance);
+                    string ck = $"{rx:F1},{ry:F1},{rz:F1}";
+                    if (!coordKeyToMembers.TryGetValue(ck, out var set))
+                    {
+                        set = new HashSet<int>();
+                        coordKeyToMembers[ck] = set;
+                    }
+                    set.Add(nodeIdx);
+                }
+            }
+
             // 2. 처리할 뷰 목록
             string[] viewsToProcess = string.IsNullOrEmpty(viewDirection)
                 ? new string[] { "X", "Y", "Z" }
@@ -2126,6 +2183,20 @@ namespace A2Z
                 {
                     keyToDim[key] = dim;
                 }
+            }
+
+            // REQ-005 (2026-05-11): 결과 dim의 StartPoint/EndPoint → coordKeyToMembers lookup → MemberIndices 채움
+            foreach (var dim in keyToDim.Values)
+            {
+                var memberSetPerDim = new HashSet<int>();
+                string skey = $"{dim.StartPoint.X:F1},{dim.StartPoint.Y:F1},{dim.StartPoint.Z:F1}";
+                string ekey = $"{dim.EndPoint.X:F1},{dim.EndPoint.Y:F1},{dim.EndPoint.Z:F1}";
+                if (coordKeyToMembers.TryGetValue(skey, out var sset))
+                    foreach (var i in sset) memberSetPerDim.Add(i);
+                if (coordKeyToMembers.TryGetValue(ekey, out var eset))
+                    foreach (var i in eset) memberSetPerDim.Add(i);
+                if (memberSetPerDim.Count > 0)
+                    dim.MemberIndices = memberSetPerDim.ToList();
             }
 
             result.AddRange(keyToDim.Values);

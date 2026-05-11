@@ -4,7 +4,7 @@ feature_name: 현재 뷰 기반 체인 치수 추출
 category: Dimensions
 trigger_type: User Action
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-04-13
+last_updated: 2026-05-11
 code_reference: /docs/code-reference/form1-dimensions.md#btnExtractDimension_Click
 ---
 
@@ -92,3 +92,4 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-05-11 | **REQ-005: lvDimension 행 선택 → 3D 강조 + 카메라 fit** (사용자 요청). `ChainDimensionData.MemberIndices` 신규 필드 (Models.cs). `ExtractInstallationDimensions`는 `uniqueEntries[i].member.Index`로 정확히 채움 (인접 경계 2개, 전체 조립 2개). `ComputeViewDimensionsForMembers`는 `coordKeyToMembers` 좌표↔nodeIdx 사전 구축 후 결과 dim의 StartPoint/EndPoint 좌표로 lookup해 사후 채움. `LvDimension_SelectedIndexChanged` 핸들러 신규: `MemberIndices`를 `Object3D.Select` + `FlyToObject3d`. `_suppressDimSelChanged` 가드로 LvClash 자동 선택 흐름 시 카메라 안정 | Claude |

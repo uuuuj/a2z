@@ -46,6 +46,13 @@ namespace A2Z
         /// 병합된 치수 여부 (여러 짧은 치수를 하나로 통합)
         /// </summary>
         public bool IsMerged { get; set; } = false;
+
+        /// <summary>
+        /// 이 치수의 두 점에 해당하는 부재 인덱스 (REQ-005, 2026-05-11)
+        /// lvDimension 행 선택 시 3D 강조 + fit에 사용. ExtractInstallationDimensions에서 정확히 채움,
+        /// ComputeViewDimensionsForMembers에서는 좌표↔nodeIdx 사후 매핑으로 채움. 비어있으면 핸들러 skip
+        /// </summary>
+        public List<int> MemberIndices { get; set; } = new List<int>();
     }
 
     /// <summary>

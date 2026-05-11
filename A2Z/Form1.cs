@@ -199,6 +199,7 @@ namespace A2Z
             lvDrawingSheet.SelectedIndexChanged += LvDrawingSheet_SelectedIndexChanged;
             lvDrawingBOMInfo.SelectedIndexChanged += LvDrawingBOMInfo_SelectedIndexChanged;
             lvOsnap.SelectedIndexChanged += LvOsnap_SelectedIndexChanged;  // REQ-004 (2026-05-11)
+            lvDimension.SelectedIndexChanged += LvDimension_SelectedIndexChanged;  // REQ-005 (2026-05-11)
 
             // VIZCore3D.NET 초기화
             VIZCore3D.NET.ModuleInitializer.Run();

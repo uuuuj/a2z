@@ -281,7 +281,9 @@ namespace A2Z
                         StartPoint = startPt,
                         EndPoint = endPt,
                         StartPointStr = $"({startPt.X:F1}, {startPt.Y:F1}, {startPt.Z:F1})",
-                        EndPointStr = $"({endPt.X:F1}, {endPt.Y:F1}, {endPt.Z:F1})"
+                        EndPointStr = $"({endPt.X:F1}, {endPt.Y:F1}, {endPt.Z:F1})",
+                        // REQ-005 (2026-05-11): 두 경계점의 부재 인덱스 저장 → lvDimension 행 선택 강조용
+                        MemberIndices = new List<int> { uniqueEntries[i].member.Index, uniqueEntries[i + 1].member.Index }
                     });
                 }
 
@@ -308,7 +310,9 @@ namespace A2Z
                         EndPoint = totalEnd,
                         StartPointStr = $"({totalStart.X:F1}, {totalStart.Y:F1}, {totalStart.Z:F1})",
                         EndPointStr = $"({totalEnd.X:F1}, {totalEnd.Y:F1}, {totalEnd.Z:F1})",
-                        IsTotal = true
+                        IsTotal = true,
+                        // REQ-005 (2026-05-11): 첫·끝 경계 부재 인덱스
+                        MemberIndices = new List<int> { first.member.Index, last.member.Index }
                     });
                 }
             }

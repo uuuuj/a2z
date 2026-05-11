@@ -6,10 +6,45 @@
 
 ---
 
-## 2026-05-11 — REQ-003/004: Osnap 컬럼 6개 축소 + 행 선택 강조
+## 2026-05-11 — REQ-005: 체인치수 행 선택 강조 + ChainDimensionData.MemberIndices
 
 **유형**: feat (사용자 요청)
 **커밋**: `pending`
+**관련 TASK**: T-028 (디버깅 인프라 후속)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-005
+
+**배경**: 사용자 요청 *"체인치수 목록에서 선택했을 때 치수나 Osnap을 강조할 수 있는지도 궁금"*. T-028 본진 (작업데이터 탭 ↔ 도면 데이터 통일) 후 디버깅 도구로서 lvDimension 활용 강화.
+
+**변경**:
+
+| 영역 | 파일·위치 | 내용 |
+|---|---|---|
+| 데이터 모델 | [Models.cs:50](A2Z/Models.cs:50) | `ChainDimensionData.MemberIndices` 필드 신규 (`List<int>`, default empty) |
+| BBox 경로 | [Form1.GlobalViews.cs:286, 312](A2Z/Form1.GlobalViews.cs:286) | `ExtractInstallationDimensions`: 인접 경계 치수에 `[uniqueEntries[i].member.Index, uniqueEntries[i+1].member.Index]`, 전체 조립에 `[first.member.Index, last.member.Index]` |
+| Osnap 경로 | [Form1.Dimensions.cs:2087, 2135](A2Z/Form1.Dimensions.cs:2087) | `ComputeViewDimensionsForMembers`: nodeOsnapMap 채워진 후 `coordKeyToMembers` 사전 구축 (좌표 키 → nodeIdx 집합). 결과 dim의 StartPoint/EndPoint 좌표 키로 lookup해 사후 채움 |
+| 핸들러 | [Form1.Dimensions.cs:1490](A2Z/Form1.Dimensions.cs:1490) | `LvDimension_SelectedIndexChanged` 신규: 선택 행의 `MemberIndices` → `Color.RestoreColorAll` + `Object3D.Select` + `FlyToObject3d`. 다중 선택 지원, MemberIndices 비어있으면 skip |
+| 가드 | [Form1.Dimensions.cs:1556](A2Z/Form1.Dimensions.cs:1556) | `_suppressDimSelChanged` 가드 — LvClash 흐름의 `SelectRelatedDimensionItems` 연쇄 트리거 방지 |
+| 이벤트 등록 | [Form1.cs:202](A2Z/Form1.cs:202) | `lvDimension.SelectedIndexChanged += LvDimension_SelectedIndexChanged` |
+
+**Plan agent 활용**: Plan C (강조+fit 패턴) — 점→부재 매핑 옵션 분석 + 좌표 사후 매핑 권장
+
+**참고**: AddChainDimensionByAxis 시그니처는 변경 X (호출처 8곳 영향 회피). 좌표 사후 매핑으로 간접 채움.
+
+**docs**: `dimensions/extract-dimension.md` 변경 이력 추가, `tracking/REQUESTS.md` REQ-003~006 4건 등록
+
+**검증 포인트** (사용자 실기):
+- 시트 선택 → lvDimension 행 클릭 → 두 부재 빨간 강조 + fit
+- 전체 길이(IsTotal=true) 행 클릭 시 첫·끝 부재 모두 fit
+- Clash 행 선택 시 자동 lvDimension 선택돼도 카메라 안 흔들림 (가드)
+- ComputeView 경로(일반 시트 2D 출력)에서도 MemberIndices 채워짐 (좌표 매핑 정확성 확인)
+
+---
+
+## 2026-05-11 — REQ-003/004: Osnap 컬럼 6개 축소 + 행 선택 강조
+
+**유형**: feat (사용자 요청)
+**커밋**: `86a533d`
 **관련 TASK**: —
 **관련 FEEDBACK**: —
 **관련 REQUEST**: REQ-003 (Osnap 컬럼 축소), REQ-004 (Osnap 행 선택 강조)
