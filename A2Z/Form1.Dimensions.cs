@@ -65,6 +65,10 @@ namespace A2Z
                     ChainDimensionData dim = lvi.Tag as ChainDimensionData;
                     if (dim != null)
                     {
+                        // 2026-05-11 사용자 결정: 치수 거리 ≤13mm → 보조선 바깥(2) / >13mm → 위(1)
+                        measureStyle.AlignDistanceTextPosition = (dim.Distance <= 13.0f) ? 2 : 1;
+                        vizcore3d.Review.Measure.SetStyle(measureStyle);
+
                         float currentOffset = axisOffsetCount[dim.Axis] * offsetStep;
                         axisOffsetCount[dim.Axis]++;
 
@@ -533,10 +537,19 @@ namespace A2Z
                 float level1Offset = baseOffset;
                 float level2Offset = baseOffset + levelSpacing;
 
+                // 2026-05-11 사용자 결정: 치수 거리 ≤13mm → 보조선 바깥(2) / >13mm → 위(1)
+                // SetStyle은 글로벌 옵션이라 측정 추가 직전에 dim별로 토글해야 함
+                System.Action<ChainDimensionData> applyTextPosition = (d) =>
+                {
+                    measureStyle.AlignDistanceTextPosition = (d.Distance <= 13.0f) ? 2 : 1;
+                    vizcore3d.Review.Measure.SetStyle(measureStyle);
+                };
+
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
                 foreach (var dim in level1Dims)
                 {
+                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level1Offset, globalMinX, globalMinY, globalMinZ,
@@ -547,6 +560,7 @@ namespace A2Z
                 // Level 2 치수 (중간)
                 foreach (var dim in level2Dims)
                 {
+                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level2Offset, globalMinX, globalMinY, globalMinZ,
@@ -554,11 +568,12 @@ namespace A2Z
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
-                // Level 0 전체 치수 (가장 바깥 - 전체 길이)
+                // Level 0 전체 치수 (가장 바깥 - 전체 길이) — 통상 >13mm지만 일관성 위해 동일 토글
                 int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
                 float level0Offset = baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
+                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level0Offset, globalMinX, globalMinY, globalMinZ,

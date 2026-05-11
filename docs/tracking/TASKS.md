@@ -275,6 +275,7 @@
   - [ ] 겹침 감지 유틸 신설 (Form1.Dimensions.cs) — `ApplySmartFiltering`이 이미 텍스트 간격 검사로 부분 구현. 2026-05-11 진단 DiagLog 추가 (axis별 level0/level1 분포 검증용)
   - [x] **T2 변형 (2026-05-11)**: 사용자 요청 — `level1Offset` i%2 토글. 짝수 i=100mm, 홀수 i=50mm. 같은 축 내 측정축 좌표 순 정렬 후 인접 쌍 두 라인 분산
   - [ ] **T2 변형 취소 (2026-05-11)**: 사용자 결정 *"수치는 2줄만 생성 — 부재간 연쇄치수 + 전체치수"*. 토글 폐기, Level 1 foreach 원복. level2 적응형(`ApplySmartFiltering` 충돌 회피)은 유지. 별도 결정 시 level2도 폐기 가능
+  - [x] **텍스트 위치 13mm 임계 (2026-05-11)**: 사용자 결정 *"치수 ≤13mm면 바깥, >13mm면 기본 위치 1, 기준 통일"*. `AlignDistanceTextPosition` 글로벌 옵션을 측정 추가 직전에 dim별 토글. `btnDimensionShowSelected_Click` foreach + `ShowAllDimensions` Level 1/2/0 세 그룹 모두 적용
   - [ ] docs 갱신 (이번 라운드 show-axis-x.md 진행)
 - **영향 파일**:
   - `A2Z/Form1.Dimensions.cs` (AddChainDimensionByAxis, 겹침 검사 유틸 신설)

@@ -6,10 +6,41 @@
 
 ---
 
-## 2026-05-11 — T-040v 토글 취소: 2줄만 생성 (사용자 결정)
+## 2026-05-11 — T-040: 치수 텍스트 위치 13mm 임계 토글 (사용자 결정)
 
 **유형**: fix (사용자 결정 — 외부 조건)
 **커밋**: `pending`
+**관련 TASK**: T-040
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**배경**: 사용자 결정 *"치수가 보조선과 겹치는 현상 — 치수 13mm 이하면 바깥으로 빼버려, 기준 통일"*. T-058에서 모든 치수 일괄 `AlignDistanceTextPosition=2`(바깥)였는데, 긴 치수는 안쪽이 자연스러워 거리 기반 분기로 변경.
+
+**구현 핵심**: `MeasureStyle.AlignDistanceTextPosition`은 글로벌 옵션이라 측정별 개별 지정 불가 (T-058 sdk-verifier 확인). 우회: 측정 추가 직전에 `dim.Distance` 검사해 `SetStyle` 동적 토글.
+
+**코드 변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.Dimensions.cs:62~](A2Z/Form1.Dimensions.cs:62) `btnDimensionShowSelected_Click` foreach | dim별 토글 추가 |
+| [Form1.Dimensions.cs:534~](A2Z/Form1.Dimensions.cs:534) `ShowAllDimensions` Level 1/2/0 | `applyTextPosition` 람다 + 세 foreach 모두 호출 |
+
+**규칙**:
+- `dim.Distance ≤ 13.0f` → `AlignDistanceTextPosition = 2` (보조선 바깥)
+- `dim.Distance > 13.0f` → `AlignDistanceTextPosition = 1` (위)
+
+**확인 필요 (실측)**: `SetStyle` 토글이 새로 추가되는 측정에만 적용되는지 (예상) vs 기존 측정도 갱신되는지 — SDK XML 명시 없음. 빌드 후 결과로 판정.
+
+**docs**: `dimensions/show-axis-x.md` 변경 이력, `TASKS.md` T-040 체크
+
+**빌드 검증**: A2Z.exe 생성 성공
+
+---
+
+## 2026-05-11 — T-040v 토글 취소: 2줄만 생성 (사용자 결정)
+
+**유형**: fix (사용자 결정 — 외부 조건)
+**커밋**: `4edd04f`
 **관련 TASK**: T-040 (IN_PROGRESS, 1차 폐기)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: —
