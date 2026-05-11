@@ -1,14 +1,14 @@
 ---
-title: 엑셀 템플릿 PoC (Step 3 — JSON 직접 파싱 + 우리 렌더)
+title: 엑셀 템플릿 PoC (Step 4 — 2D 모드 진입 + SDK 자동 적용 재시도)
 category: drawing-sheets
 handler: btnExcelTemplatePoC_Click
 file: A2Z/Form1.ExcelTemplate.cs
 related: REQ-002, T-012, T-057
-status: PoC Step 3 (옵션 A 본진)
+status: PoC Step 4 (사용자 가설 검증)
 last_updated: 2026-05-12
 ---
 
-# 엑셀 템플릿 PoC — Step 3 (`btnExcelTemplatePoC_Click`)
+# 엑셀 템플릿 PoC — Step 4 (`btnExcelTemplatePoC_Click`)
 
 ## 목적
 
@@ -40,14 +40,26 @@ REQ-002 / T-012 PoC **옵션 A 본진**. Step 1/2의 SDK 자동 적용·reflecti
    - `Drawing2D.Template.CrateTemplateBorder()` — 외곽 테두리 생성
    - 기존 GenerateSheetDrawing2D / MfgDrawing 패턴과 동일
 3. **JSON 파싱** — `System.Web.Script.Serialization.JavaScriptSerializer` (MaxJsonLength = int.MaxValue) 로 Dictionary 파싱. Line/Text/Image 리스트 분리.
-3. **InputBox 모드 선택 (Step 3는 Line만)**:
-   - `1` — Line 10개만 (시각 검증, 좌표·렌더 동작 확인용)
-   - `2` — Line 전체 (1539개 추정)
-   - `0` — 기존 ShapeDrawing 모두 제거 (clear)
-4. **Line 그리기** — JSON Line 좌표(mm)를 `Vertex3DItemCollection` 세그먼트로 변환 (Z=0 평면), 한 번에 `vizcore3d.ShapeDrawing.AddLine(allLines, -1, Color.Black, 0.3f, true)` 호출 → `shapeId` 반환.
-5. **3D → 2D 캔버스 변환** — `vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(new List<int> { shapeId })`.
-6. **Text는 Step 4로 미룸** — `vizcore3d.Note` 가 VIZCore3DControl에 노출 안 됨 확인. `TextDrawing.Add(Vertex3D, ...)` 3D 텍스트 또는 다른 경로 별도 탐색 필요.
-7. **DiagLog + 결과 MessageBox** — Line 추가 개수, shapeId, 다음 결정 안내.
+3. **InputBox 모드 선택**:
+   - **`4` — SDK 자동 적용 (Set2DViewDefaultTemplate)** : 사용자 가설 검증 (권장 기본값). 2D 모드 진입 후 인덱스 입력받아 적용
+   - `1` — Line 10개만 직접 그리기 (Step 3 fallback)
+   - `2` — Line 전체 직접 그리기 (1539개)
+   - `0` — 기존 ShapeDrawing 제거 (clear)
+4. **mode=4 흐름**: 추가 InputBox로 인덱스 입력 (기본 3). `vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(idx)` 호출. 2D 모드 진입이 선행됐으니 *Step 1/2 때와 달리* 그려질 가능성.
+5. **mode=1/2 흐름 (fallback)**: JSON Line 좌표(mm)를 `Vertex3DItemCollection` 세그먼트로 변환 (Z=0 평면) → `ShapeDrawing.AddLine` → `Add2DObjectFromShapeDrawing` 변환.
+6. **Text는 Step 5 이후 미룸** — `vizcore3d.Note` 가 VIZCore3DControl에 노출 안 됨 확인. `TextDrawing.Add(Vertex3D, ...)` 3D 텍스트 또는 다른 경로 별도 탐색 필요.
+7. **DiagLog + 결과 MessageBox** — 호출 성공/실패 + 다음 결정 안내.
+
+## Step 4의 핵심 가설
+
+사용자 지적 — "엑셀 데이터 템플릿 그대로 띄울 때도 저 코드(2D 모드 진입 시퀀스)가 필요한 거 아닌가?"
+
+이전 Step 1/2 실패 원인 재평가:
+- Step 1/2에서 `ImportExcel` + `Set2DViewDefaultTemplate(int)` 만 호출 — **2D 도면 모드 진입 시퀀스 누락**
+- 캔버스 비어있던 진짜 이유: SDK는 적용했지만 2D 모드 활성화 안 돼 그려질 캔버스가 없었음
+- **2D 모드 진입(ViewMode=Both, SetCanvasSize, SetSelectCanvas, CrateTemplateBorder) 후 Set2DViewDefaultTemplate 호출하면 동작할 가능성**
+
+→ 동작하면 직접 그리기(Step 3) 불필요. 가장 깔끔.
 
 ## 핵심 SDK API
 
@@ -112,4 +124,5 @@ ImportExcel 호출 시 SDK가 생성한 데이터:
 | 2026-05-12 | Step 1 검증 후 1.5로 격상 — `Set2DViewDefaultTemplate(int)` 추가 호출 + InputBox로 인덱스 입력 (string 오버로드 외부 호출 불가 확인). 사용자 사내 PC에서 Step 1 결과: 설정 트리 등장만, 캔버스 빔 확인. csproj `Microsoft.VisualBasic` 참조 추가 | `af9fbd9` |
 | 2026-05-12 | Step 1.5 검증 후 Step 2로 격상 — int 오버로드 0~5+ 모두 실패(0/1/2=DSME 정상, 3+=빈 outline만). SDK dll reflection으로 internal `Draw2DViewTemplate(string)` / `Set2DViewDefaultTemplate(string)` 존재 확인. Reflection 우회 호출 PoC. InputBox로 filePath 후보 입력 + TemplatePath 진단 로그 | `a7ab4c4` |
 | 2026-05-12 | Step 2 검증 후 Step 3로 격상 — reflection 호출 모두 "성공"이지만 캔버스 비어있음(silent fail). SDK dll obfuscation 보호 확인. **옵션 A 본진 진입**: JSON 직접 파싱 + ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing + Note.AddNote2D 로 우리가 렌더. csproj `System.Web.Extensions` 참조 추가 | `6ec73a4` |
-| 2026-05-12 | Step 3 검증 후 Step 3.5로 보완 — Line 10개 추가 성공(shapeId=2)이지만 캔버스 빔. 사용자 지적: **2D 도면 모드 진입 시퀀스 누락**. 기존 GenerateSheetDrawing2D/MfgDrawing이 사용하는 `ToolbarDrawing2D.Visible / ViewMode=Both / SetCanvasSize / SetSelectCanvas / CrateTemplateBorder` 시퀀스 추가 | (이번 커밋) |
+| 2026-05-12 | Step 3 검증 후 Step 3.5로 보완 — Line 10개 추가 성공(shapeId=2)이지만 캔버스 빔. 사용자 지적: **2D 도면 모드 진입 시퀀스 누락**. 기존 GenerateSheetDrawing2D/MfgDrawing이 사용하는 `ToolbarDrawing2D.Visible / ViewMode=Both / SetCanvasSize / SetSelectCanvas / CrateTemplateBorder` 시퀀스 추가 | `be2a920` |
+| 2026-05-12 | Step 4로 격상 — 사용자 추가 지적: **"엑셀 데이터 템플릿 그대로 띄울 때도 저 코드가 필요"**. 즉 Step 1/2 실패 원인이 *SDK가 못 그린다*가 아니라 *2D 모드 진입 누락*일 가능성. InputBox 모드 "4" 추가 (Set2DViewDefaultTemplate 재시도, 이번엔 2D 모드 진입 선행) | (이번 커밋) |

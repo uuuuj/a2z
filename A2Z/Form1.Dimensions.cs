@@ -375,7 +375,11 @@ namespace A2Z
         ///
         /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
         /// </summary>
-        private List<int> ShowAllDimensions(string viewDirection = null, bool forDrawing2D = false)
+        private List<int> ShowAllDimensions(
+            string viewDirection = null,
+            bool forDrawing2D = false,
+            float baseOffsetOverride = -1f,
+            float levelSpacingOverride = -1f)
         {
             // T-028: 치수 계산은 호출자가 chainDimensionList에 미리 채움 (치수추출·시트 선택·2D 출력 모두 동일).
             // 본 메서드는 chainDimensionList를 viewDirection 기준으로 필터링해 3D 뷰에 표시하는 역할만.
@@ -490,12 +494,14 @@ namespace A2Z
                 float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
                 // 오프셋 (3D/2D 동일 — 2D 변환 시 좌표가 함께 변환되므로 동일 값 사용)
-                float baseOffset = 100.0f;
-                float levelSpacing = 80.0f;
+                // T-038+039: 호출자가 캔버스 절대 mm 목표(예: 1단=50mm, 2단=100mm)에서 역산한
+                // 모델 좌표 값을 override로 전달 가능. -1f면 기존 default 사용.
+                float baseOffset = (baseOffsetOverride > 0f) ? baseOffsetOverride : 100.0f;
+                float levelSpacing = (levelSpacingOverride > 0f) ? levelSpacingOverride : 80.0f;
 
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
-                // ========== 축별 체인치수 방향 결정 (중심에서 체인치수 위치 방향) ==========
+                // ========== 축별 체인치수 방향 결정 (T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽) ==========
                 Dictionary<string, bool> axisPositiveOffset = new Dictionary<string, bool>();
                 if (viewDirection != null)
                 {
@@ -505,18 +511,6 @@ namespace A2Z
                         string dimAxis = grp.Key;
                         string offsetAxis = GetRemainingAxis(viewDirection, dimAxis);
 
-                        // 체인 포인트들의 오프셋축 평균값 계산
-                        float sumOffsetVal = 0;
-                        int count = 0;
-                        foreach (var dim in grp)
-                        {
-                            sumOffsetVal += GetAxisValue(dim.StartPoint, offsetAxis);
-                            sumOffsetVal += GetAxisValue(dim.EndPoint, offsetAxis);
-                            count += 2;
-                        }
-                        float avgOffsetVal = count > 0 ? sumOffsetVal / count : 0;
-
-                        // 모델 중심과 비교하여 방향 결정
                         float modelCenterOffset = 0;
                         switch (offsetAxis)
                         {
@@ -524,7 +518,13 @@ namespace A2Z
                             case "Y": modelCenterOffset = modelCenterY; break;
                             case "Z": modelCenterOffset = modelCenterZ; break;
                         }
-                        axisPositiveOffset[dimAxis] = avgOffsetVal >= modelCenterOffset;
+
+                        var values = grp.SelectMany(d => new[]
+                        {
+                            GetAxisValue(d.StartPoint, offsetAxis),
+                            GetAxisValue(d.EndPoint, offsetAxis)
+                        });
+                        axisPositiveOffset[dimAxis] = ComputePositiveOffsetByOsnapExtreme(values, modelCenterOffset);
                     }
                 }
 
@@ -1485,6 +1485,32 @@ namespace A2Z
                 case "Z": return point.Z;
                 default: return 0f;
             }
+        }
+
+        /// <summary>
+        /// T-005 (FB-002): 모델 중앙 기준 외곽 방향 자동 판정.
+        /// 사용자 사양: "모델 전체 뷰를 봤을 때 중앙을 기준으로 4분면으로 나누면, 중앙에서 가장 먼
+        /// 남아있는 Osnap이 있는 방향으로 치수를 그려준다."
+        /// 동작: omax/omin = Osnap 좌표의 max/min. 중앙↔omax 거리 ≥ 중앙↔omin 거리면 positive(양수).
+        /// 모든 Osnap이 한쪽에만 있어도 부호 있는 차이로 자동 정렬 (한쪽 거리만 양수가 됨).
+        /// </summary>
+        private bool ComputePositiveOffsetByOsnapExtreme(
+            IEnumerable<float> offsetAxisValues, float modelCenter)
+        {
+            if (offsetAxisValues == null) return false;
+            bool hasAny = false;
+            float omax = float.MinValue;
+            float omin = float.MaxValue;
+            foreach (var v in offsetAxisValues)
+            {
+                if (v > omax) omax = v;
+                if (v < omin) omin = v;
+                hasAny = true;
+            }
+            if (!hasAny) return false;
+            float distMaxSide = omax - modelCenter;
+            float distMinSide = modelCenter - omin;
+            return distMaxSide >= distMinSide;
         }
 
         #endregion

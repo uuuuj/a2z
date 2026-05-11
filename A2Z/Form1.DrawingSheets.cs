@@ -1496,6 +1496,60 @@ namespace A2Z
         }
 
         /// <summary>
+        /// T-038+039: 그리드 셀(row, col)에 viewDirection으로 모델 배치 시 *예상* fit scale 추정.
+        /// 사용자 사양: 보조선 끝점이 캔버스 절대 50mm(1단) / 100mm(2단) 고정 →
+        /// 모델 좌표 보조선 offset = 50/scale, 100/scale.
+        /// ShowAllDimensions가 RescaleObject보다 *먼저* 호출되므로 사전 추정 필요.
+        /// 추정식 = min((cellW - margins) * 0.8 / modelW_2dProj, (cellH - margins) * 0.8 / modelH_2dProj).
+        /// </summary>
+        private float EstimateFitScaleForCell(int row, int col, string viewDirection, List<int> memberIndices)
+        {
+            float cellW = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
+            float cellH = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
+            float marginL = vizcore3d.Drawing2D.GridStructure.GetGridCellLeftMargin(row, col);
+            float marginR = vizcore3d.Drawing2D.GridStructure.GetGridCellRightMargin(row, col);
+            float marginT = vizcore3d.Drawing2D.GridStructure.GetGridCellTopMargin(row, col);
+            float marginB = vizcore3d.Drawing2D.GridStructure.GetGridCellBottomMargin(row, col);
+            float availW = cellW - marginL - marginR;
+            float availH = cellH - marginT - marginB;
+
+            // 모델 BBox 합 (bomList에서 memberIndices 부재만)
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            if (bomList != null && memberIndices != null && memberIndices.Count > 0)
+            {
+                var idxSet = new HashSet<int>(memberIndices);
+                foreach (var b in bomList)
+                {
+                    if (!idxSet.Contains(b.Index)) continue;
+                    if (b.MinX < minX) minX = b.MinX;
+                    if (b.MaxX > maxX) maxX = b.MaxX;
+                    if (b.MinY < minY) minY = b.MinY;
+                    if (b.MaxY > maxY) maxY = b.MaxY;
+                    if (b.MinZ < minZ) minZ = b.MinZ;
+                    if (b.MaxZ > maxZ) maxZ = b.MaxZ;
+                }
+            }
+            if (maxX == float.MinValue) return 1f;  // 안전장치
+
+            float modelW, modelH;
+            switch (viewDirection)
+            {
+                case "X": modelW = maxY - minY; modelH = maxZ - minZ; break;
+                case "Y": modelW = maxX - minX; modelH = maxZ - minZ; break;
+                default:  modelW = maxX - minX; modelH = maxY - minY; break;  // "Z"/null
+            }
+            if (modelW < 1e-3f || modelH < 1e-3f) return 1f;
+
+            float scaleW = (availW * 0.8f) / modelW;
+            float scaleH = (availH * 0.8f) / modelH;
+            float scale = Math.Min(scaleW, scaleH);
+            DiagLog($"T-038+039 EstimateFitScaleForCell row={row} col={col} view={viewDirection} cell=({cellW:F1},{cellH:F1}) model=({modelW:F1},{modelH:F1}) scale={scale:F4}");
+            return scale > 0f ? scale : 1f;
+        }
+
+        /// <summary>
         /// 각 그리드 셀별로 3D 상태를 ApplyDrawingSheetView와 동일하게 적용 → 2D 투영
         /// ISO: 풍선번호(CreateIsoBalloonNotes), X/Y/Z: 치수선+보조선+풍선(ShowAllDimensions)
         /// 각 셀 크기의 90% 비율로 중앙 배치
@@ -1600,7 +1654,14 @@ namespace A2Z
             else
             {
                 // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선 ShapeDrawing ID 수집)
-                shapeDrawingIds = ShowAllDimensions(viewDirection, true);
+                // T-038+039: 캔버스 절대 mm로 보조선 길이 고정 — 1단=50mm, 2단=100mm.
+                // 모델 좌표 mm로 역산: baseOffset = 50/scale, levelSpacing = (100-50)/scale = 50/scale.
+                // ShowAllDimensions가 RescaleObject 전에 호출되므로 사전 추정 scale 사용.
+                float estScale = EstimateFitScaleForCell(row, col, viewDirection,
+                    isIsoFullView ? allBomIndices : sheet.MemberIndices);
+                float baseOff = 50.0f / estScale;
+                float lvlSpace = 50.0f / estScale;  // 100mm - 50mm = 50mm 차분
+                shapeDrawingIds = ShowAllDimensions(viewDirection, true, baseOff, lvlSpace);
             }
 
             // ── 5. 2패스 2D 투영 (Sheet 2+ ISO: 나머지 부재 가는점선 + 시트 부재 굵은실선) ──

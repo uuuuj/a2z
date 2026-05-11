@@ -332,21 +332,18 @@ namespace A2Z
                 float mfgCenterY = (mfgGlobalMinY + mfgGlobalMaxY) / 2f;
                 float mfgCenterZ = (mfgGlobalMinZ + mfgGlobalMaxZ) / 2f;
 
-                // 축별 치수선 방향 결정 (모델 중심 기준 - 바깥쪽으로)
+                // 축별 치수선 방향 결정 (T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽)
                 var mfgAxisPosOff = new Dictionary<string, bool>();
                 foreach (var grp in mfgDimensions.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
                 {
                     string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                    float sumV = 0; int cnt = 0;
-                    foreach (var d in grp)
-                    {
-                        sumV += GetAxisValue(d.StartPoint, offAxis);
-                        sumV += GetAxisValue(d.EndPoint, offAxis);
-                        cnt += 2;
-                    }
-                    float avg = cnt > 0 ? sumV / cnt : 0;
                     float center = offAxis == "X" ? mfgCenterX : offAxis == "Y" ? mfgCenterY : mfgCenterZ;
-                    mfgAxisPosOff[grp.Key] = avg >= center;
+                    var values = grp.SelectMany(d => new[]
+                    {
+                        GetAxisValue(d.StartPoint, offAxis),
+                        GetAxisValue(d.EndPoint, offAxis)
+                    });
+                    mfgAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, center);
                 }
 
                 var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
@@ -1057,20 +1054,18 @@ namespace A2Z
                     float mfgCenterY = (mfgGlobalMinY + mfgGlobalMaxY) / 2f;
                     float mfgCenterZ = (mfgGlobalMinZ + mfgGlobalMaxZ) / 2f;
 
+                    // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
                     var mfgAxisPosOff = new Dictionary<string, bool>();
                     foreach (var grp in mfgDimensions.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
                     {
                         string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                        float sumV = 0; int cnt = 0;
-                        foreach (var d in grp)
-                        {
-                            sumV += GetAxisValue(d.StartPoint, offAxis);
-                            sumV += GetAxisValue(d.EndPoint, offAxis);
-                            cnt += 2;
-                        }
-                        float avg = cnt > 0 ? sumV / cnt : 0;
                         float centerVal = offAxis == "X" ? mfgCenterX : offAxis == "Y" ? mfgCenterY : mfgCenterZ;
-                        mfgAxisPosOff[grp.Key] = avg >= centerVal;
+                        var values = grp.SelectMany(d => new[]
+                        {
+                            GetAxisValue(d.StartPoint, offAxis),
+                            GetAxisValue(d.EndPoint, offAxis)
+                        });
+                        mfgAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, centerVal);
                     }
 
                     // EA 앵글: 체인치수 방향 강제 오버라이드
@@ -1189,20 +1184,18 @@ namespace A2Z
                 float mfgCY = (bom.MinY + bom.MaxY) / 2f;
                 float mfgCZ = (bom.MinZ + bom.MaxZ) / 2f;
 
+                // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
                 var mfgAxisPosOff_m = new Dictionary<string, bool>();
                 foreach (var grp in allMfgDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
                 {
                     string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                    float sumV2 = 0; int cnt2 = 0;
-                    foreach (var d in grp)
-                    {
-                        sumV2 += GetAxisValue(d.StartPoint, offAxis);
-                        sumV2 += GetAxisValue(d.EndPoint, offAxis);
-                        cnt2 += 2;
-                    }
-                    float avg2 = cnt2 > 0 ? sumV2 / cnt2 : 0;
                     float cv2 = offAxis == "X" ? mfgCX : offAxis == "Y" ? mfgCY : mfgCZ;
-                    mfgAxisPosOff_m[grp.Key] = avg2 >= cv2;
+                    var values = grp.SelectMany(d => new[]
+                    {
+                        GetAxisValue(d.StartPoint, offAxis),
+                        GetAxisValue(d.EndPoint, offAxis)
+                    });
+                    mfgAxisPosOff_m[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv2);
                 }
 
                 // EA 앵글: 체인치수 방향 오버라이드 (풍선 위치 계산용)
@@ -1711,20 +1704,18 @@ namespace A2Z
                             float eaCX = (bom.MinX + bom.MaxX) / 2f;
                             float eaCY = (bom.MinY + bom.MaxY) / 2f;
                             float eaCZ = (bom.MinZ + bom.MaxZ) / 2f;
+                            // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽 (비길이축 자동)
                             foreach (var grp in newDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
                             {
                                 if (eaAxisPosOff.ContainsKey(grp.Key)) continue;
                                 string offAx = GetRemainingAxis(newViewDir, grp.Key);
-                                float sum = 0; int cnt = 0;
-                                foreach (var d in grp)
-                                {
-                                    sum += GetAxisValue(d.StartPoint, offAx);
-                                    sum += GetAxisValue(d.EndPoint, offAx);
-                                    cnt += 2;
-                                }
-                                float avg = cnt > 0 ? sum / cnt : 0;
                                 float cv = offAx == "X" ? eaCX : offAx == "Y" ? eaCY : eaCZ;
-                                eaAxisPosOff[grp.Key] = avg >= cv;
+                                var values = grp.SelectMany(d => new[]
+                                {
+                                    GetAxisValue(d.StartPoint, offAx),
+                                    GetAxisValue(d.EndPoint, offAx)
+                                });
+                                eaAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv);
                             }
 
                             float eaMinX = bom.MinX, eaMinY = bom.MinY, eaMinZ = bom.MinZ;

@@ -207,7 +207,8 @@
 
 ### T-038 — 2D 출력 셀 크기 기반 모델 스케일 + 여백 예산
 - **생성일**: 2026-04-24
-- **상태**: TODO
+- **착수일**: 2026-05-12
+- **상태**: IN_PROGRESS (T-039와 결합 — 보조선 50/100mm 고정 PoC 1차, 일반 시트만)
 - **관련**: — (사용자 직접 지시, T-006 2차 실험 흡수)
 - **배경**: 현재 `targetH=40f` 하드코드. 셀 높이 ≈ 95mm이므로 58% 여유 공간 낭비. 모델을 키우고 싶지만 그리드 이탈·풍선/라벨/치수선 겹침 위험
 - **제안 여백 예산** (사용자 승인 필요):
@@ -229,7 +230,29 @@
 
 ### T-039 — 치수 생성 타이밍 재설계 + offset 고정 (2D 공간 기준)
 - **생성일**: 2026-04-24
-- **상태**: TODO
+- **착수일**: 2026-05-12
+- **상태**: IN_PROGRESS (T-038과 결합 — 일반 시트 보조선 50/100mm 고정 PoC 1차, 가공도 별도)
+- **사용자 사양 (2026-05-12)**: 모델을 2D View에 표현한 후 *2D 캔버스 절대 좌표*에서 1단(체인치수) 50mm / 2단(전체치수) 100mm 고정. 기준=보조선 끝점. 텍스트 마진(`AlignDistanceTextMargine`) 보정 X
+- **구현 핵심 (1차)**: `ShowAllDimensions(viewDirection, forDrawing2D)`가 `RescaleObject`보다 *먼저* 호출되는 구조라 **fit scale 사전 추정** 필요. `EstimateFitScaleForCell(row, col, viewDirection, memberIndices)` 신설 — 셀 크기 80% / 모델 BBox 2D 투영 비율로 추정. `ShowAllDimensions` 시그니처에 `baseOffsetOverride`/`levelSpacingOverride` 추가, 호출자가 `50/scale, (100-50)/scale = 50/scale` 전달
+- **세부 (1차)**:
+  - [x] `ShowAllDimensions` 시그니처 확장 — `baseOffsetOverride = -1f`, `levelSpacingOverride = -1f` (Form1.Dimensions.cs:378)
+  - [x] `baseOffset` / `levelSpacing` 변수 override 적용 (Form1.Dimensions.cs:493~495)
+  - [x] `EstimateFitScaleForCell` 헬퍼 신설 (Form1.DrawingSheets.cs:1498)
+  - [x] `RenderSheetViewForDrawing` L1603 호출 직전 estimate + override 전달
+  - [ ] **빌드 통과 후 사용자 사내 PC 실기 — 보조선 시각적 길이가 *모델 스케일과 무관하게* 일정한지 확인. DiagLog `T-038+039 EstimateFitScaleForCell` 값 비교**
+- **잔여 (2차 — 가공도 적용)**:
+  - [ ] Form1.MfgDrawing.cs L365 `mfgChainOff1 = 100.0f * offFactor_3d` 식 동일 패턴 적용
+  - [ ] EA 신규 뷰(L1746), MULTI 가공도(L1229) 동일
+  - [ ] 별도 셀 fit scale 추정 (가공도는 4% 타겟 + 20mm 최소)
+- **잔여 (3차 — 정확도 향상)**:
+  - [ ] 사전 추정 vs 실제 RescaleObject scale 차이 측정 → 오차 분석
+  - [ ] 큰 경우 2단계 렌더 (모델 먼저 → 실제 scale → 치수) 재설계
+- **영향 파일**: A2Z/Form1.Dimensions.cs (시그니처+변수), A2Z/Form1.DrawingSheets.cs (헬퍼+호출)
+- **선행**: T-038 (셀 크기 기반 모델 스케일)과 결합으로 진행 중
+
+### T-039 (구) — 치수 생성 타이밍 재설계 + offset 고정 (2D 공간 기준)
+- **생성일**: 2026-04-24
+- **상태**: 격상됨 (위 항목 참조)
 - **관련**: — (사용자 직접 지시, T-038 후속)
 - **배경**: 모델 `RescaleObject` 시 치수선도 같이 확대되어 offset이 `ratio`배로 폭주하고 텍스트가 과도하게 작아짐. 치수선이 셀 경계를 벗어나 인접 셀 침범 (T-006 FB 중 "치수선 셀 이탈"과 동일)
 - **근본 원인**: `ShowAllDimensions`로 **3D Measure 생성 → 2D 변환 → 모델과 함께 스케일** 순서라 치수가 모델 크기의 함수로 움직임
@@ -342,16 +365,19 @@
 
 ### T-005 — 치수 배치를 Osnap 외곽 방향으로
 - **생성일**: 2026-04-15
-- **상태**: TODO
+- **착수일**: 2026-05-12
+- **상태**: IN_PROGRESS (구현 완료, 사용자 사내 PC 실기 검증 대기)
 - **관련**: FB-002
+- **사용자 사양 (2026-05-12)**: 모델 전체 뷰 중앙 기준 4분면 — 중앙에서 가장 먼 Osnap이 있는 방향으로 치수. 상/하·좌/우 각각 max·min 거리 비교로 외곽 판정
+- **구현 핵심**: 헬퍼 `ComputePositiveOffsetByOsnapExtreme(values, modelCenter)` 신설. `omax - center` vs `center - omin` 부호 있는 거리 비교 → 큰 쪽이 positive. 기존 `avg >= center` 5곳 전부 교체. 한쪽 쏠림(omin/omax 모두 center 한쪽)도 부호 자동 처리
 - **세부**:
-  - [ ] 각 체인 치수의 "바깥 방향" 판정 로직 구현 (Osnap 무게중심 반대 방향)
-  - [ ] `ShowAllDimensions` 및 `btnDimensionShowSelected_Click`의 축별 오프셋을 외곽 방향으로 변경
-  - [ ] 기존 축별 오프셋(50.0f 고정)을 부재 BBox 근처로 조정
-  - [ ] docs/features/dimensions/show-selected.md + main-dimension.md 동기화
+  - [x] 헬퍼 `ComputePositiveOffsetByOsnapExtreme` 신설 — Form1.Dimensions.cs GetAxisValue 옆
+  - [x] 5곳 적용 — Form1.Dimensions.cs:499(메인, 치수추출+2D 출력 공용) / Form1.MfgDrawing.cs:335(가공도 메인) / :1057(가공도 보조) / :1192(MULTI) / :1707(EA newDims 비길이축, longestAxis 오버라이드 유지)
+  - [ ] 빌드 통과 후 사용자 사내 PC에서 실기 — 부재가 모델 중앙 한쪽에 치우친 케이스에서 치수가 *그 반대쪽*(외곽)으로 빠지는지 확인
+  - [x] docs/features/dimensions/main-dimension.md 갱신 (외곽 판정 알고리즘 섹션)
 - **영향 파일**:
-  - `A2Z/Form1.Dimensions.cs` (btnDimensionShowSelected_Click L17, ShowAllDimensions)
-  - `A2Z/Form1.BOM.cs` (btnMainDimension_Click 내부 AddChainDimensionByAxis 영향 가능)
+  - `A2Z/Form1.Dimensions.cs` (헬퍼 추가 + L499 패턴 교체)
+  - `A2Z/Form1.MfgDrawing.cs` (4곳 패턴 교체)
 
 ### T-012 — 엑셀 템플릿 하이브리드 실험 (PoC)
 - **생성일**: 2026-04-20

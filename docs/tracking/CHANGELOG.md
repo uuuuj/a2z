@@ -6,6 +6,86 @@
 
 ---
 
+## 2026-05-12 — T-038+T-039: 일반 시트 보조선 길이 캔버스 절대 50/100mm 고정 (1차 PoC)
+
+**유형**: feat (사용자 사양)
+**커밋**: (이번 커밋 — T-005와 합쳐서)
+**관련 TASK**: T-038 + T-039 (TODO → IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**사용자 사양 (2026-05-12)**: *"모델을 2D View에 표현한 후 2D View에서 첫 번째 체인치수는 모두 50mm로 고정하고 두번째 라인 전체 치수는 100mm로 고정."* 기준=보조선 끝점. 텍스트 마진(`AlignDistanceTextMargine`) 보정 X.
+
+**문제**: 기존 `ShowAllDimensions` 내부 `baseOffset=100`, `levelSpacing=80`은 *3D 모델 좌표 mm*. 모델과 함께 RescaleObject로 스케일되어 *시각 길이가 모델 크기에 비례 변동*. 사용자는 *2D 캔버스 절대 mm*로 고정 원함.
+
+**핵심 발견**: 현재 `RenderSheetViewForDrawing` 흐름이 `ShowAllDimensions` → `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin` → `RescaleObject(objId, fitScale)` 순서. 즉 *치수 생성 시 실제 fitScale 미상*. 사전 추정 필요.
+
+**구현 (1차 — 일반 시트만)**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.Dimensions.cs:378](A2Z/Form1.Dimensions.cs:378) | `ShowAllDimensions` 시그니처에 `baseOffsetOverride = -1f`, `levelSpacingOverride = -1f` 옵션 파라미터 추가 |
+| [Form1.Dimensions.cs:493~495](A2Z/Form1.Dimensions.cs:493) | `baseOffset` / `levelSpacing` 변수에 override 우선 적용 (>0이면) |
+| [Form1.DrawingSheets.cs:1498~](A2Z/Form1.DrawingSheets.cs:1498) | 신규 헬퍼 `EstimateFitScaleForCell(row, col, viewDirection, memberIndices)` — `GetGridCellWidth/Height` + margins 차감 후 모델 BBox 2D 투영 → `min((availW × 0.8) / modelW_2dProj, (availH × 0.8) / modelH_2dProj)` |
+| [Form1.DrawingSheets.cs:1603](A2Z/Form1.DrawingSheets.cs:1603) | `ShowAllDimensions` 호출 직전 `estScale = EstimateFitScaleForCell(...)` → `baseOff = 50/scale`, `lvlSpace = 50/scale` (100-50=50 차분) 전달 |
+
+**변환 식**:
+- 1단 보조선 끝점 = 캔버스 50mm 목표 → 모델 좌표 mm offset = `50 / scale`
+- 2단 보조선 끝점 = 캔버스 100mm 목표 → 차분 50mm → 모델 좌표 mm levelSpacing = `50 / scale`
+- 즉 level1Offset = 50/scale, level2Offset = baseOffset + levelSpacing = 100/scale
+
+**다른 ShowAllDimensions 호출자 영향**: 5곳 모두 override 인자 생략 → default `-1f` → 기존 동작(100/80) 그대로 보존. RenderSheetViewForDrawing L1603만 신규 동작.
+
+**검증 메트릭 DiagLog**: `T-038+039 EstimateFitScaleForCell row=N col=N view=X cell=(W,H) model=(W,H) scale=N.NNNN`
+
+**잔여 작업 (2차+)**:
+- 가공도(MfgDrawing) `mfgChainOff1 = 100.0f * offFactor_3d` 식 동일 패턴 — 별도 commit 예정
+- 사전 추정 scale vs 실제 RescaleObject scale 오차 측정 — 사용자 검증 후 조정
+
+**검증 포인트** (사용자 사내 PC):
+- 큰 부재·작은 부재 두 시트 비교 — 보조선 시각 길이가 *동일*하게 보이는지 (절대 50/100mm 도달)
+- 사전 추정 오차가 시각적으로 받아들일 만한지 (대략 ±10% 이내 예상)
+- DiagLog에서 viewDirection별 estimate scale 값 합리적인지
+
+---
+
+## 2026-05-12 — T-005 (FB-002): 보조선 외곽 방향 자동 판정 (중앙→Osnap 최장거리 쪽)
+
+**유형**: feat (사용자 사양 — FB-002)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-005 (TODO → IN_PROGRESS)
+**관련 FEEDBACK**: FB-002
+**관련 REQUEST**: —
+
+**사용자 사양 (2026-05-12)**: *"모델 전체 뷰를 봤을 때 중앙을 기준으로 4분면으로 나누면 중앙에서 가장 먼 남아있는 Osnap이 있는 방향으로 치수를 그려준다. 상하·좌우 중 상이 더 멀고 좌가 더 멀면 위쪽·왼쪽으로 그린다."*
+
+**기존 동작**: 모든 `axisPositiveOffset` 계산이 `avg(Osnap 좌표) >= 중앙` 비교 — *평균*만 따져 부재가 한쪽으로 쏠려 있어도 *외곽 자동 판정 안 됨*
+
+**구현 핵심**: 헬퍼 `ComputePositiveOffsetByOsnapExtreme(IEnumerable<float> values, float modelCenter)` 신설. `omax - center` vs `center - omin` *부호 있는* 거리 비교 → 큰 쪽이 positive. Osnap이 한쪽에만 있는 케이스도 자동 처리.
+
+**코드 변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.Dimensions.cs:1490~](A2Z/Form1.Dimensions.cs:1490) | 신규 헬퍼 `ComputePositiveOffsetByOsnapExtreme` |
+| [Form1.Dimensions.cs:499~](A2Z/Form1.Dimensions.cs:499) | `axisPositiveOffset` (메인, 치수추출+2D 출력 공용) — avg → 헬퍼 |
+| [Form1.MfgDrawing.cs:335~](A2Z/Form1.MfgDrawing.cs:335) | `mfgAxisPosOff` (가공도 메인) — avg → 헬퍼 |
+| [Form1.MfgDrawing.cs:1057~](A2Z/Form1.MfgDrawing.cs:1057) | `mfgAxisPosOff` (가공도 보조) — avg → 헬퍼 |
+| [Form1.MfgDrawing.cs:1192~](A2Z/Form1.MfgDrawing.cs:1192) | `mfgAxisPosOff_m` (MULTI) — avg → 헬퍼 |
+| [Form1.MfgDrawing.cs:1707~](A2Z/Form1.MfgDrawing.cs:1707) | `eaAxisPosOff` (EA newDims 비길이축, `longestAxis = !isLShape` 오버라이드 유지) |
+
+**호출자 시그니처 무변경**: `AddChainDimensionByAxis(positiveOffset)`은 그대로. `Dictionary<string, bool>` 사전 채우는 로직만 5곳 교체.
+
+**검증 포인트** (사용자 사내 PC 실기):
+- 부재가 모델 중앙 한쪽에 치우친 케이스에서 치수가 *그 반대쪽*(외곽)으로 빠지는지
+- 양쪽 균등 분포 케이스에서 (max·min 거리 동일) 기본값(positive) 적용되는지
+- EA 가공도에서 longestAxis 오버라이드는 그대로, 비길이축은 헬퍼로 자동
+- 4경로(치수추출/글로벌/2D 출력/가공도) 모두 일관 동작
+
+**관련 TASK**: T-005 (TODO → IN_PROGRESS, 실기 검증 대기)
+
+---
+
 ## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 3.5 (2D 도면 모드 진입 시퀀스 추가)
 
 **유형**: fix (PoC 보완)

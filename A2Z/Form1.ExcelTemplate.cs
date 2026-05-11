@@ -101,22 +101,64 @@ namespace A2Z
                 int imageCount = imageArr?.Count ?? 0;
                 DiagLog($"[PoC-Excel-Step3] JSON 파싱 OK: Line={lineCount} Text={textCount} Image={imageCount}");
 
-                // 3. InputBox — 시도 모드 선택 (Step 3 PoC: Line만. Text는 별도 API 탐색 필요)
+                // 3. InputBox — 시도 모드 선택
                 string mode = Microsoft.VisualBasic.Interaction.InputBox(
-                    "그리기 모드 선택 (Line만 — Text는 다음 단계):\n\n" +
-                    "  1 : Line 10개만 (시각 검증)\n" +
-                    "  2 : Line 전체 (" + lineCount + "개)\n" +
+                    "모드 선택:\n\n" +
+                    "  4 : SDK 자동 적용 (Set2DViewDefaultTemplate) — 사용자 가설 검증, 권장\n" +
+                    "  1 : Line 10개만 직접 그리기 (Step 3 검증)\n" +
+                    "  2 : Line 전체 직접 그리기 (" + lineCount + "개)\n" +
                     "  0 : 기존 ShapeDrawing 모두 제거 (clear)",
-                    "PoC-Excel Step 3",
-                    "1");
+                    "PoC-Excel Step 4",
+                    "4");
                 if (string.IsNullOrEmpty(mode)) return;
                 mode = mode.Trim();
 
                 if (mode == "0")
                 {
-                    try { vizcore3d.ShapeDrawing.Clear(); DiagLog("[PoC-Excel-Step3] ShapeDrawing.Clear 호출"); }
-                    catch (Exception clearEx) { DiagLog($"[PoC-Excel-Step3] ShapeDrawing.Clear 실패 {clearEx.Message}"); }
-                    MessageBox.Show("ShapeDrawing 제거 시도 완료. 캔버스 확인.", "PoC-Excel Step 3");
+                    try { vizcore3d.ShapeDrawing.Clear(); DiagLog("[PoC-Excel-Step4] ShapeDrawing.Clear 호출"); }
+                    catch (Exception clearEx) { DiagLog($"[PoC-Excel-Step4] ShapeDrawing.Clear 실패 {clearEx.Message}"); }
+                    MessageBox.Show("ShapeDrawing 제거 시도 완료. 캔버스 확인.", "PoC-Excel");
+                    return;
+                }
+
+                if (mode == "4")
+                {
+                    // 사용자 가설 검증: Step 1/2 실패가 2D 모드 진입 누락 때문일 가능성
+                    // 2D 모드 진입은 이미 위에서 완료. 여기서는 인덱스 입력 받아 적용만.
+                    string idxInput = Microsoft.VisualBasic.Interaction.InputBox(
+                        "Set2DViewDefaultTemplate에 사용할 인덱스:\n\n" +
+                        "  -1 : 빈 템플릿\n" +
+                        "  0~2 : DSME 내장\n" +
+                        "  3+ : 사용자 추가 SHI (3이 가장 유력 — Template_0)\n\n" +
+                        "여러 값 시도 가능. CrateTemplateBorder + ViewMode=Both 가 위에서 호출됐으니 이번엔 잘 그려질 가능성.",
+                        "PoC-Excel Step 4 — SDK 자동 적용",
+                        "3");
+                    if (string.IsNullOrEmpty(idxInput)) return;
+                    if (!int.TryParse(idxInput.Trim(), out int idx))
+                    {
+                        MessageBox.Show("정수 필요", "PoC-Excel");
+                        return;
+                    }
+
+                    try
+                    {
+                        vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(idx);
+                        DiagLog($"[PoC-Excel-Step4] Set2DViewDefaultTemplate({idx}) 호출 완료");
+                    }
+                    catch (Exception applyEx)
+                    {
+                        DiagLog($"[PoC-Excel-Step4] Set2DViewDefaultTemplate({idx}) 실패 {applyEx.GetType().Name}: {applyEx.Message}");
+                    }
+
+                    MessageBox.Show(
+                        $"Set2DViewDefaultTemplate({idx}) 호출 완료 — 2D 모드 진입 후 적용.\n\n" +
+                        $"2D View 캔버스 확인:\n" +
+                        $"  - SHI 셀 구조(4뷰/BOM/NOTE/도면정보) 보이면 → 사용자 가설 정답!\n" +
+                        $"  - 빈 outline만 또는 DSME 보이면 → 다른 인덱스 시도\n" +
+                        $"  - 아무것도 없으면 → 모드 진입 자체 실패 (DiagLog 확인)",
+                        "PoC-Excel Step 4",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                     return;
                 }
 
