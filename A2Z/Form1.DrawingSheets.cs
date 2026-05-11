@@ -1365,7 +1365,7 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
 
                 // 2D 치수 텍스트 크기 설정 (스케일 축소 후 가독성 유지를 위해 작게)
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(25f);  // 2026-05-12: 5f→25f 5배 (사용자 임시 검증)
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);  // 2026-05-12: 5f→10f 2배 (사용자 확정)
 
                 // ── 5. 4개 뷰 투영 + 스케일 조정 + 풍선/치수 변환 ──
                 // T-038 (2026-05-12 사용자 사양): 모델을 셀 가득 — FitObjectToGridCellAspect만 사용.
@@ -1930,7 +1930,7 @@ namespace A2Z
             }
 
             // 풍선번호(Note) → 2D (텍스트 크기를 작게 설정하여 겹침 방지)
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(26.25f);  // 2026-05-12: 5.25f→26.25f 5배 (풍선 텍스트, 사용자 임시 검증)
+            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(10.5f);  // 2026-05-12: 5.25f→10.5f 2배 (풍선 텍스트, 사용자 확정)
             List<int> convertedNoteIndices = new List<int>();
             if (visibleNoteIds != null)
             {

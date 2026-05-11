@@ -902,6 +902,11 @@ namespace A2Z
                     List<(int quadrant, float originH, float originV, float originD, string text, Color color, float sortKey)>
                         sortedBalloons = new List<(int, float, float, float, string, Color, float)>();
 
+                    // 2026-05-12 사용자 사양: 2D 출력 X/Y/Z 셀에는 홀/슬롯/EarthBoss 풍선 표현 X
+                    // (ISO 뷰는 별도 CreateIsoBalloonNotes, 가공도는 Form1.MfgDrawing.cs에서 자체 처리)
+                    // 수집 비용은 약간 남지만 한 줄로 표시 차단 — Clear 후 foreach 빈 동작
+                    if (forDrawing2D) balloonEntries.Clear();
+
                     foreach (var entry in balloonEntries)
                     {
                         float oH = getComp(entry.ox, entry.oy, entry.oz, bHAxis);

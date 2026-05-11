@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-05-12 — T-044 시초 + 텍스트 5배→2배 조정
+
+**유형**: feat (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-044 시초 (홀 풍선 제작도 X / 가공도 O 정리)
+**관련 FEEDBACK**: —
+
+**사용자 사양 (2026-05-12)**:
+1. 텍스트 5배 → **2배**로 조정 (이전 검증 OK, 5배 너무 컸음)
+2. **홀/슬롯홀/EarthBoss 풍선** — ISO 빼고는 가공도에만 표현. 즉 *2D 출력의 X/Y/Z 셀*에는 표현 X
+
+**구현**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1a | [Form1.DrawingSheets.cs:1368](A2Z/Form1.DrawingSheets.cs:1368) | `MeasureTextHeight(25f → 10f)` (2배) |
+| 1b | [Form1.DrawingSheets.cs:1935](A2Z/Form1.DrawingSheets.cs:1935) | 풍선 `TextHeight(26.25f → 10.5f)` (2배) |
+| 2 | [Form1.Dimensions.cs:905~](A2Z/Form1.Dimensions.cs:905) | `foreach (var entry in balloonEntries)` 직전에 `if (forDrawing2D) balloonEntries.Clear();` 한 줄. 표시 차단 |
+
+**balloonEntries 차단 동작**:
+- 일반 시트 2D 출력 (`forDrawing2D=true`): 홀/슬롯/EarthBoss 풍선 *표시 안 함*
+- 글로벌 X/Y/Z 뷰 (`forDrawing2D=false`, viewDirection 있음): 그대로 표시 (사용자 명시 없음 → 보수적 유지)
+- 치수추출 (viewDirection=null): 그대로 표시 (3D 메인 뷰)
+- ISO 뷰: 별도 `CreateIsoBalloonNotes` (영향 없음, 부재 번호 풍선만)
+- 가공도: `Form1.MfgDrawing.cs` 자체 처리 (홀/슬롯 풍선 그대로)
+
+**T-044 연결**: 회사 doc "홀 풍선 제작도 X / 가공도 O" 사양의 일부 해당. 정식 T-044 검증 시 EarthBoss·CIRCLE 풍선도 같은 정책 적용 결정.
+
+**잔여 (사용자 추가 요청 시)**:
+- 글로벌 X/Y/Z 뷰에서도 풍선 차단 — `forDrawing2D` 대신 `viewDirection != null` 조건
+- 수집 자체 차단 (현재는 수집 후 Clear, 약간의 비용)
+
+---
+
 ## 2026-05-12 — T-038+039 v3 + step B-3: 짧은 축 보조선 절반 + 모델 0.75배 + 텍스트 5배
 
 **유형**: feat (사용자 사양 4건)
