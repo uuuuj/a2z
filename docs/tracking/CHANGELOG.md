@@ -6,10 +6,43 @@
 
 ---
 
+## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 1 (ImportExcel 단독 검증)
+
+**유형**: feat (PoC)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-012 (TODO → IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-002
+
+**배경**: 사용자가 `사용자템플릿_엑셀_Rev_01.xlsx`를 A4 가로 비율(W/H ≈ 1.41)로 준비. SDK `Drawing2DTemplateManager.ImportExcel(path)`이 외부 엑셀을 2D View 캔버스에 그릴 수 있는지 **시각 검증**부터 단독 PoC.
+
+**전략**: 옵션 A — 기존 `GenerateSheetDrawing2D`(GridStructure 기반)는 그대로 유지하고, 새 partial class `Form1.ExcelTemplate.cs`에 독립 핸들러 신설. 새 디버그 버튼으로 호출. Step 1 시각 결과 보고 Step 2(셀 좌표 매핑) 진행 결정.
+
+**코드 변경**:
+
+| 위치 | 변경 |
+|---|---|
+| `A2Z/Form1.ExcelTemplate.cs` (신규) | `btnExcelTemplatePoC_Click` — 엑셀 경로 자동 탐색 → `vizcore3d.Drawing2D.Template.ImportExcel(path)` 호출 → DiagLog + MessageBox |
+| [A2Z/Form1.Designer.cs:84](A2Z/Form1.Designer.cs:84), [:625](A2Z/Form1.Designer.cs:625), [:709~720](A2Z/Form1.Designer.cs:709), [:1325](A2Z/Form1.Designer.cs:1325) | `btnExcelTemplatePoC` 신규 (groupBox1 "작업" 끝, 텍스트 "엑셀 PoC"). groupBox1 너비 443 → 530으로 확장 |
+| `A2Z/A2Z.csproj` | `Form1.ExcelTemplate.cs` Compile Include 추가 |
+| `사용자템플릿_엑셀_Rev_01.xlsx` | 사용자 작성 — A4 가로 비율, 55컬럼 × 40행 |
+
+**Step 1 검증 결과 (개발 PC 빌드)**:
+- `templateDatas` 필드는 외부 접근 불가 (private/internal 확인) → Step 1 코드에서 덤프 제거
+- A2Z.exe 빌드 성공
+
+**사용자 검증 대기** (사내 PC):
+- "엑셀 PoC" 버튼 클릭 → 2D View 캔버스에 엑셀 셀 구조(테두리·텍스트·라벨)가 그려지는지
+- 안 그려지면 Step 2에서 추가 호출(`RenderTemplate` 등) 탐색
+
+**docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) 신규, [TASKS.md](TASKS.md) T-012 격상
+
+---
+
 ## 2026-05-11 — T-040: 치수 텍스트 위치 13mm 임계 토글 (사용자 결정)
 
 **유형**: fix (사용자 결정 — 외부 조건)
-**커밋**: `pending`
+**커밋**: `acb867a`
 **관련 TASK**: T-040
 **관련 FEEDBACK**: —
 **관련 REQUEST**: —
