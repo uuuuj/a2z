@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 1.5 (Set2DViewDefaultTemplate 추가 + 인덱스 입력)
+
+**유형**: feat (PoC)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-012 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-002
+
+**Step 1 검증 결과** (사용자 사내 PC):
+- SDK 설정 다이얼로그 "사용자 템플릿" 탭의 트리뷰에 `SHI` 항목 등장 + 미리보기 정상 (4뷰/BOM/NOTE/도면정보 모두 그려진 상태)
+- **메인 2D View 캔버스는 비어 있음** → ImportExcel만으로는 적용 안 됨 확인
+
+**Step 1.5 변경**: 적용 호출 추가.
+- `Set2DViewDefaultTemplate(string)` 외부 호출 시도 → 빌드 실패(`'string'에서 'int'로 변환 불가`). xml 명세에는 string 오버로드 존재하나 internal/protected로 외부 코드 호출 불가 확정.
+- 대안: `Set2DViewDefaultTemplate(int)` 사용. 정확한 인덱스 미상(기본 DSME 3개 + 사용자 추가) → 사용자가 직접 시도하도록 `Microsoft.VisualBasic.Interaction.InputBox`로 인덱스 입력 받음 (기본 3).
+- csproj에 `Microsoft.VisualBasic` 참조 추가.
+
+**코드 변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.ExcelTemplate.cs:50~](A2Z/Form1.ExcelTemplate.cs:50) | ImportExcel 후 InputBox로 인덱스 입력 → `Set2DViewDefaultTemplate(int)` 호출 (try/catch). 결과 MessageBox에서 다른 인덱스 재시도 안내 |
+| [A2Z.csproj:43](A2Z/A2Z.csproj:43) | `<Reference Include="Microsoft.VisualBasic" />` 추가 |
+
+**사용자 검증 대기** (사내 PC):
+- "엑셀 PoC" 버튼 클릭 → 인덱스 입력 (기본 3) → 2D View 캔버스에 SHI 그려지는지
+- 안 보이면 다른 인덱스(0, 1, 2, 4, 5...) 순회 → SHI 적용되는 인덱스 발견 시 코드에 하드코딩
+
+**docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) 갱신 (Step 1.5 흐름, SDK API 가시성 확정)
+
+---
+
 ## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 1 (ImportExcel 단독 검증)
 
 **유형**: feat (PoC)

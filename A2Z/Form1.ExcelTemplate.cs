@@ -48,18 +48,46 @@ namespace A2Z
             try
             {
                 vizcore3d.Drawing2D.Template.ImportExcel(excelPath);
-                DiagLog("[PoC-Excel-Step1] ImportExcel 호출 완료");
+                DiagLog("[PoC-Excel-Step1.5] ImportExcel 호출 완료 — 등록만 됨 (Step 1 결과)");
 
-                // templateDatas는 private/internal 필드라 외부 접근 불가 확인됨.
-                // Step 1은 시각 검증에 집중 — 2D View 캔버스 결과만 본다.
-                // Step 2에서 셀 좌표를 받아오는 다른 public API(ParseJson 등) 탐색 예정.
+                // Step 1.5 — Step 1에서 ImportExcel은 SDK 내부 "사용자 템플릿" 목록에만 등록되고
+                // 2D View 캔버스에는 적용 안 됨을 사용자 사내 PC 검증으로 확인.
+                // 적용을 위해 Set2DViewDefaultTemplate(int) 호출.
+                // 인덱스: -1(빈), 0~2(기본 DSME 템플릿), 3 이상(사용자 추가). 정확한 인덱스 모르므로 사용자가 입력.
+                // ※ string 오버로드는 internal/protected라 외부 호출 불가 (빌드 검증으로 확정).
+
+                string input = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Set2DViewDefaultTemplate에 사용할 인덱스 입력\n\n" +
+                    "  -1 : 빈 템플릿\n" +
+                    "  0~2 : 기본 DSME 템플릿\n" +
+                    "  3 이상 : 사용자 추가 (Rev_01 적용 후보)\n\n" +
+                    "여러 값 시도해 보세요. 안 보이면 다음 인덱스로.",
+                    "PoC-Excel Step 1.5",
+                    "3");
+
+                if (string.IsNullOrEmpty(input)) return;
+                if (!int.TryParse(input.Trim(), out int templateIdx))
+                {
+                    MessageBox.Show("정수 입력 필요", "PoC-Excel Step 1.5", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(templateIdx);
+                    DiagLog($"[PoC-Excel-Step1.5] Set2DViewDefaultTemplate({templateIdx}) 호출 성공");
+                }
+                catch (Exception applyEx)
+                {
+                    DiagLog($"[PoC-Excel-Step1.5] Set2DViewDefaultTemplate({templateIdx}) 실패 {applyEx.GetType().Name}: {applyEx.Message}");
+                }
 
                 MessageBox.Show(
-                    "ImportExcel 호출 완료.\n\n확인할 것:\n" +
-                    "  1) 2D View 캔버스에 엑셀 셀 구조(테두리·텍스트·라벨)가 그려졌는지\n" +
-                    "  2) 아무것도 안 보이면 별도 표시 호출(RenderTemplate 등)이 필요\n\n" +
-                    "logs/diag-yyyy-mm-dd.log 에 호출 결과 기록됨.",
-                    "PoC-Excel Step 1",
+                    $"Set2DViewDefaultTemplate({templateIdx}) 호출.\n\n2D View 캔버스 확인:\n" +
+                    "  - 엑셀 셀 구조가 그려졌으면 → 이 인덱스가 우리 SHI\n" +
+                    "  - 안 보이거나 다른 템플릿(DSME 등)이면 → 다른 인덱스 시도\n\n" +
+                    "버튼을 다시 눌러 다른 인덱스 입력 가능. logs/diag-yyyy-mm-dd.log 에 기록.",
+                    "PoC-Excel Step 1.5",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
