@@ -1,38 +1,63 @@
 ---
-title: 엑셀 템플릿 PoC (Step 1.5)
+title: 엑셀 템플릿 PoC (Step 2 — Reflection 우회)
 category: drawing-sheets
 handler: btnExcelTemplatePoC_Click
 file: A2Z/Form1.ExcelTemplate.cs
 related: REQ-002, T-012, T-057
-status: PoC Step 1.5
+status: PoC Step 2 (Reflection 우회 시도)
 last_updated: 2026-05-12
 ---
 
-# 엑셀 템플릿 PoC — Step 1.5 (`btnExcelTemplatePoC_Click`)
+# 엑셀 템플릿 PoC — Step 2 (`btnExcelTemplatePoC_Click`)
 
 ## 목적
 
-REQ-002 / T-012 PoC. 외부 엑셀 파일(`사용자템플릿_엑셀_Rev_01.xlsx`)을 SDK `ImportExcel` + `Set2DViewDefaultTemplate("SHI")`로 2D View 캔버스에 적용 가능한지 **시각 검증만** 하는 단계.
+REQ-002 / T-012 PoC. 외부 엑셀 파일(`사용자템플릿_엑셀_Rev_01.xlsx`)을 SDK 사용자 추가 템플릿으로 등록·캔버스 적용. Step 1.5에서 `Set2DViewDefaultTemplate(int)` public 오버로드가 사용자 추가 템플릿엔 동작 안 함을 확인 → SDK dll reflection으로 internal 오버로드 우회 호출.
 
-기존 `GenerateSheetDrawing2D` (GridStructure + RenderTemplateOnGridStructure 기반)와는 별도 경로. 결과에 따라 Step 2(셀 좌표 매핑 → 모델 배치) 진행 여부 결정.
+## SDK Reflection 분석 결과
+
+`lib/VIZCore3D+.NET.dll` 직접 검사로 발견한 internal 멤버:
+
+| 멤버 | 가시성 | 의미 |
+|---|---|---|
+| `Set2DViewDefaultTemplate(string filePath)` | INTERNAL | string 오버로드 — 사용자 추가 적용 후보 |
+| `Draw2DViewTemplate(string filePath)` | INTERNAL | **핵심 후보** — "Draw 2D View Template" 이름 |
+| `Draw2DViewTemplate(string, int, int)` | INTERNAL | 좌표 지정 오버로드 |
+| `Draw2DViewTemplate(string, int, int, int, int)` | INTERNAL | anchor 포함 |
+| `ParseJson(string json)` | INTERNAL | SDK JSON 직접 파싱 |
+| `ReadJson()` | INTERNAL | 내부 JSON 읽기 |
+| `get_TemplatePath()` | INTERNAL | SDK 데이터 폴더 경로 |
+| `get_TemplateDic()` / `set_TemplateDic()` | INTERNAL | 템플릿 사전 |
 
 ## 흐름
 
-1. **엑셀 경로 검색** — 실행 폴더 / 솔루션 루트에서 `사용자템플릿_엑셀_Rev_01.xlsx` 자동 탐색. 없으면 `OpenFileDialog`로 사용자 선택.
-2. **`vizcore3d.Drawing2D.Template.ImportExcel(path)` 호출** — SDK 내부 "사용자 템플릿" 목록에 등록.
-3. **`Microsoft.VisualBasic.Interaction.InputBox`로 인덱스 입력** — 사용자가 -1(빈) / 0~2(기본 DSME) / 3 이상(추가)에서 선택. 기본값 3.
-4. **`vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(int)` 호출** — 입력 인덱스로 적용 (try/catch).
-5. **DiagLog** — `logs/diag-yyyy-mm-dd.log`에 단계별 시작·완료·실패 기록.
-6. **결과 안내 MessageBox** — 사용자가 2D View 캔버스를 직접 보고 결과 확인. 다른 인덱스 시도하려면 버튼 다시 클릭.
+1. **엑셀 경로 검색** — 실행 폴더 / 솔루션 루트에서 `사용자템플릿_엑셀_Rev_01.xlsx` 자동 탐색.
+2. **TemplatePath reflection 읽기** — SDK 데이터 폴더 위치 진단 (DiagLog).
+3. **InputBox로 ImportExcel 재실행 여부** Y/N — 누적 방지 옵션. N이면 skip.
+4. **InputBox로 filePath 입력** — 사용자가 후보 (a)원본 xlsx / (b)export JSON / (c)SDK 내부 경로 중 선택해 입력.
+5. **`Draw2DViewTemplate(filePath)` reflection 호출** — internal 메서드 우회 호출 (BindingFlags.NonPublic).
+6. **`Set2DViewDefaultTemplate(string)` reflection fallback** — 위 실패 시 두 번째 후보.
+7. **DiagLog + 결과 MessageBox** — 두 reflection 호출 결과 (성공/실패) 통합 안내.
+8. **빈 입력 시** `Set2DViewDefaultTemplate(-1)` 호출로 캔버스 초기화 (빈 템플릿).
 
 ## 단계별 검증 결과
 
 | Step | 내용 | 상태 |
 |---|---|---|
-| 1 | `ImportExcel` 단독 호출 — SDK "사용자 템플릿" 등록만 됨, 2D View에는 적용 X | **완료 (사용자 사내 PC 검증)** — 설정 창 트리에 "SHI" 등장, 미리보기 정상. 메인 캔버스는 비어있음 |
-| 1.5 | `Set2DViewDefaultTemplate("SHI")` 추가 호출 | **사용자 실기 검증 대기 (사내 PC)** |
-| 2 | 셀 좌표 수집 — placeholder(`{Image}`, `ISO`, `LOOKING "X/Y/Z"`, `BILL OF MATERIAL` 등) → Row/Column 매핑 | Step 1.5 결과 보고 결정 |
-| 3 | 셀 영역에 `AddModel(viewIndex)` 호출 + 이미지/BOM 데이터 배치 | Step 2 후 진행 |
+| 1 | `ImportExcel` 단독 호출 — SDK "사용자 템플릿" 등록만 됨, 2D View에는 적용 X | **완료** — 설정 창 트리에 "SHI" 등장, 미리보기 정상. 메인 캔버스 비어있음 |
+| 1.5 | `Set2DViewDefaultTemplate(int)` public 오버로드 호출 — 인덱스 0~5+ 시도 | **완료 (실패)** — 0/1/2 = DSME 내장만 정상, 3+ = 흰 박스+노란 박스만(빈 페이지 outline). 줌/팬/F키도 효과 X. SDK UI "확인" 적용도 동일 실패 |
+| 1.6 | SDK dll reflection 메타데이터 분석 | **완료** — `Draw2DViewTemplate(string)` / `Set2DViewDefaultTemplate(string)` 모두 internal 확인. 사용자 추가는 internal API로 호출되는 게 거의 확정 |
+| 2 | **internal API reflection 우회 호출** — `Draw2DViewTemplate(filePath)` | **사용자 실기 검증 대기 (사내 PC)** |
+| 3 | 위 실패 시 — JSON 직접 파싱 후 우리가 Drawing2D API로 셀 그리기 (옵션 A 본진) | Step 2 결과 보고 결정 |
+| 4 | 셀 영역에 `AddModel(viewIndex)` 호출 + 이미지/BOM 데이터 배치 | Step 2/3 후 진행 |
+
+## SDK export 분석 결과 (`C:\Users\duddl\Desktop\Template`)
+
+ImportExcel 호출 시 SDK가 생성한 데이터:
+- `TemplateManagement.json` — 관리 메타. Template_0(SHI 원본), Template_1(SHI_20260512004053), Template_2(SHI_20260512010729) 매핑. `"index": "22"` 마지막 인덱스
+- 각 Template 폴더에 `사용자템플릿_엑셀_Rev_01.json` (458KB) + `ExcelImage_N.png` (썸네일)
+- JSON 안 인식 데이터: **Line 1539, Text 2201, Image 4** (단위 mm, X 0~355.6 / Y 0~227.3, W/H 1.565)
+- Text 일부가 Line 최대값 초과(409 vs 355) — 약간의 좌표 이상 있으나 전체 구조는 완전
 
 ## 사전 확정 정보
 
@@ -65,4 +90,5 @@ REQ-002 / T-012 PoC. 외부 엑셀 파일(`사용자템플릿_엑셀_Rev_01.xlsx
 | 날짜 | 작업 | 커밋 |
 |---|---|---|
 | 2026-05-12 | PoC Step 1 신설 — `btnExcelTemplatePoC` + `Form1.ExcelTemplate.cs` partial class | `702ae85` |
-| 2026-05-12 | Step 1 검증 후 1.5로 격상 — `Set2DViewDefaultTemplate(int)` 추가 호출 + InputBox로 인덱스 입력 (string 오버로드 외부 호출 불가 확인). 사용자 사내 PC에서 Step 1 결과: 설정 트리 등장만, 캔버스 빔 확인. csproj `Microsoft.VisualBasic` 참조 추가 | (이번 커밋) |
+| 2026-05-12 | Step 1 검증 후 1.5로 격상 — `Set2DViewDefaultTemplate(int)` 추가 호출 + InputBox로 인덱스 입력 (string 오버로드 외부 호출 불가 확인). 사용자 사내 PC에서 Step 1 결과: 설정 트리 등장만, 캔버스 빔 확인. csproj `Microsoft.VisualBasic` 참조 추가 | `af9fbd9` |
+| 2026-05-12 | Step 1.5 검증 후 Step 2로 격상 — int 오버로드 0~5+ 모두 실패(0/1/2=DSME 정상, 3+=빈 outline만). SDK dll reflection으로 internal `Draw2DViewTemplate(string)` / `Set2DViewDefaultTemplate(string)` 존재 확인. Reflection 우회 호출 PoC. InputBox로 filePath 후보 입력 + TemplatePath 진단 로그 | (이번 커밋) |

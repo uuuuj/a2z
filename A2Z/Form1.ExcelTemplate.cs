@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace A2Z
@@ -43,60 +44,143 @@ namespace A2Z
                 }
             }
 
-            DiagLog($"[PoC-Excel-Step1] 시작 path={excelPath}");
+            DiagLog($"[PoC-Excel-Step2] 시작 path={excelPath}");
 
             try
             {
-                vizcore3d.Drawing2D.Template.ImportExcel(excelPath);
-                DiagLog("[PoC-Excel-Step1.5] ImportExcel 호출 완료 — 등록만 됨 (Step 1 결과)");
+                var templateManager = vizcore3d.Drawing2D.Template;
+                var managerType = templateManager.GetType();
 
-                // Step 1.5 — Step 1에서 ImportExcel은 SDK 내부 "사용자 템플릿" 목록에만 등록되고
-                // 2D View 캔버스에는 적용 안 됨을 사용자 사내 PC 검증으로 확인.
-                // 적용을 위해 Set2DViewDefaultTemplate(int) 호출.
-                // 인덱스: -1(빈), 0~2(기본 DSME 템플릿), 3 이상(사용자 추가). 정확한 인덱스 모르므로 사용자가 입력.
-                // ※ string 오버로드는 internal/protected라 외부 호출 불가 (빌드 검증으로 확정).
-
-                string input = Microsoft.VisualBasic.Interaction.InputBox(
-                    "Set2DViewDefaultTemplate에 사용할 인덱스 입력\n\n" +
-                    "  -1 : 빈 템플릿\n" +
-                    "  0~2 : 기본 DSME 템플릿\n" +
-                    "  3 이상 : 사용자 추가 (Rev_01 적용 후보)\n\n" +
-                    "여러 값 시도해 보세요. 안 보이면 다음 인덱스로.",
-                    "PoC-Excel Step 1.5",
-                    "3");
-
-                if (string.IsNullOrEmpty(input)) return;
-                if (!int.TryParse(input.Trim(), out int templateIdx))
+                // (1) TemplatePath 읽기 — SDK 데이터 폴더 위치 확인
+                string sdkTemplatePath = "(unknown)";
+                try
                 {
-                    MessageBox.Show("정수 입력 필요", "PoC-Excel Step 1.5", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    var prop = managerType.GetProperty("TemplatePath",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (prop != null)
+                    {
+                        sdkTemplatePath = prop.GetValue(templateManager) as string ?? "(null)";
+                    }
+                }
+                catch (Exception inner)
+                {
+                    sdkTemplatePath = $"(read failed: {inner.Message})";
+                }
+                DiagLog($"[PoC-Excel-Step2] SDK TemplatePath = {sdkTemplatePath}");
+
+                // (2) ImportExcel 재실행 여부 — 누적 방지
+                string reimportInput = Microsoft.VisualBasic.Interaction.InputBox(
+                    "ImportExcel 재실행? (트리 누적 방지)\n\n" +
+                    "  Y : 엑셀을 다시 import (트리에 새 항목 추가됨)\n" +
+                    "  N : skip, 기존 등록 그대로 사용 (인덱스 시도만)",
+                    "PoC-Excel Step 2",
+                    "N");
+                if (string.IsNullOrEmpty(reimportInput)) return;
+
+                if (reimportInput.Trim().Equals("Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    templateManager.ImportExcel(excelPath);
+                    DiagLog("[PoC-Excel-Step2] ImportExcel 재호출 완료");
+                }
+                else
+                {
+                    DiagLog("[PoC-Excel-Step2] ImportExcel 재호출 skip");
+                }
+
+                // (3) 적용 시도 — filePath 후보 입력
+                string defaultFp = excelPath;
+                string filePathInput = Microsoft.VisualBasic.Interaction.InputBox(
+                    "Draw2DViewTemplate(filePath) reflection 호출용 경로:\n\n" +
+                    "후보:\n" +
+                    "  (a) 원본 xlsx — 위 기본값\n" +
+                    "  (b) export JSON — C:\\Users\\duddl\\Desktop\\Template\\Template_0\\사용자템플릿_엑셀_Rev_01.json\n" +
+                    "  (c) SDK 내부 폴더 = " + sdkTemplatePath + "\n\n" +
+                    "한 후보씩 시도. 빈값이면 reflection skip하고 int(-1)만 호출.",
+                    "PoC-Excel Step 2",
+                    defaultFp);
+
+                if (string.IsNullOrEmpty(filePathInput))
+                {
+                    // skip → 빈 템플릿(-1)으로 캔버스 초기화 후 종료
+                    try
+                    {
+                        templateManager.Set2DViewDefaultTemplate(-1);
+                        DiagLog("[PoC-Excel-Step2] Set2DViewDefaultTemplate(-1) — 빈 템플릿 호출");
+                    }
+                    catch (Exception clearEx)
+                    {
+                        DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(-1) 실패 {clearEx.Message}");
+                    }
                     return;
                 }
 
+                string filePath = filePathInput.Trim();
+
+                // Reflection — Draw2DViewTemplate(string) 호출
+                bool drawCalled = false;
                 try
                 {
-                    vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(templateIdx);
-                    DiagLog($"[PoC-Excel-Step1.5] Set2DViewDefaultTemplate({templateIdx}) 호출 성공");
+                    var drawMethod = managerType.GetMethod("Draw2DViewTemplate",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new[] { typeof(string) }, null);
+                    if (drawMethod != null)
+                    {
+                        drawMethod.Invoke(templateManager, new object[] { filePath });
+                        DiagLog($"[PoC-Excel-Step2] Draw2DViewTemplate(\"{filePath}\") reflection 호출 성공");
+                        drawCalled = true;
+                    }
+                    else
+                    {
+                        DiagLog("[PoC-Excel-Step2] Draw2DViewTemplate(string) 메서드 못 찾음");
+                    }
                 }
-                catch (Exception applyEx)
+                catch (Exception drawEx)
                 {
-                    DiagLog($"[PoC-Excel-Step1.5] Set2DViewDefaultTemplate({templateIdx}) 실패 {applyEx.GetType().Name}: {applyEx.Message}");
+                    var real = drawEx.InnerException ?? drawEx;
+                    DiagLog($"[PoC-Excel-Step2] Draw2DViewTemplate reflection 실패 {real.GetType().Name}: {real.Message}");
+                }
+
+                // Reflection — Set2DViewDefaultTemplate(string) 호출 (fallback)
+                bool setStringCalled = false;
+                try
+                {
+                    var setMethod = managerType.GetMethod("Set2DViewDefaultTemplate",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new[] { typeof(string) }, null);
+                    if (setMethod != null)
+                    {
+                        setMethod.Invoke(templateManager, new object[] { filePath });
+                        DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(\"{filePath}\") reflection 호출 성공");
+                        setStringCalled = true;
+                    }
+                    else
+                    {
+                        DiagLog("[PoC-Excel-Step2] Set2DViewDefaultTemplate(string) 메서드 못 찾음");
+                    }
+                }
+                catch (Exception setEx)
+                {
+                    var real = setEx.InnerException ?? setEx;
+                    DiagLog($"[PoC-Excel-Step2] Set2DViewDefaultTemplate(string) reflection 실패 {real.GetType().Name}: {real.Message}");
                 }
 
                 MessageBox.Show(
-                    $"Set2DViewDefaultTemplate({templateIdx}) 호출.\n\n2D View 캔버스 확인:\n" +
-                    "  - 엑셀 셀 구조가 그려졌으면 → 이 인덱스가 우리 SHI\n" +
-                    "  - 안 보이거나 다른 템플릿(DSME 등)이면 → 다른 인덱스 시도\n\n" +
-                    "버튼을 다시 눌러 다른 인덱스 입력 가능. logs/diag-yyyy-mm-dd.log 에 기록.",
-                    "PoC-Excel Step 1.5",
+                    $"Reflection 호출 결과:\n" +
+                    $"  - SDK TemplatePath: {sdkTemplatePath}\n" +
+                    $"  - filePath: {filePath}\n" +
+                    $"  - Draw2DViewTemplate: {(drawCalled ? "호출됨" : "실패")}\n" +
+                    $"  - Set2DViewDefaultTemplate(str): {(setStringCalled ? "호출됨" : "실패")}\n\n" +
+                    "2D View 캔버스 확인. logs/diag-yyyy-mm-dd.log 에 상세 기록.",
+                    "PoC-Excel Step 2",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                DiagLog($"[PoC-Excel-Step1] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                DiagLog($"[PoC-Excel-Step2] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show(
                     $"오류: {ex.GetType().Name}\n{ex.Message}\n\n자세한 내용은 logs/diag-yyyy-mm-dd.log 참고.",
-                    "PoC-Excel Step 1 실패",
+                    "PoC-Excel Step 2 실패",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }

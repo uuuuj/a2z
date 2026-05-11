@@ -6,6 +6,52 @@
 
 ---
 
+## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 2 (Reflection 우회 호출)
+
+**유형**: feat (PoC)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-012 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-002
+
+**Step 1.5 검증 결과** (사용자 사내 PC):
+- `Set2DViewDefaultTemplate(int)` public 오버로드 인덱스 0~5+ 모두 시도
+- 0/1/2 = DSME 내장 정상 / **3+ = 빈 페이지 outline만 (흰 박스+노란 박스)**
+- 줌/팬/F키도 효과 X — 셀이 캔버스 어디에도 안 그려짐
+- **SDK 설정 UI "확인" 적용도 동일 실패** → 호출 방법 문제 아님 / SDK 자체가 사용자 추가 템플릿을 public API로는 그리지 못함
+
+**SDK dll Reflection 분석** (`lib/VIZCore3D+.NET.dll`):
+- `Draw2DViewTemplate(string filePath)` **INTERNAL** ← 캔버스 직접 그리기 후보
+- `Draw2DViewTemplate(string, int, int)` / `(string, int, int, int, int)` INTERNAL
+- `Set2DViewDefaultTemplate(string filePath)` **INTERNAL** ← string 오버로드 존재 확인
+- `ParseJson(string)` / `ReadJson()` INTERNAL
+- `get_TemplatePath()` INTERNAL — SDK 데이터 폴더 경로
+
+**SDK export 데이터** (`C:\Users\duddl\Desktop\Template`):
+- `TemplateManagement.json` — Template_0(SHI), Template_1, Template_2 매핑 + index="22"
+- 각 Template 폴더에 `사용자템플릿_엑셀_Rev_01.json` (458KB) — **셀 데이터 완벽** (Line 1539, Text 2201, Image 4, 단위 mm 좌표)
+
+**Step 2 변경**: Reflection으로 internal 메서드 우회 호출.
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.ExcelTemplate.cs:1~](A2Z/Form1.ExcelTemplate.cs:1) | `using System.Reflection` 추가 |
+| [Form1.ExcelTemplate.cs:50~140](A2Z/Form1.ExcelTemplate.cs:50) | 핸들러 전면 재작성 — (1) TemplatePath reflection 읽기 (2) InputBox로 ImportExcel 재실행 Y/N (3) InputBox로 filePath 입력 (4) `Draw2DViewTemplate(filePath)` reflection 호출 (5) `Set2DViewDefaultTemplate(string)` reflection fallback (6) 빈 입력 시 `Set2DViewDefaultTemplate(-1)` 캔버스 클리어 |
+
+**사용자 검증 대기** (사내 PC):
+1. SDK 설정 UI에서 SHI_* 누적 항목 삭제 (한 번만)
+2. "엑셀 PoC" 버튼 클릭
+3. InputBox 1: ImportExcel 재실행 — **N** (skip)
+4. InputBox 2: filePath — 후보 (a)/(b)/(c) 차례로 시도
+   - (a) `사용자템플릿_엑셀_Rev_01.xlsx` (기본값)
+   - (b) `C:\Users\duddl\Desktop\Template\Template_0\사용자템플릿_엑셀_Rev_01.json`
+   - (c) DiagLog에 출력된 SDK TemplatePath 안의 SHI 경로
+5. 결과: 2D View 캔버스에 셀 그려지는 후보 찾기 → 그게 SDK의 진짜 적용 API
+
+**docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) Step 2 흐름 + SDK reflection 분석 표 + 검증 결과 표 갱신
+
+---
+
 ## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 1.5 (Set2DViewDefaultTemplate 추가 + 인덱스 입력)
 
 **유형**: feat (PoC)
