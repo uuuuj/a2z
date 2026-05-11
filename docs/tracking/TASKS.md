@@ -484,7 +484,10 @@
   - [x] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 분기 재작성 (가공도-3 / 설치도-2 / 일반)
   - [x] MSBuild Debug 통과
   - [x] docs 2종 갱신: `main-dimension.md` 파이프라인 재기술, `lv-sheet-selected.md` 분기 A 재작성
-  - [ ] 사용자 실기 확인 (4경로 일관성, 중복 제거 효과, 설치도 BBox 유지 확인)
+  - [x] **2026-05-11 (사용자 요청)**: `GenerateSheetDrawing2D` L1242도 `ExtractInstallationDimensions` → `ComputeViewDimensionsForMembers(null, 0.5f)` 교체 — 2D 출력 후 작업데이터 탭 = 도면 측 측정 데이터 1:1 일치
+  - [x] **2026-05-11 (사용자 요청)**: `ExtractInstallationDimensions`의 "개별 부재 전체 길이" 블록 제거 (Form1.GlobalViews.cs L287~346) — 비인접 점 쌍처럼 보이는 부작용 해소. 시트 선택 -2 분기도 자동 영향
+  - [ ] 설치도(-2) 분기 완전 폐기 검토 (옵션 A 전환) — 현재 BBox 유지 중. 사용자 확인 필요
+  - [ ] 사용자 실기 확인 (4경로 일관성, 중복 제거 효과, 설치도 BBox 유지 확인, 2026-05-11 변경 반영)
 - **영향 파일**:
   - `A2Z/Models.cs` (+1 필드)
   - `A2Z/Form1.Dimensions.cs` (공용 헬퍼 +80줄, ShowAllDimensions -70줄, FilterOsnapByViewDimensionUsage -45줄)

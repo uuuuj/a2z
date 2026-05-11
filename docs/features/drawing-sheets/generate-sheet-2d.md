@@ -4,7 +4,7 @@ feature_name: 선택 시트 2D 도면 생성
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-21
+last_updated: 2026-05-11
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnGenerateSheet2D_Click
 ---
 
@@ -117,3 +117,4 @@ flowchart TD
 | 2026-04-21 | T-013 옵션 A 실패 확인 (objId가 원점 0,0에 objScale=0.005로 남아 보이지 않음, SDK 자동 매핑 없음) → **옵션 B 적용**: `vizcore3d.View.WorldToScreen`으로 3D BBox 중심 2개(전체 BOM / 시트 부재)를 캔버스 좌표로 변환해 obj를 bg 내부 원래 위치에 배치. bgFinalScale로 동기 스케일링 포함. DiagLog에 OPT-B 실측 출력 | Claude |
 | 2026-04-21 | T-013 옵션 B 스케일 보정: 1차 시도에서 obj가 **캔버스 밖으로 튐** (dScreen.Y=195.97 그대로 더해져 5.90mm 대신 195.97mm 이동). 원인: `WorldToScreen`은 원본 캔버스 좌표(스케일 전) 반환이라 bgObjId가 `RescaleObject(bgFinalScale)`로 축소된 후에는 좌표계 불일치. 수정: `target = bgCanvas + dScreen * bgFinalScale` | Claude |
 | 2026-04-21 | T-013 옵션 B 2차 재수정: `bgFinalScale` 단독 곱도 틀림 (실측 offsetRatio.Z=-0.244 → 7.3mm 이동이 정답인데 5.9mm로 계산됨). 원인: `bgFinalScale`은 객체 원본좌표→표시크기 비율이고 `WorldToScreen`은 3D→원본캔버스라 변환 체인 불일치. 수정: bg의 3D BBox 8개 꼭지점을 `WorldToScreen` → 원본 캔버스 BBox 계산 → `ratio = bgCanvasSize / bgScreenBBox` → `target = bgCanvas + dScreen * ratio`. DiagLog 라벨 OPT-B2 | Claude |
+| 2026-05-11 | **체인치수 데이터 소스 통일** (사용자 요청): `ExtractInstallationDimensions`(BBox) → `ComputeViewDimensionsForMembers`(Osnap, null 파라미터로 3뷰×2축 6조합 합집합). 작업데이터 탭(`chainDimensionList` / `lvDimension`) = 도면 측 측정 데이터 1:1 일치. 이전엔 BBox 기반과 Osnap 기반이 다른 결과를 만들어 디버깅 시 매칭 어려움 | Claude |

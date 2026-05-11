@@ -285,65 +285,9 @@ namespace A2Z
                     });
                 }
 
-                // ===== 개별 부재 전체 길이 치수 (설치 참조용) =====
-                // 전체 조립 치수 범위 미리 계산 (중복 방지용)
-                float totalRangeMin = uniqueEntries[0].value;
-                float totalRangeMax = uniqueEntries[uniqueEntries.Count - 1].value;
-
-                foreach (var m in members)
-                {
-                    float mMin = 0, mMax = 0;
-                    switch (axis)
-                    {
-                        case "X": mMin = m.MinX; mMax = m.MaxX; break;
-                        case "Y": mMin = m.MinY; mMax = m.MaxY; break;
-                        case "Z": mMin = m.MinZ; mMax = m.MaxZ; break;
-                    }
-                    float memberLen = Math.Abs(mMax - mMin);
-                    if (memberLen <= tolerance) continue;
-
-                    // 전체 조립 치수와 동일 범위면 스킵 (이중 표시 방지)
-                    if (uniqueEntries.Count > 2 &&
-                        Math.Abs(mMin - totalRangeMin) < tolerance &&
-                        Math.Abs(mMax - totalRangeMax) < tolerance)
-                        continue;
-
-                    // 이미 동일한 범위의 체인치수가 있으면 스킵 (중복 방지)
-                    bool isDuplicate = false;
-                    foreach (var existing in chainDimensionList)
-                    {
-                        if (existing.Axis != axis || existing.IsTotal) continue;
-                        float eStart = 0, eEnd = 0;
-                        switch (axis)
-                        {
-                            case "X": eStart = existing.StartPoint.X; eEnd = existing.EndPoint.X; break;
-                            case "Y": eStart = existing.StartPoint.Y; eEnd = existing.EndPoint.Y; break;
-                            case "Z": eStart = existing.StartPoint.Z; eEnd = existing.EndPoint.Z; break;
-                        }
-                        float eMin = Math.Min(eStart, eEnd);
-                        float eMax = Math.Max(eStart, eEnd);
-                        if (Math.Abs(eMin - mMin) < tolerance && Math.Abs(eMax - mMax) < tolerance)
-                        {
-                            isDuplicate = true;
-                            break;
-                        }
-                    }
-                    if (isDuplicate) continue;
-
-                    var memberStart = makePoint(mMin, m);
-                    var memberEnd = makePoint(mMax, m);
-
-                    chainDimensionList.Add(new ChainDimensionData
-                    {
-                        Axis = axis,
-                        ViewName = GetViewNameByAxis(axis),
-                        Distance = memberLen,
-                        StartPoint = memberStart,
-                        EndPoint = memberEnd,
-                        StartPointStr = $"({memberStart.X:F1}, {memberStart.Y:F1}, {memberStart.Z:F1})",
-                        EndPointStr = $"({memberEnd.X:F1}, {memberEnd.Y:F1}, {memberEnd.Z:F1})"
-                    });
-                }
+                // 2026-05-11: 개별 부재 전체 길이 치수 블록 제거 (사용자 요청)
+                //   이전에는 부재마다 mMin~mMax 길이를 별도로 추가했으나, 비인접 점 쌍처럼 보이는 부작용 발생
+                //   인접 경계 치수 + 전체 조립 치수만 남김
 
                 // ===== 전체 조립 치수 (처음~끝, 순차가 2개 이상일 때) =====
                 if (uniqueEntries.Count > 2)

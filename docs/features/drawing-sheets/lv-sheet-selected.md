@@ -4,7 +4,7 @@ feature_name: 도면 시트 선택 시 X-Ray 표시
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-24 (T-036 4차 5단계 — SetCameraData 제거, 회전만 재적용)
+last_updated: 2026-05-11 (체인치수 데이터 소스 통일 — 사용자 요청)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingSheet_SelectedIndexChanged
 ---
 
@@ -103,3 +103,4 @@ flowchart TD
 | 2026-04-24 | **T-036 4차 3단계**: 3차 적용 후에도 사용자 재테스트에서 Z 케이스가 세로로 출력. `sdk-verifier`로 `CameraData` 명세 재확인 결과 **ScreenAxisRotation은 CameraData에 포함되지 않고 별도 상태로 관리됨** (XML L2552-2606). 즉 `SetCameraData`만으로는 화면축 회전 복원 불가. 복원 블록을 다음과 같이 강화: **(1)** `SetCameraData(snapshot, false)` 직후 `Application.DoEvents()`로 commit 보장, **(2)** `_mfgDrawingZ90Applied` true면 `RotateCameraByScreenAxis(0, 0, 90)` 재호출, **(3)** `_mfgDrawingR180Applied` true면 `(0, 0, 180)` 재호출. `LockZAxis = false` 매번 세팅. DiagLog에 `Z90=True/False R180=True/False` 추가. 카메라 위치/줌 보존(SetCameraData 역할)과 화면축 회전 보존(재호출 역할)을 분리해 책임 명확화 | Claude |
 | 2026-04-24 | **T-036 4차 4단계 (시각 정돈)**: 3단계 적용 후 회전은 정상 동작하지만 사용자가 "카메라가 먼저 이동하고 그 뒤에 가로로 회전되는 두 단계가 보임" 보고. 원인: `SetCameraData` → `DoEvents` → `RotateCameraByScreenAxis`가 각각 화면 갱신을 트리거 → 중간 상태(이동 완료, 회전 전) 노출. **수정**: 복원 블록 전체를 **`vizcore3d.BeginUpdate() / EndUpdate()`로 감싸** SDK 렌더링을 일시 보류. EndUpdate 시점에 최종 상태(이동+회전 모두 적용된 상태)만 한 번에 표시. `DoEvents` 호출은 BeginUpdate 안에서 무의미하므로 제거. 예외 시 EndUpdate 누락 방지를 위해 catch 블록에도 try { EndUpdate } 안전망 추가 | Claude |
 | 2026-04-24 | **T-036 4차 5단계 (SetCameraData 제거)**: 4단계 적용 후에도 첫 1~2번 클릭의 Z 케이스에서 "카메라 이동 후 회전" 2단계 시각 잔존 보고. 가설: **`SetCameraData`가 `ScreenAxisRotation`을 동기적으로 리셋하면서 paint를 트리거**하여 `BeginUpdate`로도 막을 수 없음. 사용자 의도는 "회전된 상태로 한 번에 나타남". **분석**: T-036 4차 1단계에서 R180 직후 FitToView 제거, 1차에서 가공도 분기 FlyToObject3d 스킵 → ExecuteMfgDrawing 이후 외부에서 카메라를 이동시키는 경로가 **모두 제거됨**. 따라서 `SetCameraData` 호출 자체가 불필요. **수정**: 복원 블록에서 `SetCameraData` 제거. ScreenAxisRotation 회전만 재적용. 조건도 `_mfgDrawingZ90Applied \|\| _mfgDrawingR180Applied`로 단순화 (snapshot null 체크 불필요). DiagLog도 "카메라 회전 재적용"으로 라벨 변경해 의도 명확화. `_mfgDrawingCameraSnapshot` 필드는 향후 외부 카메라 변경이 재발했을 때 다시 사용할 수 있도록 보존만 (현재는 미사용) | Claude |
+| 2026-05-11 | **체인치수 데이터 소스 영향** (사용자 요청, 간접): 설치도 분기(-2)에서 호출하는 `ExtractInstallationDimensions`에서 "개별 부재 전체 길이" 블록 제거 — 비인접 점 쌍처럼 보이는 부작용 해소. 핸들러 분기 자체는 변경 없음, 결과 chainDimensionList 항목 수 감소만. 일반 시트(분기 C)의 ComputeView는 이전과 동일 | Claude |

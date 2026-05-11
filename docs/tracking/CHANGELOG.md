@@ -6,10 +6,44 @@
 
 ---
 
+## 2026-05-11 — T-028 진행: 체인치수 데이터 소스 통일 + 개별 부재 길이 블록 제거
+
+**유형**: refactor (사용자 요청, T-028 본진 부분 진행)
+**커밋**: `pending`
+**관련 TASK**: T-028 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: —
+
+**배경**: 사용자 보고 *"도면 Looking Z에 12개, 작업데이터 탭 체인치수목록 17개. 다른 모델도 차이 있음. 디버깅을 작업데이터 탭으로 해야 한다"* + *"개별 부재 전체 길이 빼고, 체인치수목록을 도면 표시 치수와 똑같이 맞춰달라"*.
+
+**원인 분석**:
+- 작업데이터 탭(`chainDimensionList` / `lvDimension`)과 도면 측 측정이 **완전히 다른 알고리즘** 결과:
+  - 작업데이터 탭 (2D 출력 시): `ExtractInstallationDimensions` (BBox 기반, [Form1.GlobalViews.cs:201](A2Z/Form1.GlobalViews.cs:201)) — 인접 경계 + 개별 부재 전체 길이 + 전체 조립
+  - 도면 측: `ShowAllDimensions(viewDirection)` (Osnap 기반, [Form1.DrawingSheets.cs:1582](A2Z/Form1.DrawingSheets.cs:1582)) — `AddChainDimensionByAxis` 인접 쌍 + 전체
+- 어제 사용자 의심 "BE 비인접 쌍" 정체 = `ExtractInstallationDimensions`의 **개별 부재 전체 길이** (부재가 mMin~mMax를 가로지르면 비인접 쌍처럼 보임)
+
+**코드 변경**:
+1. [Form1.GlobalViews.cs:287~346](A2Z/Form1.GlobalViews.cs:287) — "개별 부재 전체 길이" 블록 통째 제거 (foreach members 루프 + 중복 검사 + makePoint 추가). 짧은 회피 주석으로 교체. 인접 경계 + 전체 조립 치수만 남김
+2. [Form1.DrawingSheets.cs:1242](A2Z/Form1.DrawingSheets.cs:1242) — `ExtractInstallationDimensions(sheet.MemberIndices)` → `ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f)` 결과로 chainDimensionList + lvDimension 채우기 (LvDrawingSheet_SelectedIndexChanged 일반 시트 분기 L611~ 패턴 동일)
+
+**효과**:
+- 2D 출력 후 작업데이터 탭 항목 = 도면 3뷰 합집합 (Osnap 기반 동일 엔진)
+- 사용자 디버깅: ListView ↔ 도면 1:1 매칭 가능
+- 시트 선택 -2 분기 ExtractInstallationDimensions도 개별 부재 길이 빠진 결과 표시 (간접 영향)
+
+**잔여 (다음 라운드)**:
+- 설치도(-2) 분기 ComputeView로 완전 통일 옵션 (T-028 옵션 A 전환) — 사용자 확인 필요
+- lvDimension UI 17번째 가려짐 — Form1.Designer.cs 크기 또는 부모 컨테이너 조정
+- 진단성 강화: lvDimension에 ViewDirection 컬럼 추가 검토
+
+**영향 범위**: 시트 2D 출력 + 시트 선택 자동 흐름. R1 docs 갱신 — `generate-sheet-2d.md` / `lv-sheet-selected.md` 변경 이력 추가.
+
+---
+
 ## 2026-05-11 — T-037 2차: BOM 고정 폭 + 폰트 축소 시도
 
 **유형**: fix
-**커밋**: `pending`
+**커밋**: `6a7a1d9`
 **관련 TASK**: T-037 (IN_PROGRESS, 2차)
 **관련 FEEDBACK**: —
 **관련 REQUEST**: —

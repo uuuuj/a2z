@@ -1238,8 +1238,29 @@ namespace A2Z
 
                 vizcore3d.EndUpdate();
 
-                // 설치도 치수 데이터 추출 (ApplyDrawingSheetView("ISO") 동일)
-                ExtractInstallationDimensions(sheet.MemberIndices);
+                // 2026-05-11: 작업데이터 탭 체인치수 = 도면 표시 치수 통일 (사용자 요청)
+                //   이전: ExtractInstallationDimensions (BBox 기반) → 작업데이터 탭과 도면 측 데이터 불일치
+                //   현재: ComputeViewDimensionsForMembers (Osnap 기반, 도면 측과 동일 엔진 — 3뷰×2축 6조합 합집합)
+                {
+                    chainDimensionList.Clear();
+                    lvDimension.Items.Clear();
+                    chainDimensionList.AddRange(
+                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+                    int dimNo = 1;
+                    foreach (var dim in chainDimensionList)
+                    {
+                        dim.No = dimNo;
+                        ListViewItem dlvi = new ListViewItem(dimNo.ToString());
+                        dlvi.SubItems.Add(dim.Axis);
+                        dlvi.SubItems.Add(dim.ViewName);
+                        dlvi.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
+                        dlvi.SubItems.Add(dim.StartPointStr);
+                        dlvi.SubItems.Add(dim.EndPointStr);
+                        dlvi.Tag = dim;
+                        lvDimension.Items.Add(dlvi);
+                        dimNo++;
+                    }
+                }
 
                 // BOM 자동 수집
                 CollectBOMInfo(false);
