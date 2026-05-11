@@ -32,7 +32,14 @@ REQ-002 / T-012 PoC **옵션 A 본진**. Step 1/2의 SDK 자동 적용·reflecti
 ## 흐름 (Step 3)
 
 1. **JSON 경로 자동 검색** — `%APPDATA%\SOFTHILLS\VIZCore3D+.NET\Template\Template_0\사용자템플릿_엑셀_Rev_01.json` 우선. 없으면 가장 오래된 `Template_*` 폴더의 `*.json` 자동 선택. 그래도 없으면 `OpenFileDialog`.
-2. **JSON 파싱** — `System.Web.Script.Serialization.JavaScriptSerializer` (MaxJsonLength = int.MaxValue) 로 Dictionary 파싱. Line/Text/Image 리스트 분리.
+2. **2D 도면 모드 진입 시퀀스** (Step 3.5 추가 — 사용자 지적으로 누락 발견):
+   - `vizcore3d.ToolbarDrawing2D.Visible = true`
+   - `vizcore3d.ViewMode = ViewKind.Both`
+   - `Drawing2D.View.SetCanvasSize(420, 297)` — A3 landscape (우리 데이터 355×227mm 안전 수용)
+   - `Drawing2D.View.SetSelectCanvas(1)` — 1번 캔버스 활성화
+   - `Drawing2D.Template.CrateTemplateBorder()` — 외곽 테두리 생성
+   - 기존 GenerateSheetDrawing2D / MfgDrawing 패턴과 동일
+3. **JSON 파싱** — `System.Web.Script.Serialization.JavaScriptSerializer` (MaxJsonLength = int.MaxValue) 로 Dictionary 파싱. Line/Text/Image 리스트 분리.
 3. **InputBox 모드 선택 (Step 3는 Line만)**:
    - `1` — Line 10개만 (시각 검증, 좌표·렌더 동작 확인용)
    - `2` — Line 전체 (1539개 추정)
@@ -104,4 +111,5 @@ ImportExcel 호출 시 SDK가 생성한 데이터:
 | 2026-05-12 | PoC Step 1 신설 — `btnExcelTemplatePoC` + `Form1.ExcelTemplate.cs` partial class | `702ae85` |
 | 2026-05-12 | Step 1 검증 후 1.5로 격상 — `Set2DViewDefaultTemplate(int)` 추가 호출 + InputBox로 인덱스 입력 (string 오버로드 외부 호출 불가 확인). 사용자 사내 PC에서 Step 1 결과: 설정 트리 등장만, 캔버스 빔 확인. csproj `Microsoft.VisualBasic` 참조 추가 | `af9fbd9` |
 | 2026-05-12 | Step 1.5 검증 후 Step 2로 격상 — int 오버로드 0~5+ 모두 실패(0/1/2=DSME 정상, 3+=빈 outline만). SDK dll reflection으로 internal `Draw2DViewTemplate(string)` / `Set2DViewDefaultTemplate(string)` 존재 확인. Reflection 우회 호출 PoC. InputBox로 filePath 후보 입력 + TemplatePath 진단 로그 | `a7ab4c4` |
-| 2026-05-12 | Step 2 검증 후 Step 3로 격상 — reflection 호출 모두 "성공"이지만 캔버스 비어있음(silent fail). SDK dll obfuscation 보호 확인. **옵션 A 본진 진입**: JSON 직접 파싱 + ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing + Note.AddNote2D 로 우리가 렌더. csproj `System.Web.Extensions` 참조 추가 | (이번 커밋) |
+| 2026-05-12 | Step 2 검증 후 Step 3로 격상 — reflection 호출 모두 "성공"이지만 캔버스 비어있음(silent fail). SDK dll obfuscation 보호 확인. **옵션 A 본진 진입**: JSON 직접 파싱 + ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing + Note.AddNote2D 로 우리가 렌더. csproj `System.Web.Extensions` 참조 추가 | `6ec73a4` |
+| 2026-05-12 | Step 3 검증 후 Step 3.5로 보완 — Line 10개 추가 성공(shapeId=2)이지만 캔버스 빔. 사용자 지적: **2D 도면 모드 진입 시퀀스 누락**. 기존 GenerateSheetDrawing2D/MfgDrawing이 사용하는 `ToolbarDrawing2D.Visible / ViewMode=Both / SetCanvasSize / SetSelectCanvas / CrateTemplateBorder` 시퀀스 추가 | (이번 커밋) |

@@ -64,6 +64,29 @@ namespace A2Z
 
             try
             {
+                // ─── 2D 도면 모드 진입 시퀀스 (기존 GenerateSheetDrawing2D 패턴) ───
+                // 사용자 지적: 이 시퀀스 누락으로 Step 3 이전 안 보였음
+                try
+                {
+                    vizcore3d.ToolbarDrawing2D.Visible = true;
+                    vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
+                    // 우리 JSON 데이터 범위 약 355×227mm — A3 landscape(420×297) 안전 수용
+                    vizcore3d.Drawing2D.View.SetCanvasSize(420, 297);
+                    vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+
+                    float wCanvas = 0f, hCanvas = 0f;
+                    vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
+                    DiagLog($"[PoC-Excel-Step3] 2D 모드 진입 완료. CanvasSize=({wCanvas}, {hCanvas})");
+
+                    // 외곽 테두리 생성 (선택 — 시각 확인용)
+                    var bInfo = vizcore3d.Drawing2D.Template.CrateTemplateBorder();
+                    DiagLog("[PoC-Excel-Step3] CrateTemplateBorder 호출 완료");
+                }
+                catch (Exception modeEx)
+                {
+                    DiagLog($"[PoC-Excel-Step3] 2D 모드 진입 실패 {modeEx.GetType().Name}: {modeEx.Message}");
+                }
+
                 // 2. JSON 파싱
                 var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
                 var jsonText = File.ReadAllText(jsonPath);

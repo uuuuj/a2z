@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 3.5 (2D 도면 모드 진입 시퀀스 추가)
+
+**유형**: fix (PoC 보완)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-012 (IN_PROGRESS)
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-002
+
+**Step 3 검증 결과** (사용자 사내 PC):
+- Line 10/1539 추가 성공 (`shapeId=2`), JSON 파싱·ShapeDrawing.AddLine·Add2DObjectFromShapeDrawing 모두 DiagLog "OK"
+- 그런데 캔버스에 셀 보이지 않음
+- 사용자 지적: **"2D View에 템플릿 그리는 방법 자체가 애초에 잘못된거 아니야?"**
+
+**원인 진단**: 사용자가 보여준 SDK 표준 코드 시퀀스 검토 결과, **2D 도면 모드 진입·캔버스 활성화 시퀀스가 통째로 누락**.
+
+기존 `Form1.DrawingSheets.cs:1219`, `Form1.MfgDrawing.cs:655`에서 이미 사용 중인 정공법 시퀀스:
+```
+vizcore3d.ToolbarDrawing2D.Visible = true
+vizcore3d.ViewMode = ViewKind.Both
+vizcore3d.Drawing2D.View.SetCanvasSize(W, H)
+vizcore3d.Drawing2D.View.SetSelectCanvas(idx)
+vizcore3d.Drawing2D.Template.CrateTemplateBorder()
+```
+
+PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing만 호출 → SDK가 *어떤 캔버스에 그릴지* 알 수 없어 결과 안 보임.
+
+**Step 3.5 변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.ExcelTemplate.cs:65~85](A2Z/Form1.ExcelTemplate.cs:65) | JSON 파싱 *직전*에 2D 도면 모드 진입 시퀀스 추가. CanvasSize=(420, 297) A3 landscape (우리 데이터 355×227mm 안전 수용). `SetSelectCanvas(1)`. `CrateTemplateBorder()` 호출 (외곽 테두리). `GetCanvasSize` ref out 로 실제 크기 확인. 모든 단계 DiagLog 기록 |
+
+**사용자 검증 대기** (사내 PC):
+1. `git pull` + 빌드 + A2Z.exe 실행
+2. "엑셀 PoC" 클릭 → InputBox에 **"1"** 입력 (Line 10개 시각 검증)
+3. 2D View 캔버스 확인:
+   - ✅ 셀 일부 보이면 → 좌표·렌더·캔버스 활성화 모두 정상. InputBox **"2"** 로 전체 그리기 진행
+   - ❌ 여전히 안 보이면 → 좌표 스케일 / 카메라 시점 추가 진단 필요
+   - 외곽 테두리(CrateTemplateBorder)가 캔버스에 보이는지도 같이 확인 — 그게 보이면 캔버스 활성화 성공 신호
+
+**docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) Step 3 흐름에 2D 모드 진입 시퀀스 추가
+
+---
+
 ## 2026-05-12 — REQ-002 / T-012: 엑셀 템플릿 PoC Step 3 (JSON 파싱 → 우리가 직접 렌더, 옵션 A 본진)
 
 **유형**: feat (PoC)
