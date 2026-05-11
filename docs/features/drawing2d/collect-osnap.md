@@ -4,7 +4,7 @@ feature_name: 모든 Osnap 수집
 category: Drawing2D
 trigger_type: User Action
 owner_module: Form1.Drawing2D.cs
-last_updated: 2026-04-13
+last_updated: 2026-05-11
 code_reference: /docs/code-reference/form1-drawing2d.md#btnCollectOsnap_Click
 ---
 
@@ -97,3 +97,5 @@ flowchart TD
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-05-11 | **REQ-003: lvOsnap 컬럼 6개로 축소** (사용자 요청). 이전 7개 (No/부재이름/X/Y/Z/홀사이즈/슬롯홀) → 6개 (**No/축/부재이름/X/Y/Z**). 홀사이즈/슬롯홀 컬럼 제거, **축** 컬럼 신규 추가. LINE osnap은 start→end 벡터 최대 성분으로 축 추정("X"/"Y"/"Z"), POINT/수동은 빈 문자열. 데이터 모델: `osnapPointsWithNames` 튜플 `(Vertex3D, string)` → `(Vertex3D, string, string axis)` 확장. `MergeCoordinates` 시그니처 패스스루. `nodeOsnapPts`(`_lastCollectedNodeOsnapMap`)는 영향 차단 위해 2원소 유지. 헬퍼 `EstimateOsnapLineAxis(dynamic, dynamic)` 신설 | Claude |
+| 2026-05-11 | **REQ-004: lvOsnap 행 선택 → 3D 강조 + 카메라 fit** (사용자 요청). BOM 행 선택(T-021) 패턴 복제. `LvOsnap_SelectedIndexChanged` 신규: 선택 행의 부재이름 → bomList 매핑 → `Object3D.Color.RestoreColorAll` + `Object3D.Select(indices)` + `View.FlyToObject3d(indices, 1.2f)`. 다중 선택 지원. `_suppressOsnapSelChanged` 가드로 `LvClash_SelectedIndexChanged`의 `SelectRelatedOsnapItems` 연쇄 트리거 방지 (카메라 흔들림 회피) | Claude |

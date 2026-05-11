@@ -6,6 +6,45 @@
 
 ---
 
+## 2026-05-11 — REQ-003/004: Osnap 컬럼 6개 축소 + 행 선택 강조
+
+**유형**: feat (사용자 요청)
+**커밋**: `pending`
+**관련 TASK**: —
+**관련 FEEDBACK**: —
+**관련 REQUEST**: REQ-003 (Osnap 컬럼 축소), REQ-004 (Osnap 행 선택 강조)
+
+**배경**: 사용자 요청 *"osnap 정리는 Osnap 좌표목록을 실제 사용하는 Osnap만 남기자는 의미였어. No, 축, 부재이름, X, Y, Z 만 남기면 될 거 같은데"* + *"Osnap이랑 체인치수 목록에서 선택했을 때 치수나 Osnap을 강조할 수 있는지도 궁금"*.
+
+**변경**:
+
+| 영역 | 파일·위치 | 내용 |
+|---|---|---|
+| 데이터 모델 | [Form1.cs:49](A2Z/Form1.cs:49) | `osnapPointsWithNames` 튜플 `(Vertex3D, string)` → `(Vertex3D, string, string axis)` 확장 |
+| 시그니처 | [Form1.Dimensions.cs:1819](A2Z/Form1.Dimensions.cs:1819) | `MergeCoordinates` 시그니처 패스스루 (axis 미사용, 호환성만) |
+| Add 호출 | [Form1.Drawing2D.cs:255~286](A2Z/Form1.Drawing2D.cs:255), [Form1.BOM.cs:558~587](A2Z/Form1.BOM.cs:558) | LINE: `EstimateOsnapLineAxis` 추정, POINT: `""` |
+| 헬퍼 | [Form1.Drawing2D.cs:802~](A2Z/Form1.Drawing2D.cs:802) | `EstimateOsnapLineAxis(dynamic, dynamic)` — start→end 벡터 최대 성분 ("X"/"Y"/"Z") |
+| nodeOsnapPts | [Form1.BOM.cs:552~586](A2Z/Form1.BOM.cs:552) | 2원소 유지 (`_lastCollectedNodeOsnapMap` 영향 차단 — `ComputeViewDimensionsForMembers` 시그니처 보존) |
+| ListView 채우기 | [Form1.Drawing2D.cs:309~322](A2Z/Form1.Drawing2D.cs:309), [Form1.BOM.cs:597~610](A2Z/Form1.BOM.cs:597) | SubItems 순서 No/축/부재이름/X/Y/Z (홀사이즈/슬롯홀 제거) |
+| Designer 컬럼 | [Form1.Designer.cs:465~471](A2Z/Form1.Designer.cs:465), [L512](A2Z/Form1.Designer.cs:512) | AddRange 6개 (`columnHeader15` 재활용 텍스트 "축" Width 40), `columnHeader16` AddRange에서 제외 (정의 orphan) |
+| 이벤트 등록 | [Form1.cs:201](A2Z/Form1.cs:201) | `lvOsnap.SelectedIndexChanged += LvOsnap_SelectedIndexChanged` |
+| 핸들러 | [Form1.Drawing2D.cs:822~](A2Z/Form1.Drawing2D.cs:822) | `LvOsnap_SelectedIndexChanged`: 선택 행 부재이름 → bomList 매핑 → 강조+fit. 다중 선택 지원 |
+| 가드 | [Form1.Dimensions.cs:1554~](A2Z/Form1.Dimensions.cs:1554) | `_suppressOsnapSelChanged` 가드 — `LvClash_SelectedIndexChanged`의 `SelectRelatedOsnapItems` 연쇄 트리거 방지 (카메라 흔들림 회피) |
+
+**SDK 영향**: `OsnapVertex3D.Start`/`End` 타입이 SDK XML에 명시되지 않아 `dynamic` 매개변수 사용. 런타임에 `X`/`Y`/`Z` 접근.
+
+**Plan agent 활용**: Plan B (Osnap 작업) — 컬럼 축소 + 행 선택 강조 계획 수립
+
+**docs**: `drawing2d/collect-osnap.md` 변경 이력 2건 추가
+
+**검증 포인트** (사용자 실기):
+- lvOsnap 6컬럼 표시 (No/축/부재이름/X/Y/Z)
+- LINE osnap 행에 X/Y/Z 표기, POINT 행은 빈 축
+- 단일/다중 선택 → 부재 빨간 강조 + 카메라 fit
+- Clash 행 선택 시 자동 Osnap 선택돼도 카메라 안 흔들림 (가드 효과)
+
+---
+
 ## 2026-05-11 — T-040v 1차: 치수 offset i%2 토글 + 진단로그 + UI 높이 + Clash 강조
 
 **유형**: feat (사용자 요청 4건 묶음)

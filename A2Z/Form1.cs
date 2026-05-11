@@ -44,9 +44,10 @@ namespace A2Z
         private List<VIZCore3D.NET.Data.Vertex3D> osnapPoints = new List<VIZCore3D.NET.Data.Vertex3D>();
 
         /// <summary>
-        /// Osnap 좌표와 부재 이름 리스트
+        /// Osnap 좌표와 부재 이름·축 리스트
+        /// axis는 LINE osnap의 경우 시작→끝 벡터 최대 성분("X"/"Y"/"Z"), POINT/수동은 "" (REQ-003, 2026-05-11)
         /// </summary>
-        private List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> osnapPointsWithNames = new List<(VIZCore3D.NET.Data.Vertex3D, string)>();
+        private List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName, string axis)> osnapPointsWithNames = new List<(VIZCore3D.NET.Data.Vertex3D, string, string)>();
 
         /// <summary>
         /// X-Ray 모드에서 선택된 노드 인덱스 리스트 (Clash 선택 항목만 보기에서 사용)
@@ -197,6 +198,7 @@ namespace A2Z
             lvClash.SelectedIndexChanged += LvClash_SelectedIndexChanged;
             lvDrawingSheet.SelectedIndexChanged += LvDrawingSheet_SelectedIndexChanged;
             lvDrawingBOMInfo.SelectedIndexChanged += LvDrawingBOMInfo_SelectedIndexChanged;
+            lvOsnap.SelectedIndexChanged += LvOsnap_SelectedIndexChanged;  // REQ-004 (2026-05-11)
 
             // VIZCore3D.NET 초기화
             VIZCore3D.NET.ModuleInitializer.Run();

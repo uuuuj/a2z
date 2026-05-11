@@ -1548,8 +1548,10 @@ namespace A2Z
                     }
                 }
 
-                // 관련 Osnap 좌표 자동 선택
-                SelectRelatedOsnapItems(relatedNodeNames, relatedBounds);
+                // 관련 Osnap 좌표 자동 선택 (REQ-004 가드: LvOsnap_SelectedIndexChanged 연쇄 트리거 방지)
+                _suppressOsnapSelChanged = true;
+                try { SelectRelatedOsnapItems(relatedNodeNames, relatedBounds); }
+                finally { _suppressOsnapSelChanged = false; }
 
                 // 관련 치수 자동 선택
                 SelectRelatedDimensionItems(relatedBounds);
@@ -1817,7 +1819,7 @@ namespace A2Z
         /// 좌표 병합 (허용 오차 내 같은 좌표로 그룹화)
         /// </summary>
         private List<VIZCore3D.NET.Data.Vector3D> MergeCoordinates(
-            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> points, float tolerance)
+            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName, string axis)> points, float tolerance)
         {
             List<VIZCore3D.NET.Data.Vector3D> result = new List<VIZCore3D.NET.Data.Vector3D>();
 

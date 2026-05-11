@@ -253,18 +253,16 @@ namespace A2Z
                             switch (osnap.Kind)
                             {
                                 case VIZCore3D.NET.Data.OsnapKind.LINE:
-                                    // 선: 시작점과 끝점 추가
-                                    if (osnap.Start != null)
+                                    // 선: 시작점과 끝점 추가 (REQ-003: 축 추정 = start→end 최대 성분)
+                                    if (osnap.Start != null && osnap.End != null)
                                     {
+                                        string lineAxis = EstimateOsnapLineAxis(osnap.Start, osnap.End);
                                         var startVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
                                         osnapPoints.Add(startVertex);
-                                        osnapPointsWithNames.Add((startVertex, node.NodeName));
-                                    }
-                                    if (osnap.End != null)
-                                    {
+                                        osnapPointsWithNames.Add((startVertex, node.NodeName, lineAxis));
                                         var endVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
                                         osnapPoints.Add(endVertex);
-                                        osnapPointsWithNames.Add((endVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((endVertex, node.NodeName, lineAxis));
                                     }
                                     lineCount++;
                                     break;
@@ -275,12 +273,12 @@ namespace A2Z
                                     break;
 
                                 case VIZCore3D.NET.Data.OsnapKind.POINT:
-                                    // 점: 중심점 추가
+                                    // 점: 중심점 추가 (REQ-003: 축 정보 없음 → "")
                                     if (osnap.Center != null)
                                     {
                                         var pointVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(pointVertex);
-                                        osnapPointsWithNames.Add((pointVertex, node.NodeName));
+                                        osnapPointsWithNames.Add((pointVertex, node.NodeName, ""));
                                     }
                                     pointCount++;
                                     break;
@@ -312,15 +310,13 @@ namespace A2Z
                     for (int i = 0; i < osnapPointsWithNames.Count; i++)
                     {
                         var item = osnapPointsWithNames[i];
+                        // REQ-003: 컬럼 순서 No / 축 / 부재이름 / X / Y / Z
                         ListViewItem lvi = new ListViewItem((i + 1).ToString());
+                        lvi.SubItems.Add(item.axis);
                         lvi.SubItems.Add(item.nodeName);
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
-                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
-                        lvi.SubItems.Add(sizes.holeSize);
-                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
 
@@ -799,6 +795,55 @@ namespace A2Z
             {
                 MessageBox.Show($"Osnap 삭제 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// REQ-003 (2026-05-11): Osnap LINE의 축 추정 — start→end 벡터 최대 성분
+        /// dynamic 매개변수: OsnapVertex3D의 Start/End 타입이 SDK XML에 명시되지 않아 정적 타입 지정 불가
+        /// </summary>
+        private static string EstimateOsnapLineAxis(dynamic start, dynamic end)
+        {
+            if (start == null || end == null) return "";
+            float dx = (float)Math.Abs((double)(end.X - start.X));
+            float dy = (float)Math.Abs((double)(end.Y - start.Y));
+            float dz = (float)Math.Abs((double)(end.Z - start.Z));
+            if (dx >= dy && dx >= dz) return "X";
+            if (dy >= dz) return "Y";
+            return "Z";
+        }
+
+        /// <summary>
+        /// REQ-004 (2026-05-11): lvOsnap 행 선택 → 해당 부재 3D 강조 + 카메라 fit
+        /// BOM 행 선택(T-021) 패턴 복제. SelectedItems[i].SubItems[2] = 부재이름 (No, 축 다음)
+        /// </summary>
+        private bool _suppressOsnapSelChanged = false;
+        private void LvOsnap_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_suppressOsnapSelChanged) return;  // LvClash 흐름 등 외부 프로그래밍 선택 시 가드
+            if (lvOsnap.SelectedItems.Count == 0) return;
+            if (bomList == null || bomList.Count == 0) return;
+
+            HashSet<int> indexSet = new HashSet<int>();
+            foreach (ListViewItem lvi in lvOsnap.SelectedItems)
+            {
+                // 컬럼 순서: 0=No, 1=축, 2=부재이름
+                string name = lvi.SubItems.Count > 2 ? lvi.SubItems[2].Text : null;
+                if (string.IsNullOrEmpty(name)) continue;
+                var bom = bomList.FirstOrDefault(b => b.Name == name);
+                if (bom != null) indexSet.Add(bom.Index);
+            }
+            if (indexSet.Count == 0) return;
+
+            try
+            {
+                vizcore3d.BeginUpdate();
+                var indices = indexSet.ToList();
+                vizcore3d.Object3D.Color.RestoreColorAll();
+                vizcore3d.Object3D.Select(indices, true, false);
+                vizcore3d.View.FlyToObject3d(indices, 1.2f);
+                vizcore3d.EndUpdate();
+            }
+            catch (Exception ex) { DiagLog($"REQ-004 LvOsnap_SelectedIndexChanged FAIL {ex.Message}"); }
         }
 
         /// <summary>

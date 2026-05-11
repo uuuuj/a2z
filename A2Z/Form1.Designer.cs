@@ -462,14 +462,14 @@ namespace A2Z
             // 
             // lvOsnap
             // 
+            // REQ-003 (2026-05-11): No / 축 / 부재이름 / X / Y / Z (홀사이즈·슬롯홀 제거)
             this.lvOsnap.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader10,
+            this.columnHeader15,
             this.columnHeader14,
             this.columnHeader11,
             this.columnHeader12,
-            this.columnHeader13,
-            this.columnHeader15,
-            this.columnHeader16});
+            this.columnHeader13});
             this.lvOsnap.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvOsnap.FullRowSelect = true;
             this.lvOsnap.GridLines = true;
@@ -509,8 +509,8 @@ namespace A2Z
             //
             // columnHeader15
             //
-            this.columnHeader15.Text = "홀사이즈";
-            this.columnHeader15.Width = 120;
+            this.columnHeader15.Text = "축";
+            this.columnHeader15.Width = 40;
             //
             // columnHeader16
             //

@@ -556,18 +556,17 @@ namespace A2Z
                             switch (osnap.Kind)
                             {
                                 case VIZCore3D.NET.Data.OsnapKind.LINE:
-                                    if (osnap.Start != null)
+                                    // REQ-003: 축 추정 = start→end 최대 성분 (osnapPointsWithNames만 axis 포함)
+                                    if (osnap.Start != null && osnap.End != null)
                                     {
+                                        string lineAxis = EstimateOsnapLineAxis(osnap.Start, osnap.End);
                                         var startVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
                                         osnapPoints.Add(startVertex);
-                                        osnapPointsWithNames.Add((startVertex, partName));
+                                        osnapPointsWithNames.Add((startVertex, partName, lineAxis));
                                         nodeOsnapPts.Add((startVertex, partName));
-                                    }
-                                    if (osnap.End != null)
-                                    {
                                         var endVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z);
                                         osnapPoints.Add(endVertex);
-                                        osnapPointsWithNames.Add((endVertex, partName));
+                                        osnapPointsWithNames.Add((endVertex, partName, lineAxis));
                                         nodeOsnapPts.Add((endVertex, partName));
                                     }
                                     break;
@@ -581,7 +580,7 @@ namespace A2Z
                                     {
                                         var pointVertex = new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z);
                                         osnapPoints.Add(pointVertex);
-                                        osnapPointsWithNames.Add((pointVertex, partName));
+                                        osnapPointsWithNames.Add((pointVertex, partName, ""));
                                         nodeOsnapPts.Add((pointVertex, partName));
                                     }
                                     break;
@@ -599,16 +598,13 @@ namespace A2Z
                     for (int i = 0; i < osnapPointsWithNames.Count; i++)
                     {
                         var item = osnapPointsWithNames[i];
+                        // REQ-003: 컬럼 순서 No / 축 / 부재이름 / X / Y / Z
                         ListViewItem lvi = new ListViewItem((i + 1).ToString());
+                        lvi.SubItems.Add(item.axis);
                         lvi.SubItems.Add(item.nodeName);
                         lvi.SubItems.Add(item.point.X.ToString("F2"));
                         lvi.SubItems.Add(item.point.Y.ToString("F2"));
                         lvi.SubItems.Add(item.point.Z.ToString("F2"));
-                        // 홀사이즈/슬롯홀: 포인트 위치 기반으로 해당하는 것만 표시
-                        var matchBom = bomList?.FirstOrDefault(b => b.Name == item.nodeName);
-                        var sizes = GetHoleOrSlotForPoint(matchBom, item.point.X, item.point.Y, item.point.Z);
-                        lvi.SubItems.Add(sizes.holeSize);
-                        lvi.SubItems.Add(sizes.slotHoleSize);
                         lvOsnap.Items.Add(lvi);
                     }
                 }
