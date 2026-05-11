@@ -1730,6 +1730,13 @@ namespace A2Z
                         }
                     }
                 }
+                else
+                {
+                    // T-038 step B-2 (2026-05-12 사용자 사양): FitObjectToGridCellAspect 후 추가 15% 축소
+                    // step B (targetH=0)에서 셀 가득 → 보조선·풍선 등 셀 밖 잘림. 0.85배로 안전 마진 확보.
+                    float curScaleBg = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(bgObjId, curScaleBg * 0.85f);
+                }
 
                 // ── T-013 옵션 B — WorldToScreen 기반 3D→캔버스 좌표 변환 (2026-04-21) ──
                 // 옵션 A 실패 확인: objId가 원점(0,0)에 objScale=0.005로 남아 거의 안 보임.
@@ -1904,6 +1911,13 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.RescaleObject(objId, wScale * wRatio);
                         }
                     }
+                }
+                else
+                {
+                    // T-038 step B-2 (2026-05-12 사용자 사양): FitObjectToGridCellAspect 후 추가 15% 축소
+                    // step B (targetH=0)에서 셀 가득 → 보조선/풍선/라벨 셀 밖 잘림. 0.85배로 안전 마진 확보.
+                    float curScaleObj = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * 0.85f);
                 }
             }
 

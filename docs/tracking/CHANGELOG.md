@@ -6,6 +6,37 @@
 
 ---
 
+## 2026-05-12 — T-038 step B-2: 모델 0.85배 (셀 가득 후 15% 안전 마진)
+
+**유형**: fix (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 (IN_PROGRESS)
+**관련 FEEDBACK**: FB-004
+
+**사용자 사양 (2026-05-12)**: *"너무 크게 잘리고 너무 커서 크기는 15프로 줄여보자."*
+
+**현상 (step B 검증)**: `targetH = 0f` → 셀 100% 가득 → 보조선·풍선·라벨이 셀 밖으로 튀어나가 잘림.
+
+**변경**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.DrawingSheets.cs:1704~](A2Z/Form1.DrawingSheets.cs:1704) | bgObjId 분기 — `if (targetHeight > 0)` 뒤에 `else { RescaleObject(bgObjId, curScale * 0.85f); }` 추가 |
+| [Form1.DrawingSheets.cs:1879~](A2Z/Form1.DrawingSheets.cs:1879) | objId 분기 — 동일 패턴 |
+
+**동작 변화**: `targetH = 0f` 그대로 + `FitObjectToGridCellAspect` 후 *추가 0.85배 RescaleObject* → 모델 85% 차지, 15% 마진(보조선/풍선/라벨용) 확보.
+
+**검증 포인트**:
+- 4뷰 모델이 step B 대비 *살짝 작아짐* (15%)
+- 셀 밖 잘림 해소되는지
+- 보조선·풍선·라벨이 셀 안에 들어오는지
+
+**다음 단계 (사용자 결과에 따라)**:
+- 여전히 잘림 → 추가 축소 (0.80, 0.75 등) 또는 step C 본격 (라벨/풍선/보조선 영역 동적 차감)
+- 잘림 해소 → T-038+039 가공도 적용으로
+
+---
+
 ## 2026-05-12 — T-038 step B: 모델 셀 가득 (targetH 40f → 0f)
 
 **유형**: feat (사용자 사양 — T-038 본진 1차)

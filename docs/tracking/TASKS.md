@@ -210,8 +210,9 @@
 - **착수일**: 2026-05-12
 - **상태**: IN_PROGRESS (step B 완료 — `targetH = 0f` 적용. step C 대기: 동적 마진)
 - **사용자 사양 (2026-05-12)**: 모델 셀 가득 + 보조선 영역 확보 (단계별 — B 모델부터, C 동적 마진)
-- **step B (2026-05-12)**: `targetH = 40f → 0f` (Form1.DrawingSheets.cs:1372). `FitObjectToGridCellAspect`만 사용, 추가 스케일 건너뜀
-- **step C 계획**: 셀 가용 높이 = cellH - 라벨박스H(약 10~15mm) - 풍선 영역(약 10~12mm) - 보조선 영역(보조선 max 길이 + 텍스트 마진). 동적 targetH 계산
+- **step B (2026-05-12)**: `targetH = 40f → 0f` (Form1.DrawingSheets.cs:1372). `FitObjectToGridCellAspect`만 사용. 결과: 셀 100% 가득이지만 잘림
+- **step B-2 (2026-05-12)**: 사용자 사양 "15프로 줄여보자". `targetH = 0f` 분기에 `else { RescaleObject(*, scale * 0.85f) }` 추가 (L1704, L1879). 결과: 85% 차지, 15% 안전 마진
+- **step C 계획 (필요 시)**: 셀 가용 높이 = cellH - 라벨박스H(약 10~15mm) - 풍선 영역(약 10~12mm) - 보조선 영역(보조선 max 길이 + 텍스트 마진). 동적 targetH 계산
 - **관련**: — (사용자 직접 지시, T-006 2차 실험 흡수)
 - **배경**: 현재 `targetH=40f` 하드코드. 셀 높이 ≈ 95mm이므로 58% 여유 공간 낭비. 모델을 키우고 싶지만 그리드 이탈·풍선/라벨/치수선 겹침 위험
 - **제안 여백 예산** (사용자 승인 필요):
