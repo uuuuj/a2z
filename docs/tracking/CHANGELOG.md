@@ -6,6 +6,52 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v10: 모든 보조선 5/10mm 고정 (단순화)
+
+**유형**: refactor (사용자 사양 단순화)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**사용자 사양 (2026-05-12)**: *"전부 다 지금 제일 짧은 보조선이 몇이지? 고정값으로 해도 되겠다 제일 짧은 보조선으로 고정값"*
+
+**답**: v7 기준 제일 짧은 보조선 = **1단 5mm / 2단 10mm** (max>1000mm + 짧은 축 조건). 이 값으로 모두 고정.
+
+**v10 단순화**:
+
+| 폐기 | 의미 |
+|---|---|
+| max>1000mm 분기 (10/20 vs 20/40) | 모두 5/10mm 고정 |
+| axisShortHalf hAxis_3d 무조건 (v5) | 더 이상 의미 없음 (어차피 모두 동일) |
+| axisShortHalf 짧은 축 1/2 이하 (v7) | 동일 |
+
+**구현** ([Form1.Dimensions.cs:509~](A2Z/Form1.Dimensions.cs:509)):
+```csharp
+if (canvasScaleOverride > 0f && filteredDims.Count > 0)
+{
+    const float canvasBase = 5f;   // 고정
+    const float canvasLvl  = 5f;   // 차분 → 2단 = 10mm
+    canvasMaxOff = canvasBase + canvasLvl;
+    baseOffset = canvasBase / canvasScaleOverride;
+    levelSpacing = canvasLvl / canvasScaleOverride;
+    // axisShortHalf 비어있음 → foreach 분기 모두 동일 offset
+}
+```
+
+**효과**:
+- 모든 dim 보조선 1단=5mm / 2단=10mm (캔버스 절대)
+- 모델 이동량 canvasMaxOff = 10mm (axisShortHalf 비어있어 절반 적용 X) × ShiftScale
+- ShiftScale 매트릭스 (v8) 그대로 유지
+
+**검증 포인트** (사용자 사내 PC):
+- 모든 뷰의 모든 보조선이 *동일 길이* (5/10mm 고정)
+- 모델 이동량 안정 (ShiftScale 비대칭만 영향)
+
+**잔여 (필요 시)**:
+- 5/10mm 부족 → 6/12 또는 다른 고정값
+- 또는 *부재 위치별* 동적 (예: 외곽 부재만 절반) — 사용자 결정
+
+---
+
 ## 2026-05-12 — ISO 풍선 좌/우만 + BOM·도면정보 누적 이동
 
 **유형**: feat (사용자 사양 3건)

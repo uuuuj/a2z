@@ -510,39 +510,17 @@ namespace A2Z
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
-                    float maxDist = filteredDims.Max(d => d.Distance);
-                    float canvasBase = (maxDist > 1000f) ? 10f : 20f;       // 1단 캔버스 mm
-                    float canvasLvl  = (maxDist > 1000f) ? 10f : 20f;       // 차분 (20-10) or (40-20)
-                    canvasMaxOff = canvasBase + canvasLvl;                  // 2단까지 max = 20 or 40
+                    // T-038+039 v10 (2026-05-12 사용자 사양): 모든 보조선 5/10mm 고정 (전체 최소값)
+                    // 이전 분기(max>1000 / axisShortHalf) 모두 폐기 — 단순화. 모든 dim 동일 길이.
+                    const float canvasBase = 5f;   // 1단 캔버스 mm 고정
+                    const float canvasLvl  = 5f;   // 차분 → 2단 = 10mm
+                    canvasMaxOff = canvasBase + canvasLvl;
                     baseOffset = canvasBase / canvasScaleOverride;
                     levelSpacing = canvasLvl / canvasScaleOverride;
+                    // axisShortHalf 비어있음 — foreach 분기에서 모두 동일 offset
 
-                    // T-038+039 v5: 위아래 보조선 (hAxis_3d) 무조건 절반
-                    string hAxisTemp;
-                    switch (viewDirection)
-                    {
-                        case "Z": hAxisTemp = "X"; break;
-                        case "X": hAxisTemp = "Y"; break;
-                        case "Y": hAxisTemp = "X"; break;
-                        default:  hAxisTemp = "X"; break;
-                    }
-                    axisShortHalf.Add(hAxisTemp);
-
-                    // T-038+039 v7 (2026-05-12 사용자 사양): 짧은 축 1/2 이하면 절반 (v3 부활, 기준 1/3→1/2)
-                    // v5의 위아래 무조건 절반과 결합 — 두 조건 모두 적용 (둘 다 해당하면 0.5배 한 번만)
-                    var axisMaxes = filteredDims.GroupBy(d => d.Axis)
-                        .ToDictionary(g => g.Key, g => g.Max(d => d.Distance));
-                    if (axisMaxes.Count >= 2)
-                    {
-                        float globalMaxMax = axisMaxes.Max(kv => kv.Value);
-                        foreach (var kv in axisMaxes)
-                        {
-                            if (kv.Value < globalMaxMax / 2f)
-                                axisShortHalf.Add(kv.Key);
-                        }
-                    }
-
-                    DiagLog($"T-038+039 v7 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} verticalHalfAxis={hAxisTemp} shortAxes=[{string.Join(",", axisShortHalf)}] axisMaxes=[{string.Join(",", axisMaxes.Select(kv => $"{kv.Key}={kv.Value:F0}"))}]");
+                    float maxDist = filteredDims.Max(d => d.Distance);
+                    DiagLog($"T-038+039 v10 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase}(fixed) canvasLvl={canvasLvl}(fixed) scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
                 }
                 else
                 {
