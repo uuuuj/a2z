@@ -92,6 +92,8 @@ namespace A2Z
                     string sprefVal = "";
                     string matrefVal = "";
                     string gweiVal = "";
+                    string posStartVal = "";  // T-061: POSSTART UDA — 길이 계산용
+                    string posEndVal = "";    // T-061: POSEND UDA
 
                     // 현재 노드부터 부모로 올라가며 UDA 조회 (최대 10단계)
                     int currentIdx = node.Index;
@@ -115,13 +117,18 @@ namespace A2Z
                                         matrefVal = valStr;
                                     else if (keyUpper == "GWEI" && string.IsNullOrEmpty(gweiVal) && !string.IsNullOrEmpty(valStr))
                                         gweiVal = valStr;
+                                    else if (keyUpper == "POSSTART" && string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(valStr))
+                                        posStartVal = valStr;
+                                    else if (keyUpper == "POSEND" && string.IsNullOrEmpty(posEndVal) && !string.IsNullOrEmpty(valStr))
+                                        posEndVal = valStr;
                                 }
                                 catch { }
                             }
                         }
 
-                        // 3개 값 모두 찾으면 중단
-                        if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal))
+                        // 5개 값 모두 찾으면 중단
+                        if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal)
+                            && !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
                             break;
 
                         // 부모 노드로 이동
@@ -134,18 +141,38 @@ namespace A2Z
                         catch { break; }
                     }
 
-                    // SPREF 파싱: 첫 글자 "/" 제거 후 ":" 기준 split → [0]=ITEM, [1]=SIZE
+                    // SPREF 파싱 (T-061): 첫 글자 "/" 제거 후 "/" 또는 ":" 중 먼저 나오는 위치에서 split
+                    // 예: "/H300x250:SIZE" → ITEM="H300x250", rest="SIZE"
+                    // 예: "/PART/ITEM/REST" → ITEM="PART", rest="ITEM/REST"
                     string itemVal = "";
                     string sizeVal = "";
                     if (!string.IsNullOrEmpty(sprefVal))
                     {
-                        string sprefClean = sprefVal;
-                        if (sprefClean.StartsWith("/"))
-                            sprefClean = sprefClean.Substring(1);
-                        string[] parts = sprefClean.Split(':');
-                        itemVal = parts[0].Trim();
-                        if (parts.Length > 1)
-                            sizeVal = parts[1].Trim();
+                        string sprefClean = sprefVal.StartsWith("/") ? sprefVal.Substring(1) : sprefVal;
+                        int slashIdx = sprefClean.IndexOf('/');
+                        int colonIdx = sprefClean.IndexOf(':');
+                        int splitIdx;
+                        if (slashIdx < 0 && colonIdx < 0) splitIdx = sprefClean.Length;
+                        else if (slashIdx < 0) splitIdx = colonIdx;
+                        else if (colonIdx < 0) splitIdx = slashIdx;
+                        else splitIdx = Math.Min(slashIdx, colonIdx);
+
+                        itemVal = sprefClean.Substring(0, splitIdx).Trim();
+                        if (splitIdx < sprefClean.Length)
+                            sizeVal = sprefClean.Substring(splitIdx + 1).Trim();
+                    }
+
+                    // T-061: POSSTART/POSEND로 길이 계산 → SIZE 뒤에 "xLENGTH" 형태로 추가
+                    // 한 축만 다른 경우든 두/세 축 다른 경우든 일률 3D 거리 공식 (sqrt(dx²+dy²+dz²))
+                    // POSSTART/POSEND가 비어 있으면 길이 추가 안 함 (SIZE 그대로)
+                    if (!string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
+                    {
+                        float[] s = ParsePosString(posStartVal);
+                        float[] e = ParsePosString(posEndVal);
+                        float dxL = e[0] - s[0], dyL = e[1] - s[1], dzL = e[2] - s[2];
+                        float length = (float)Math.Sqrt(dxL * dxL + dyL * dyL + dzL * dzL);
+                        string lengthStr = length.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                        sizeVal = string.IsNullOrEmpty(sizeVal) ? lengthStr : $"{sizeVal}x{lengthStr}";
                     }
 
                     // UDA에 SPREF가 없으면 노드 이름을 Item으로 사용
@@ -577,6 +604,30 @@ namespace A2Z
             }
 
             return componentCount == 1;
+        }
+
+        /// <summary>
+        /// T-061: POSSTART / POSEND UDA 문자열에서 3개 숫자 추출
+        /// 예: "50mm S 1000.22mm U 500.00mm" → [50.0, 1000.22, 500.0]
+        /// (S/U 토큰 의미 미정 — 일단 등장 순서 그대로 매칭)
+        /// 숫자가 3개 미만이면 부족한 자리를 0으로 채움
+        /// </summary>
+        private float[] ParsePosString(string raw)
+        {
+            var nums = new List<float>();
+            if (!string.IsNullOrEmpty(raw))
+            {
+                var matches = System.Text.RegularExpressions.Regex.Matches(raw, @"-?\d+(?:\.\d+)?");
+                foreach (System.Text.RegularExpressions.Match m in matches)
+                {
+                    if (float.TryParse(m.Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float v))
+                        nums.Add(v);
+                    if (nums.Count >= 3) break;
+                }
+            }
+            while (nums.Count < 3) nums.Add(0f);
+            return new[] { nums[0], nums[1], nums[2] };
         }
     }
 }

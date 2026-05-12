@@ -647,7 +647,7 @@
 ## DONE (최근 20개)
 
 ### T-061 — docs 한글화 (옵션 B: 폴더·파일명 + README·용어집 정비)
-- **완료일**: 2026-05-13 (커밋 `pending`)
+- **완료일**: 2026-05-13 (커밋 `28a7f7f`)
 - **관련**: — (사용자 직접 지시. 보조선/치수 사양 검색 시 영어 파일명에 막힘)
 - **요약**: `docs/features/` → `docs/기능/` + 8개 카테고리 폴더 한글화(부재속성/BOM/간섭검사/치수/도면시트/2D도면/글로벌뷰/가공도) + 60개 파일 한글화. `docs/technical-notes/` → `docs/기술 노트/` + 4개 파일 한글화(치수 보조선 사양·치수 텍스트 위치·Osnap 기준·Sheet1 명명 기준). [docs/README.md](../README.md) 이모지 제거 + "기준·사양" 진입점 섹션 신규 + 카테고리 표 한글화. [docs/_glossary.md](../_glossary.md) 보조선/Osnap/Chain Dimension/Drawing Sheet 항목에 본진 링크 4개 추가. CLAUDE.md / .claude/commands/{commit,checkpoint}.md / .claude/hooks/docs-sync-reminder.sh 경로 참조 4곳 갱신. PowerShell 일괄 치환 3패스 + md-link-checker 3회 검증(잔존 0건). **`code-reference/` 영어 유지** (코드 파일 1:1 매핑 보존). 총 131개 파일 변경, 코드 변경 없음
 
