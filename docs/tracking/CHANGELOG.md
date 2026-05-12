@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v5: 위아래 보조선 무조건 절반 + 이동량 × 0.5
+
+**유형**: fix (사용자 사양 v5)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**v4 검증 결과** (사용자 보고):
+- 모델이 *너무 많이 이동*
+- 추가 사양: "X, Y, Z 모두 위아래로 표시되는 보조선은 조건부가 아니라 그냥 절반"
+
+**v5 변경 — 두 가지**:
+
+1. **axisShortHalf 결정 방식 교체** (조건부 짧은 축 → 무조건 화면 V 축)
+   - 기존(v3): `axisMaxes` 비교 후 1/3 이하인 축
+   - 새(v5): `hAxis_3d` 항상 포함 (viewDirection별: Z뷰→X, X뷰→Y, Y뷰→X)
+   - 효과: 화면 V 방향 보조선(= hAxis_3d 축 dim의 보조선) 무조건 절반
+
+2. **모델 이동량 × 0.5** (너무 많이 이동 해결)
+   - `ShiftScale = 0.5f` 상수 추가
+   - `_lastModelShiftCanvasX/Y` 계산에 곱셈
+
+**구현**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.Dimensions.cs:520~](A2Z/Form1.Dimensions.cs:520) | v3 짧은 축 조건부 코드 제거 → viewDirection별 hAxis_3d 결정 후 axisShortHalf 추가 |
+| [Form1.Dimensions.cs:600~](A2Z/Form1.Dimensions.cs:600) | 모델 이동량 계산에 `ShiftScale = 0.5f` 곱셈 |
+
+**DiagLog v5**:
+- `T-038+039 v5 view=Z maxDist=N canvasBase=N canvasLvl=N scale=N → ... verticalHalfAxis=X` (X뷰면 Y 등)
+- `T-038+039 v5 ModelShift ... ShiftScale=0.5 → shiftXY=(N, N)`
+
+**검증 포인트** (사용자 사내 PC):
+- 화면 V 방향 보조선이 *항상 절반* (이전 짧은 축 조건과 무관)
+- 모델 이동량이 *이전의 절반*
+- 시각적으로 균형 잡혔는지 (셀 안 모델 + 치수 공간)
+
+**잔여 (검증 결과 따라)**:
+- 이동량 ShiftScale 추가 조정 (0.5 → 0.3 또는 0.7)
+- 화면 H 방향 보조선도 절반 필요? (현재는 기존 길이)
+- 가공도 동일 적용
+
+---
+
 ## 2026-05-12 — T-038+039 v4: 보조선 반대 방향 모델 이동
 
 **유형**: feat (사용자 사양)

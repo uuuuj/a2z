@@ -517,19 +517,23 @@ namespace A2Z
                     baseOffset = canvasBase / canvasScaleOverride;
                     levelSpacing = canvasLvl / canvasScaleOverride;
 
-                    // 축별 max 계산 → 1/3 이하인 축 식별
-                    var axisMaxes = filteredDims.GroupBy(d => d.Axis)
-                        .ToDictionary(g => g.Key, g => g.Max(d => d.Distance));
-                    if (axisMaxes.Count >= 2)
+                    // T-038+039 v5 (2026-05-12 사용자 사양): "X, Y, Z 모두 위아래로 표시되는 보조선은
+                    // 조건부가 아니라 그냥 절반". 즉 화면 V(수직) 방향 보조선 빠지는 축은 *무조건* 절반.
+                    // 화면 V 방향 보조선 = hAxis_3d 축 dim (보조선 빠지는 방향 = vAxis_3d)
+                    // 잠깐 — 보조선이 그려지는 *방향*이 vAxis_3d면 보조선 *길이*가 V 방향. 그 dim은 hAxis_3d.
+                    // 즉 hAxis_3d 축 dim의 보조선이 화면 V 방향. → hAxis_3d를 항상 axisShortHalf에 추가.
+                    string hAxisTemp;
+                    switch (viewDirection)
                     {
-                        float globalMaxMax = axisMaxes.Max(kv => kv.Value);
-                        foreach (var kv in axisMaxes)
-                        {
-                            if (kv.Value < globalMaxMax / 3f)
-                                axisShortHalf.Add(kv.Key);
-                        }
+                        case "Z": hAxisTemp = "X"; break;
+                        case "X": hAxisTemp = "Y"; break;
+                        case "Y": hAxisTemp = "X"; break;
+                        default:  hAxisTemp = "X"; break;
                     }
-                    DiagLog($"T-038+039 v3 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} shortAxes=[{string.Join(",", axisShortHalf)}] axisMaxes=[{string.Join(",", axisMaxes.Select(kv => $"{kv.Key}={kv.Value:F0}"))}]");
+                    axisShortHalf.Add(hAxisTemp);
+
+                    // (v3 조건부 짧은 축 폐기 — 사용자 결정 "그냥 절반")
+                    DiagLog($"T-038+039 v5 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} verticalHalfAxis={hAxisTemp}");
                 }
                 else
                 {
@@ -601,9 +605,11 @@ namespace A2Z
                     }
 
                     // 이동량 = 외곽 반대 방향 (positiveOffset=true면 H+ 외곽이라 모델 H- 이동)
-                    _lastModelShiftCanvasX = hPositive ? -canvasHOff : canvasHOff;
-                    _lastModelShiftCanvasY = vPositive ? -canvasVOff : canvasVOff;
-                    DiagLog($"T-038+039 v4 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
+                    // T-038+039 v5 (2026-05-12 사용자 사양 "너무 많이 이동"): 이동량 × 0.5 (절반)
+                    const float ShiftScale = 0.5f;
+                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * ShiftScale;
+                    _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * ShiftScale;
+                    DiagLog($"T-038+039 v5 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} ShiftScale={ShiftScale} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========
