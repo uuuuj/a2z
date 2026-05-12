@@ -2100,9 +2100,8 @@ namespace A2Z
             foreach (var axisGrp in viewDims.GroupBy(d => d.Axis))
             {
                 string axis = axisGrp.Key;
-                // T-040 v9: SDK가 측정선 직각으로만 텍스트 이동 가능 (v8 실기 검증)
-                // → 시프트를 offset 축 방향으로 변경 (= 측정선 직각). 부호는 인접 비교 결과 그대로
-                string offsetAxis = GetRemainingAxis(viewDirection ?? "X", axis);
+                // T-040 v10: v9 offsetAxis 매핑이 사용자 시각과 반대 → 측정축(axis) 직접 사용으로 복귀
+                // (사용자 표현 "가로/세로 오프셋 방향 교환" = v8 코드 패턴)
                 var sortedDims = axisGrp.OrderBy(d => GetAxisValue(d.StartPoint, axis)).ToList();
 
                 for (int i = 0; i < sortedDims.Count; i++)
@@ -2132,8 +2131,8 @@ namespace A2Z
                     float midY = (dim.StartPoint.Y + dim.EndPoint.Y) / 2f;
                     float midZ = (dim.StartPoint.Z + dim.EndPoint.Z) / 2f;
 
-                    // v9: offset 축 방향 시프트 (측정선 직각)
-                    switch (offsetAxis)
+                    // v10: 측정축(axis) 직접 시프트로 복귀 (v8 패턴)
+                    switch (axis)
                     {
                         case "X": midX += shiftDir * modelShift; break;
                         case "Y": midY += shiftDir * modelShift; break;
