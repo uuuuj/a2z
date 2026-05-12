@@ -6,6 +6,43 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v8: 뷰별 차등 vShiftScale 공식
+
+**유형**: fix (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**v7 검증 결과** (사용자 보고): Z뷰는 잘 이동, X뷰/Y뷰는 위로 더 이동 필요.
+
+**v8 공식 — 뷰별 차등 vShiftScale**:
+
+| 조건 | Z뷰 | X뷰 / Y뷰 |
+|---|---|---|
+| vPositive=true (외곽 위, 모델 아래 이동) | 0.25 | 0.25 |
+| **vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동)** | **0.5** | **0.75** |
+
+H 이동: hShiftScale = 0.25 (모든 뷰), Y뷰 dx 부호 반전 유지.
+
+**구현** ([Form1.Dimensions.cs:610~](A2Z/Form1.Dimensions.cs:610)):
+```csharp
+float vShiftScale;
+if (vPositive)
+    vShiftScale = 0.25f;
+else
+    vShiftScale = (viewDirection == "Z") ? 0.5f : 0.75f;
+```
+
+**검증 포인트** (사용자 사내 PC):
+- X뷰·Y뷰 치수 아래 케이스: 모델이 *위로 더 이동* (v7 대비 1.5배)
+- Z뷰: 변화 없음 (그대로)
+- 라벨 가림 해소 확인
+
+**잔여 (필요 시)**:
+- 0.75도 부족하면 1.0 또는 더 키움
+- 또는 *비례식* (모델 크기 기반)으로 동적 결정
+
+---
+
 ## 2026-05-12 — T-038+039 v7 + BOM/tableInfo 미세 이동
 
 **유형**: feat (사용자 사양 4건)

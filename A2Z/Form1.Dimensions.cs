@@ -613,18 +613,22 @@ namespace A2Z
                         canvasVOff = axisShortHalf.Contains(hAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
                     }
 
-                    // T-038+039 v7 (2026-05-12 사용자 사양): vPositive=false (치수 아래) 시 위 이동량 더 크게
-                    //   — Y/X 뷰에서 모델이 라벨 가림 현상 해소
-                    // ShiftScale 비대칭:
-                    //   vPositive=true (외곽 위, 모델 아래 이동): 0.25 (라벨 안전 유지)
-                    //   vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동): 0.5 (이전 2배)
+                    // T-038+039 v8 (2026-05-12 사용자 사양 — 뷰별 차등 공식):
+                    //   vPositive=true (외곽 위, 모델 아래 이동, 라벨 안전): 0.25 — 모든 뷰
+                    //   vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동):
+                    //     - Z뷰(평면도): 0.5 (사용자 확인 OK)
+                    //     - X뷰/Y뷰: 0.75 (더 위로 — 사용자 사양 "라벨 가림 해소 추가 보강")
                     // Y뷰 dx 부호 반전 (v6 유지)
-                    float vShiftScale = vPositive ? 0.25f : 0.5f;
+                    float vShiftScale;
+                    if (vPositive)
+                        vShiftScale = 0.25f;
+                    else
+                        vShiftScale = (viewDirection == "Z") ? 0.5f : 0.75f;
                     const float hShiftScale = 0.25f;
                     float hSign = (viewDirection == "Y") ? -1f : 1f;
                     _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * hShiftScale * hSign;
                     _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * vShiftScale;
-                    DiagLog($"T-038+039 v7 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
+                    DiagLog($"T-038+039 v8 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========
