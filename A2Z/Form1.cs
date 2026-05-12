@@ -114,6 +114,14 @@ namespace A2Z
             = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
 
         /// <summary>
+        /// T-038+039 v4 (2026-05-12 사용자 사양): ShowAllDimensions가 계산한 *모델 이동량* (2D 캔버스 mm).
+        /// "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동" — 화면 H/V 외곽 반대.
+        /// RenderSheetViewForDrawing이 RescaleObject 후 `Drawing2D.Object2D.MoveObject(objId, dx, dy)` 호출에 사용.
+        /// </summary>
+        private float _lastModelShiftCanvasX = 0f;
+        private float _lastModelShiftCanvasY = 0f;
+
+        /// <summary>
         /// T-036: ExecuteMfgDrawing이 회전 직후 저장한 카메라 스냅샷.
         /// LvDrawingSheet_SelectedIndexChanged 말미에 SetCameraData(false)로 복원해
         /// 외부 FitToView가 카메라 위치/줌을 리셋한 경우를 방어.

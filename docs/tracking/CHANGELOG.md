@@ -6,6 +6,57 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v4: 보조선 반대 방향 모델 이동
+
+**유형**: feat (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**사용자 사양 (2026-05-12)**: *"보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 반대 방향의 보조선 길이만큼 이동"* — 셀 안 시각 균형. 모델이 한쪽에 쏠리지 않고 보조선·치수 영역과 함께 자연 배치.
+
+**알고리즘**:
+1. ShowAllDimensions에서 `axisPositiveOffset` + `canvasMaxOff` + `axisShortHalf` 결정
+2. viewDirection별 3D 축 → 화면 H/V 매핑:
+   - Z뷰: H=X, V=Y
+   - X뷰: H=Y, V=Z
+   - Y뷰: H=X, V=Z
+3. 화면 H 외곽 = `vAxis_3d` dim의 positiveOffset / 화면 V 외곽 = `hAxis_3d` dim의 positiveOffset
+4. 짧은 축이면 거리 절반 (v3 규칙 재사용)
+5. 모델 이동량 = 외곽 *반대* 방향
+6. `Drawing2D.Object2D.MoveObject(objId, dx, dy)` 호출 — RescaleObject 후
+
+**구현**:
+
+| 위치 | 변경 |
+|---|---|
+| [Form1.cs:115~](A2Z/Form1.cs:115) | 멤버 변수 `_lastModelShiftCanvasX, _lastModelShiftCanvasY` 신설 |
+| [Form1.Dimensions.cs:500~](A2Z/Form1.Dimensions.cs:500) | `canvasMaxOff` 분기 밖 선언 — 분기 안에서 값 설정 |
+| [Form1.Dimensions.cs:537~](A2Z/Form1.Dimensions.cs:537) | `_lastModelShift*` 초기화 |
+| [Form1.Dimensions.cs:570~](A2Z/Form1.Dimensions.cs:570) | axisPositiveOffset 결정 후 모델 이동량 계산 + DiagLog |
+| [Form1.DrawingSheets.cs:1731~](A2Z/Form1.DrawingSheets.cs:1731) | bgObjId RescaleObject 후 `MoveObject(bgObjId, dx, dy)` |
+| [Form1.DrawingSheets.cs:1907~](A2Z/Form1.DrawingSheets.cs:1907) | objId RescaleObject 후 `MoveObject(objId, dx, dy)` |
+
+**DiagLog v4**:
+- `T-038+039 v4 ModelShift view=X hAxis=X vAxis=Y hPositive=N vPositive=N canvasH=N canvasV=N → shiftXY=(X, Y)`
+- `T-038+039 v4 MoveObject objId=N dx=N dy=N`
+
+**적용 범위**:
+- 2D 출력 X/Y/Z 셀: 적용 (canvasScaleOverride > 0 + viewDirection != null)
+- ISO 뷰: ShowAllDimensions 호출 X (CreateIsoBalloonNotes만) → _lastModelShift=0 → 이동 X
+- 글로벌 X/Y/Z 뷰: canvasScaleOverride 미전달 → 이동 X (기존 동작)
+- 가공도(MfgDrawing): 별도 코드 (이번 변경 영향 없음)
+
+**검증 포인트** (사용자 사내 PC):
+- 4뷰 모델이 *치수 영역 반대쪽으로* 이동했는지
+- 시각적으로 *모델 + 치수가 셀 안 균형*잡혀 보이는지
+- *카메라 축 → 화면 방향* 매핑 검증 (Y+ = 화면 위 가설). 매핑 잘못이면 *반대 방향으로 이동* — 부호 조정 필요
+
+**잔여 (검증 결과 따라)**:
+- 부호 조정 (각 뷰별 +/- 매핑) — DiagLog 보고 결정
+- 가공도(MfgDrawing) 동일 적용
+
+---
+
 ## 2026-05-12 — T-044 시초 + 텍스트 5배→2배 조정
 
 **유형**: feat (사용자 사양)

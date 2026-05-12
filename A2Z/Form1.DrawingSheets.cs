@@ -1737,6 +1737,13 @@ namespace A2Z
                     vizcore3d.Drawing2D.Object2D.RescaleObject(bgObjId, curScaleBg * 0.75f);
                 }
 
+                // T-038+039 v4 (2026-05-12): 보조선 반대 방향 모델 이동 (ShowAllDimensions가 _lastModelShift* 채움)
+                if (_lastModelShiftCanvasX != 0f || _lastModelShiftCanvasY != 0f)
+                {
+                    vizcore3d.Drawing2D.Object2D.MoveObject(bgObjId, _lastModelShiftCanvasX, _lastModelShiftCanvasY);
+                    DiagLog($"T-038+039 v4 MoveObject bgObjId={bgObjId} dx={_lastModelShiftCanvasX:F1} dy={_lastModelShiftCanvasY:F1}");
+                }
+
                 // ── T-013 옵션 B — WorldToScreen 기반 3D→캔버스 좌표 변환 (2026-04-21) ──
                 // 옵션 A 실패 확인: objId가 원점(0,0)에 objScale=0.005로 남아 거의 안 보임.
                 // SDK가 두 2D 객체를 자동 매핑하지 않으므로, 3D BBox 중심을 WorldToScreen으로
@@ -1916,6 +1923,13 @@ namespace A2Z
                     // T-038 step B-3 (2026-05-12): 0.85 → 0.75 (텍스트·풍선 5배 키움과 같이 적용)
                     float curScaleObj = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
                     vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * 0.75f);
+                }
+
+                // T-038+039 v4 (2026-05-12): 보조선 반대 방향 모델 이동 (ShowAllDimensions가 _lastModelShift* 채움)
+                if (_lastModelShiftCanvasX != 0f || _lastModelShiftCanvasY != 0f)
+                {
+                    vizcore3d.Drawing2D.Object2D.MoveObject(objId, _lastModelShiftCanvasX, _lastModelShiftCanvasY);
+                    DiagLog($"T-038+039 v4 MoveObject objId={objId} dx={_lastModelShiftCanvasX:F1} dy={_lastModelShiftCanvasY:F1}");
                 }
             }
 

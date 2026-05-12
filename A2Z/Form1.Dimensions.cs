@@ -505,12 +505,15 @@ namespace A2Z
                 //   예: 높이 max=500 / 너비 max=60 → 60 < 500/3 → 너비(짧은 축)의 보조선 절반
                 // axisShortHalf Dict — true면 해당 축 치수의 보조선 0.5배
                 var axisShortHalf = new HashSet<string>();
+                // T-038+039 v4: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
+                float canvasMaxOff = 0f;  // 2D 캔버스 mm. 1단 + 차분 = 2단
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
                     float maxDist = filteredDims.Max(d => d.Distance);
                     float canvasBase = (maxDist > 1000f) ? 10f : 20f;       // 1단 캔버스 mm
                     float canvasLvl  = (maxDist > 1000f) ? 10f : 20f;       // 차분 (20-10) or (40-20)
+                    canvasMaxOff = canvasBase + canvasLvl;                  // 2단까지 max = 20 or 40
                     baseOffset = canvasBase / canvasScaleOverride;
                     levelSpacing = canvasLvl / canvasScaleOverride;
 
@@ -533,6 +536,10 @@ namespace A2Z
                     baseOffset = 100.0f;
                     levelSpacing = 80.0f;
                 }
+
+                // T-038+039 v4 (2026-05-12): 모델 이동량 사전 초기화. axisPositiveOffset 결정 후(아래) 계산.
+                _lastModelShiftCanvasX = 0f;
+                _lastModelShiftCanvasY = 0f;
 
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
@@ -561,6 +568,42 @@ namespace A2Z
                         });
                         axisPositiveOffset[dimAxis] = ComputePositiveOffsetByOsnapExtreme(values, modelCenterOffset);
                     }
+                }
+
+                // T-038+039 v4 (2026-05-12 사용자 사양): 보조선이 나간 방향 *반대*로 모델 이동
+                // "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동"
+                // axisPositiveOffset + canvasMaxOff + axisShortHalf 사용해 화면 H/V 외곽 방향·거리 계산
+                if (canvasScaleOverride > 0f && viewDirection != null && canvasMaxOff > 0f)
+                {
+                    string hAxis_3d, vAxis_3d;
+                    switch (viewDirection)
+                    {
+                        case "Z": hAxis_3d = "X"; vAxis_3d = "Y"; break;  // 화면 H=X, V=Y
+                        case "X": hAxis_3d = "Y"; vAxis_3d = "Z"; break;
+                        case "Y": hAxis_3d = "X"; vAxis_3d = "Z"; break;
+                        default:  hAxis_3d = "X"; vAxis_3d = "Y"; break;
+                    }
+
+                    // 화면 H 방향 외곽: vAxis_3d dim → 보조선 hAxis_3d → 화면 H
+                    // 화면 V 방향 외곽: hAxis_3d dim → 보조선 vAxis_3d → 화면 V
+                    float canvasHOff = 0f, canvasVOff = 0f;
+                    bool hPositive = false, vPositive = false;
+
+                    if (axisPositiveOffset.ContainsKey(vAxis_3d))
+                    {
+                        hPositive = axisPositiveOffset[vAxis_3d];
+                        canvasHOff = axisShortHalf.Contains(vAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
+                    }
+                    if (axisPositiveOffset.ContainsKey(hAxis_3d))
+                    {
+                        vPositive = axisPositiveOffset[hAxis_3d];
+                        canvasVOff = axisShortHalf.Contains(hAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
+                    }
+
+                    // 이동량 = 외곽 반대 방향 (positiveOffset=true면 H+ 외곽이라 모델 H- 이동)
+                    _lastModelShiftCanvasX = hPositive ? -canvasHOff : canvasHOff;
+                    _lastModelShiftCanvasY = vPositive ? -canvasVOff : canvasVOff;
+                    DiagLog($"T-038+039 v4 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========
