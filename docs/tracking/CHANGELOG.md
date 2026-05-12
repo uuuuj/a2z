@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-05-13 — T-040: 치수 텍스트 SetMeasureItemDistanceTextPos 전환 PoC
+
+**유형**: feat (Softhills 담당자 예제 기반 신규 방식 도입)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**배경**: `AlignDistanceTextPosition` 토글(1=위 / 2=바깥)이 실기에서 작동 안 함을 사용자 보고. 담당자(Softhills) 예제 코드에 따라 `Drawing2D.Measure.SetMeasureItemDistanceTextPos(int id, Vector3D pos)`로 텍스트 위치를 절대 좌표 시프트.
+
+**구현 변경**:
+- 일반 시트 ([Form1.DrawingSheets.cs](A2Z/Form1.DrawingSheets.cs) `RenderSheetViewForDrawing`): `Add2DObjectFromShapeDrawing` ~ `Add2DMeasureFrom3DMeasure` 사이에 ≤13mm 측정 텍스트를 화면 오른쪽 **캔버스 30mm** 시프트. 모델 mm 환산 = `30 / GetObjectScale(objId)`. ISO 뷰 제외.
+- 가공도 메인 ([Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) `ExecuteMfgDrawing`): 동일 패턴.
+- 토글 코드 폐기: Dimensions.cs 5곳 (`AlignDistanceTextPosition = 2` 초기값 2곳 + `applyTextPosition` 람다 + 호출 3곳 + 선택 치수 표시 dim별 토글), MfgDrawing.cs 3곳 (`mfgStyle`/`eaStyle` 초기값).
+
+**SDK 확정 사실** (sdk-verifier + 빌드 시도):
+- `SetMeasureItemDistanceTextPos(int, Vector3D)` 실재 — XML 미문서 / 어셈블리 존재 (빌드 통과로 확정)
+- `MeasureItem.Position` = `List<ReviewPosition>`, `ReviewPosition.Position` = **`Vertex3D`** (담당자 예제 `Vector3D` 오기)
+- **`MeasureItem.Distance` 속성 부재** → MAIN 두 좌표 거리로 추정 (옵션 A)
+- `ReviewPosition.DataKind` enum = `MAIN`/`SUB` 두 값
+
+**카메라 right 매핑 가설** (실기 검증 필요):
+| viewDirection | 카메라 | 화면 오른쪽 3D 축 |
+|---|---|---|
+| `"X"` | X_PLUS | +Y |
+| `"Y"` | Y_PLUS | -X |
+| `"Z"` | Z_PLUS | +X |
+| `"ISO"` | ISO_PLUS | — (스킵) |
+
+**검증 포인트** (사용자 사내 PC):
+- DiagLog `T-040 TextShift view=X canvasScale=0.0xxx modelShift=Nmm shifted=N` 라인 확인
+- 30mm가 실기에서 시각적으로 적절한 크기인지
+- 카메라 right 매핑 부호 (틀리면 반대 방향으로 시프트)
+- MAIN 두 좌표로 추정한 거리가 13mm 필터에 정확히 동작하는지
+
+**보류** (별도 라운드):
+- 가공도 EA 두 번째 뷰 (L1905) — 90° 회전 후 카메라 식별 별도
+- 가공도 MULTI 경로 — 별도
+
+**영향 범위**: 4경로 중 2경로 (일반 시트 + 가공도 메인)
+
+---
+
 ## 2026-05-12 — T-038+039 v10: 모든 보조선 5/10mm 고정 (단순화)
 
 **유형**: refactor (사용자 사양 단순화)

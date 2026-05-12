@@ -48,7 +48,6 @@ namespace A2Z
                 measureStyle.ArrowColor = System.Drawing.Color.Blue;     // 검은색
                 measureStyle.ArrowSize = 8;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -65,10 +64,6 @@ namespace A2Z
                     ChainDimensionData dim = lvi.Tag as ChainDimensionData;
                     if (dim != null)
                     {
-                        // 2026-05-11 사용자 결정: 치수 거리 ≤13mm → 보조선 바깥(2) / >13mm → 위(1)
-                        measureStyle.AlignDistanceTextPosition = (dim.Distance <= 13.0f) ? 2 : 1;
-                        vizcore3d.Review.Measure.SetStyle(measureStyle);
-
                         float currentOffset = axisOffsetCount[dim.Axis] * offsetStep;
                         axisOffsetCount[dim.Axis]++;
 
@@ -452,7 +447,6 @@ namespace A2Z
                 measureStyle.AssistantLine = false;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
                 measureStyle.AlignDistanceText = true;
-                measureStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
 
@@ -618,20 +612,14 @@ namespace A2Z
                 float level1Offset = baseOffset;
                 float level2Offset = baseOffset + levelSpacing;
 
-                // 2026-05-11 사용자 결정: 치수 거리 ≤13mm → 보조선 바깥(2) / >13mm → 위(1)
-                // SetStyle은 글로벌 옵션이라 측정 추가 직전에 dim별로 토글해야 함
-                System.Action<ChainDimensionData> applyTextPosition = (d) =>
-                {
-                    measureStyle.AlignDistanceTextPosition = (d.Distance <= 13.0f) ? 2 : 1;
-                    vizcore3d.Review.Measure.SetStyle(measureStyle);
-                };
+                // T-040 (2026-05-13): AlignDistanceTextPosition 토글 폐기 — SetMeasureItemDistanceTextPos로 대체
+                // (텍스트 위치 시프트는 RenderSheetViewForDrawing에서 2D 변환 직전에 수행)
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
                 // T-038+039 v3 (2026-05-12): axisShortHalf 축의 dim은 offset 절반
                 foreach (var dim in level1Dims)
                 {
-                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
@@ -643,7 +631,6 @@ namespace A2Z
                 // Level 2 치수 (중간)
                 foreach (var dim in level2Dims)
                 {
-                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
@@ -657,7 +644,6 @@ namespace A2Z
                 float level0Offset = baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
-                    applyTextPosition(dim);
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,

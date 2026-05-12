@@ -322,7 +322,6 @@ namespace A2Z
                 mfgStyle.ArrowSize = 5;
                 mfgStyle.AssistantLine = false;
                 mfgStyle.AlignDistanceText = true;
-                mfgStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                 mfgStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
@@ -1044,7 +1043,6 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;
-                    mfgStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                     mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
@@ -1569,6 +1567,66 @@ namespace A2Z
             if (measureIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
+
+                // T-040 (2026-05-13): ≤13mm 치수 텍스트를 화면 오른쪽으로 캔버스 30mm 시프트 (ISO 제외)
+                // 거리는 Position의 MAIN 두 좌표로 추정 (옵션 A)
+                if (viewDirection != "ISO")
+                {
+                    float canvasScaleMfg = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                    if (canvasScaleMfg > 0.0001f)
+                    {
+                        float modelShift = 30f / canvasScaleMfg;
+                        int shiftedCount = 0;
+                        foreach (var measure in measures)
+                        {
+                            if (!measure.Visible) continue;
+
+                            // MAIN 좌표 두 개로 거리 추정 (옵션 A)
+                            VIZCore3D.NET.Data.Vertex3D mp0 = null, mp1 = null;
+                            foreach (var pos in measure.Position)
+                            {
+                                if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
+                                if (pos.Position == null) continue;
+                                if (mp0 == null) mp0 = pos.Position;
+                                else { mp1 = pos.Position; break; }
+                            }
+                            if (mp0 == null || mp1 == null) continue;
+                            float ddx = mp0.X - mp1.X;
+                            float ddy = mp0.Y - mp1.Y;
+                            float ddz = mp0.Z - mp1.Z;
+                            float estDist = (float)Math.Sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+                            if (estDist > 13.0f) continue;
+
+                            foreach (var posItem in measure.Position)
+                            {
+                                if (string.IsNullOrEmpty(posItem.Text)) continue;
+                                if (posItem.Position == null) continue;
+                                var p = posItem.Position;
+                                VIZCore3D.NET.Data.Vector3D shifted;
+                                switch (viewDirection)
+                                {
+                                    case "X":  // X_PLUS 뷰: 화면 오른쪽 = +Y (가설)
+                                        shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + modelShift, p.Z);
+                                        break;
+                                    case "Y":  // Y_PLUS 뷰: 화면 오른쪽 = -X (가설)
+                                        shifted = new VIZCore3D.NET.Data.Vector3D(p.X - modelShift, p.Y, p.Z);
+                                        break;
+                                    case "Z":  // Z_PLUS 뷰 (top): 화면 오른쪽 = +X (가설)
+                                        shifted = new VIZCore3D.NET.Data.Vector3D(p.X + modelShift, p.Y, p.Z);
+                                        break;
+                                    default:
+                                        shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
+                                        break;
+                                }
+                                vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measure.ID, shifted);
+                                shiftedCount++;
+                                break;
+                            }
+                        }
+                        DiagLog($"T-040 Mfg TextShift view={viewDirection} canvasScale={canvasScaleMfg:F4} modelShift={modelShift:F1}mm shifted={shiftedCount}");
+                    }
+                }
+
                 vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
             }
 
@@ -1693,7 +1751,6 @@ namespace A2Z
                             eaStyle.ArrowSize = 5;
                             eaStyle.AssistantLine = false;
                             eaStyle.AlignDistanceText = true;
-                            eaStyle.AlignDistanceTextPosition = 2; // T-058: 보조선 바깥(우측) 자동 배치
                             eaStyle.AlignDistanceTextMargine = 3;
                             vizcore3d.Review.Measure.SetStyle(eaStyle);
 

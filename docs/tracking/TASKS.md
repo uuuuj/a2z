@@ -307,7 +307,10 @@
   - [x] **T2 변형 (2026-05-11)**: 사용자 요청 — `level1Offset` i%2 토글. 짝수 i=100mm, 홀수 i=50mm. 같은 축 내 측정축 좌표 순 정렬 후 인접 쌍 두 라인 분산
   - [ ] **T2 변형 취소 (2026-05-11)**: 사용자 결정 *"수치는 2줄만 생성 — 부재간 연쇄치수 + 전체치수"*. 토글 폐기, Level 1 foreach 원복. level2 적응형(`ApplySmartFiltering` 충돌 회피)은 유지. 별도 결정 시 level2도 폐기 가능
   - [x] **텍스트 위치 13mm 임계 (2026-05-11)**: 사용자 결정 *"치수 ≤13mm면 바깥, >13mm면 기본 위치 1, 기준 통일"*. `AlignDistanceTextPosition` 글로벌 옵션을 측정 추가 직전에 dim별 토글. `btnDimensionShowSelected_Click` foreach + `ShowAllDimensions` Level 1/2/0 세 그룹 모두 적용
-  - [ ] docs 갱신 (이번 라운드 show-axis-x.md 진행)
+  - [x] **AlignDistanceTextPosition 토글 폐기 (2026-05-13)**: 실기에서 토글이 작동 안 함을 사용자 보고. Softhills 담당자 예제 기반 `Drawing2D.Measure.SetMeasureItemDistanceTextPos(int, Vector3D)`로 전환. ≤13mm 측정 텍스트를 화면 오른쪽 캔버스 30mm 시프트 (모델 mm 환산 = 30/GetObjectScale). 일반 시트 + 가공도 메인 2경로. ISO 뷰·EA·MULTI 제외. 거리는 `MeasureItem.Position` MAIN 두 좌표로 추정 (옵션 A — `MeasureItem.Distance` 속성 부재). 빌드 통과로 SDK 메서드 실재 확정 (XML 미문서)
+  - [ ] **실기 검증 대기 (2026-05-13)** — 시프트 작동 + 카메라 right 매피 부호 + 30mm 크기 적정성 + 13mm 필터 정확도
+  - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
+  - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:
   - `A2Z/Form1.Dimensions.cs` (AddChainDimensionByAxis, 겹침 검사 유틸 신설)
   - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing 치수 후처리)
