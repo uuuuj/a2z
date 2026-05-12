@@ -6,10 +6,50 @@
 
 ---
 
+## 2026-05-13 — T-040 v11: v6(1aaf85c) 직각 시프트로 복귀 (사용자 최선 보고)
+
+**유형**: revert (v7~v10 평행 시프트 시도 폐기 — 사용자 1aaf85c가 가장 잘 작동)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**사용자 보고**: "1aaf85c 이때 커밋할 때의 시프트 방법으로 돌아가자 이때가 제일 잘됐다"
+
+**v11 변경** ([Form1.Dimensions.cs](A2Z/Form1.Dimensions.cs) `ApplyParallelTextShift` 헬퍼 내부 통째 교체):
+- 임계: `maxEstDist / 26` → **고정 13mm** (v6 시점 복귀)
+- 인접 비교 폐기 (v7~v10)
+- chainDimensionList 의존 폐기 — **SDK `measureItem` 직접 순회** (v6 패턴)
+- 직각 시프트 — *가로 치수(dimAxis = 화면 H) → right* / *세로 치수(dimAxis = V) → up*
+- 뷰별 right/up 매핑: X뷰(right=+Y, up=+Z) / Y뷰(right=-X, up=+Z) / Z뷰(right=+X, up=+Y)
+- 시프트 거리: 캔버스 3mm 그대로
+- 뷰 max ≤ 100mm 시 전체 skip
+- DiagLog 메시지 `T-040 TextShift` (v6 명칭)
+
+**가공도 ([Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs))**: v7에서 제거된 시프트 호출 위치에 **헬퍼 호출 추가** → v6 시점처럼 가공도에도 시프트 적용
+- 헬퍼는 SDK measureItem 직접 순회라 가공도(`chainDimensionList` 미사용)에서도 작동
+
+**잔존 코드 (미사용)**:
+- `ChainDimensionData.MeasureId` 필드 (Models.cs) — v8 도입, v11에서 미사용. 제거 가능하지만 보관
+- `FindMeasureByDimCoords` 헬퍼 — v7 도입, v8부터 미사용
+- `DrawDimension` `void → int` 시그니처 — v8 도입. ChainDimensionData.MeasureId 저장 코드도 잔존
+
+**v7~v10 시도 결과 정리**:
+- v7: 평행 시프트 — `chainDimensionList`/SDK 매칭 실패로 시프트 0건
+- v8: SDK 측정 ID 직접 매칭 — 시프트 작동, 방향이 측정선 직각으로 강제 변환됨
+- v9: offsetAxis 매핑 — v8과 동일 결과 (SDK 변환 가설 강해짐)
+- v10: 측정축 복귀 — v9와 동일 결과
+- → 사용자: v6가 제일 좋다 → 복귀
+
+**검증 포인트**:
+- v6 시점(1aaf85c) 그대로 작동
+- 가로 치수가 화면 H 방향(좌·우), 세로 치수가 V 방향(위·아래)으로 시프트
+- 가공도에도 시프트 적용됨
+
+---
+
 ## 2026-05-13 — T-040 v10: 시프트 축 측정축 복귀 (v9 매핑 반대 보고)
 
 **유형**: fix (v9 시프트 축이 사용자 시각과 반대 적용)
-**커밋**: `pending`
+**커밋**: `ec37b53`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **v9 실기 보고** (사용자): "가로 방향 보조선에서 가로로 이동중이라서 가로랑 세로 오프셋 방향을 바꿔줘 가로가 지금 좌·우로 시프트 되고 있어"

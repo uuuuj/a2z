@@ -1568,9 +1568,11 @@ namespace A2Z
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
 
-                // T-040 v7 (2026-05-13): 가공도 직각 시프트 폐기
-                // 평행 시프트는 chainDimensionList 사용이라 가공도는 무효
-                // (가공도는 자체 측정 추가 — 추후 별도 데이터 구조로 평행 시프트 적용 예정)
+                // T-040 v11 (2026-05-13): v6 시점 직각 시프트로 복귀 — 가공도에도 적용
+                // 헬퍼는 SDK measureItem 직접 순회라 chainDimensionList 무관
+                ApplyParallelTextShift(viewDirection,
+                    vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
+                    measures);
 
                 vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
             }

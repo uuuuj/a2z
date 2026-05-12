@@ -317,7 +317,8 @@
   - [x] **v8 (2026-05-13)**: v7 실기 — 시프트 미작동 보고 (좌표 매칭 실패 유력). XML로 `AddCustomAxisDistance`가 ID 반환 확인 → 옵션 C 전환. `ChainDimensionData.MeasureId` 필드 신설, `DrawDimension` 시그니처 `void→int`, ShowAllDimensions 3곳에서 dim.MeasureId 저장. ApplyParallelTextShift는 dim.MeasureId 직접 사용 (좌표 매칭 폐기). MfgDrawing의 DrawDimension 호출 9곳은 반환값 무시(컴파일 OK)
   - [x] **v9 (2026-05-13)**: v8 시프트 작동 OK이나 방향이 측정선 직각(90° 회전). SDK가 텍스트 평행 슬라이드 불가능 추정 → 시프트 축을 측정축에서 offset 축으로 교체. 인접 비교는 부호(±)만 결정. 결과: 측정선 직각으로 시프트 (사용자 사양 A)
   - [x] **v10 (2026-05-13)**: v9 보고 — offsetAxis 매핑이 사용자 시각과 반대(가로 치수가 좌·우 시프트). "가로/세로 오프셋 교환" = 측정축(axis) 직접 사용으로 복귀(v8 패턴). switch 인자 offsetAxis → axis
-  - [ ] **v10 실기 검증 대기** — 가로 치수 H / 세로 치수 V 시프트 / v8과 동일 결과면 SDK 직각 강제 확정 + 평행 슬라이드 불가 / 다르면 매핑 조정 성공
+  - [x] **v11 (2026-05-13)**: 사용자 "1aaf85c(v6) 시프트 방법이 제일 잘됐다 — 그때로 복귀". ApplyParallelTextShift 헬퍼 내부 통째 교체 → v6 시점 직각 시프트(13mm 고정, SDK measureItem 직접, 가로→right/세로→up). 인접 비교/chainDimensionList 의존/maxEstDist/26 모두 폐기. 가공도에도 헬퍼 호출 복귀
+  - [ ] **v11 실기 검증 대기** — v6와 동일 동작 확인
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
   - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:

@@ -2035,17 +2035,15 @@ namespace A2Z
             return "X";
         }
 
-        // ─── T-040 v7: 평행 시프트 (작은 치수 텍스트를 인접 큰 치수 쪽으로 슬라이드) ───
-        // 사용자 사양 (2026-05-13):
-        //  - 임계: maxEstDist / 26 이하 치수만 시프트
-        //  - 시프트 방향: 좌·우 인접 dim 중 Distance 큰 쪽으로 (측정축 평행)
-        //  - 양쪽 인접 같음 → 오른쪽(+측정축)
-        //  - 한쪽 인접만 → 반대(체인 바깥)쪽
-        //  - 인접 없음 → skip
+        // ─── T-040 v11: v6 시점 직각 시프트로 복귀 (1aaf85c, 사용자 최선 보고) ───
+        // 사양:
+        //  - 임계: 측정값 ≤ 13mm (고정)
         //  - 시프트 거리: 캔버스 3mm
-        //  - 직각 시프트(v3) 완전 대체
-        // SDK measure ↔ ChainDimensionData 매칭: 측정축 두 좌표 일치 (옵션 A)
-        // 가공도는 chainDimensionList 사용 X — 호출해도 무효 (현재 PoC 일반 시트만)
+        //  - SDK measureItem 직접 순회 (chainDimensionList 무관 — 가공도에도 동일 작동)
+        //  - 직각 시프트 (가로 치수 → right, 세로 치수 → up)
+        //  - 부호: 카메라 right/up 매핑 (X뷰 right=+Y/up=+Z, Y뷰 right=-X/up=+Z, Z뷰 right=+X/up=+Y)
+        //  - 인접 비교 없음 (v7~v10 폐기)
+        //  - 뷰 max ≤ 100mm 시 전체 skip
         private void ApplyParallelTextShift(
             string viewDirection,
             float canvasScale,
@@ -2076,76 +2074,73 @@ namespace A2Z
 
             if (maxEstDist <= 100f)
             {
-                DiagLog($"T-040 ParallelShift view={viewDirection} skip (maxEstDist={maxEstDist:F1}mm <= 100mm)");
+                DiagLog($"T-040 TextShift view={viewDirection} skip (maxEstDist={maxEstDist:F1}mm <= 100mm)");
                 return;
             }
 
-            float threshold = maxEstDist / 26f;
             float modelShift = 3f / canvasScale;
             int shiftedCount = 0;
 
-            if (chainDimensionList == null || chainDimensionList.Count == 0)
+            foreach (var measure in measures)
             {
-                DiagLog($"T-040 ParallelShift view={viewDirection} skip (chainDimensionList empty)");
-                return;
-            }
+                if (!measure.Visible) continue;
 
-            var viewDims = chainDimensionList.Where(d =>
-            {
-                if (!d.IsVisible) return false;
-                if (string.IsNullOrEmpty(d.ViewDirection)) return true;
-                return d.ViewDirection.Split(',').Select(s => s.Trim()).Contains(viewDirection);
-            }).ToList();
-
-            foreach (var axisGrp in viewDims.GroupBy(d => d.Axis))
-            {
-                string axis = axisGrp.Key;
-                // T-040 v10: v9 offsetAxis 매핑이 사용자 시각과 반대 → 측정축(axis) 직접 사용으로 복귀
-                // (사용자 표현 "가로/세로 오프셋 방향 교환" = v8 코드 패턴)
-                var sortedDims = axisGrp.OrderBy(d => GetAxisValue(d.StartPoint, axis)).ToList();
-
-                for (int i = 0; i < sortedDims.Count; i++)
+                VIZCore3D.NET.Data.Vertex3D mp0 = null, mp1 = null;
+                foreach (var pos in measure.Position)
                 {
-                    var dim = sortedDims[i];
-                    if (dim.Distance > threshold) continue;
+                    if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
+                    if (pos.Position == null) continue;
+                    if (mp0 == null) mp0 = pos.Position;
+                    else { mp1 = pos.Position; break; }
+                }
+                if (mp0 == null || mp1 == null) continue;
+                float ddx = mp0.X - mp1.X, ddy = mp0.Y - mp1.Y, ddz = mp0.Z - mp1.Z;
+                float estDist = (float)Math.Sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
+                if (estDist > 13.0f) continue;
 
-                    ChainDimensionData leftAdj = (i > 0) ? sortedDims[i - 1] : null;
-                    ChainDimensionData rightAdj = (i < sortedDims.Count - 1) ? sortedDims[i + 1] : null;
+                // dimAxis 추정 (MAIN 두 좌표 차이가 가장 큰 축)
+                float adx = Math.Abs(ddx), ady = Math.Abs(ddy), adz = Math.Abs(ddz);
+                char dimAxis = (adx >= ady && adx >= adz) ? 'X' : (ady >= adz ? 'Y' : 'Z');
 
-                    int shiftDir;
-                    if (leftAdj != null && rightAdj != null)
+                foreach (var posItem in measure.Position)
+                {
+                    if (string.IsNullOrEmpty(posItem.Text)) continue;
+                    if (posItem.Position == null) continue;
+                    var p = posItem.Position;
+                    VIZCore3D.NET.Data.Vector3D shifted;
+                    // 가로 치수(dimAxis = 화면 H축) → right 시프트
+                    // 세로 치수(dimAxis = 화면 V축) → up 시프트
+                    switch (viewDirection)
                     {
-                        if (leftAdj.Distance > rightAdj.Distance) shiftDir = -1;
-                        else if (rightAdj.Distance > leftAdj.Distance) shiftDir = +1;
-                        else shiftDir = +1;  // 같으면 오른쪽
+                        case "X":  // right=+Y, up=+Z
+                            if (dimAxis == 'Y')
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + modelShift, p.Z);
+                            else
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
+                            break;
+                        case "Y":  // right=-X, up=+Z
+                            if (dimAxis == 'X')
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X - modelShift, p.Y, p.Z);
+                            else
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
+                            break;
+                        case "Z":  // top: right=+X, up=+Y (v4 보정)
+                            if (dimAxis == 'X')
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X + modelShift, p.Y, p.Z);
+                            else
+                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + modelShift, p.Z);
+                            break;
+                        default:
+                            shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
+                            break;
                     }
-                    else if (leftAdj != null) shiftDir = +1;   // 왼쪽만 있음 → 반대(오른쪽)
-                    else if (rightAdj != null) shiftDir = -1;  // 오른쪽만 있음 → 반대(왼쪽)
-                    else continue;  // 인접 없음
-
-                    // T-040 v8: ChainDimensionData.MeasureId 직접 사용 (좌표 매칭 폐기)
-                    int measureId = dim.MeasureId;
-                    if (measureId <= 0) continue;
-
-                    float midX = (dim.StartPoint.X + dim.EndPoint.X) / 2f;
-                    float midY = (dim.StartPoint.Y + dim.EndPoint.Y) / 2f;
-                    float midZ = (dim.StartPoint.Z + dim.EndPoint.Z) / 2f;
-
-                    // v10: 측정축(axis) 직접 시프트로 복귀 (v8 패턴)
-                    switch (axis)
-                    {
-                        case "X": midX += shiftDir * modelShift; break;
-                        case "Y": midY += shiftDir * modelShift; break;
-                        case "Z": midZ += shiftDir * modelShift; break;
-                    }
-
-                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measureId,
-                        new VIZCore3D.NET.Data.Vector3D(midX, midY, midZ));
+                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measure.ID, shifted);
                     shiftedCount++;
+                    break;
                 }
             }
 
-            DiagLog($"T-040 ParallelShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm threshold={threshold:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
+            DiagLog($"T-040 TextShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
         }
 
         // 측정축 두 좌표 일치로 SDK MeasureItem.ID 찾기 (옵션 A 매칭)
