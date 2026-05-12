@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-05-13 — T-037 3차: BOM 열 너비 6/20/17/30/8/9/6/5 (합 101mm)
+
+**유형**: feat (사용자 사양 BOM 열 너비 갱신)
+**커밋**: `e607feb`
+**관련 TASK**: T-037 (BOM 줄바꿈/ITEM 분리 시리즈)
+
+**사용자 사양**: BOM 8개 열 너비 — No 5→6 / ITEM 20 / MATERIAL 12→17 / SIZE 14→30 (T-062 길이 추가 대응) / Q'TY 7→8 / T/W 8→9 / MA 5→6 / FA 6→5. 합 77 → 101mm.
+
+**구현** ([Form1.DrawingSheets.cs:1350](A2Z/Form1.DrawingSheets.cs:1350)) — `ColumnWidths` Dictionary 값만 갱신.
+
+**검증 포인트**:
+- SIZE 30mm가 `300x250x12x1500.22` 길이 추가 후에도 줄바꿈 없이 표시되는지
+- 합 101mm가 컨테이너 폭에 맞는지 (안 맞으면 SDK가 비례 축소 또는 잘림 — 별도 라운드)
+
+---
+
+## 2026-05-13 — T-062: BOM SPREF 파싱 확장 + POSSTART/POSEND 길이 SIZE 뒤 추가
+
+**유형**: feat (BOM 테이블 데이터 보강)
+**커밋**: `13c337d`
+**관련 TASK**: T-062 (신규)
+
+**사용자 사양**:
+- **SPREF ITEM 파싱**: 기존은 첫 `/` 제거 후 `:` split. 일부 부재가 `/PART/ITEM/...` 형태 (이중 `/`). 새 규칙 — *첫 `/` 제거 후 `/` 또는 `:` 중 먼저 나오는 위치에서 split*
+- **SIZE 뒤 길이 추가**: POSSTART/POSEND UDA에서 3개 숫자 추출 → 3D 거리 공식(`sqrt(dx²+dy²+dz²)`) → SIZE 형식 `숫자x숫자x숫자` 뒤에 `x{길이}` 추가
+- UDA는 *기존 부모 탐색 패턴* 그대로 — 어셈블리 / 파트 어디든 자동 조회
+- POSSTART/POSEND 없으면 길이 추가 안 함 (SIZE 그대로)
+- 소수점은 의미 있는 자리까지 표현 (`0.##` 포맷)
+
+**구현** ([Form1.Clash.cs](A2Z/Form1.Clash.cs) `btnCollectBOMInfo_Click`):
+1. UDA 루프에 `POSSTART`/`POSEND` 캡처 추가 — 종료 조건도 5개 키로 확장
+2. SPREF 파싱: `IndexOf('/')` + `IndexOf(':')` 중 `Math.Min`으로 split 위치 결정
+3. 길이 계산: `posStartVal`/`posEndVal`이 있으면 `ParsePosString` 헬퍼로 3개 숫자 추출 → `sqrt` → `sizeVal`에 `x{length}` 추가
+4. 신규 헬퍼 `ParsePosString(string raw)` — `Regex.Matches`로 음수 포함 숫자 토큰 매치 → 3개 미만이면 0으로 채움 (S/U 같은 토큰 의미 미정 — 등장 순서 그대로 매칭)
+
+**가설/한계**:
+- POSSTART와 POSEND의 *3개 숫자 순서가 일관*되어야 같은 축끼리 빼짐 (실기 검증)
+- S/U 토큰이 *축 식별자*면 향후 정밀화 가능. 일단 순서 가정
+- 한 축만 다른 일반 케이스도 3D 거리 공식 일률 적용 — 다른 축 차이 0 → 자동 처리
+
+**검증 포인트**:
+- 일반 시트 BOM 테이블 ITEM/SIZE 컬럼 확인
+- `/PART/ITEM` 형태 부재의 ITEM이 첫 `/` 다음 ~ 두 번째 `/`까지로 추출되는지
+- 한 축 차이 부재: SIZE = `300x250x12x1500` 형태
+- 대각선 부재 (두/세 축 차이): SIZE에 정확한 3D 거리 값
+- POSSTART/POSEND 없는 부재: SIZE 그대로 (길이 추가 X)
+
+---
+
 ## 2026-05-13 — T-061: docs 한글화 (옵션 B — 폴더·파일명 + README·용어집 정비)
 
 **유형**: docs
