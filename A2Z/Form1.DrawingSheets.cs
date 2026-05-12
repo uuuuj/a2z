@@ -1346,17 +1346,17 @@ namespace A2Z
                     }
 
                     table1.IsTextWrapped = true;
-                    // T-037 2차: 한 번 정해서 고정한 열 너비 (콘텐츠 맞춤 X). 합 77mm 유지
+                    // T-037 3차 (2026-05-13): 사용자 사양 6/20/17/30/8/9/6/5 (합 101mm)
                     table1.ColumnWidths = new Dictionary<int, int>()
                     {
-                        { 0, 5 },   // No
-                        { 1, 20 },  // ITEM
-                        { 2, 12 },  // MATERIAL
-                        { 3, 14 },  // SIZE
-                        { 4, 7 },   // Q'TY
-                        { 5, 8 },   // T/W
-                        { 6, 5 },   // MA
-                        { 7, 6 }    // FA
+                        { 0, 6 },    // No
+                        { 1, 20 },   // ITEM
+                        { 2, 17 },   // MATERIAL
+                        { 3, 30 },   // SIZE
+                        { 4, 8 },    // Q'TY
+                        { 5, 9 },    // T/W
+                        { 6, 6 },    // MA
+                        { 7, 5 }     // FA
                     };
 
                     vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(1, 3,
