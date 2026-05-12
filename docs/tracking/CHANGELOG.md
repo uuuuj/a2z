@@ -6,10 +6,47 @@
 
 ---
 
+## 2026-05-13 — T-040 v8: SDK 측정 ID 직접 매칭 (좌표 매칭 폐기)
+
+**유형**: fix (v7 매칭 실패로 시프트 미작동 — 옵션 C 전환)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**v7 실기 보고** (사용자 2026-05-13): "각 뷰별로 DiagLog 메시지는 출력되지만 시프트가 아예 안 됨" → `FindMeasureByDimCoords` 매칭 실패가 유력 (MAIN 두 좌표가 시작/끝점이 아닌 케이스)
+
+**XML 확인** ([VIZCore3D.NET.xml:43946](lib/VIZCore3D.NET.xml:43946)):
+```
+M:AddCustomAxisDistance(Axis, Vertex3D, Vertex3D)
+<returns>측정(리뷰) 아이디(ID)</returns>
+```
+→ `int` 반환 확인. **옵션 C 가능**.
+
+**v8 변경**:
+1. **`ChainDimensionData.MeasureId` 필드 추가** ([Models.cs](A2Z/Models.cs)) — 기본값 -1
+2. **`DrawDimension` 시그니처 `void → int`** ([Form1.Dimensions.cs:1080](A2Z/Form1.Dimensions.cs:1080))
+   - 내부 `AddCustomAxisDistance` 반환값을 `measureId`로 받음
+   - 함수 끝에서 `return measureId` (분기 모두 일관)
+3. **`ShowAllDimensions` Level 0/1/2 호출자** ([L625/L636/L649](A2Z/Form1.Dimensions.cs:625)) — 반환 ID를 `dim.MeasureId`에 저장
+4. **`ApplyParallelTextShift`** — `FindMeasureByDimCoords` 좌표 매칭 폐기 → `dim.MeasureId` 직접 사용
+
+**`Form1.MfgDrawing.cs`의 DrawDimension 호출 9곳**: 시그니처 변경 후에도 *반환값 무시*로 컴파일 OK (C# 관례). 가공도는 평행 시프트 미적용이라 영향 없음.
+
+**검증 포인트**:
+- v7에서 시프트 0건이던 케이스가 v8에서 작동하는지
+- DiagLog `T-040 ParallelShift ... shifted=N` 에서 N > 0
+- 인접 큰 dim 쪽으로 슬라이드, 체인 끝은 바깥쪽
+
+**남은 가설** (v8에서도 시프트 0건이면):
+- `ApplyParallelTextShift` 호출 시점의 `chainDimensionList`가 비어있거나 v8 변경 전 시점 데이터
+- `viewDims` 필터 (IsVisible / ViewDirection)에서 모두 제외
+- → DiagLog 추가 진단 필요
+
+---
+
 ## 2026-05-13 — T-040 v7: 평행 시프트 (직각 폐기) + BOM 1단위 아래로
 
 **유형**: feat (평행 시프트 도입) + feat (BOM 위치 미세 조정)
-**커밋**: `pending`
+**커밋**: `682bd75`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **사용자 사양 (v7)**:

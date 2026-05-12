@@ -43,6 +43,13 @@ namespace A2Z
         public bool IsVisible { get; set; } = true;
 
         /// <summary>
+        /// SDK 측정 ID — DrawDimension에서 AddCustomAxisDistance 반환값으로 채움 (T-040 v8).
+        /// 평행 시프트(SetMeasureItemDistanceTextPos) 시 직접 사용 → 좌표 매칭 폐기.
+        /// -1: 아직 측정 추가 안 됨, >0: SDK가 부여한 ID
+        /// </summary>
+        public int MeasureId { get; set; } = -1;
+
+        /// <summary>
         /// 병합된 치수 여부 (여러 짧은 치수를 하나로 통합)
         /// </summary>
         public bool IsMerged { get; set; } = false;

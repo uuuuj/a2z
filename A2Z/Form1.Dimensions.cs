@@ -622,10 +622,11 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv1, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
+                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // Level 2 치수 (중간)
@@ -633,10 +634,11 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv2, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
+                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이) — 통상 >13mm지만 일관성 위해 동일 토글
@@ -646,10 +648,11 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv0, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
+                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // 보조선 그리기 — ShapeDrawing ID 수집
@@ -1077,7 +1080,7 @@ namespace A2Z
         /// <summary>
         /// 단일 치수 그리기 헬퍼 메서드
         /// </summary>
-        private void DrawDimension(
+        private int DrawDimension(
             VIZCore3D.NET.Data.Vector3D startPoint,
             VIZCore3D.NET.Data.Vector3D endPoint,
             string axis,
@@ -1148,7 +1151,7 @@ namespace A2Z
                     endVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, offsetValue);
                     break;
                 default:
-                    return;
+                    return -1;
             }
 
             // 치수 거리 계산
@@ -1160,22 +1163,22 @@ namespace A2Z
                 case "Z": distance = Math.Abs(endPoint.Z - startPoint.Z); break;
             }
 
+            // T-040 v8: AddCustomAxisDistance 반환값(측정 ID) 받아 호출자에 전달
+            int measureId = -1;
             if (distance > 0.1f)
             {
-                // === 모든 치수: AddCustomAxisDistance 사용 ===
                 switch (axis)
                 {
                     case "X":
-                        vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.X, startVertex, endVertex);
+                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.X, startVertex, endVertex);
                         break;
                     case "Y":
-                        vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Y, startVertex, endVertex);
+                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Y, startVertex, endVertex);
                         break;
                     case "Z":
-                        vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
+                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
                         break;
                 }
-
             }
 
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
@@ -1190,6 +1193,8 @@ namespace A2Z
             extLine2.Add(OffsetTowardLineEnd(originalEnd, endVertex, ExtensionLineGap));
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
+
+            return measureId;
         }
 
         /// <summary>
@@ -2116,8 +2121,9 @@ namespace A2Z
                     else if (rightAdj != null) shiftDir = -1;  // 오른쪽만 있음 → 반대(왼쪽)
                     else continue;  // 인접 없음
 
-                    int measureId = FindMeasureByDimCoords(measures, dim, axis);
-                    if (measureId < 0) continue;
+                    // T-040 v8: ChainDimensionData.MeasureId 직접 사용 (좌표 매칭 폐기)
+                    int measureId = dim.MeasureId;
+                    if (measureId <= 0) continue;
 
                     float midX = (dim.StartPoint.X + dim.EndPoint.X) / 2f;
                     float midY = (dim.StartPoint.Y + dim.EndPoint.Y) / 2f;
