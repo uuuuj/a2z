@@ -313,7 +313,8 @@
   - [x] **v4 (2026-05-13)**: v3 보고 — (1) Z뷰 세로 치수 up 부호 -Y→+Y 보정 (2) 새 문제 "제작도 보조선이 내부 Osnap에서 시작해 모델 관통". 외곽 Osnap 복귀 알고리즘 도입 — `_osnapPool` 보존 + `ResolveExtensionOrigin` 헬퍼로 P 대신 offset 축 직선상 *치수선 쪽 외곽 Osnap* Q에서 보조선 시작. `axisPositiveOffset` 재사용. 일반 시트만 적용, 가공도는 다음 라운드
   - [x] **v5 (2026-05-13)**: v4 보고 — 외곽 Osnap 복귀가 반대 방향 결과. 부호 반전 시도도 효과 없음. 사용자 결정으로 전체 롤백 + 대안 *모델 라인 굵기 2.0→3.0* (보조선보다 진하게 → 시각 우선순위로 통과 거슬림 완화)
   - [x] **v6 (2026-05-13)**: 보조선 굵기 0.1 통일 (DrawingSheets 0.3→0.1, MfgDrawing 0.5→0.1 두 곳). 모델 vs 보조선 비율 30배. 치수선(MeasureLineWidth)은 그대로
-  - [ ] **v6 실기 검증 대기** — 0.1이 화면·PDF·인쇄에서 *사라지지 않는지* / 적정성 / 너무 가늘면 0.2 또는 0.3 복귀
+  - [x] **v7 (2026-05-13)**: 직각 시프트 완전 폐기 + 평행 시프트 도입. 임계 maxEstDist/26 (예 1326→51), 시프트 거리 캔버스 3mm 유지. 인접 큰 dim 쪽 측정축 평행 슬라이드. 양쪽 같음→오른쪽, 한쪽만→반대(체인 바깥). ApplyParallelTextShift + FindMeasureByDimCoords 헬퍼 신설. SDK measure 매칭은 옵션 A(측정축 좌표 일치). 일반 시트만 적용(chainDimensionList 사용 경로). BOM bottom 11→10(1단위 아래로)
+  - [ ] **v7 실기 검증 대기** — 작은 치수가 인접 큰 쪽으로 슬라이드 / 체인 끝 dim 바깥쪽 / 임계 1/26 적정성 / BOM 1단 내림 위치
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
   - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:

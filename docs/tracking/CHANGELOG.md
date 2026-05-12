@@ -6,10 +6,52 @@
 
 ---
 
+## 2026-05-13 — T-040 v7: 평행 시프트 (직각 폐기) + BOM 1단위 아래로
+
+**유형**: feat (평행 시프트 도입) + feat (BOM 위치 미세 조정)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**사용자 사양 (v7)**:
+- 임계: `maxEstDist / 26` 이하 치수만 시프트 (예: 1326 → 51, 100 → 3.8)
+- 시프트 방식: **평행 시프트** (인접 큰 dim 쪽 측정축 평행 슬라이드) — 직각 시프트 완전 대체
+- 시프트 거리: 캔버스 3mm 그대로
+- 양쪽 인접: 큰 쪽 / 같으면 오른쪽
+- 한쪽만 인접: 반대(체인 바깥) 쪽
+- 인접 없음: skip
+- BOM: 1단위 아래로
+
+**구현** ([Form1.Dimensions.cs](A2Z/Form1.Dimensions.cs)):
+- `ApplyParallelTextShift(viewDirection, canvasScale, measures)` 신설 — 메인 헬퍼
+- `FindMeasureByDimCoords(measures, dim, axis)` 신설 — 측정축 좌표 일치로 SDK MeasureItem.ID 매칭 (옵션 A)
+- 직각 시프트 블록(v3) 폐기:
+  - [Form1.DrawingSheets.cs](A2Z/Form1.DrawingSheets.cs): 시프트 블록(L2017~L2127) → 헬퍼 호출 한 줄로 교체
+  - [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs): 시프트 블록 제거 (헬퍼 미적용 — `chainDimensionList` 미사용 경로)
+- BOM 셀 마진: [Form1.DrawingSheets.cs:1302](A2Z/Form1.DrawingSheets.cs:1302) bottom `11 → 10`
+
+**알고리즘 흐름**:
+1. 1차 패스로 `maxEstDist` 계산 (모든 측정의 MAIN 두 좌표 최대 거리)
+2. ≤100mm 모델은 전체 skip
+3. `chainDimensionList`에서 viewDirection 필터 → 축별 그룹 → 측정축 좌표 순 정렬
+4. 각 dim마다 좌·우 인접 dim 식별
+5. `Distance` 임계 통과 + 인접 비교로 shiftDir 결정
+6. 좌표 일치로 SDK MeasureItem.ID 찾기 → `SetMeasureItemDistanceTextPos` 호출
+
+**적용 범위**: 일반 시트(제작도)만. 가공도는 *시프트 X 상태* (chainDimensionList 미사용 경로라 헬퍼 무효). 추후 별도 데이터 구조 필요
+
+**검증 포인트**:
+- 작은 치수(예: 10mm)가 인접 큰 치수 쪽으로 슬라이드되는지
+- 양쪽 인접 같으면 오른쪽
+- 체인 끝 dim이 *바깥쪽*으로 빠지는지
+- 임계 1/26 적정성 (1326 모델에서 50mm는 시프트, 60mm는 안 됨)
+- BOM 1mm 아래 위치 적정성
+
+---
+
 ## 2026-05-13 — T-040 v6: 보조선 굵기 0.1 통일 (제작도 + 가공도)
 
 **유형**: feat (보조선 극가늘게 → 모델 강조)
-**커밋**: `pending`
+**커밋**: `1aaf85c`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **v5 실기 보고** (사용자 2026-05-13): 모델 vs 보조선 비율 추가 강화 요청 → 보조선 0.1로 더 가늘게

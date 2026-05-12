@@ -2030,6 +2030,154 @@ namespace A2Z
             return "X";
         }
 
+        // ─── T-040 v7: 평행 시프트 (작은 치수 텍스트를 인접 큰 치수 쪽으로 슬라이드) ───
+        // 사용자 사양 (2026-05-13):
+        //  - 임계: maxEstDist / 26 이하 치수만 시프트
+        //  - 시프트 방향: 좌·우 인접 dim 중 Distance 큰 쪽으로 (측정축 평행)
+        //  - 양쪽 인접 같음 → 오른쪽(+측정축)
+        //  - 한쪽 인접만 → 반대(체인 바깥)쪽
+        //  - 인접 없음 → skip
+        //  - 시프트 거리: 캔버스 3mm
+        //  - 직각 시프트(v3) 완전 대체
+        // SDK measure ↔ ChainDimensionData 매칭: 측정축 두 좌표 일치 (옵션 A)
+        // 가공도는 chainDimensionList 사용 X — 호출해도 무효 (현재 PoC 일반 시트만)
+        private void ApplyParallelTextShift(
+            string viewDirection,
+            float canvasScale,
+            List<VIZCore3D.NET.Data.MeasureItem> measures)
+        {
+            if (viewDirection == "ISO") return;
+            if (canvasScale <= 0.0001f) return;
+            if (measures == null || measures.Count == 0) return;
+
+            // 1차 패스: maxEstDist (MAIN 두 좌표 거리)
+            float maxEstDist = 0f;
+            foreach (var measure in measures)
+            {
+                if (!measure.Visible) continue;
+                VIZCore3D.NET.Data.Vertex3D a = null, b = null;
+                foreach (var pos in measure.Position)
+                {
+                    if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
+                    if (pos.Position == null) continue;
+                    if (a == null) a = pos.Position;
+                    else { b = pos.Position; break; }
+                }
+                if (a == null || b == null) continue;
+                float dx = a.X - b.X, dy = a.Y - b.Y, dz = a.Z - b.Z;
+                float d = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                if (d > maxEstDist) maxEstDist = d;
+            }
+
+            if (maxEstDist <= 100f)
+            {
+                DiagLog($"T-040 ParallelShift view={viewDirection} skip (maxEstDist={maxEstDist:F1}mm <= 100mm)");
+                return;
+            }
+
+            float threshold = maxEstDist / 26f;
+            float modelShift = 3f / canvasScale;
+            int shiftedCount = 0;
+
+            if (chainDimensionList == null || chainDimensionList.Count == 0)
+            {
+                DiagLog($"T-040 ParallelShift view={viewDirection} skip (chainDimensionList empty)");
+                return;
+            }
+
+            var viewDims = chainDimensionList.Where(d =>
+            {
+                if (!d.IsVisible) return false;
+                if (string.IsNullOrEmpty(d.ViewDirection)) return true;
+                return d.ViewDirection.Split(',').Select(s => s.Trim()).Contains(viewDirection);
+            }).ToList();
+
+            foreach (var axisGrp in viewDims.GroupBy(d => d.Axis))
+            {
+                string axis = axisGrp.Key;
+                var sortedDims = axisGrp.OrderBy(d => GetAxisValue(d.StartPoint, axis)).ToList();
+
+                for (int i = 0; i < sortedDims.Count; i++)
+                {
+                    var dim = sortedDims[i];
+                    if (dim.Distance > threshold) continue;
+
+                    ChainDimensionData leftAdj = (i > 0) ? sortedDims[i - 1] : null;
+                    ChainDimensionData rightAdj = (i < sortedDims.Count - 1) ? sortedDims[i + 1] : null;
+
+                    int shiftDir;
+                    if (leftAdj != null && rightAdj != null)
+                    {
+                        if (leftAdj.Distance > rightAdj.Distance) shiftDir = -1;
+                        else if (rightAdj.Distance > leftAdj.Distance) shiftDir = +1;
+                        else shiftDir = +1;  // 같으면 오른쪽
+                    }
+                    else if (leftAdj != null) shiftDir = +1;   // 왼쪽만 있음 → 반대(오른쪽)
+                    else if (rightAdj != null) shiftDir = -1;  // 오른쪽만 있음 → 반대(왼쪽)
+                    else continue;  // 인접 없음
+
+                    int measureId = FindMeasureByDimCoords(measures, dim, axis);
+                    if (measureId < 0) continue;
+
+                    float midX = (dim.StartPoint.X + dim.EndPoint.X) / 2f;
+                    float midY = (dim.StartPoint.Y + dim.EndPoint.Y) / 2f;
+                    float midZ = (dim.StartPoint.Z + dim.EndPoint.Z) / 2f;
+
+                    switch (axis)
+                    {
+                        case "X": midX += shiftDir * modelShift; break;
+                        case "Y": midY += shiftDir * modelShift; break;
+                        case "Z": midZ += shiftDir * modelShift; break;
+                    }
+
+                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measureId,
+                        new VIZCore3D.NET.Data.Vector3D(midX, midY, midZ));
+                    shiftedCount++;
+                }
+            }
+
+            DiagLog($"T-040 ParallelShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm threshold={threshold:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
+        }
+
+        // 측정축 두 좌표 일치로 SDK MeasureItem.ID 찾기 (옵션 A 매칭)
+        private int FindMeasureByDimCoords(
+            List<VIZCore3D.NET.Data.MeasureItem> measures,
+            ChainDimensionData dim,
+            string axis)
+        {
+            float dimStart = GetAxisValue(dim.StartPoint, axis);
+            float dimEnd = GetAxisValue(dim.EndPoint, axis);
+            const float tol = 0.5f;
+
+            foreach (var m in measures)
+            {
+                if (!m.Visible) continue;
+                VIZCore3D.NET.Data.Vertex3D a = null, b = null;
+                foreach (var pos in m.Position)
+                {
+                    if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
+                    if (pos.Position == null) continue;
+                    if (a == null) a = pos.Position;
+                    else { b = pos.Position; break; }
+                }
+                if (a == null || b == null) continue;
+
+                float aAx, bAx;
+                switch (axis)
+                {
+                    case "X": aAx = a.X; bAx = b.X; break;
+                    case "Y": aAx = a.Y; bAx = b.Y; break;
+                    case "Z": aAx = a.Z; bAx = b.Z; break;
+                    default: continue;
+                }
+
+                if ((Math.Abs(aAx - dimStart) <= tol && Math.Abs(bAx - dimEnd) <= tol) ||
+                    (Math.Abs(aAx - dimEnd) <= tol && Math.Abs(bAx - dimStart) <= tol))
+                    return m.ID;
+            }
+            return -1;
+        }
+
         private List<ChainDimensionData> AddChainDimensionByAxis(
             List<VIZCore3D.NET.Data.Vector3D> points, string axis, float tolerance,
             string viewDirection = null)
