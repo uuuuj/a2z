@@ -6,6 +6,54 @@
 
 ---
 
+## 2026-05-12 — T-038 step C: 라벨 영역 명시 차단 (SetGridCellMargins bottom=12mm)
+
+**유형**: feat (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 (IN_PROGRESS, step C 완료)
+**관련 FEEDBACK**: FB-004
+
+**사용자 사양 (2026-05-12)**: *"명시적으로 침범하지 못하게는 못하려나?"* — v6의 이동량 축소(우회 방식)보다 *근본 차단* 원함.
+
+**해결**: `Drawing2D.GridStructure.SetGridCellMargins(row, col, left, right, top, bottom)` SDK API로 *각 셀 하단 마진을 라벨 영역 크기만큼 키움*.
+- 마진 영역은 `FitObjectToGridCellAspect` 의 *fit 대상에서 제외*
+- 모델이 *마진 안에 그려질 수 없음* (SDK 보장)
+- 라벨은 `RenderTemplateOnGridStructure`로 *셀 하단 마진 영역 안*에 그려짐 → 자연 분리
+
+**구현** ([Form1.DrawingSheets.cs:1275~](A2Z/Form1.DrawingSheets.cs:1275)):
+
+```csharp
+vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);  // 기존 일괄
+
+// 4뷰 셀 (1,1)(1,2)(2,1)(2,2) Bottom 마진 12mm — 라벨 영역 차단
+const float LABEL_BOTTOM_MARGIN = 12f;
+vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+```
+
+**LABEL_BOTTOM_MARGIN = 12mm 산정**:
+- 라벨 텍스트 높이 4mm (`Set2DViewCreateObjectItemTextHeight(4f)` L1340)
+- 박스 패딩 + 보조선 일부 여유 → 12mm
+
+**효과**:
+- 모델이 셀 하단 12mm 안 그려짐 (FitObjectToGridCellAspect가 마진 제외 fit)
+- `RescaleObject(0.75배)` 후도 영역 안 유지
+- `MoveObject` v6 (ShiftScale=0.25) 이동도 *마진 영역 침범 X* (SDK 동작 가정)
+- 라벨은 셀 하단 Center에 별도 그려져 *자연 분리*
+
+**검증 포인트** (사용자 사내 PC):
+- 모델이 *라벨 영역과 겹치지 않음* (12mm 분리)
+- 모델 영역이 *step B-3 대비 살짝 작아짐* (마진 +2mm 효과)
+- 보조선·치수도 마진 안 침범 (SDK 일관성)
+
+**잔여 (검증 결과 따라)**:
+- LABEL_BOTTOM_MARGIN 조정 (12 → 10 또는 15)
+- MoveObject가 *마진 영역까지 이동*하면 → 별도 V- 이동 clamp 추가 필요
+
+---
+
 ## 2026-05-12 — T-038+039 v6: Y뷰 dx 반전 + 이동량 × 0.25 (라벨 침범 방지)
 
 **유형**: fix (사용자 사양)

@@ -1273,6 +1273,16 @@ namespace A2Z
                     vizcore3d.Drawing2D.View.GetCanvasSize(ref tmpW, ref tmpH);
                     vizcore3d.Drawing2D.GridStructure.AddGridStructure(2, 3, tmpW, tmpH);
                     vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
+
+                    // T-038 step C (2026-05-12 사용자 사양): 4뷰 셀 하단 마진을 *라벨 영역 크기*만큼 키움.
+                    // FitObjectToGridCellAspect가 마진 제외 fit → 모델이 라벨 영역 침범 불가 (명시적 방지).
+                    // 라벨 텍스트 4mm + 박스 패딩 → 약 12mm. 보조선 일부 들어갈 여유 포함.
+                    const float LABEL_BOTTOM_MARGIN = 12f;
+                    // SetGridCellMargins(row, col, left, right, top, bottom)
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
                 }
 
                 // ── 4. 템플릿 생성 (외곽 테두리) ──
