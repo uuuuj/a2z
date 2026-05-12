@@ -309,7 +309,8 @@
   - [x] **텍스트 위치 13mm 임계 (2026-05-11)**: 사용자 결정 *"치수 ≤13mm면 바깥, >13mm면 기본 위치 1, 기준 통일"*. `AlignDistanceTextPosition` 글로벌 옵션을 측정 추가 직전에 dim별 토글. `btnDimensionShowSelected_Click` foreach + `ShowAllDimensions` Level 1/2/0 세 그룹 모두 적용
   - [x] **AlignDistanceTextPosition 토글 폐기 (2026-05-13)**: 실기에서 토글이 작동 안 함을 사용자 보고. Softhills 담당자 예제 기반 `Drawing2D.Measure.SetMeasureItemDistanceTextPos(int, Vector3D)`로 전환. ≤13mm 측정 텍스트를 화면 오른쪽 캔버스 30mm 시프트 (모델 mm 환산 = 30/GetObjectScale). 일반 시트 + 가공도 메인 2경로. ISO 뷰·EA·MULTI 제외. 거리는 `MeasureItem.Position` MAIN 두 좌표로 추정 (옵션 A — `MeasureItem.Distance` 속성 부재). 빌드 통과로 SDK 메서드 실재 확정 (XML 미문서)
   - [x] **v2 (2026-05-13)**: v1 실기 보고 — 가로 보조선 10mm 미시프트(시프트 방향이 항상 H라 따라감). 치수축별 시프트 분기(H면 up / V면 right) + 뷰 max≤100mm skip + 거리 30→3mm
-  - [ ] **v2 실기 검증 대기** — 가로 보조선 10mm 위로 빠지는지 + 100mm 이하 skip 작동 + 3mm 적정성 + Z뷰 up 부호(-Y 가설)
+  - [x] **v3 (2026-05-13)**: v2 사용자 보고 — "반대로 적용". 시프트 방향 분기 스왑(가로→right / 세로→up), 부호 유지
+  - [ ] **v3 실기 검증 대기** — 가로 수치 오른쪽 / 세로 수치 위로 빠지는지 + 부호 보정 필요 여부
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
   - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:

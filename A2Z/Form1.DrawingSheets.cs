@@ -2089,25 +2089,28 @@ namespace A2Z
                                     // 뷰별 H/V 축: X뷰→H=Y,V=Z / Y뷰→H=X,V=Z / Z뷰→H=X,V=Y
                                     // 치수축이 H면 up 시프트, V면 right 시프트
                                     VIZCore3D.NET.Data.Vector3D shifted;
+                                    // v3: 가로/세로 시프트 방향 스왑 (v2 반대)
+                                    //  - 가로 치수(dimAxis=H) → right 시프트
+                                    //  - 세로 치수(dimAxis=V) → up 시프트
                                     switch (viewDirection)
                                     {
                                         case "X":  // right=+Y, up=+Z
-                                            if (dimAxis == 'Y')  // 가로 치수 → up
-                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
-                                            else  // dimAxis == 'Z' → right
+                                            if (dimAxis == 'Y')  // 가로 치수 → right
                                                 shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + modelShift, p.Z);
+                                            else  // dimAxis == 'Z' → 세로 → up
+                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
                                             break;
                                         case "Y":  // right=-X, up=+Z
-                                            if (dimAxis == 'X')
-                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
-                                            else
+                                            if (dimAxis == 'X')  // 가로 → right
                                                 shifted = new VIZCore3D.NET.Data.Vector3D(p.X - modelShift, p.Y, p.Z);
+                                            else  // 세로 → up
+                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
                                             break;
                                         case "Z":  // top: right=+X, up=-Y (가설)
-                                            if (dimAxis == 'X')
-                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y - modelShift, p.Z);
-                                            else
+                                            if (dimAxis == 'X')  // 가로 → right
                                                 shifted = new VIZCore3D.NET.Data.Vector3D(p.X + modelShift, p.Y, p.Z);
+                                            else  // dimAxis == 'Y' → 세로 → up
+                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y - modelShift, p.Z);
                                             break;
                                         default:
                                             shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
