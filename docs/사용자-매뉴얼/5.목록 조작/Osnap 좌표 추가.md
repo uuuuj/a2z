@@ -1,7 +1,7 @@
 ---
 버튼: 좌표 추가
 위치: 작업/데이터 탭 > Osnap 좌표 목록 그룹
-대응_개발자_문서: /docs/features/drawing2d/osnap-add.md
+대응_개발자_문서: /docs/기능/2D도면/Osnap 추가.md
 last_updated: 2026-04-14
 ---
 
@@ -38,7 +38,7 @@ last_updated: 2026-04-14
 - 표시한 풍선을 한꺼번에 정리하려면 → [Osnap 풍선 지우기](./Osnap%20풍선%20지우기.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 osnap-add.md](/docs/features/drawing2d/osnap-add.md) 참고. 3D 뷰어 클릭 시점의 좌표 수집 상세는 osnap-picking-event.md를 참고.
+로직 세부 구현은 [개발자 문서 Osnap 추가.md](../../기능/2D도면/Osnap 추가.md) 참고. 3D 뷰어 클릭 시점의 좌표 수집 상세는 Osnap 피킹 이벤트.md를 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

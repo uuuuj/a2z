@@ -1,7 +1,7 @@
 ---
 액션: BOM 목록에서 항목 더블클릭
 위치: 작업/데이터 탭 > BOM 데이터 그룹
-대응_개발자_문서: /docs/features/drawing2d/lvbom-doubleclick.md
+대응_개발자_문서: /docs/기능/2D도면/BOM 목록 더블클릭.md
 last_updated: 2026-04-14
 ---
 
@@ -37,7 +37,7 @@ BOM 목록에서 부재 한 줄을 더블클릭하면, 3D 화면에서 그 부�
 - 이 부재의 가공도를 뽑고 싶으면 → [가공도 출력](../2.작업-데이터%20탭/가공도%20출력.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 lvbom-doubleclick.md](/docs/features/drawing2d/lvbom-doubleclick.md) 참고.
+로직 세부 구현은 [개발자 문서 BOM 목록 더블클릭.md](../../기능/2D도면/BOM 목록 더블클릭.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

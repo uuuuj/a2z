@@ -1,7 +1,7 @@
 ---
 액션: Clash 목록에서 행 선택 변경
 위치: 작업/데이터 탭 > Clash Detection (Z값 기준 정렬) 그룹
-대응_개발자_문서: /docs/features/dimensions/lvclash-selected.md
+대응_개발자_문서: /docs/기능/치수/Clash 선택 시 치수 필터.md
 last_updated: 2026-04-14
 ---
 
@@ -43,7 +43,7 @@ Clash 목록에서 어떤 행을 고르면, 그 간섭에 관련된 부재를 �
 - 간섭 쌍을 X-Ray로 강조하려면 → [Clash 선택 항목만 보기](./Clash%20선택%20항목만%20보기.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 lvclash-selected.md](/docs/features/dimensions/lvclash-selected.md) 참고.
+로직 세부 구현은 [개발자 문서 Clash 선택 시 치수 필터.md](../../기능/치수/Clash 선택 시 치수 필터.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

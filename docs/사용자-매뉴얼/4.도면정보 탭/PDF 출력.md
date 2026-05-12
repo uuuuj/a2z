@@ -1,7 +1,7 @@
 ---
 버튼: PDF 출력
 위치: 도면정보 탭 > 도면 시트 버튼 그룹
-대응_개발자_문서: /docs/features/drawing-sheets/export-sheet-2d-pdf.md
+대응_개발자_문서: /docs/기능/도면시트/시트 PDF 출력.md
 last_updated: 2026-04-14
 ---
 
@@ -44,7 +44,7 @@ last_updated: 2026-04-14
 - 모든 시트를 자동으로 한번에 저장하려면 → [ALL 일괄 출력](./ALL%20일괄%20출력.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 export-sheet-2d-pdf.md](/docs/features/drawing-sheets/export-sheet-2d-pdf.md) 참고.
+로직 세부 구현은 [개발자 문서 시트 PDF 출력.md](../../기능/도면시트/시트 PDF 출력.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

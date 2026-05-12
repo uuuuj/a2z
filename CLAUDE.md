@@ -14,7 +14,7 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 
 ### R1. 코드 변경 시 문서 동기화 (필수)
 `A2Z/Form1.*.cs`의 **버튼 핸들러·이벤트 핸들러의 흐름을 수정**한 경우:
-1. 해당 핸들러의 흐름 문서(`docs/features/{category}/{feature}.md`) 갱신
+1. 해당 핸들러의 흐름 문서(`docs/기능/{카테고리}/{기능}.md`) 갱신
 2. 라인 번호가 바뀐 경우 `docs/code-reference/form1-{category}.md`의 앵커 라인 정보 갱신
 3. `last_updated` 프론트매터 + 하단 **변경 이력** 표에 항목 추가
 
@@ -99,8 +99,10 @@ a2z-HYI/
 ├── A2Z/                 # 앱 소스 (Form1 partial 8개 + Models.cs)
 ├── docs/
 │   ├── README.md        # 문서 진입점
-│   ├── features/        # 버튼 단위 흐름 문서 (48+)
-│   ├── code-reference/  # 파일별 코드 레퍼런스 (9)
+│   ├── 기능/            # 버튼 단위 흐름 문서 (60+, 8개 카테고리)
+│   ├── 기술 노트/        # 보조선·치수·Osnap 사양 등 기준 문서
+│   ├── code-reference/  # 파일별 코드 레퍼런스 (9, 영어 유지)
+│   ├── 사용자-매뉴얼/    # 담당자용 버튼 사용 가이드
 │   └── tracking/        # 개발 현황 추적
 │       ├── FEEDBACK.md  # 담당자 피드백 inbox (FB-xxx)
 │       ├── REQUESTS.md  # 본인 수정 요청 inbox (REQ-xxx)

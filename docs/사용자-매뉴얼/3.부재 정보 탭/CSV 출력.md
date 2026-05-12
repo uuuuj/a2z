@@ -1,7 +1,7 @@
 ---
 버튼: CSV 출력
 위치: 부재 정보 탭 > 부재 정보 버튼 그룹
-대응_개발자_문서: /docs/features/attribute/export-csv.md
+대응_개발자_문서: /docs/기능/부재속성/CSV 내보내기.md
 last_updated: 2026-04-14
 ---
 
@@ -49,7 +49,7 @@ last_updated: 2026-04-14
 - 다른 부재의 속성도 저장하려면 → [3D 뷰어에서 부재 클릭](./3D%20뷰어에서%20부재%20클릭.md) 후 다시 CSV 출력
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 export-csv.md](/docs/features/attribute/export-csv.md) 참고.
+로직 세부 구현은 [개발자 문서 CSV 내보내기.md](../../기능/부재속성/CSV 내보내기.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

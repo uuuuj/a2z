@@ -1,7 +1,7 @@
 ---
 버튼: Osnap
 위치: 작업/데이터 탭 > 작업 그룹
-대응_개발자_문서: /docs/features/drawing2d/collect-osnap.md
+대응_개발자_문서: /docs/기능/2D도면/Osnap 수집.md
 last_updated: 2026-04-14
 ---
 
@@ -60,7 +60,7 @@ last_updated: 2026-04-14
 - ➕ 원하는 좌표를 직접 추가 → [Osnap 좌표 추가](../5.목록%20조작/Osnap%20좌표%20추가.md)
 
 ## 🔬 자세히 보기 (개발자용)
-[개발자 문서](/docs/features/drawing2d/collect-osnap.md)
+[개발자 문서](../../기능/2D도면/Osnap 수집.md)
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

@@ -1,7 +1,7 @@
 ---
 버튼: 선택 삭제
 위치: 작업/데이터 탭 > Osnap 좌표 목록 그룹
-대응_개발자_문서: /docs/features/drawing2d/osnap-delete.md
+대응_개발자_문서: /docs/기능/2D도면/Osnap 삭제.md
 last_updated: 2026-04-14
 ---
 
@@ -39,7 +39,7 @@ last_updated: 2026-04-14
 - 전체 특징점을 다시 뽑으려면 → [Osnap](../2.작업-데이터%20탭/Osnap.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 osnap-delete.md](/docs/features/drawing2d/osnap-delete.md) 참고.
+로직 세부 구현은 [개발자 문서 Osnap 삭제.md](../../기능/2D도면/Osnap 삭제.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

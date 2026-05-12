@@ -10,13 +10,13 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="Object3D_OnObject3DSelected"></a>`Object3D_OnObject3DSelected` | L19 | [object-selected-event](../features/attribute/object-selected-event.md) |
-| <a id="btnClearSelection_Click"></a>`btnClearSelection_Click` | L248 | [clear-selection](../features/attribute/clear-selection.md) |
-| <a id="btnExportAttributeCSV_Click"></a>`btnExportAttributeCSV_Click` | L257 | [export-csv](../features/attribute/export-csv.md) |
-| <a id="btnUdaAdd_Click"></a>`btnUdaAdd_Click` | L364 | [uda-add](../features/attribute/uda-add.md) |
-| <a id="btnUdaEdit_Click"></a>`btnUdaEdit_Click` | L390 | [uda-edit](../features/attribute/uda-edit.md) |
-| <a id="btnUdaDelete_Click"></a>`btnUdaDelete_Click` | L443 | [uda-delete](../features/attribute/uda-delete.md) |
-| <a id="btnUdaImportCSV_Click"></a>`btnUdaImportCSV_Click` | L485 | [uda-import-csv](../features/attribute/uda-import-csv.md) |
+| <a id="Object3D_OnObject3DSelected"></a>`Object3D_OnObject3DSelected` | L19 | [object-selected-event](../기능/부재속성/객체 선택 이벤트.md) |
+| <a id="btnClearSelection_Click"></a>`btnClearSelection_Click` | L248 | [clear-selection](../기능/부재속성/선택 해제.md) |
+| <a id="btnExportAttributeCSV_Click"></a>`btnExportAttributeCSV_Click` | L257 | [export-csv](../기능/부재속성/CSV 내보내기.md) |
+| <a id="btnUdaAdd_Click"></a>`btnUdaAdd_Click` | L364 | [uda-add](../기능/부재속성/UDA 추가.md) |
+| <a id="btnUdaEdit_Click"></a>`btnUdaEdit_Click` | L390 | [uda-edit](../기능/부재속성/UDA 편집.md) |
+| <a id="btnUdaDelete_Click"></a>`btnUdaDelete_Click` | L443 | [uda-delete](../기능/부재속성/UDA 삭제.md) |
+| <a id="btnUdaImportCSV_Click"></a>`btnUdaImportCSV_Click` | L485 | [uda-import-csv](../기능/부재속성/CSV 가져오기.md) |
 
 ---
 
@@ -88,5 +88,5 @@ MATREF,S275JR
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/attribute/](../features/attribute/_index.md)
+- 흐름 문서: [기능/부재속성/](../기능/부재속성/_인덱스.md)
 - 용어집: [UDA](../_glossary.md#uda-user-defined-attribute)

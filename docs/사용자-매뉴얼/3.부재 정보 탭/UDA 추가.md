@@ -1,7 +1,7 @@
 ---
 버튼: UDA 추가
 위치: 부재 정보 탭 > 부재 정보 버튼 그룹
-대응_개발자_문서: /docs/features/attribute/uda-add.md
+대응_개발자_문서: /docs/기능/부재속성/UDA 추가.md
 last_updated: 2026-04-14
 ---
 
@@ -52,7 +52,7 @@ last_updated: 2026-04-14
 - 현재 속성을 파일로 내보내려면 → [CSV 출력](./CSV%20출력.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 uda-add.md](/docs/features/attribute/uda-add.md) 참고.
+로직 세부 구현은 [개발자 문서 UDA 추가.md](../../기능/부재속성/UDA 추가.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

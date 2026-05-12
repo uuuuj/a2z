@@ -10,8 +10,8 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="btnMfgDrawing_Click"></a>`btnMfgDrawing_Click` | L19 | [mfg-drawing](../features/mfg-drawing/mfg-drawing.md) |
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L548 | [mfg-drawing-sheet](../features/mfg-drawing/mfg-drawing-sheet.md) |
+| <a id="btnMfgDrawing_Click"></a>`btnMfgDrawing_Click` | L19 | [mfg-drawing](../기능/가공도/가공도 단일.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L548 | [mfg-drawing-sheet](../기능/가공도/가공도 시트.md) |
 
 ---
 
@@ -76,5 +76,5 @@
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/mfg-drawing/](../features/mfg-drawing/_index.md)
-- 용어집: [PAD / PLATE](../_glossary.md#pad--plate)
+- 흐름 문서: [기능/가공도/](../기능/가공도/_인덱스.md)
+- 용어집: [PAD / PLATE](../_glossary.md#pad-plate)

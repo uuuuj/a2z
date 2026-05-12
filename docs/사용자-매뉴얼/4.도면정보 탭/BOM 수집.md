@@ -1,7 +1,7 @@
 ---
 버튼: BOM 수집
 위치: 도면정보 탭 > BOM 정보 헤더
-대응_개발자_문서: /docs/features/clash/collect-bom-info.md
+대응_개발자_문서: /docs/기능/간섭검사/BOM 정보 수집.md
 last_updated: 2026-04-14
 ---
 
@@ -55,7 +55,7 @@ last_updated: 2026-04-14
 - 모든 시트 PDF로 일괄 저장 → [ALL 일괄 출력](./ALL%20일괄%20출력.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 collect-bom-info.md](/docs/features/clash/collect-bom-info.md) 참고.
+로직 세부 구현은 [개발자 문서 BOM 정보 수집.md](../../기능/간섭검사/BOM 정보 수집.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

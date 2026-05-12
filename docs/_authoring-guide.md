@@ -7,10 +7,10 @@
 ## 절차
 
 1. `docs/_template.md`를 해당 카테고리 디렉터리로 복사
-2. 파일명은 **핸들러 이름을 kebab-case**로 변환 (예: `btnExportPDF_Click` → `export-pdf.md`)
+2. 파일명은 **핸들러 이름을 kebab-case**로 변환 (예: `btnExportPDF_Click` → `PDF 출력.md`)
 3. 프론트매터(YAML) 메타데이터 채우기
 4. 11개 섹션(개요~변경 이력) 채우기
-5. 해당 카테고리 `_index.md`에 링크 추가
+5. 해당 카테고리 `_인덱스.md`에 링크 추가
 6. 필요시 `code-reference/` 문서의 핸들러 앵커도 작성/업데이트
 7. `_pipeline.md`에 흐름 영향이 있으면 반영
 

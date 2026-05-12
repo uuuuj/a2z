@@ -10,18 +10,18 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="btnGenerate2D_Click"></a>`btnGenerate2D_Click` | L37 | [generate-2d](../features/drawing2d/generate-2d.md) |
-| <a id="btnExportPDF_Click"></a>`btnExportPDF_Click` | L82 | [export-pdf](../features/drawing2d/export-pdf.md) |
-| <a id="LvBOM_DoubleClick"></a>`LvBOM_DoubleClick` | L123 | [lvbom-doubleclick](../features/drawing2d/lvbom-doubleclick.md) |
-| <a id="LvClash_DoubleClick"></a>`LvClash_DoubleClick` | L151 | [lvclash-doubleclick](../features/drawing2d/lvclash-doubleclick.md) |
-| <a id="btnCollectOsnap_Click"></a>`btnCollectOsnap_Click` | L179 | [collect-osnap](../features/drawing2d/collect-osnap.md) |
-| <a id="btnClashShowSelected_Click"></a>`btnClashShowSelected_Click` | L354 | [clash-show-selected](../features/drawing2d/clash-show-selected.md) |
-| <a id="btnClashShowAll_Click"></a>`btnClashShowAll_Click` | L651 | [clash-show-all](../features/drawing2d/clash-show-all.md) |
-| <a id="btnOsnapAdd_Click"></a>`btnOsnapAdd_Click` | L694 | [osnap-add](../features/drawing2d/osnap-add.md) |
-| <a id="GeometryUtility_OnOsnapPickingItem"></a>`GeometryUtility_OnOsnapPickingItem` | L716 | [osnap-picking-event](../features/drawing2d/osnap-picking-event.md) |
-| <a id="btnOsnapDelete_Click"></a>`btnOsnapDelete_Click` | L758 | [osnap-delete](../features/drawing2d/osnap-delete.md) |
-| <a id="btnOsnapShowSelected_Click"></a>`btnOsnapShowSelected_Click` | L807 | [osnap-show-selected](../features/drawing2d/osnap-show-selected.md) |
-| <a id="btnOsnapClearBalloon_Click"></a>`btnOsnapClearBalloon_Click` | L913 | [osnap-clear-balloon](../features/drawing2d/osnap-clear-balloon.md) |
+| <a id="btnGenerate2D_Click"></a>`btnGenerate2D_Click` | L37 | [generate-2d](../기능/2D도면/2D 생성.md) |
+| <a id="btnExportPDF_Click"></a>`btnExportPDF_Click` | L82 | [export-pdf](../기능/2D도면/PDF 출력.md) |
+| <a id="LvBOM_DoubleClick"></a>`LvBOM_DoubleClick` | L123 | [lvbom-doubleclick](../기능/2D도면/BOM 목록 더블클릭.md) |
+| <a id="LvClash_DoubleClick"></a>`LvClash_DoubleClick` | L151 | [lvclash-doubleclick](../기능/2D도면/간섭 목록 더블클릭.md) |
+| <a id="btnCollectOsnap_Click"></a>`btnCollectOsnap_Click` | L179 | [collect-osnap](../기능/2D도면/Osnap 수집.md) |
+| <a id="btnClashShowSelected_Click"></a>`btnClashShowSelected_Click` | L354 | [clash-show-selected](../기능/2D도면/간섭 선택 보기.md) |
+| <a id="btnClashShowAll_Click"></a>`btnClashShowAll_Click` | L651 | [clash-show-all](../기능/2D도면/간섭 전체 보기.md) |
+| <a id="btnOsnapAdd_Click"></a>`btnOsnapAdd_Click` | L694 | [osnap-add](../기능/2D도면/Osnap 추가.md) |
+| <a id="GeometryUtility_OnOsnapPickingItem"></a>`GeometryUtility_OnOsnapPickingItem` | L716 | [osnap-picking-event](../기능/2D도면/Osnap 피킹 이벤트.md) |
+| <a id="btnOsnapDelete_Click"></a>`btnOsnapDelete_Click` | L758 | [osnap-delete](../기능/2D도면/Osnap 삭제.md) |
+| <a id="btnOsnapShowSelected_Click"></a>`btnOsnapShowSelected_Click` | L807 | [osnap-show-selected](../기능/2D도면/Osnap 선택 보기.md) |
+| <a id="btnOsnapClearBalloon_Click"></a>`btnOsnapClearBalloon_Click` | L913 | [osnap-clear-balloon](../기능/2D도면/Osnap 풍선 초기화.md) |
 
 ---
 
@@ -80,4 +80,4 @@
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/drawing2d/](../features/drawing2d/_index.md)
+- 흐름 문서: [기능/2D도면/](../기능/2D도면/_인덱스.md)

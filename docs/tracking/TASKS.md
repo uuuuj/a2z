@@ -54,7 +54,7 @@
 | 7 | 기준부재·포함부재 표현 — Sheet1: 전체(BOM이름) / 1, 2, 3... 기준부재는 Node 이름 | T-042 (DONE) | 사양 재정리 중. 사용자 새 아이디어 LCA 노드 이름 채택 가능성, T-042 현행("전체" 유지)로 두고 후속 신규 작업 예정 |
 | 8 | Sheet1 포함부재 "전체" → "1, 2, 3..." | T-052 (DONE) | 완료 |
 | 9 | 중복 Sheet 삭제 후 번호 재채번 | T-053 v2 (DONE) | 완료. v2에서 "포함부재 동일 시 첫 등장만 살림"으로 확장 |
-| 10 | 치수추출 후 3D View 치수 미표기 (메모리만, 4경로 그리기 정의) | T-029 + T-049 (DONE) | 완료. 4경로 그리기 정책 main-dimension.md § 7.5 등록 |
+| 10 | 치수추출 후 3D View 치수 미표기 (메모리만, 4경로 그리기 정의) | T-029 + T-049 (DONE) | 완료. 4경로 그리기 정책 메인 치수 추출.md § 7.5 등록 |
 | 11 | 3D View 축 정보 항상 표시 | T-050 (DONE) | 완료. `View.MarineAxis.Visible = true` 한 줄 |
 
 ### 본인 개선 사항 (회사 doc + 검토 대기 명단 외)
@@ -90,12 +90,12 @@
   > Base Template 생성기준(확인중) — 어떻게 2D View가 생성되고 템플릿이 만들어지는지?
   > Base Template 내의 제작도 배치 기준 — ISO/X/Y/Z뷰들이 어떤 방식으로 크기·위치 배치되는지 + BOM Table, 도면정보 테이블
 - **사용자 확인 필요**:
-  - [ ] 산출물 형식 — (a) 개발자 doc(features/), (b) 다이어그램+짧은 설명, (c) 사용자 매뉴얼 보강 중 선택
+  - [ ] 산출물 형식 — (a) 개발자 doc(기능/), (b) 다이어그램+짧은 설명, (c) 사용자 매뉴얼 보강 중 선택
 - **세부 (스케치)**:
   - [ ] `GenerateSheetDrawing2D` 단계별 흐름 mermaid 다이어그램화
   - [ ] 그리드 셀 구조 (2×3, 4뷰 + BOM + 도면정보) 시각화
   - [ ] 모델/표/라벨 위치 결정 알고리즘 본문 정리
-- **영향 파일**: docs/features/drawing-sheets/generate-sheet-2d.md (보강) 또는 신규 docs/architecture/2d-template.md
+- **영향 파일**: docs/기능/도면시트/시트 2D 렌더.md (보강) 또는 신규 docs/architecture/2d-template.md
 
 ### T-044 — 홀 풍선 제작도 비표시 동작 검증·확정
 - **생성일**: 2026-04-28
@@ -158,11 +158,11 @@
 - **회사 원문**:
   > Osnap 생성 기준 확인 필요 — Softhills의 답변 확인함
 - **사용자 확인 필요**:
-  - [ ] Softhills(SDK 벤더) 답변 원문 공유 — 그 내용 그대로 docs/technical-notes/osnap-generation.md 신규 파일에 정리
+  - [ ] Softhills(SDK 벤더) 답변 원문 공유 — 그 내용 그대로 docs/기술 노트/osnap-generation.md 신규 파일에 정리
 - **세부**:
   - [ ] 답변 받으면 한국어로 정리 + Osnap 종류(LINE/CIRCLE/POINT) 별 생성 조건 명기
   - [ ] 우리 코드의 `vizcore3d.Object3D.GetOsnapPoint(idx)` 사용처와 cross-ref
-- **영향 파일**: docs/technical-notes/osnap-generation.md (신규)
+- **영향 파일**: docs/기술 노트/osnap-generation.md (신규)
 
 ### T-054 — 풍선·심볼 반영 기준 정의 (도메인 정의)
 - **생성일**: 2026-04-28
@@ -197,7 +197,7 @@
   - [ ] 옵션 C: ITEM 추가 split 구현 (사용자 답변 후 확정)
   - [x] 열 너비 1차 재분배 (2026-05-10, c635978) — 사용자 방침에 따라 revert (97c1cba)
   - [x] 열 너비 2차 고정 (2026-05-11): No 5, ITEM 20, MATERIAL 12, SIZE 14, Q'TY 7, T/W 8, MA 5, FA 6 — 합 77mm 유지, **콘텐츠 맞춤 X 한 번 고정**
-  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 갱신
+  - [ ] docs/기능/도면시트/시트 2D 렌더.md 갱신
 - **잔여 옵션 (폰트 축소 안 먹을 경우)**:
   - [ ] 헤더 약자화 ("MATERIAL"→"MAT", "Q'TY"→"Q", "T/W"→"TW") — 도면 표준 허용 여부 사용자 결정 필요
   - [ ] Drawing2D 원시 API로 셀 자체 그리기 (별도 큰 작업)
@@ -321,7 +321,7 @@
   - [x] **v12 (2026-05-13)**: v11 베이스 + 임계 maxEstDist/26 + 인접 비교 부호 결정. SDK measureItem을 측정축별 그룹 후 dimCenter 정렬 → 좌·우 인접 estDist 비교로 shiftDir(±1) 결정. 직각 시프트는 v11 매핑 그대로
   - [ ] **v12 실기 검증 대기** — 작은 치수가 인접 큰 dim 방향에 맞게 시프트되는지 / 부호 매핑이 사용자 시각과 일치하는지
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
-  - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
+  - [ ] docs 갱신 (실기 검증 후 기능/치수/* + 기능/도면시트/* + 기능/가공도/* 별도 라운드)
 - **영향 파일**:
   - `A2Z/Form1.Dimensions.cs` (AddChainDimensionByAxis, 겹침 검사 유틸 신설)
   - `A2Z/Form1.DrawingSheets.cs` (RenderSheetViewForDrawing 치수 후처리)
@@ -357,7 +357,7 @@
   - [x] 1차 해석 L215 가드 → 원복 (ISO 원인 아님)
   - [x] `LvDrawingSheet_SelectedIndexChanged`에서 가공도 분기 시 `FlyToObject3d` 스킵
   - [x] `use1803d` 바깥 스코프 승격 (DiagLog 가시성 — 유지)
-  - [x] docs/features/drawing-sheets/lv-sheet-selected.md / mfg-drawing.md 갱신
+  - [x] docs/기능/도면시트/시트 선택.md / 가공도 단일.md 갱신
   - [x] MSBuild Debug 통과
   - [x] **후속 (2026-04-23)**: 사용자 "카메라 재조정 중 가로→세로 깜빡" 관찰 → `ExecuteMfgDrawing` 전체를 `BeginUpdate/EndUpdate`로 감싸 중간 상태 노출 차단 + Z 최장축 90° 회전 직후 누락됐던 `FitToView` 추가
   - [x] **재수정 (2026-04-23)**: 사용자 DiagLog 공유 → "누르는 순간 가로 → 0.5초 뒤 FitToView로 세로" 확정 → **직전 커밋의 FitToView가 바로 원인**. 제거. 원본 주석 경고 "LockZAxis false 유지 — true로 복원하면 렌더링 엔진이 회전을 리셋"이 FitToView에도 동일 적용
@@ -369,7 +369,7 @@
     2. 가공도 시트가 처음 선택될 때만 스냅샷 적용 — 다른 시트 거쳤다 다시 같은 가공도로 돌아오면 스냅샷이 다른 가공도 것으로 덮어써졌을 가능성 (가공도가 여러 개일 때)
     3. SetCameraData(false) 후에도 외부 어딘가가 카메라 재변경
   - [ ] 위 가설 검증 위해 `_mfgDrawingCameraSnapshot`을 **Dictionary<int, CameraData>** (가공도 번호 키)로 확장 검토
-- **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/features/mfg-drawing/mfg-drawing.md, docs/features/drawing-sheets/lv-sheet-selected.md
+- **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/기능/가공도/가공도 단일.md, docs/기능/도면시트/시트 선택.md
 
 ### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
 - **생성일**: 2026-04-15
@@ -379,7 +379,7 @@
   - [ ] ALL 일괄 출력이 만든 PDF 파일 경로를 시트별로 매핑(DrawingSheetData에 저장 or 별도 Dict)
   - [ ] `LvDrawingSheet_SelectedIndexChanged`에서 해당 시트의 저장된 PDF가 있으면 2D 뷰에 로드·표시
   - [ ] PDF가 없는 시트는 기존 동작(X-Ray + 치수) 유지
-  - [ ] docs/features/drawing-sheets/lv-sheet-selected.md + export-all-pdf.md 동기화
+  - [ ] docs/기능/도면시트/시트 선택.md + 전체 PDF 출력.md 동기화
   - [ ] 사용자-매뉴얼/5.목록 조작/시트 선택 시 화면 전환.md + 4.도면정보 탭/ALL 일괄 출력.md 동기화
 - **영향 파일**:
   - `A2Z/Form1.DrawingSheets.cs` (LvDrawingSheet_SelectedIndexChanged, btnExportAllPDF_Click)
@@ -396,7 +396,7 @@
   - [x] 헬퍼 `ComputePositiveOffsetByOsnapExtreme` 신설 — Form1.Dimensions.cs GetAxisValue 옆
   - [x] 5곳 적용 — Form1.Dimensions.cs:499(메인, 치수추출+2D 출력 공용) / Form1.MfgDrawing.cs:335(가공도 메인) / :1057(가공도 보조) / :1192(MULTI) / :1707(EA newDims 비길이축, longestAxis 오버라이드 유지)
   - [ ] 빌드 통과 후 사용자 사내 PC에서 실기 — 부재가 모델 중앙 한쪽에 치우친 케이스에서 치수가 *그 반대쪽*(외곽)으로 빠지는지 확인
-  - [x] docs/features/dimensions/main-dimension.md 갱신 (외곽 판정 알고리즘 섹션)
+  - [x] docs/기능/치수/메인 치수 추출.md 갱신 (외곽 판정 알고리즘 섹션)
 - **영향 파일**:
   - `A2Z/Form1.Dimensions.cs` (헬퍼 추가 + L499 패턴 교체)
   - `A2Z/Form1.MfgDrawing.cs` (4곳 패턴 교체)
@@ -414,10 +414,10 @@
   - [x] **확정**: `Drawing2DTemplateManager.templateDatas`는 private/internal 필드 외부 접근 불가 (빌드 시 확정)
   - [ ] **Step 2**: 셀 좌표 수집 — `ParseJson` 등 다른 public API 탐색. placeholder(`{Image}`, `ISO`, `LOOKING "X/Y/Z"`, `BILL OF MATERIAL`) → Row/Column 매핑
   - [ ] **Step 3**: 셀 영역에 `AddModel(viewIndex)` + 이미지/BOM/풍선/치수 배치
-  - [ ] 결과 리포트: `docs/technical-notes/excel-template-experiment.md` 신설
+  - [ ] 결과 리포트: `docs/기술 노트/excel-template-experiment.md` 신설
   - [ ] T-057(검토자 Excel 일치 검증)과 통합 — Rev_01이 검토자 Excel과 같은 양식인지 확인
 - **영향 파일**: A2Z/Form1.ExcelTemplate.cs (신규), A2Z/Form1.Designer.cs(+버튼 1개, groupBox1 너비 +87px), A2Z/A2Z.csproj(+Compile Include), 사용자템플릿_엑셀_Rev_01.xlsx (신규)
-- **관련 docs**: [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) (Step 1 흐름)
+- **관련 docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) (Step 1 흐름)
 
 ### T-057 — 검토자 Excel Template과 Base Template 일치 검증
 - **생성일**: 2026-05-04
@@ -432,7 +432,7 @@
   - [ ] 셀 구조·표 헤더·치수·BOM 컬럼을 우리 Base Template과 비교
   - [ ] 차이점 표 작성 → 표준 결정 (회사 vs 우리)
   - [ ] T-012 PoC와 연계 — Excel을 정답지로 활용 가능
-- **산출물**: `docs/technical-notes/excel-template-validation.md` (신규)
+- **산출물**: `docs/기술 노트/excel-template-validation.md` (신규)
 - **영향 파일**: A2Z/Form1.DrawingSheets.cs (차이 발견 시 GenerateSheetDrawing2D 수정)
 - **선행**: T-043 동시 진행 시 효율 ↑
 
@@ -496,7 +496,7 @@
   - [x] `ComputeViewDimensionsForMembers`에 `preBuiltNodeOsnapMap` optional 파라미터 추가 — 있으면 `memberIndices` 부분만 필터해 재사용, 없으면 기존대로 내부에서 `GetOsnapPoint` 호출해 구축 (시트 선택 자동 경로용)
   - [x] `CompleteMainDimensionPostClash`가 `_lastCollectedNodeOsnapMap`을 전달 → 치수추출 버튼 경로의 `GetOsnapPoint` 중복 호출 제거
   - [x] `Stopwatch`로 `ComputeViewDimensionsForMembers` 소요 시간 측정, `DiagLog T-032 치수 계산: visibleMembers=N osnapMapNodes=K chain=M ComputeViewDimensionsForMembers=Xms` 기록
-  - [x] docs `main-dimension.md` 단계 12·13 재기술 + 변경 이력
+  - [x] docs `메인 치수 추출.md` 단계 12·13 재기술 + 변경 이력
   - [x] MSBuild Debug 통과
   - [ ] 사용자 실기 확인 — DiagLog의 `ComputeViewDimensionsForMembers=Xms` 수치 개선 비교
 - **후속 검토 여지**:
@@ -539,7 +539,7 @@
   - [x] `Form1.BOM.cs` `CompleteMainDimensionPostClash` 간소화 — `ComputeViewDimensionsForMembers` 호출
   - [x] `Form1.DrawingSheets.cs` `LvDrawingSheet_SelectedIndexChanged` 분기 재작성 (가공도-3 / 설치도-2 / 일반)
   - [x] MSBuild Debug 통과
-  - [x] docs 2종 갱신: `main-dimension.md` 파이프라인 재기술, `lv-sheet-selected.md` 분기 A 재작성
+  - [x] docs 2종 갱신: `메인 치수 추출.md` 파이프라인 재기술, `시트 선택.md` 분기 A 재작성
   - [x] **2026-05-11 (사용자 요청)**: `GenerateSheetDrawing2D` L1242도 `ExtractInstallationDimensions` → `ComputeViewDimensionsForMembers(null, 0.5f)` 교체 — 2D 출력 후 작업데이터 탭 = 도면 측 측정 데이터 1:1 일치
   - [x] **2026-05-11 (사용자 요청)**: `ExtractInstallationDimensions`의 "개별 부재 전체 길이" 블록 제거 (Form1.GlobalViews.cs L287~346) — 비인접 점 쌍처럼 보이는 부작용 해소. 시트 선택 -2 분기도 자동 영향
   - [ ] 설치도(-2) 분기 완전 폐기 검토 (옵션 A 전환) — 현재 BBox 유지 중. 사용자 확인 필요
@@ -549,7 +549,7 @@
   - `A2Z/Form1.Dimensions.cs` (공용 헬퍼 +80줄, ShowAllDimensions -70줄, FilterOsnapByViewDimensionUsage -45줄)
   - `A2Z/Form1.BOM.cs` (CompleteMainDimensionPostClash 치수 블록 -15줄)
   - `A2Z/Form1.DrawingSheets.cs` (LvDrawingSheet_SelectedIndexChanged 분기 +10줄)
-  - docs: `main-dimension.md`, `generate-sheets.md`, `lv-sheet-selected.md`
+  - docs: `메인 치수 추출.md`, `시트 자동 생성.md`, `시트 선택.md`
 
 ### T-006 — 2D 도면 템플릿 그리드 영역 크기 고정 + 뷰 내부 clip (T-007 흡수)
 - **생성일**: 2026-04-15
@@ -576,7 +576,7 @@
   - [x] BOM 열 너비 2차 축소: ITEM 28→38→17, MATERIAL/SIZE 8→12→11 (합 82→92→81→**77mm**)
   - [x] tableInfo 2차 축소: 60→57→47, 35→35→30 (합 95→92→81→**77mm**)
   - [x] 셀 정렬: BOM (1,3) Top/Center, tableInfo (2,3) Bottom/Center
-  - [x] docs/features/drawing-sheets/generate-sheet-2d.md 1차 갱신 (단계표 7~9 추가, 분기 C 추가, 변경 이력 3건)
+  - [x] docs/기능/도면시트/시트 2D 렌더.md 1차 갱신 (단계표 7~9 추가, 분기 C 추가, 변경 이력 3건)
 - **세부** (2차 — 추가 실험):
   - [ ] SDK 조사: 뷰 셀 내부 clip / 치수선 경계 제어 API (`sdk-verifier` 서브에이전트)
   - [ ] 치수선 렌더링 경로 추적 — 현재 치수선이 어디서 그려지며 왜 셀을 벗어나는지
@@ -584,10 +584,10 @@
   - [ ] 풍선 예약 영역 설계 + 적용
   - [ ] ISO/X/Y/Z 라벨 위치 고정 (하단)
   - [ ] 빌드 + 실기 테스트 (치수선 셀 이탈 여부, 모델 크기, 풍선 겹침, 라벨 위치 모두 확인)
-  - [ ] docs/features/drawing-sheets/generate-sheet-2d.md 2차 갱신
+  - [ ] docs/기능/도면시트/시트 2D 렌더.md 2차 갱신
 - **영향 파일**:
   - `A2Z/Form1.DrawingSheets.cs` (GenerateSheetDrawing2D, RenderSheetViewForDrawing, CreateIsoBalloonNotes)
-  - `docs/features/drawing-sheets/generate-sheet-2d.md`
+  - `docs/기능/도면시트/시트 2D 렌더.md`
 - **참고**: T-007은 본 항목에 흡수되어 제거됨 (2026-04-22)
 
 ---
@@ -611,7 +611,7 @@
   - SDK의 다른 API 탐색 — `Create2DViewObject*` 계열에 "원본 월드 좌표 유지 모드" 파라미터 존재 여부
   - 근본 설계 전환: Sheet2+ 렌더링에서 bgObj+obj 분리 구조 자체를 폐기하고 **단일 객체 + 컬러/라인 스타일 분기**로 처리
 - **진단 로그**: `OPT-B` / `OPT-B2` 라벨로 3D/화면/이동량 실측 출력 중 (Form1.DrawingSheets.cs `RenderSheetViewForDrawing` L1327~)
-- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/features/drawing-sheets/generate-sheet-2d.md
+- **영향 파일**: A2Z/Form1.DrawingSheets.cs, docs/기능/도면시트/시트 2D 렌더.md
 
 ### T-016 — 치수 추출 3회 이상 시 반복 누적 버그
 - **생성일**: 2026-04-20
@@ -646,10 +646,15 @@
 
 ## DONE (최근 20개)
 
+### T-061 — docs 한글화 (옵션 B: 폴더·파일명 + README·용어집 정비)
+- **완료일**: 2026-05-13 (커밋 `pending`)
+- **관련**: — (사용자 직접 지시. 보조선/치수 사양 검색 시 영어 파일명에 막힘)
+- **요약**: `docs/features/` → `docs/기능/` + 8개 카테고리 폴더 한글화(부재속성/BOM/간섭검사/치수/도면시트/2D도면/글로벌뷰/가공도) + 60개 파일 한글화. `docs/technical-notes/` → `docs/기술 노트/` + 4개 파일 한글화(치수 보조선 사양·치수 텍스트 위치·Osnap 기준·Sheet1 명명 기준). [docs/README.md](../README.md) 이모지 제거 + "기준·사양" 진입점 섹션 신규 + 카테고리 표 한글화. [docs/_glossary.md](../_glossary.md) 보조선/Osnap/Chain Dimension/Drawing Sheet 항목에 본진 링크 4개 추가. CLAUDE.md / .claude/commands/{commit,checkpoint}.md / .claude/hooks/docs-sync-reminder.sh 경로 참조 4곳 갱신. PowerShell 일괄 치환 3패스 + md-link-checker 3회 검증(잔존 0건). **`code-reference/` 영어 유지** (코드 파일 1:1 매핑 보존). 총 131개 파일 변경, 코드 변경 없음
+
 ### T-058 — 치수 Text 보조선 초과 시 우측 자동 배치
 - **완료일**: 2026-05-06 (커밋 `pending`)
 - **관련**: — (회사 doc 개발 요청 — 상 5)
-- **요약**: sdk-verifier 검증 결과 `MeasureStyle.AlignDistanceTextPosition` enum (xml:9298, 0:아래/1:위/**2:바깥쪽**)로 글로벌 1줄 처리 가능. 기존 4곳 `=0` 설정 + EA 가공도 1곳 추가 = **5곳 동시 변경**: [Form1.Dimensions.cs:51](../../A2Z/Form1.Dimensions.cs) (선택 치수 표시), [Form1.Dimensions.cs:448](../../A2Z/Form1.Dimensions.cs) (`ShowAllDimensions` — 글로벌/시트/2D 출력 4경로 본진), [Form1.MfgDrawing.cs:325, 1050, 1703](../../A2Z/Form1.MfgDrawing.cs) (가공도 메인/sub/EA). 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. SDK가 치수별 개별 위치 옵션을 제공하지 않아 글로벌 적용(모든 치수 항상 바깥쪽), 회사 원문 "초과할 때만"과는 차이 있으나 핵심 의도(침범 회피) 충족. T-039 선행 무관(스타일 옵션은 offset 기준 결정 전에도 적용 가능). 통합 사양: [docs/technical-notes/dimension-text-position.md](../technical-notes/dimension-text-position.md)
+- **요약**: sdk-verifier 검증 결과 `MeasureStyle.AlignDistanceTextPosition` enum (xml:9298, 0:아래/1:위/**2:바깥쪽**)로 글로벌 1줄 처리 가능. 기존 4곳 `=0` 설정 + EA 가공도 1곳 추가 = **5곳 동시 변경**: [Form1.Dimensions.cs:51](../../A2Z/Form1.Dimensions.cs) (선택 치수 표시), [Form1.Dimensions.cs:448](../../A2Z/Form1.Dimensions.cs) (`ShowAllDimensions` — 글로벌/시트/2D 출력 4경로 본진), [Form1.MfgDrawing.cs:325, 1050, 1703](../../A2Z/Form1.MfgDrawing.cs) (가공도 메인/sub/EA). 좁은 치수에서 텍스트가 보조선 사이를 침범하는 문제 회피. SDK가 치수별 개별 위치 옵션을 제공하지 않아 글로벌 적용(모든 치수 항상 바깥쪽), 회사 원문 "초과할 때만"과는 차이 있으나 핵심 의도(침범 회피) 충족. T-039 선행 무관(스타일 옵션은 offset 기준 결정 전에도 적용 가능). 통합 사양: [docs/기술 노트/치수 텍스트 위치.md](../기술 노트/치수 텍스트 위치.md)
 
 ### T-042 — 도면시트 목록 "기준부재" 컬럼에 부재 이름 추가 표시
 - **완료일**: 2026-05-04 (코드 커밋 `e09c945`, DONE 이동 커밋 `pending`)
@@ -659,7 +664,7 @@
 ### T-049 — 치수 추출 백엔드 로직 문서화 (사전 추출 vs 즉시 추출)
 - **완료일**: 2026-05-02 (커밋 `79876e2`)
 - **관련**: — (회사 doc 긴급중 3)
-- **요약**: [docs/features/bom/main-dimension.md](../features/bom/main-dimension.md) Section 7.5 "치수 캐시 라이프사이클" 신설. `chainDimensionList`를 단일 진실 공급원으로 한 4경로(치수추출/글로벌 X/Y/Z/2D 출력/일반 시트/가공도) + 캐시 mermaid + 표 + 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계. 회사 doc "치수추출 버튼 앞뒤 로직" 의문 답변. 코드 변경 없음, docs만
+- **요약**: [docs/기능/BOM/메인 치수 추출.md](../기능/BOM/메인 치수 추출.md) Section 7.5 "치수 캐시 라이프사이클" 신설. `chainDimensionList`를 단일 진실 공급원으로 한 4경로(치수추출/글로벌 X/Y/Z/2D 출력/일반 시트/가공도) + 캐시 mermaid + 표 + 사용자 시각 단계별 흐름 + T-032 성능 최적화 연계. 회사 doc "치수추출 버튼 앞뒤 로직" 의문 답변. 코드 변경 없음, docs만
 
 ### T-050 — 3D View에서 X/Y/Z 축 표시 기능 추가
 - **완료일**: 2026-05-02 (커밋 `79876e2`)
@@ -674,23 +679,23 @@
 ### T-046 — 가공도 치수 보조선 이중쇄선 → 가는 실선 (확장: 모든 보조선 + gap)
 - **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc 긴급상 10 + 사용자 확장 — 모든 경로 + 모델 표면 gap)
-- **요약**: 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출)의 보조선을 `DrawDimension` 단일 지점에서 일괄 처리. (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴 제거. (2) `OffsetTowardLineEnd` 헬퍼 + `ExtensionLineGap = 10.0f` 상수 신설 (Form1.Dimensions.cs) — 보조선 시작점이 모델 표면에서 10mm 떨어져 시작 (사용자 실기 후 1mm → 10mm 상향). 통합 사양: [docs/technical-notes/dimension-extension-line.md](../technical-notes/dimension-extension-line.md)
+- **요약**: 4경로(가공도 메인/EA + 일반 시트 2D 출력 + 글로벌 X/Y/Z + 치수추출)의 보조선을 `DrawDimension` 단일 지점에서 일괄 처리. (1) `Form1.MfgDrawing.cs:1542, 1900` LineType `DASHED_DOUBLEDOTTED` → `SOLID` 통일 + 토글 패턴 제거. (2) `OffsetTowardLineEnd` 헬퍼 + `ExtensionLineGap = 10.0f` 상수 신설 (Form1.Dimensions.cs) — 보조선 시작점이 모델 표면에서 10mm 떨어져 시작 (사용자 실기 후 1mm → 10mm 상향). 통합 사양: [docs/기술 노트/치수 보조선 사양.md](../기술 노트/치수 보조선 사양.md)
 
 ### T-053 — 중복 Sheet 삭제 후 Sheet 번호 자동 재채번 (v2 확장 포함)
 - **완료일**: 2026-05-02 (v1 커밋 `8081688`), 2026-05-04 (v2 커밋 `pending`)
 - **관련**: — (회사 doc 긴급하 4)
 - **v1 요약**: `GenerateDrawingSheets` 단계 9(Sheet 1 동일 구성 제거) 직후에 `for (int i; i < drawingSheetList.Count; i++) drawingSheetList[i].SheetNumber = i + 1` 일괄 재채번. 일반 시트 빠진 자리만큼 후속 시트(설치도·가공도)도 자동 정합
-- **v2 확장 (2026-05-04)**: 자동 제거 범위를 "Sheet 1 동일 구성" 한정 → **"모든 일반 시트 쌍에서 부재 구성 동일 시 첫 등장만 살림"** 으로 확장 (사용자 결정: *"포함부재가 같으면 기준부재가 달라도 같은 형상이다"*). `MemberIndices.OrderBy` 정렬 키 + `HashSet<string>`로 첫 등장 추적. Sheet 1 / 설치도 / 가공도는 의미가 다른 시트라 검사 제외하고 보존. Sheet 1과 동일 구성인 일반 시트는 별도 RemoveAll로 추가 제거. [generate-sheets.md](../features/drawing-sheets/generate-sheets.md) 단계 9·9.3 + 분기 C + 변경 이력 갱신
+- **v2 확장 (2026-05-04)**: 자동 제거 범위를 "Sheet 1 동일 구성" 한정 → **"모든 일반 시트 쌍에서 부재 구성 동일 시 첫 등장만 살림"** 으로 확장 (사용자 결정: *"포함부재가 같으면 기준부재가 달라도 같은 형상이다"*). `MemberIndices.OrderBy` 정렬 키 + `HashSet<string>`로 첫 등장 추적. Sheet 1 / 설치도 / 가공도는 의미가 다른 시트라 검사 제외하고 보존. Sheet 1과 동일 구성인 일반 시트는 별도 RemoveAll로 추가 제거. [시트 자동 생성.md](../기능/도면시트/시트 자동 생성.md) 단계 9·9.3 + 분기 C + 변경 이력 갱신
 
 ### T-055 — 검증 보고서: Osnap 기준점 코드 동작 확인
 - **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc "완료 3" 의문 답변용)
-- **요약**: 4경로 보조선 데이터 흐름 + 부재별/전체 풀 동시 적재 + X/Y/Z 뷰별 primary/secondary 매핑 + 4단 dedup(부재 → 전역 dimAxis → MergeCoordinates 0.5mm → keyToDim) 코드 트레이스 완료. 결론 **부분 일치** — 핵심 의도(코너 우선 + 중복 제거)는 모두 구현되었으나, 부재 단위에서 4코너가 아니라 1점만 남기는 점이 명세 문구와 다름. 산출물: [docs/technical-notes/osnap-criteria.md](../technical-notes/osnap-criteria.md)
+- **요약**: 4경로 보조선 데이터 흐름 + 부재별/전체 풀 동시 적재 + X/Y/Z 뷰별 primary/secondary 매핑 + 4단 dedup(부재 → 전역 dimAxis → MergeCoordinates 0.5mm → keyToDim) 코드 트레이스 완료. 결론 **부분 일치** — 핵심 의도(코너 우선 + 중복 제거)는 모두 구현되었으나, 부재 단위에서 4코너가 아니라 1점만 남기는 점이 명세 문구와 다름. 산출물: [docs/기술 노트/Osnap 기준.md](../기술 노트/Osnap 기준.md)
 
 ### T-056 — 검증 보고서: Sheet1 부재 이름 부여 기준 (Z-MAX 정렬)
 - **완료일**: 2026-05-02 (커밋 `8081688`)
 - **관련**: — (회사 doc "완료 5" + "수정 후 확인 필요 2" 의문 답변용)
-- **요약**: 현재 코드는 `BBox.MaxZ` (Form1.BOM.cs:735) 기준 정렬, 회사 명세는 `max(Osnap.Z)` 기준 — 데이터 출처 차이. 직립 H빔·평판 등 일반 철골 형상에선 두 값이 동등하므로 정렬 결과 같음. 경사 부재·곡면 Body에서 수 mm 차이 발생 가능 (정렬 1~2칸 흔들림). 결론 **부분 일치** — 회사 답변에 따라 후속 작업(Form1.BOM.cs:688 osnapList 활용) 신설 가능. 산출물: [docs/technical-notes/sheet1-naming-criteria.md](../technical-notes/sheet1-naming-criteria.md)
+- **요약**: 현재 코드는 `BBox.MaxZ` (Form1.BOM.cs:735) 기준 정렬, 회사 명세는 `max(Osnap.Z)` 기준 — 데이터 출처 차이. 직립 H빔·평판 등 일반 철골 형상에선 두 값이 동등하므로 정렬 결과 같음. 경사 부재·곡면 Body에서 수 mm 차이 발생 가능 (정렬 1~2칸 흔들림). 결론 **부분 일치** — 회사 답변에 따라 후속 작업(Form1.BOM.cs:688 osnapList 활용) 신설 가능. 산출물: [docs/기술 노트/Sheet1 명명 기준.md](../기술 노트/Sheet1 명명 기준.md)
 - **결정 (2026-05-05)**: 사용자가 **BBox 유지** 결정. A2Z 일반 데이터셋에서 정렬 결과 동등, 차이 케이스도 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 보고서 § 7 단답 그대로 사용. 변경 없이 종결
 
 ### T-018 — 장시간 작업 진행 UX 표시 (오버레이 라벨)
@@ -756,7 +761,7 @@
   - `Clash_OnClashTestFinishedEvent`에서 clashList 수집 후 판정, n≠1이면 차단 MessageBox
   - 파이프라인 재배치: `btnMainDimension_Click`은 BOM+Clash 시작까지만, Osnap/치수/요약/시트는 `CompleteMainDimensionPostClash`로 분리
   - 단일 부재(clashStarted=false)는 판정 스킵하고 Post 메서드 직접 호출 (T-024 fallback과 통합)
-  - docs 3종(main-dimension.md / clash-finished-event.md / 사용자 매뉴얼 치수 추출.md) 전면 재작성
+  - docs 3종(메인 치수 추출.md / 간섭검사 완료 이벤트.md / 사용자 매뉴얼 치수 추출.md) 전면 재작성
   - v1/v2 주석 블록·헬퍼 모두 제거 완료
 
 ### T-024 — 단일 부재 치수추출 결과가 도면 시트 목록에 반영 안 됨
@@ -800,7 +805,7 @@
   - `Form1.BOM.cs`에서 `StartLicenseRefreshTimer`·`LicenseRefreshTimer_Tick` 제거 (약 -30줄)
   - `Form1.cs`에서 `licenseRefreshTimer` 필드 선언 제거
   - `A2Z.csproj`에 `Form1.License.cs` Compile 항목 추가 (`DependentUpon=Form1.cs`)
-  - docs: `form1-bom.md` 라이선스 항목 5곳 정리, `form1-license.md` 신설, `features/bom/vizcore3d-initialized.md` 단계표·에러표·링크·이력 갱신
+  - docs: `form1-bom.md` 라이선스 항목 5곳 정리, `form1-license.md` 신설, `기능/BOM/VIZCore3D 초기화.md` 단계표·에러표·링크·이력 갱신
   - MSBuild Debug 통과, 사용자 실기에서 앱 기동 정상 확인
 
 ### T-021 — BOM 정보 행 선택 시 부재 카메라 fit
@@ -814,7 +819,7 @@
   - 요약행(Row 0) · No 파싱 실패 · 범위 초과는 조용히 return
   - 이벤트 등록 위치: [Form1.cs:166](../../A2Z/Form1.cs:166)
   - 새 핸들러: [Form1.DrawingSheets.cs `LvDrawingBOMInfo_SelectedIndexChanged`](../../A2Z/Form1.DrawingSheets.cs)
-  - 신규 문서: [lv-bom-info-selected.md (SHT-010)](../features/drawing-sheets/lv-bom-info-selected.md), `_index.md` 등록 추가
+  - 신규 문서: [BOM 정보 선택.md (SHT-010)](../기능/도면시트/BOM 정보 선택.md), `_인덱스.md` 등록 추가
   - 사용자 실기 테스트 통과 (2026-04-22)
 
 ### T-014 — 도면 시트 목록의 "기준부재/포함부재" 컬럼을 item 번호로 표시
@@ -830,7 +835,7 @@
   - 사용자 결정 확정: (1) 시트 생성 로직은 T-015 그대로 유지, 표시만 변경 (2) 접두사 `item` 없이 숫자만 (3) 가공도도 번호로
   - 구현: [Form1.DrawingSheets.cs:215~281](../../A2Z/Form1.DrawingSheets.cs:215) `bomIndexToItemNo` Dictionary + ListView 갱신 블록
   - 빌드 오류 1건 수정: 외부 `int mfgNo=1`(가공도 번호)과 변수명 충돌 → `mfgBomIdx`/`mfgItemNo`로 리네임
-  - 문서: `generate-sheets.md` 단계 10·상태 섹션·변경 이력 갱신
+  - 문서: `시트 자동 생성.md` 단계 10·상태 섹션·변경 이력 갱신
   - 사용자 실기 테스트 통과 (2026-04-22)
 
 ### T-009 — 초기화 버튼 누락 항목 보강
@@ -840,7 +845,7 @@
 - **요약**:
   - `ResetToInitialState()` 정리 블록에 3줄 추가 — `lvDrawingBOMInfo.Items.Clear()`, `vizcore3d.View.SetRenderMode(RenderModes.SMOOTH)` (DASH_LINE 해제), `Clear2DView()`
   - `Clear2DView()` 호출 시점을 `Model.Open` 성공 이후로 재배치 (SDK가 Open 시 2D 뷰 자동 복원하는 이슈)
-  - docs/features/bom/reset-to-initial.md 갱신
+  - docs/기능/BOM/초기화.md 갱신
   - SDK 참고: `RenderModes.SOLID`는 존재하지 않음 → `SMOOTH` 사용
   - 다른 기기 실기 테스트 통과 (2026-04-22)
 
@@ -853,7 +858,7 @@
   - **사용자 의도**: 모든 부재가 각자 기준부재 시트를 가지며, 포함부재는 1-hop 이웃
   - **수정**: [Form1.DrawingSheets.cs:105~142](../../A2Z/Form1.DrawingSheets.cs:105) `appearedAsIncluded` HashSet 선언·검사·추가 3곳 모두 제거. 주석도 T-015 결정 배경으로 교체
   - **결과 예**: 1-2-3-4 연쇄 Clash → Sheet 2(기준 1), 3(기준 2), 4(기준 3), 5(기준 4) 4개 생성. 단계 9의 Sheet 1 중복 제거 유지 (과잉 시트 자동 정리)
-  - `docs/features/drawing-sheets/generate-sheets.md` 전면 갱신 — 이전 문서가 실제 코드와 불일치(BFS 서술·E03 오류·가공도/중복제거 누락)된 부분까지 교정
+  - `docs/기능/도면시트/시트 자동 생성.md` 전면 갱신 — 이전 문서가 실제 코드와 불일치(BFS 서술·E03 오류·가공도/중복제거 누락)된 부분까지 교정
   - 빌드 검증은 사용자 기기에서 (A2Z.exe 실행 중이라 자동 빌드 불가)
 
 ### T-020 — 파일 열기·치수 추출을 탭 밖 공용 패널로 이동
@@ -872,7 +877,7 @@
     - Size 110 → 55
     - 작은 버튼 6개 (BOM/Clash/Osnap/치수/2D 생성/PDF 내보내기) Y=78 → 20
   - 사용자 직접 빌드 확인 완료
-  - R9 판단: UI 레이아웃 변경만이라 features/code-reference 갱신 불필요
+  - R9 판단: UI 레이아웃 변경만이라 기능/code-reference 갱신 불필요
 
 ### T-019 — 도면정보 탭을 첫 번째로 이동
 - **완료일**: 2026-04-21
@@ -924,7 +929,7 @@
   - **버그 수정**: VIZCore3D는 같은 경로 중복 `Model.Open()`을 거부 → `Model.Open` 전 `if (IsOpen()) Close();` 패턴 적용 (공식 예제 L47297/L60261)
   - **btnOpen_Click 동반 수정**: 같은 파일 재선택 시 동일 버그 발생 소지 → 같은 패턴 적용
   - **UI 너비 축소**: 5개 버튼 Size 105→80, Location 재배치 (8/93/178/263/348), 패널 Size 558→438
-  - 문서: `docs/features/bom/reset-to-initial.md` 신설 (BOM-005), `docs/사용자-매뉴얼/1.기본-작업/초기화.md` 신설, `open-model.md`에 Close 단계 추가, `_index.md`·`code-reference/form1-bom.md`·`사용자-매뉴얼/README.md` 갱신
+  - 문서: `docs/기능/BOM/초기화.md` 신설 (BOM-005), `docs/사용자-매뉴얼/1.기본-작업/초기화.md` 신설, `모델 열기.md`에 Close 단계 추가, `_인덱스.md`·`code-reference/form1-bom.md`·`사용자-매뉴얼/README.md` 갱신
   - 사용자 실기 테스트 통과 (부재 일부 숨기고 치수 추출 → 초기화 → 정상 복원)
 
 ### T-003 — 사용자 매뉴얼 전면 작성 (39개 버튼 문서)
@@ -939,7 +944,7 @@
   - 멀티 에이전트 협업 (인벤토리 W-D → Writer W-A/B/C 병렬 → Reviewer 전수검사)
   - Reviewer 통과: 템플릿 0위반, 용어 0위반, 깨진 링크 0, 에러 메시지 일치
   - `docs/README.md` 상단에 개발자/사용자 분기 카드 추가
-  - 개발자 문서(`docs/features/`) 영향 없음
+  - 개발자 문서(`docs/기능/`) 영향 없음
 
 ### T-002 — 개발 워크플로우 자동화 확장
 - **완료일**: 2026-04-13
@@ -975,8 +980,8 @@
 - **세부**:
   - [ ] balloonOverrides Dict 사용 방식 개선
   - [ ] AABB 회전 시도 횟수 조정 (현재 36회 → 조절)
-  - [ ] docs/features/drawing-sheets/drawing-iso.md 갱신
+  - [ ] docs/기능/도면시트/ISO 도면.md 갱신
 - **영향 파일**:
   - `A2Z/Form1.DrawingSheets.cs` (CreateIsoBalloonNotes)
-  - `docs/features/drawing-sheets/drawing-iso.md`
+  - `docs/기능/도면시트/ISO 도면.md`
 ```

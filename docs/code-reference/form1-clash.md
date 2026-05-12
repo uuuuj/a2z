@@ -12,7 +12,7 @@
 - **라인**: L15~L18
 - **트리거**: `btnCollectBOMInfo` 버튼 클릭
 - **핵심**: `CollectBOMInfo(true)` 위임
-- **흐름 문서**: [features/clash/collect-bom-info.md](../features/clash/collect-bom-info.md)
+- **흐름 문서**: [기능/간섭검사/BOM 정보 수집.md](../기능/간섭검사/BOM 정보 수집.md)
 
 ### <a id="CollectBOMInfo"></a>CollectBOMInfo (내부 공용)
 - **라인**: L20~L302
@@ -30,13 +30,13 @@
 - **라인**: L381~L392
 - **트리거**: `btnClashDetection` 버튼 클릭
 - **핵심**: `DetectClash()` 위임 + 시작 알림
-- **흐름 문서**: [features/clash/detect-clash.md](../features/clash/detect-clash.md)
+- **흐름 문서**: [기능/간섭검사/간섭검사 실행.md](../기능/간섭검사/간섭검사 실행.md)
 
 ### <a id="Clash_OnClashTestFinishedEvent"></a>Clash_OnClashTestFinishedEvent
 - **라인**: L397~L500
 - **트리거**: `vizcore3d.Clash.OnClashTestFinishedEvent`
 - **핵심**: `GetResultItem(test, ResultGroupingOptions.PART)` → ClashData 변환 → 중복 제거(A-B/B-A) → Z값 내림차순 정렬 → 요약 MessageBox → `GenerateDrawingSheets()` 자동 호출
-- **흐름 문서**: [features/clash/clash-finished-event.md](../features/clash/clash-finished-event.md)
+- **흐름 문서**: [기능/간섭검사/간섭검사 완료 이벤트.md](../기능/간섭검사/간섭검사 완료 이벤트.md)
 
 ---
 
@@ -68,4 +68,4 @@
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/clash/](../features/clash/_index.md)
+- 흐름 문서: [기능/간섭검사/](../기능/간섭검사/_인덱스.md)

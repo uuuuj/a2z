@@ -86,6 +86,6 @@
 
 ## 관련 문서
 - [Form1 공유 필드](./form1-bom.md#주요-공유-필드-form1-멤버)
-- [BOM 수집 흐름](../features/bom/collect-bom.md)
-- [Clash 완료 콜백](../features/clash/clash-finished-event.md)
-- [시트 분할 알고리즘](../features/drawing-sheets/generate-sheets.md)
+- [BOM 수집 흐름](../기능/BOM/BOM 수집.md)
+- [Clash 완료 콜백](../기능/간섭검사/간섭검사 완료 이벤트.md)
+- [시트 분할 알고리즘](../기능/도면시트/시트 자동 생성.md)

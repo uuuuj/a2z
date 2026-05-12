@@ -1,7 +1,7 @@
 ---
 버튼: 선택 항목만 보기
 위치: 작업/데이터 탭 > Clash Detection (Z값 기준 정렬) 그룹
-대응_개발자_문서: /docs/features/drawing2d/clash-show-selected.md
+대응_개발자_문서: /docs/기능/2D도면/간섭 선택 보기.md
 last_updated: 2026-04-14
 ---
 
@@ -52,7 +52,7 @@ Clash 목록에서 고른 행들의 부재만 X-Ray 모드로 강조하고, 간�
 - 자동으로 선택된 특징점에 풍선을 달려면 → [Osnap 선택 좌표 보기](./Osnap%20선택%20좌표%20보기.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 clash-show-selected.md](/docs/features/drawing2d/clash-show-selected.md) 참고.
+로직 세부 구현은 [개발자 문서 간섭 선택 보기.md](../../기능/2D도면/간섭 선택 보기.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

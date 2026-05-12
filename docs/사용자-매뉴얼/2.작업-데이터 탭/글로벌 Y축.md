@@ -1,7 +1,7 @@
 ---
 버튼: Y축
 위치: 좌측 상단 글로벌 뷰 바 (모든 탭 공통)
-대응_개발자_문서: /docs/features/global-views/global-axis-y.md
+대응_개발자_문서: /docs/기능/글로벌뷰/글로벌 Y축.md
 last_updated: 2026-04-14
 ---
 
@@ -47,7 +47,7 @@ last_updated: 2026-04-14
 - [글로벌 X축](./글로벌%20X축.md), [글로벌 Z축](./글로벌%20Z축.md) — 다른 축 정면뷰
 
 ## 🔬 자세히 보기 (개발자용)
-[개발자 문서](/docs/features/global-views/global-axis-y.md)
+[개발자 문서](../../기능/글로벌뷰/글로벌 Y축.md)
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

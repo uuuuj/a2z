@@ -16,7 +16,7 @@
 |---|---|
 | `cdd6806` | 빌드 환경 정비 — VIZCore3D dll 1.0.26.325 교체, Interop dll 보강, csproj 절대 경로 + 자가 진단 스크립트 (`scripts/check-build-env.ps1`), `docs/setup/build-environment.md` 신설 |
 | `8081688` | T-046 확장 (모든 보조선 SOLID + 1mm gap), T-053 v1 (SheetNumber 재채번), T-055/T-056 검증 보고서 |
-| `79876e2` | T-049 (치수 캐시 라이프사이클 main-dimension.md Section 7.5), T-050 (`MarineAxis.Visible=true`), T-052 (Sheet 1 포함부재 표기) |
+| `79876e2` | T-049 (치수 캐시 라이프사이클 메인 치수 추출.md Section 7.5), T-050 (`MarineAxis.Visible=true`), T-052 (Sheet 1 포함부재 표기) |
 | `e09c945` | T-053 v2 (시트 중복 제거 확장 — 모든 일반 시트 쌍 부재 구성 동일 시 첫 등장만 살림), T-042 (기준부재 BOM이름 병기). T-046 gap 1mm → 10mm 상향 (사용자 실기 후) |
 | `735b814` | 치수 추출 매뉴얼 보강 — T-029 (3D 뷰 깨끗 정책) + T-023 v3 (연결성 에러 풀이) 사용자 매뉴얼 반영 |
 
@@ -45,10 +45,10 @@
 - **신규 파일**:
   - `docs/setup/build-environment.md` (빌드 환경 가이드)
   - `scripts/check-build-env.ps1` (자가 진단 스크립트)
-  - `docs/technical-notes/osnap-criteria.md` (T-055)
-  - `docs/technical-notes/sheet1-naming-criteria.md` (T-056)
-  - `docs/technical-notes/dimension-extension-line.md` (T-046 통합 사양)
-- **갱신 파일**: TASKS.md(+311줄), CHANGELOG.md(+286줄), STATUS.md, generate-sheets.md, main-dimension.md, vizcore3d-initialized.md, mfg-drawing.md, 치수 추출.md, .gitignore, A2Z.csproj
+  - `docs/기술 노트/Osnap 기준.md` (T-055)
+  - `docs/기술 노트/Sheet1 명명 기준.md` (T-056)
+  - `docs/기술 노트/치수 보조선 사양.md` (T-046 통합 사양)
+- **갱신 파일**: TASKS.md(+311줄), CHANGELOG.md(+286줄), STATUS.md, 시트 자동 생성.md, 메인 치수 추출.md, VIZCore3D 초기화.md, 가공도 단일.md, 치수 추출.md, .gitignore, A2Z.csproj
 - **신규 정책**: CLAUDE.md R12 (검증 사이클 push 마감)
 
 ## 이어갈 지점 ⭐ (다음 세션 복원용)
@@ -94,7 +94,7 @@
 ## 참고 링크
 - 빌드 가이드: [docs/setup/build-environment.md](../../setup/build-environment.md)
 - 자가 진단: [scripts/check-build-env.ps1](../../../scripts/check-build-env.ps1)
-- 검증 보고서: [osnap-criteria.md](../../technical-notes/osnap-criteria.md), [sheet1-naming-criteria.md](../../technical-notes/sheet1-naming-criteria.md), [dimension-extension-line.md](../../technical-notes/dimension-extension-line.md)
+- 검증 보고서: [Osnap 기준.md](../../기술 노트/Osnap 기준.md), [Sheet1 명명 기준.md](../../기술 노트/Sheet1 명명 기준.md), [치수 보조선 사양.md](../../기술 노트/치수 보조선 사양.md)
 - 트래킹 진입: [TASKS.md](../TASKS.md) (머릿주석에 4개 카테고리 매핑 표)
 - 정책: [CLAUDE.md](../../../CLAUDE.md) R12
-- 직전 세션: [2026-05-04-build-environment-recovery.md](./2026-05-04-build-environment-recovery.md)
+- 직전 세션: [2026-05-02-build-environment-recovery.md](./2026-05-02-build-environment-recovery.md)

@@ -10,15 +10,15 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="btnGenerateSheets_Click"></a>`btnGenerateSheets_Click` | L398 | [generate-sheets](../features/drawing-sheets/generate-sheets.md) |
-| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L425 | [lv-sheet-selected](../features/drawing-sheets/lv-sheet-selected.md) |
-| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L755 | [drawing-iso](../features/drawing-sheets/drawing-iso.md) |
-| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L760 | [drawing-axis-x](../features/drawing-sheets/drawing-axis-x.md) |
-| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L765 | [drawing-axis-y](../features/drawing-sheets/drawing-axis-y.md) |
-| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L770 | [drawing-axis-z](../features/drawing-sheets/drawing-axis-z.md) |
-| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L778 | [generate-sheet-2d](../features/drawing-sheets/generate-sheet-2d.md) |
-| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L806 | [export-sheet-2d-pdf](../features/drawing-sheets/export-sheet-2d-pdf.md) |
-| <a id="btnExportAllPDF_Click"></a>`btnExportAllPDF_Click` | L847 | [export-all-pdf](../features/drawing-sheets/export-all-pdf.md) |
+| <a id="btnGenerateSheets_Click"></a>`btnGenerateSheets_Click` | L398 | [generate-sheets](../기능/도면시트/시트 자동 생성.md) |
+| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L425 | [lv-sheet-selected](../기능/도면시트/시트 선택.md) |
+| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L755 | [drawing-iso](../기능/도면시트/ISO 도면.md) |
+| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L760 | [drawing-axis-x](../기능/도면시트/X축 도면.md) |
+| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L765 | [drawing-axis-y](../기능/도면시트/Y축 도면.md) |
+| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L770 | [drawing-axis-z](../기능/도면시트/Z축 도면.md) |
+| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L778 | [generate-sheet-2d](../기능/도면시트/시트 2D 렌더.md) |
+| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L806 | [export-sheet-2d-pdf](../기능/도면시트/시트 PDF 출력.md) |
+| <a id="btnExportAllPDF_Click"></a>`btnExportAllPDF_Click` | L847 | [export-all-pdf](../기능/도면시트/전체 PDF 출력.md) |
 
 ---
 
@@ -75,4 +75,4 @@
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/drawing-sheets/](../features/drawing-sheets/_index.md)
+- 흐름 문서: [기능/도면시트/](../기능/도면시트/_인덱스.md)

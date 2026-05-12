@@ -1,7 +1,7 @@
 ---
 버튼: 풍선 지우기
 위치: 작업/데이터 탭 > Osnap 좌표 목록 그룹
-대응_개발자_문서: /docs/features/drawing2d/osnap-clear-balloon.md
+대응_개발자_문서: /docs/기능/2D도면/Osnap 풍선 초기화.md
 last_updated: 2026-04-14
 ---
 
@@ -33,7 +33,7 @@ last_updated: 2026-04-14
 - 좌표 자체를 추가/삭제하려면 → [Osnap 좌표 추가](./Osnap%20좌표%20추가.md), [Osnap 좌표 선택 삭제](./Osnap%20좌표%20선택%20삭제.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 osnap-clear-balloon.md](/docs/features/drawing2d/osnap-clear-balloon.md) 참고.
+로직 세부 구현은 [개발자 문서 Osnap 풍선 초기화.md](../../기능/2D도면/Osnap 풍선 초기화.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

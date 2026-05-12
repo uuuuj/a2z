@@ -1,7 +1,7 @@
 ---
 액션: Clash 목록에서 항목 더블클릭
 위치: 작업/데이터 탭 > Clash Detection (Z값 기준 정렬) 그룹
-대응_개발자_문서: /docs/features/drawing2d/lvclash-doubleclick.md
+대응_개발자_문서: /docs/기능/2D도면/간섭 목록 더블클릭.md
 last_updated: 2026-04-14
 ---
 
@@ -38,7 +38,7 @@ Clash(간섭) 목록에서 한 행을 더블클릭하면, 서로 부딪히는 �
 - 원래 전체 화면 보기로 돌아가고 싶으면 → [Clash 전체 보기](./Clash%20전체%20보기.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 lvclash-doubleclick.md](/docs/features/drawing2d/lvclash-doubleclick.md) 참고.
+로직 세부 구현은 [개발자 문서 간섭 목록 더블클릭.md](../../기능/2D도면/간섭 목록 더블클릭.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

@@ -1,7 +1,7 @@
 ---
 버튼: ALL
 위치: 도면정보 탭 > 도면 시트 버튼 그룹
-대응_개발자_문서: /docs/features/drawing-sheets/export-all-pdf.md
+대응_개발자_문서: /docs/기능/도면시트/전체 PDF 출력.md
 last_updated: 2026-04-14
 ---
 
@@ -61,7 +61,7 @@ last_updated: 2026-04-14
 - 가공도 시트들만 한 장에 몰아 출력하려면 → [가공도 일괄 출력](./가공도%20일괄%20출력.md)
 
 ## 🔬 자세히 보기 (개발자용)
-로직 세부 구현은 [개발자 문서 export-all-pdf.md](/docs/features/drawing-sheets/export-all-pdf.md) 참고.
+로직 세부 구현은 [개발자 문서 전체 PDF 출력.md](../../기능/도면시트/전체 PDF 출력.md) 참고.
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

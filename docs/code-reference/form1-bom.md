@@ -12,31 +12,31 @@
 - **라인**: L135~L158
 - **트리거**: `vizcore3d.OnInitializedVIZCore3D`
 - **핵심**: `InitializeLicense()` 위임(Form1.License.cs) → ToolbarDrawing2D·ModelTree 표시 → Clash/Object3D 이벤트 구독 → 엣지 데이터 생성 활성화
-- **흐름 문서**: [features/bom/vizcore3d-initialized.md](../features/bom/vizcore3d-initialized.md)
+- **흐름 문서**: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D 초기화.md)
 
 ### <a id="btnOpen_Click"></a>btnOpen_Click
 - **라인**: L209~L278
 - **트리거**: `btnOpen` 버튼 클릭
 - **핵심**: OpenFileDialog → 상태 완전 초기화 → `Model.Open` → FitToView + SilhouetteEdge + BuildBodyToPartNameMap
-- **흐름 문서**: [features/bom/open-model.md](../features/bom/open-model.md)
+- **흐름 문서**: [기능/BOM/모델 열기.md](../기능/BOM/모델 열기.md)
 
 ### <a id="btnResetToInitial_Click"></a>btnResetToInitial_Click
 - **라인**: L283~L302
 - **트리거**: `btnResetToInitial` 버튼 클릭 (3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽, 회색)
 - **핵심**: 가드 체크(`currentFilePath` + `Model.IsOpen`) → 확인 다이얼로그 → `ResetToInitialState()` 위임
-- **흐름 문서**: [features/bom/reset-to-initial.md](../features/bom/reset-to-initial.md)
+- **흐름 문서**: [기능/BOM/초기화.md](../기능/BOM/초기화.md)
 
 ### <a id="btnMainDimension_Click"></a>btnMainDimension_Click
 - **라인**: L355~L423
 - **트리거**: `btnMainDimension` 버튼 클릭
 - **핵심**: BOM → Osnap → MergeCoordinates → X/Y/Z AddChainDimensionByAxis → ShowAllDimensions → DetectClash(비동기)
-- **흐름 문서**: [features/bom/main-dimension.md](../features/bom/main-dimension.md)
+- **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인 치수 추출.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
 - **라인**: L1490~L1501
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
-- **흐름 문서**: [features/bom/collect-bom.md](../features/bom/collect-bom.md)
+- **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM 수집.md)
 
 ---
 
@@ -88,5 +88,5 @@
 ---
 
 ## 관련 문서
-- 흐름 문서: [features/bom/](../features/bom/_index.md)
+- 흐름 문서: [기능/BOM/](../기능/BOM/_인덱스.md)
 - 상위 파이프라인: [../_pipeline.md](../_pipeline.md)

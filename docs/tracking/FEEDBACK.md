@@ -73,6 +73,6 @@ _이력 없음_
 - **원문**:
   > ISO 뷰에서 풍선 노트가 부재와 겹쳐서 번호가 안 보입니다.
   > 특히 큰 조립체에서 심해요.
-- **관련 기능**: [ISO 뷰](../features/global-views/global-iso.md), [풍선 조정](../features/dimensions/balloon-adjust.md)
+- **관련 기능**: [ISO 뷰](../기능/글로벌뷰/글로벌 ISO.md), [풍선 조정](../기능/치수/풍선 위치 조정.md)
 - **분해된 작업**: (ACCEPTED 전환 시 기록) T-xxx, T-yyy
 ```

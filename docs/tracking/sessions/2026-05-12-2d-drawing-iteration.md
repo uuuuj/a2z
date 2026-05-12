@@ -61,7 +61,7 @@
   - 주요: `Form1.Dimensions.cs` (헬퍼·v1~v10 동적 분기), `Form1.DrawingSheets.cs` (RenderSheetViewForDrawing·SetGridCellMargins), `Form1.MfgDrawing.cs` (T-005 5곳)
   - 신규: `Form1.ExcelTemplate.cs` (PoC), `Form1.cs` (`_lastModelShift*` 멤버)
   - csproj: `System.Web.Extensions`, `Microsoft.VisualBasic` 참조 추가
-- **문서 변경**: CHANGELOG +934줄, TASKS.md +71줄, REQUESTS.md +4줄, excel-template-poc.md +128줄 신설
+- **문서 변경**: CHANGELOG +934줄, TASKS.md +71줄, REQUESTS.md +4줄, 엑셀 템플릿 PoC.md +128줄 신설
 - **신규 파일**: 사용자템플릿_엑셀.xlsx, 사용자템플릿_엑셀_Rev_01.xlsx, scripts/analyze-xlsx.py
 - **외부 의존성**: VIZCore3D SDK 동작 가정 (`SetGridCellMargins`, `MoveObject`, `Drawing2D.Object2D.GetObjectScale` 등)
 
@@ -110,8 +110,8 @@
 
 ## 참고 링크
 - 관련 문서:
-  - [excel-template-poc.md](../features/drawing-sheets/excel-template-poc.md) — PoC Step 1~3.5 흐름 + SDK reflection 분석
-  - [main-dimension.md](../features/dimensions/main-dimension.md) — 4경로 통합 (T-028)
+  - [엑셀 템플릿 PoC.md](../../기능/도면시트/엑셀%20템플릿%20PoC.md) — PoC Step 1~3.5 흐름 + SDK reflection 분석
+  - [메인 치수 추출.md](../../기능/BOM/메인%20치수%20추출.md) — 4경로 통합 (T-028)
 - 관련 커밋 (최근 20):
   - v10: `09515ff` — 모든 보조선 5/10mm 고정
   - 라벨 차단: `7081f84` — SetGridCellMargins 12mm

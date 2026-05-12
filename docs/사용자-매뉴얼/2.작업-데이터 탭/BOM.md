@@ -1,7 +1,7 @@
 ---
 버튼: BOM
 위치: 작업/데이터 탭 > 작업 그룹
-대응_개발자_문서: /docs/features/bom/collect-bom.md
+대응_개발자_문서: /docs/기능/BOM/BOM 수집.md
 last_updated: 2026-04-14
 ---
 
@@ -48,7 +48,7 @@ last_updated: 2026-04-14
 - 💥 부재 간 간섭 검사만 실행 → [Clash](./Clash.md)
 
 ## 🔬 자세히 보기 (개발자용)
-[개발자 문서](/docs/features/bom/collect-bom.md)
+[개발자 문서](../../기능/BOM/BOM 수집.md)
 
 ## 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
