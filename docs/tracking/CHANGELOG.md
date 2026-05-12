@@ -6,10 +6,48 @@
 
 ---
 
+## 2026-05-13 — T-040 v4: 외곽 Osnap 보조선 복귀 + Z뷰 up 부호 보정
+
+**유형**: feat (보조선 모델 관통 해소) + fix (Z뷰 up 부호)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**v3 실기 보고** (사용자 2026-05-13):
+- v3 시프트 방향 OK
+- Z뷰 세로 치수 up 부호가 -Y였는데 +Y로 보정 필요
+- **새 문제**: 제작도 보조선이 *모델 내부 Osnap*에서 시작 → 모델 관통
+
+**사용자 사양**:
+- Osnap 필수 점만 남기고 다 지운 다음, *필수 점에 수직/수평하는 제일 먼 외곽 점*을 다시 살려 그 점에서 보조선 시작
+- 수직/수평 = 현재 뷰의 화면 가로/세로 기준
+- 제일 먼 = 치수선에 가장 가까운 외곽 Osnap
+- 그 직선상 외곽 Osnap 없으면 P 그대로 (관통 감수 fallback)
+
+**v4 변경**:
+1. **외곽 Osnap 복귀** ([Form1.Dimensions.cs](A2Z/Form1.Dimensions.cs)):
+   - `_osnapPool` 멤버 변수 신설 — `mergedPoints`(원본 Osnap 풀) 보존
+   - `ResolveExtensionOrigin(p, dimAxis, offsetAxis, positiveOffset)` 헬퍼 신설
+   - 알고리즘: P의 치수축·비-offset 축 좌표 고정 → offset 축 직선 위 원본 Osnap 검색 → `positiveOffset` 방향으로 P 너머 + 치수선에 가장 가까운 점 Q 선택 → 보조선 시작점을 Q로 교체
+   - 기존 `axisPositiveOffset`/`GetRemainingAxis` 그대로 재사용
+   - `ShowAllDimensions` Level 0/1/2 3곳에서 `DrawDimension` 호출 직전 적용
+   - 풀에 없으면 P 그대로 (fallback)
+
+2. **Z뷰 세로 치수 up 부호 보정** (DrawingSheets.cs + MfgDrawing.cs):
+   - dimAxis='Y' 시프트 `Y - modelShift` → `Y + modelShift`
+
+**적용 범위**: 일반 시트(제작도) — `_osnapPool`은 치수추출 시점에만 갱신. 가공도 별도(다음 라운드)
+
+**검증 포인트**:
+- Hole 중심 등 모델 내부 Osnap에서 시작하던 보조선이 *부재 표면*에서 시작하는지
+- Z뷰 세로 치수 시프트가 *위*로 향하는지 (이전엔 아래)
+- 같은 직선상 외곽 Osnap 없는 케이스에서 fallback(P 그대로) 작동
+
+---
+
 ## 2026-05-13 — T-040 v3: 가로/세로 시프트 방향 스왑 (v2 반대)
 
 **유형**: fix (v2 시프트 방향 반대 적용 보고)
-**커밋**: `pending`
+**커밋**: `a5ca1a0`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **v2 실기 보고** (사용자 2026-05-13): "지금 반대로 적용되어 있어"

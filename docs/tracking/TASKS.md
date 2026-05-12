@@ -310,7 +310,8 @@
   - [x] **AlignDistanceTextPosition 토글 폐기 (2026-05-13)**: 실기에서 토글이 작동 안 함을 사용자 보고. Softhills 담당자 예제 기반 `Drawing2D.Measure.SetMeasureItemDistanceTextPos(int, Vector3D)`로 전환. ≤13mm 측정 텍스트를 화면 오른쪽 캔버스 30mm 시프트 (모델 mm 환산 = 30/GetObjectScale). 일반 시트 + 가공도 메인 2경로. ISO 뷰·EA·MULTI 제외. 거리는 `MeasureItem.Position` MAIN 두 좌표로 추정 (옵션 A — `MeasureItem.Distance` 속성 부재). 빌드 통과로 SDK 메서드 실재 확정 (XML 미문서)
   - [x] **v2 (2026-05-13)**: v1 실기 보고 — 가로 보조선 10mm 미시프트(시프트 방향이 항상 H라 따라감). 치수축별 시프트 분기(H면 up / V면 right) + 뷰 max≤100mm skip + 거리 30→3mm
   - [x] **v3 (2026-05-13)**: v2 사용자 보고 — "반대로 적용". 시프트 방향 분기 스왑(가로→right / 세로→up), 부호 유지
-  - [ ] **v3 실기 검증 대기** — 가로 수치 오른쪽 / 세로 수치 위로 빠지는지 + 부호 보정 필요 여부
+  - [x] **v4 (2026-05-13)**: v3 보고 — (1) Z뷰 세로 치수 up 부호 -Y→+Y 보정 (2) 새 문제 "제작도 보조선이 내부 Osnap에서 시작해 모델 관통". 외곽 Osnap 복귀 알고리즘 도입 — `_osnapPool` 보존 + `ResolveExtensionOrigin` 헬퍼로 P 대신 offset 축 직선상 *치수선 쪽 외곽 Osnap* Q에서 보조선 시작. `axisPositiveOffset` 재사용. 일반 시트만 적용, 가공도는 다음 라운드
+  - [ ] **v4 실기 검증 대기** — Hole 보조선이 부재 표면에서 시작 / Z뷰 세로 치수 위로 빠짐 / fallback(외곽 Osnap 없음) 케이스
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
   - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:

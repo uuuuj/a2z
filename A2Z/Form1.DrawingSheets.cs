@@ -2106,11 +2106,11 @@ namespace A2Z
                                             else  // 세로 → up
                                                 shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + modelShift);
                                             break;
-                                        case "Z":  // top: right=+X, up=-Y (가설)
+                                        case "Z":  // top: right=+X, up=+Y (v4 보정)
                                             if (dimAxis == 'X')  // 가로 → right
                                                 shifted = new VIZCore3D.NET.Data.Vector3D(p.X + modelShift, p.Y, p.Z);
                                             else  // dimAxis == 'Y' → 세로 → up
-                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y - modelShift, p.Z);
+                                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + modelShift, p.Z);
                                             break;
                                         default:
                                             shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
