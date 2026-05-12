@@ -6,10 +6,34 @@
 
 ---
 
+## 2026-05-13 — T-040 v2: 치수축별 시프트 방향 + max≤100mm skip + 30→3mm
+
+**유형**: fix (v1 사양 보강 — 가로 보조선 미작동 해결)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**v1 실기 보고** (사용자 2026-05-13):
+- 아래로 뻗는 10mm (세로 보조선): ✅ 옆으로 시프트
+- 오른쪽으로 뻗는 10mm (가로 보조선): ❌ 보조선 안 갇힘 — 시프트 방향이 항상 화면 H라 보조선과 같은 방향으로 따라감
+
+**v2 변경**:
+1. **시프트 방향 치수축별 분기** — MAIN 두 좌표 차이가 가장 큰 축을 치수축으로 추정. 치수축이 화면 H면 **up(위)** / V면 **right(오른쪽)** 시프트. 뷰별 매핑: X뷰(H=Y,V=Z) / Y뷰(H=X,V=Z) / Z뷰(H=X,V=Y, up=-Y 가설)
+2. **뷰 max estDist ≤ 100mm 시 전체 skip** — 작은 모델 시프트 불필요. 1차 패스로 maxEstDist 계산
+3. **시프트 거리 30 → 3mm**
+
+**적용 경로**: 일반 시트 + 가공도 메인
+
+**검증 포인트** (사용자 사내 PC):
+- 가로 보조선 10mm가 위로 빠지는지
+- 100mm 이하 작은 모델 뷰에서 시프트 0건 (DiagLog `skip (maxEstDist=...)`) 확인
+- 3mm 크기 적정성 / Z뷰 up 부호 (-Y 가설)
+
+---
+
 ## 2026-05-13 — T-040: 치수 텍스트 SetMeasureItemDistanceTextPos 전환 PoC
 
 **유형**: feat (Softhills 담당자 예제 기반 신규 방식 도입)
-**커밋**: `pending`
+**커밋**: `63b9659`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **배경**: `AlignDistanceTextPosition` 토글(1=위 / 2=바깥)이 실기에서 작동 안 함을 사용자 보고. 담당자(Softhills) 예제 코드에 따라 `Drawing2D.Measure.SetMeasureItemDistanceTextPos(int id, Vector3D pos)`로 텍스트 위치를 절대 좌표 시프트.
