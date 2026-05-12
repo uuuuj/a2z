@@ -517,11 +517,7 @@ namespace A2Z
                     baseOffset = canvasBase / canvasScaleOverride;
                     levelSpacing = canvasLvl / canvasScaleOverride;
 
-                    // T-038+039 v5 (2026-05-12 사용자 사양): "X, Y, Z 모두 위아래로 표시되는 보조선은
-                    // 조건부가 아니라 그냥 절반". 즉 화면 V(수직) 방향 보조선 빠지는 축은 *무조건* 절반.
-                    // 화면 V 방향 보조선 = hAxis_3d 축 dim (보조선 빠지는 방향 = vAxis_3d)
-                    // 잠깐 — 보조선이 그려지는 *방향*이 vAxis_3d면 보조선 *길이*가 V 방향. 그 dim은 hAxis_3d.
-                    // 즉 hAxis_3d 축 dim의 보조선이 화면 V 방향. → hAxis_3d를 항상 axisShortHalf에 추가.
+                    // T-038+039 v5: 위아래 보조선 (hAxis_3d) 무조건 절반
                     string hAxisTemp;
                     switch (viewDirection)
                     {
@@ -532,8 +528,21 @@ namespace A2Z
                     }
                     axisShortHalf.Add(hAxisTemp);
 
-                    // (v3 조건부 짧은 축 폐기 — 사용자 결정 "그냥 절반")
-                    DiagLog($"T-038+039 v5 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} verticalHalfAxis={hAxisTemp}");
+                    // T-038+039 v7 (2026-05-12 사용자 사양): 짧은 축 1/2 이하면 절반 (v3 부활, 기준 1/3→1/2)
+                    // v5의 위아래 무조건 절반과 결합 — 두 조건 모두 적용 (둘 다 해당하면 0.5배 한 번만)
+                    var axisMaxes = filteredDims.GroupBy(d => d.Axis)
+                        .ToDictionary(g => g.Key, g => g.Max(d => d.Distance));
+                    if (axisMaxes.Count >= 2)
+                    {
+                        float globalMaxMax = axisMaxes.Max(kv => kv.Value);
+                        foreach (var kv in axisMaxes)
+                        {
+                            if (kv.Value < globalMaxMax / 2f)
+                                axisShortHalf.Add(kv.Key);
+                        }
+                    }
+
+                    DiagLog($"T-038+039 v7 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase} canvasLvl={canvasLvl} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} verticalHalfAxis={hAxisTemp} shortAxes=[{string.Join(",", axisShortHalf)}] axisMaxes=[{string.Join(",", axisMaxes.Select(kv => $"{kv.Key}={kv.Value:F0}"))}]");
                 }
                 else
                 {
@@ -604,15 +613,18 @@ namespace A2Z
                         canvasVOff = axisShortHalf.Contains(hAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
                     }
 
-                    // 이동량 = 외곽 반대 방향 (positiveOffset=true면 H+ 외곽이라 모델 H- 이동)
-                    // T-038+039 v6 (2026-05-12 사용자 사양):
-                    //   1) ShiftScale 0.5 → 0.25 — 모델이 라벨까지 침범하지 않도록 추가 축소
-                    //   2) Y뷰 dx 부호 반전 — SDK Y+ 카메라에서 3D X+ = 화면 왼쪽 (오른손 좌표계 추정)
-                    const float ShiftScale = 0.25f;
+                    // T-038+039 v7 (2026-05-12 사용자 사양): vPositive=false (치수 아래) 시 위 이동량 더 크게
+                    //   — Y/X 뷰에서 모델이 라벨 가림 현상 해소
+                    // ShiftScale 비대칭:
+                    //   vPositive=true (외곽 위, 모델 아래 이동): 0.25 (라벨 안전 유지)
+                    //   vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동): 0.5 (이전 2배)
+                    // Y뷰 dx 부호 반전 (v6 유지)
+                    float vShiftScale = vPositive ? 0.25f : 0.5f;
+                    const float hShiftScale = 0.25f;
                     float hSign = (viewDirection == "Y") ? -1f : 1f;
-                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * ShiftScale * hSign;
-                    _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * ShiftScale;
-                    DiagLog($"T-038+039 v6 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} ShiftScale={ShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
+                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * hShiftScale * hSign;
+                    _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * vShiftScale;
+                    DiagLog($"T-038+039 v7 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========

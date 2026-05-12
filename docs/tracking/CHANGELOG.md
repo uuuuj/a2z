@@ -6,6 +6,52 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v7 + BOM/tableInfo 미세 이동
+
+**유형**: feat (사용자 사양 4건)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**사용자 사양 (2026-05-12) — 4건**:
+1. BOM 테이블 오른쪽으로 1
+2. 도면정보 테이블 오른쪽 + 위로 1
+3. 짧은 축 보조선 절반 기준 1/3 → 1/2 (v3 부활 + v5 위아래 결합)
+4. Y/X 뷰에서 치수 아래로 그려진 모델이 라벨 가림 → 위로 더 이동
+
+**사용자 질문 답**: 현재(v6) 이동 조건 = `외곽 반대 방향 × canvasMaxOff × 0.25 (균등) + Y뷰 dx 반전`. *vPositive=false(치수 아래) 시 위 이동량 키움*으로 4번 해결.
+
+**구현**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1 | [Form1.DrawingSheets.cs:1287](A2Z/Form1.DrawingSheets.cs:1287) | `SetGridCellMargins(1, 3, 11, 10, 10, 10)` — BOM 셀 왼쪽 마진 +1 (오른쪽 1mm) |
+| 2 | [Form1.DrawingSheets.cs:1288](A2Z/Form1.DrawingSheets.cs:1288) | `SetGridCellMargins(2, 3, 11, 10, 10, 11)` — tableInfo 왼쪽+하단 +1 (오른쪽 + 위로) |
+| 3 | [Form1.Dimensions.cs:520~](A2Z/Form1.Dimensions.cs:520) | axisShortHalf 결정 — v5(hAxis_3d 무조건) + v3 부활(짧은 축 *1/2 이하*, 기존 1/3 변경). 두 조건 결합 (HashSet 자동 중복 제거) |
+| 4 | [Form1.Dimensions.cs:610~](A2Z/Form1.Dimensions.cs:610) | ShiftScale 비대칭 — `vShiftScale = vPositive ? 0.25f : 0.5f`. 위 이동(외곽 아래) 시 2배. hShiftScale 0.25 유지 |
+
+**v7 적용 매트릭스**:
+| 조건 | V 이동량 | 의미 |
+|---|---|---|
+| vPositive=true (외곽 위, 모델 아래 이동) | × 0.25 | 라벨 안전 유지 |
+| vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동) | × 0.5 | 라벨 가림 해소 (2배 위로) |
+| H 이동 | × 0.25 (Y뷰는 부호 반전) | 균등 |
+
+**axisShortHalf 결합 규칙**:
+1. `hAxis_3d` (위아래 보조선 빠지는 축) — 무조건 추가
+2. `axisMaxes`에서 `kv.Value < globalMaxMax / 2f` — 짧은 축 (1/2 이하) 추가
+3. HashSet이라 둘 다 해당하면 한 번만 (= 0.5배 한 번만)
+
+**DiagLog v7**:
+- `T-038+039 v7 view=X ... shortAxes=[X,Y] axisMaxes=[X=60,Y=1500]`
+- `T-038+039 v7 ModelShift ... hShiftScale=0.25 vShiftScale=0.5 hSign=N → shiftXY=(N, N)`
+
+**검증 포인트**:
+- BOM/tableInfo 1mm 이동 (시각 확인)
+- 짧은 축(1/2 이하)의 보조선 절반 — 이전 1/3 기준 케이스에서 효과 명확
+- Y/X 뷰에서 치수 아래일 때 모델 *2배 위로 이동* → 라벨 가림 해소
+
+---
+
 ## 2026-05-12 — T-038 step C: 라벨 영역 명시 차단 (SetGridCellMargins bottom=12mm)
 
 **유형**: feat (사용자 사양)

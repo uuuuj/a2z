@@ -1283,6 +1283,11 @@ namespace A2Z
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
+
+                    // 2026-05-12 사용자 사양: BOM 테이블 오른쪽으로 1, 도면정보 테이블 오른쪽+위로 1 이동
+                    // SetGridCellMargins(row, col, left, right, top, bottom) — 왼쪽 마진 +1 = 내용 오른쪽 1mm 이동
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 3, 11f, 10f, 10f, 10f);   // BOM
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 3, 11f, 10f, 10f, 11f);   // tableInfo (bottom 11 = 위로 1)
                 }
 
                 // ── 4. 템플릿 생성 (외곽 테두리) ──
