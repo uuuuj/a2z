@@ -915,13 +915,10 @@ namespace A2Z
 
                 VIZCore3D.NET.Data.Vertex3D center = new VIZCore3D.NET.Data.Vertex3D(bom.CenterX, bom.CenterY, bom.CenterZ);
 
-                // 3D 방향: 모델 중심 → 부재 중심 (XY 평면)
-                float initDirX = bom.CenterX - mCenterX;
-                float initDirY = bom.CenterY - mCenterY;
-                float initDirLen = (float)Math.Sqrt(initDirX * initDirX + initDirY * initDirY);
-                if (initDirLen < 0.001f) { initDirX = 1f; initDirY = 0f; initDirLen = 1f; }
-                initDirX /= initDirLen;
-                initDirY /= initDirLen;
+                // 2026-05-12 사용자 사양: 풍선은 좌/우만 향하게 (Y 성분 0)
+                // 부재 중심의 X 방향으로만 풍선 배치 — 위/아래에는 배치 X
+                float initDirX = (bom.CenterX > mCenterX) ? 1f : -1f;
+                float initDirY = 0f;
 
                 // 2026-05-12 사용자 사양: 부재 중심이 모델 BBox 절반 너머(외곽)면 풍선 거리 절반
                 var bomProj = isoProject(bom.CenterX, bom.CenterY, bom.CenterZ);
@@ -968,14 +965,13 @@ namespace A2Z
                     }
                     else
                     {
-                        // 3D XY 평면에서 회전 + 거리 증가
-                        float rotAngle = (float)((attempt / 2 + 1) * 15 * Math.PI / 180);
-                        if (attempt % 2 == 1) rotAngle = -rotAngle;
-                        float cosA = (float)Math.Cos(rotAngle);
-                        float sinA = (float)Math.Sin(rotAngle);
+                        // 2026-05-12 사용자 사양: 회전 X (수평만), Y 슬롯으로만 회피 (위/아래 풍선 간격)
+                        // attempt 0: 그대로, 1: 거리 +15%, 2: Y+슬롯, 3: Y-슬롯, 4: 거리 +30% Y+슬롯, ...
                         float newOffset = perMemberOffset * (1f + (attempt / 4) * 0.15f);
-                        noteX = bom.CenterX + (cosA * initDirX - sinA * initDirY) * newOffset;
-                        noteY = bom.CenterY + (sinA * initDirX + cosA * initDirY) * newOffset;
+                        float yShift = ((attempt % 4) / 2) * (balloonHalfH * 2.5f);  // 0, 0, 1×Y, 1×Y
+                        if ((attempt % 4) == 3) yShift = -yShift;                     // Y- 방향
+                        noteX = bom.CenterX + initDirX * newOffset;
+                        noteY = bom.CenterY + yShift;
                         noteZ = bom.CenterZ;
                         projNote = isoProject(noteX, noteY, noteZ);
                     }
@@ -1301,10 +1297,10 @@ namespace A2Z
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
 
-                    // 2026-05-12 사용자 사양: BOM 테이블 오른쪽으로 1, 도면정보 테이블 오른쪽+위로 1 이동
-                    // SetGridCellMargins(row, col, left, right, top, bottom) — 왼쪽 마진 +1 = 내용 오른쪽 1mm 이동
-                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 3, 11f, 10f, 10f, 10f);   // BOM
-                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 3, 11f, 10f, 10f, 11f);   // tableInfo (bottom 11 = 위로 1)
+                    // 2026-05-12 사용자 사양 (누적): BOM 오른쪽 2 + 위 1, 도면정보 오른쪽 2 + 위 3
+                    // SetGridCellMargins(row, col, left, right, top, bottom)
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 3, 12f, 10f, 10f, 11f);   // BOM (left 12, bottom 11)
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 3, 12f, 10f, 10f, 13f);   // tableInfo (left 12, bottom 13)
                 }
 
                 // ── 4. 템플릿 생성 (외곽 테두리) ──

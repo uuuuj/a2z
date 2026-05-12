@@ -6,6 +6,60 @@
 
 ---
 
+## 2026-05-12 — ISO 풍선 좌/우만 + BOM·도면정보 누적 이동
+
+**유형**: feat (사용자 사양 3건)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-006 / FB-004 / 도면정보 영역
+
+**사용자 사양 (2026-05-12)** — 3건:
+1. ISO 풍선 *좌/우만* 향하게 (위/아래 배치 X)
+2. BOM 테이블 위 1 + 오른쪽 1 더 (누적 위 1, 오른쪽 2)
+3. 도면정보 테이블 위 2 + 오른쪽 1 더 (누적 위 3, 오른쪽 2)
+
+**구현**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1a | [Form1.DrawingSheets.cs:911~](A2Z/Form1.DrawingSheets.cs:911) | `initDir` 결정 — `initDirX = sign(bom.CenterX - mCenterX)`, `initDirY = 0` (수평 강제) |
+| 1b | [Form1.DrawingSheets.cs:955~](A2Z/Form1.DrawingSheets.cs:955) | 회피 알고리즘 — 회전 제거, Y 슬롯만. `attempt % 4` 패턴: 0=정위치, 1=거리+15%, 2=Y+슬롯, 3=Y-슬롯, 4=거리+30% ... |
+| 2 | [Form1.DrawingSheets.cs:1289](A2Z/Form1.DrawingSheets.cs:1289) | BOM 셀(1,3) `SetGridCellMargins(1, 3, 12f, 10f, 10f, 11f)` (left 11→12, bottom 10→11) |
+| 3 | [Form1.DrawingSheets.cs:1290](A2Z/Form1.DrawingSheets.cs:1290) | tableInfo 셀(2,3) `SetGridCellMargins(2, 3, 12f, 10f, 10f, 13f)` (left 11→12, bottom 11→13) |
+
+**풍선 회피 알고리즘 (수평 전용)**:
+```
+yShift = ((attempt % 4) / 2) × (balloonHalfH × 2.5)
+if ((attempt % 4) == 3) yShift = -yShift
+newOffset = perMemberOffset × (1 + (attempt / 4) × 0.15)
+noteX = bom.CenterX + initDirX × newOffset
+noteY = bom.CenterY + yShift
+```
+
+**회피 매트릭스 (attempt % 4)**:
+| attempt | 거리 증가 | Y 슬롯 |
+|---|---|---|
+| 0 | +0% | 0 |
+| 1 | +15%? (attempt/4=0 이라 0%) | 0 |
+| 2 | +15% (attempt/4=0이라 0%) | +1×Y |
+| 3 | +15% (attempt/4=0이라 0%) | −1×Y |
+| 4 | +15% | 0 |
+| 8 | +30% | 0 |
+
+수정 — attempt/4가 *나누기 정수*라 1, 2, 3은 0이고 4부터 1. 즉 거리 증가 4 단계마다. 사이에 Y 슬롯 변화.
+
+**테이블 마진 누적 매트릭스**:
+| 셀 | left | bottom | 이동 의미 |
+|---|---|---|---|
+| BOM (1,3) | 12 | 11 | 오른쪽 2 + 위 1 |
+| tableInfo (2,3) | 12 | 13 | 오른쪽 2 + 위 3 |
+
+**검증 포인트** (사용자 사내 PC):
+- ISO 풍선이 *부재 좌/우*에만 (위/아래 X)
+- BOM이 *오른쪽으로 1, 위로 1* 추가 이동
+- 도면정보가 *오른쪽 1, 위로 2* 추가 이동
+
+---
+
 ## 2026-05-12 — ISO 풍선 외곽 부재 거리 절반 (셀 침범 방지)
 
 **유형**: feat (사용자 사양)
