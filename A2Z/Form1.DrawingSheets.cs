@@ -1573,6 +1573,11 @@ namespace A2Z
         /// </summary>
         private int RenderSheetViewForDrawing(int row, int col, string viewDirection, DrawingSheetData sheet, float targetHeight = 0f)
         {
+            // T-038+039 v9 (2026-05-12): 매 뷰 시작 시 _lastModelShift 초기화.
+            // ShowAllDimensions 안 호출되는 ISO 뷰에서 *이전 뷰의 잔존 값*으로 이동되는 버그 차단.
+            _lastModelShiftCanvasX = 0f;
+            _lastModelShiftCanvasY = 0f;
+
             List<int> shapeDrawingIds = null;
             List<int> visibleNoteIds = null;  // ISO 뷰 풍선 가시성 필터링용
             int bgObjId = -1;  // Sheet 2+ ISO: 나머지 부재 배경 2D 객체 ID
@@ -1935,9 +1940,10 @@ namespace A2Z
                 }
                 else
                 {
-                    // T-038 step B-3 (2026-05-12): 0.85 → 0.75 (텍스트·풍선 5배 키움과 같이 적용)
+                    // T-038 step B-3 → v9 (2026-05-12 사용자 사양): Z뷰만 0.75 → 0.70 (5% 더 축소)
+                    float shrinkFactor = (viewDirection == "Z") ? 0.70f : 0.75f;
                     float curScaleObj = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                    vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * 0.75f);
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * shrinkFactor);
                 }
 
                 // T-038+039 v4 (2026-05-12): 보조선 반대 방향 모델 이동 (ShowAllDimensions가 _lastModelShift* 채움)

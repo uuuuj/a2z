@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v9: ISO 잔존 이동 버그 차단 + Z뷰 추가 5% 축소
+
+**유형**: fix + feat (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**사용자 질의 + 사양 (2026-05-12)**:
+1. *"ISO 뷰도 이동하는게 있어?"* → **버그 발견**
+2. *"Z평면도는 스케일 조금 더 줄여야겠다 5정도 더 줄여줘"* → 0.75 → 0.70
+
+**버그 분석**:
+- `_lastModelShiftCanvasX/Y`가 멤버 변수, `RenderSheetViewForDrawing` 시작부 초기화 X
+- 4뷰 순서 **ISO → Z → Y → X**. ISO는 `ShowAllDimensions` 안 호출
+- → ISO 처리 시점에 *이전 뷰/시트의 마지막 shiftXY 값* 잔존 → 의도 안 한 이동
+- 첫 시트 ISO만 0 시작, 이후 시트는 이전 X뷰 값 잔존
+
+**구현**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1 | [Form1.DrawingSheets.cs:1503~](A2Z/Form1.DrawingSheets.cs:1503) | `RenderSheetViewForDrawing` 진입부에 `_lastModelShiftCanvasX = 0f; _lastModelShiftCanvasY = 0f;` 명시 초기화 |
+| 2 | [Form1.DrawingSheets.cs:1907~](A2Z/Form1.DrawingSheets.cs:1907) | objId RescaleObject 분기 — `shrinkFactor = (viewDirection == "Z") ? 0.70f : 0.75f` 뷰별 차등 |
+
+**스케일 매트릭스 (v9)**:
+| 뷰 | 스케일 |
+|---|---|
+| ISO | 0.75 (변화 없음) |
+| **Z (평면도)** | **0.70** (사용자 사양 — 5% 더 축소) |
+| X / Y | 0.75 (변화 없음) |
+| bgObjId (ISO Sheet 2+ 배경) | 0.75 (L1731, viewDirection="ISO"이라 분기 영향 X) |
+
+**효과**:
+- ISO 뷰가 *정확히* 셀 중앙(이동 0)에 위치
+- Z뷰 모델 5% 더 작아 셀 안 여유 확보
+
+**검증 포인트** (사용자 사내 PC):
+- ISO 뷰 *정중앙* 배치 (이동 X)
+- Z뷰 모델이 다른 뷰 대비 *살짝 작음*
+- 4뷰 시각 균형
+
+---
+
 ## 2026-05-12 — T-038+039 v8: 뷰별 차등 vShiftScale 공식
 
 **유형**: fix (사용자 사양)
