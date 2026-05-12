@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-05-12 — ISO 풍선 외곽 부재 거리 절반 (셀 침범 방지)
+
+**유형**: feat (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-006 / FB-004 (ISO 풍선 영역)
+
+**사용자 사양 (2026-05-12)**: *"풍선을 모두 같은 길이로 바깥에 배치하니까 중앙 안쪽 부재 풍선은 알맞은데, 가장자리 부재는 셀을 나가서 풍선 표시됨. 외곽 부재 풍선 길이 반으로 줄이면 좋겠음."*
+
+**판정 기준**: 부재 중심을 ISO 투영한 (bh, bv)가 모델 BBox 중심에서 **정규화 거리 > 0.5**면 외곽.
+
+```
+distH = |bh - modelCenterH|, distV = |bv - modelCenterV|
+normalizedDist = max(distH / modelHalfH, distV / modelHalfV)  // 0~1
+isOuter = (normalizedDist > 0.5)
+perMemberOffset = isOuter ? baseOffsetDist × 0.5 : baseOffsetDist
+```
+
+**구현** ([Form1.DrawingSheets.cs:883~](A2Z/Form1.DrawingSheets.cs:883)):
+
+| 위치 | 변경 |
+|---|---|
+| L883 (aabbPad 전) | `modelH/V_min/max_orig` + `modelCenterH/V_orig` + `modelHalfH/V_orig` 보존 (충돌 검사용 패딩 제외) |
+| L918 (각 부재 처리) | 부재 중심 isoProject → `normalizedDist` 계산 → `perMemberOffset` 결정 |
+| L919~920 (noteX/Y 초기 위치) | `baseOffsetDist` → `perMemberOffset` |
+| L959 (회피 newOffset) | `baseOffsetDist` → `perMemberOffset` |
+
+**효과**:
+- 중앙 50% 영역 부재: 풍선 거리 그대로 (baseOffsetDist)
+- 외곽 50% 영역 부재: 풍선 거리 절반 → 셀 안에 들어옴
+- 회피 알고리즘도 perMemberOffset 기준 → 외곽 부재 회피도 절반 거리에서 시작
+
+**검증 포인트** (사용자 사내 PC):
+- 외곽 부재 풍선이 *셀 안*에 들어옴
+- 중앙 부재 풍선 그대로 (모델 밖 적절 위치)
+- 풍선 충돌 회피 정상 동작
+
+**잔여**:
+- 정규화 기준 0.5 조정 (0.3 또는 0.7)
+- 가장자리 강도 단계화 (2단계 → 3단계 분류) — 필요 시
+
+---
+
 ## 2026-05-12 — T-038+039 v9: ISO 잔존 이동 버그 차단 + Z뷰 추가 5% 축소
 
 **유형**: fix + feat (사용자 사양)

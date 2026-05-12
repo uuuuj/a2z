@@ -881,6 +881,14 @@ namespace A2Z
                         modelV_min = Math.Min(modelV_min, p.v);
                         modelV_max = Math.Max(modelV_max, p.v);
                     }
+            // 2026-05-12 사용자 사양: 외곽 부재 풍선 거리 절반 — 정규화 거리 계산용 원래 BBox 보존
+            float modelH_min_orig = modelH_min, modelH_max_orig = modelH_max;
+            float modelV_min_orig = modelV_min, modelV_max_orig = modelV_max;
+            float modelHalfH_orig = (modelH_max_orig - modelH_min_orig) / 2f;
+            float modelHalfV_orig = (modelV_max_orig - modelV_min_orig) / 2f;
+            float modelCenterH_orig = (modelH_min_orig + modelH_max_orig) / 2f;
+            float modelCenterV_orig = (modelV_min_orig + modelV_max_orig) / 2f;
+
             float aabbPad = Math.Max(modelH_max - modelH_min, modelV_max - modelV_min) * 0.05f;
             modelH_min -= aabbPad; modelH_max += aabbPad;
             modelV_min -= aabbPad; modelV_max += aabbPad;
@@ -915,9 +923,18 @@ namespace A2Z
                 initDirX /= initDirLen;
                 initDirY /= initDirLen;
 
+                // 2026-05-12 사용자 사양: 부재 중심이 모델 BBox 절반 너머(외곽)면 풍선 거리 절반
+                var bomProj = isoProject(bom.CenterX, bom.CenterY, bom.CenterZ);
+                float dh = Math.Abs(bomProj.h - modelCenterH_orig);
+                float dv = Math.Abs(bomProj.v - modelCenterV_orig);
+                float normalizedDist = Math.Max(
+                    modelHalfH_orig > 0.001f ? dh / modelHalfH_orig : 0f,
+                    modelHalfV_orig > 0.001f ? dv / modelHalfV_orig : 0f);
+                float perMemberOffset = (normalizedDist > 0.5f) ? baseOffsetDist * 0.5f : baseOffsetDist;
+
                 // 3D 위치 후보 → 2D 투영 → AABB 검사 → 충돌 시 3D 회전
-                float noteX = bom.CenterX + initDirX * baseOffsetDist;
-                float noteY = bom.CenterY + initDirY * baseOffsetDist;
+                float noteX = bom.CenterX + initDirX * perMemberOffset;
+                float noteY = bom.CenterY + initDirY * perMemberOffset;
                 float noteZ = bom.CenterZ;
                 var projNote = isoProject(noteX, noteY, noteZ);
 
@@ -956,7 +973,7 @@ namespace A2Z
                         if (attempt % 2 == 1) rotAngle = -rotAngle;
                         float cosA = (float)Math.Cos(rotAngle);
                         float sinA = (float)Math.Sin(rotAngle);
-                        float newOffset = baseOffsetDist * (1f + (attempt / 4) * 0.15f);
+                        float newOffset = perMemberOffset * (1f + (attempt / 4) * 0.15f);
                         noteX = bom.CenterX + (cosA * initDirX - sinA * initDirY) * newOffset;
                         noteY = bom.CenterY + (sinA * initDirX + cosA * initDirY) * newOffset;
                         noteZ = bom.CenterZ;
