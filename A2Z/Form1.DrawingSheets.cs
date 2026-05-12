@@ -1389,7 +1389,7 @@ namespace A2Z
                 // [라벨] 뷰 라벨은 모델 배치·크기조정·위치이동 후에 렌더링 (아래 MoveObject 이후)
 
                 // 2D 모델 라인 두께 전역 설정 + 치수선/보조선 가늘게
-                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 2.0f;
+                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
 
                 // 2D 치수 텍스트 크기 설정 (스케일 축소 후 가독성 유지를 위해 작게)

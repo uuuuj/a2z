@@ -622,11 +622,7 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
-                    // T-040: 보조선 시작점을 외곽 Osnap으로 복귀
-                    string offAx = GetRemainingAxis(viewDirection ?? "X", dim.Axis);
-                    var sp = ResolveExtensionOrigin(dim.StartPoint, dim.Axis, offAx, posOff);
-                    var ep = ResolveExtensionOrigin(dim.EndPoint, dim.Axis, offAx, posOff);
-                    DrawDimension(sp, ep, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv1, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
@@ -637,10 +633,7 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
-                    string offAx = GetRemainingAxis(viewDirection ?? "X", dim.Axis);
-                    var sp = ResolveExtensionOrigin(dim.StartPoint, dim.Axis, offAx, posOff);
-                    var ep = ResolveExtensionOrigin(dim.EndPoint, dim.Axis, offAx, posOff);
-                    DrawDimension(sp, ep, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv2, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
@@ -653,10 +646,7 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
-                    string offAx = GetRemainingAxis(viewDirection ?? "X", dim.Axis);
-                    var sp = ResolveExtensionOrigin(dim.StartPoint, dim.Axis, offAx, posOff);
-                    var ep = ResolveExtensionOrigin(dim.EndPoint, dim.Axis, offAx, posOff);
-                    DrawDimension(sp, ep, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv0, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
@@ -1911,7 +1901,6 @@ namespace A2Z
                 // REQ-003 (2026-05-11): osnapPointsWithNames는 3원소(axis 포함)지만 MergeCoordinates는 2원소만 받음 → 변환
                 var osnapPts2 = osnapPointsWithNames.Select(p => (p.point, p.nodeName)).ToList();
                 List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(osnapPts2, tolerance);
-                _osnapPool = mergedPoints;  // T-040: 외곽 보조선 복귀용 원본 풀 보존
 
                 // X축 방향 체인 치수 (Y, Z가 같은 점들)
                 var xDimensions = AddChainDimensionByAxis(mergedPoints, "X", tolerance);
@@ -2039,61 +2028,6 @@ namespace A2Z
                 if (a != viewDirection && a != dimAxis) return a;
             }
             return "X";
-        }
-
-        // ─── T-040 외곽 보조선 시작점 풀 (제작도 보조선이 모델 관통 회피) ───
-        // _osnapPool: 가장 최근 치수추출 시점의 원본 Osnap 풀 (mergedPoints 직후 보존)
-        // 보조선 시작점을 P(필수 점) 대신 P를 지나는 offset 축 직선상의
-        // 치수선 쪽 외곽 Osnap Q로 교체. 풀에 없으면 P 그대로 (관통 감수 fallback).
-        private List<VIZCore3D.NET.Data.Vector3D> _osnapPool;
-        private const float OSNAP_POOL_TOLERANCE = 0.5f;
-
-        private VIZCore3D.NET.Data.Vector3D ResolveExtensionOrigin(
-            VIZCore3D.NET.Data.Vector3D p,
-            string dimAxis,
-            string offsetAxis,
-            bool positiveOffset)
-        {
-            if (_osnapPool == null || _osnapPool.Count == 0) return p;
-
-            // 비-offset 축 = X·Y·Z 중 (dimAxis, offsetAxis) 제외한 하나
-            string otherAxis = "X";
-            foreach (var a in new[] { "X", "Y", "Z" })
-                if (a != dimAxis && a != offsetAxis) { otherAxis = a; break; }
-
-            float pDim = GetAxisValue(p, dimAxis);
-            float pOther = GetAxisValue(p, otherAxis);
-            float pOff = GetAxisValue(p, offsetAxis);
-            float tol = OSNAP_POOL_TOLERANCE;
-
-            VIZCore3D.NET.Data.Vector3D best = null;
-            if (positiveOffset)
-            {
-                // 치수선이 +offset 쪽 → P보다 큰 offset 좌표 중 최대
-                float bestVal = float.MinValue;
-                foreach (var c in _osnapPool)
-                {
-                    if (Math.Abs(GetAxisValue(c, dimAxis) - pDim) > tol) continue;
-                    if (Math.Abs(GetAxisValue(c, otherAxis) - pOther) > tol) continue;
-                    float cv = GetAxisValue(c, offsetAxis);
-                    if (cv <= pOff + tol) continue;
-                    if (cv > bestVal) { bestVal = cv; best = c; }
-                }
-            }
-            else
-            {
-                // 치수선이 -offset 쪽 → P보다 작은 offset 좌표 중 최소
-                float bestVal = float.MaxValue;
-                foreach (var c in _osnapPool)
-                {
-                    if (Math.Abs(GetAxisValue(c, dimAxis) - pDim) > tol) continue;
-                    if (Math.Abs(GetAxisValue(c, otherAxis) - pOther) > tol) continue;
-                    float cv = GetAxisValue(c, offsetAxis);
-                    if (cv >= pOff - tol) continue;
-                    if (cv < bestVal) { bestVal = cv; best = c; }
-                }
-            }
-            return best ?? p;
         }
 
         private List<ChainDimensionData> AddChainDimensionByAxis(

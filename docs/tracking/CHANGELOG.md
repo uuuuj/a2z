@@ -6,10 +6,50 @@
 
 ---
 
+## 2026-05-13 — T-040 v5: 외곽 Osnap 복귀 롤백 + 모델 라인 굵기 2→3mm
+
+**유형**: revert (v4 외곽 Osnap 알고리즘 폐기) + feat (모델 굵기 증가)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**v4 실기 보고** (사용자 2026-05-13):
+- v4 외곽 Osnap 복귀가 *반대 방향*(치수선에서 가장 먼 외곽 Osnap)에서 시작됨
+- 사용자가 회사 PC에서 부호 반전 시도 (`if (positiveOffset)` → `if (!positiveOffset)`) — 그래도 동일 결과
+- 사용자 결정: "외곽 Osnap 복귀 시도 취소" → 다른 방향(모델 굵기)로 전환
+
+**v5 변경**:
+1. **외곽 Osnap 알고리즘 전체 롤백** ([Form1.Dimensions.cs](A2Z/Form1.Dimensions.cs)):
+   - `_osnapPool` 멤버 변수·`OSNAP_POOL_TOLERANCE` 상수 제거
+   - `ResolveExtensionOrigin` 헬퍼 제거
+   - `mergedPoints` 직후 `_osnapPool = ...` 갱신 제거
+   - `ShowAllDimensions` Level 0/1/2 3곳의 startPoint/endPoint 교체 코드 제거 → v3 시점(`DrawDimension(dim.StartPoint, dim.EndPoint, ...)`)으로 복귀
+2. **모델 라인 굵기 증가** (`ModelLineThickness` 2.0 → 3.0):
+   - [Form1.DrawingSheets.cs:1392](A2Z/Form1.DrawingSheets.cs:1392)
+   - [Form1.MfgDrawing.cs:691](A2Z/Form1.MfgDrawing.cs:691)
+
+**근거** (사용자 사양 전환):
+- 보조선이 모델 관통하는 문제 → *외곽 점에서 시작* 시도는 알고리즘 복잡 + 결과 어긋남
+- 대안: *모델 라인을 보조선보다 진하게* → 시각적 우선순위 → 보조선이 덜 거슬림
+- 보조선 굵기 0.3~0.5mm 그대로. 모델 3.0 → 6~10배 차이
+
+**적용 범위**: 일반 시트 + 가공도 메인 모두
+
+**남아있는 v3 동작** (변경 없음):
+- 치수 텍스트 시프트 (≤13mm, 캔버스 3mm)
+- 치수축별 시프트 방향 (가로→right / 세로→up)
+- max≤100mm skip
+- Z뷰 up 부호 +Y (v4에서 보정한 거 유지)
+
+**검증 포인트**:
+- 모델이 보조선보다 *눈에 띄게 진한지* (3mm 적정한지 / 더 굵게 / 덜 굵게)
+- 부재 윤곽 가독성 변화
+
+---
+
 ## 2026-05-13 — T-040 v4: 외곽 Osnap 보조선 복귀 + Z뷰 up 부호 보정
 
 **유형**: feat (보조선 모델 관통 해소) + fix (Z뷰 up 부호)
-**커밋**: `pending`
+**커밋**: `84b852e`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **v3 실기 보고** (사용자 2026-05-13):

@@ -688,7 +688,7 @@ namespace A2Z
                 table2.Y = bInfo.MinY;   // 테두리 하단
                 vizcore3d.Drawing2D.Template.RenderTemplate(table2);
 
-                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 2.0f;
+                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(5f);
 
