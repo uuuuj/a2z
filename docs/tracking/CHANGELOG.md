@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-05-12 — T-038+039 v6: Y뷰 dx 반전 + 이동량 × 0.25 (라벨 침범 방지)
+
+**유형**: fix (사용자 사양)
+**커밋**: (이번 커밋)
+**관련 TASK**: T-038 / T-039 (IN_PROGRESS)
+
+**v5 검증 결과** (사용자 보고):
+1. Y뷰에서 모델이 *왼쪽으로* 이동했는데 보조선도 왼쪽 — 같은 방향(잘못)
+2. 모델이 *라벨 영역까지 침범*해 라벨과 겹침 (라벨은 제자리 그대로)
+
+**원인 진단**:
+1. SDK Y+ 카메라 좌표계에서 *3D X+ = 화면 왼쪽* (오른손 좌표계 추정). 다른 뷰는 정상으로 추정.
+2. ShiftScale 0.5도 큼 — 셀 하단 *라벨 영역* (~5~10mm)까지 모델이 침범
+
+**v6 변경 (2가지)**:
+
+| # | 위치 | 변경 |
+|---|---|---|
+| 1 | [Form1.Dimensions.cs:600~](A2Z/Form1.Dimensions.cs:600) | `ShiftScale 0.5f → 0.25f` (이동량 절반 추가 축소) |
+| 2 | [Form1.Dimensions.cs:600~](A2Z/Form1.Dimensions.cs:600) | Y뷰 한정 `hSign = -1f` (dx 부호 반전) — X뷰·Z뷰는 그대로 |
+
+**적용 공식**:
+```
+hSign = (viewDirection == "Y") ? -1f : 1f
+_lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * 0.25f * hSign
+_lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * 0.25f
+```
+
+**DiagLog v6**: `T-038+039 v6 ModelShift view=Y ... hSign=-1 → shiftXY=(N, N)`
+
+**검증 포인트** (사용자 사내 PC):
+- Y뷰 모델이 *보조선 반대 방향*으로 이동 (이전 왼쪽 → 오른쪽)
+- 모든 뷰 모델이 *라벨 영역 침범 X* (이전보다 더 작은 이동)
+- X뷰·Z뷰 이동 방향 정상 (검증)
+
+**잔여**:
+- X뷰·Z뷰가 정상이 아니면 → 해당 뷰도 `hSign` 매핑 추가
+- 이동량 더 줄이거나 늘림 (ShiftScale 조정)
+- vSign (V 방향) 검증 — 현재는 모든 뷰 통일
+
+---
+
 ## 2026-05-12 — T-038+039 v5: 위아래 보조선 무조건 절반 + 이동량 × 0.5
 
 **유형**: fix (사용자 사양 v5)

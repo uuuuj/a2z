@@ -605,11 +605,14 @@ namespace A2Z
                     }
 
                     // 이동량 = 외곽 반대 방향 (positiveOffset=true면 H+ 외곽이라 모델 H- 이동)
-                    // T-038+039 v5 (2026-05-12 사용자 사양 "너무 많이 이동"): 이동량 × 0.5 (절반)
-                    const float ShiftScale = 0.5f;
-                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * ShiftScale;
+                    // T-038+039 v6 (2026-05-12 사용자 사양):
+                    //   1) ShiftScale 0.5 → 0.25 — 모델이 라벨까지 침범하지 않도록 추가 축소
+                    //   2) Y뷰 dx 부호 반전 — SDK Y+ 카메라에서 3D X+ = 화면 왼쪽 (오른손 좌표계 추정)
+                    const float ShiftScale = 0.25f;
+                    float hSign = (viewDirection == "Y") ? -1f : 1f;
+                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * ShiftScale * hSign;
                     _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * ShiftScale;
-                    DiagLog($"T-038+039 v5 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} ShiftScale={ShiftScale} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
+                    DiagLog($"T-038+039 v6 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} ShiftScale={ShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========
