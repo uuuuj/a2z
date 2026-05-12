@@ -318,7 +318,8 @@
   - [x] **v9 (2026-05-13)**: v8 시프트 작동 OK이나 방향이 측정선 직각(90° 회전). SDK가 텍스트 평행 슬라이드 불가능 추정 → 시프트 축을 측정축에서 offset 축으로 교체. 인접 비교는 부호(±)만 결정. 결과: 측정선 직각으로 시프트 (사용자 사양 A)
   - [x] **v10 (2026-05-13)**: v9 보고 — offsetAxis 매핑이 사용자 시각과 반대(가로 치수가 좌·우 시프트). "가로/세로 오프셋 교환" = 측정축(axis) 직접 사용으로 복귀(v8 패턴). switch 인자 offsetAxis → axis
   - [x] **v11 (2026-05-13)**: 사용자 "1aaf85c(v6) 시프트 방법이 제일 잘됐다 — 그때로 복귀". ApplyParallelTextShift 헬퍼 내부 통째 교체 → v6 시점 직각 시프트(13mm 고정, SDK measureItem 직접, 가로→right/세로→up). 인접 비교/chainDimensionList 의존/maxEstDist/26 모두 폐기. 가공도에도 헬퍼 호출 복귀
-  - [ ] **v11 실기 검증 대기** — v6와 동일 동작 확인
+  - [x] **v12 (2026-05-13)**: v11 베이스 + 임계 maxEstDist/26 + 인접 비교 부호 결정. SDK measureItem을 측정축별 그룹 후 dimCenter 정렬 → 좌·우 인접 estDist 비교로 shiftDir(±1) 결정. 직각 시프트는 v11 매핑 그대로
+  - [ ] **v12 실기 검증 대기** — 작은 치수가 인접 큰 dim 방향에 맞게 시프트되는지 / 부호 매핑이 사용자 시각과 일치하는지
   - [ ] **잔여**: 가공도 EA 두 번째 뷰(L1905) / 가공도 MULTI 경로 — 카메라 식별 별도
   - [ ] docs 갱신 (실기 검증 후 features/dimensions/* + features/drawing-sheets/* + features/mfg-drawing/* 별도 라운드)
 - **영향 파일**:

@@ -6,10 +6,45 @@
 
 ---
 
+## 2026-05-13 — T-040 v12: v11 직각 시프트 + 임계 maxEstDist/26 + 인접 비교 부호
+
+**유형**: feat (v11 베이스 + 사용자 사양 두 가지 추가)
+**커밋**: `pending`
+**관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
+
+**사용자 사양 (v12)**:
+- v11(=v6 직각 시프트) 베이스 유지
+- **임계 13mm 고정 → `maxEstDist / 26`** (1326 모델 → 51mm 이하 처리)
+- **인접 dim 비교로 shiftDir 부호 결정** ("연쇄치수값 보고 큰 값 옆이면 큰 값 쪽으로")
+
+**v12 알고리즘** ([Form1.Dimensions.cs](A2Z/Form1.Dimensions.cs) `ApplyParallelTextShift` 통째 교체):
+1. 1차 패스: 각 SDK measure의 MAIN 두 좌표 → `dimAxis`(차이 max 축), `dimCenter`(측정축 중심), `estDist`, 시프트용 `textPos` 수집
+2. `maxEstDist` 계산. ≤ 100mm 시 전체 skip
+3. `threshold = maxEstDist / 26f`
+4. 측정축별 그룹 → `dimCenter` 순 정렬 → 좌·우 인접 식별
+5. 인접 `estDist` 비교 → `shiftDir`:
+   - 양쪽 인접 큰 쪽 / 같음 +1 / 한쪽만 반대(체인 바깥) / 없음 skip
+6. v11 직각 시프트 패턴 × `shiftDir` (가로 → right, 세로 → up)
+   - X뷰(right=+Y, up=+Z), Y뷰(right=-X, up=+Z), Z뷰(right=+X, up=+Y)
+
+**부호 매핑**:
+- 큰 인접이 +측정축 → 직각 + 방향(위 또는 오른쪽)
+- 큰 인접이 -측정축 → 직각 - 방향(아래 또는 왼쪽)
+- *임의 매핑이지만 일관성*. 결과 어색하면 부호 반전 라운드
+
+**가공도**: v11에서 추가한 헬퍼 호출 그대로 — 가공도에도 동일 작동 (SDK measureItem 직접 순회라 chainDimensionList 무관)
+
+**검증 포인트**:
+- 100mm 이상 모델에서 51mm 같은 작은 치수도 시프트 (v6은 13mm만)
+- 작은 dim 옆에 큰 dim이 있을 때 *큰 dim 방향*에 맞게 시프트
+- 가공도에도 동일 작동
+
+---
+
 ## 2026-05-13 — T-040 v11: v6(1aaf85c) 직각 시프트로 복귀 (사용자 최선 보고)
 
 **유형**: revert (v7~v10 평행 시프트 시도 폐기 — 사용자 1aaf85c가 가장 잘 작동)
-**커밋**: `pending`
+**커밋**: `f211fb3`
 **관련 TASK**: T-040 (IN_PROGRESS — 실기 검증 대기)
 
 **사용자 보고**: "1aaf85c 이때 커밋할 때의 시프트 방법으로 돌아가자 이때가 제일 잘됐다"
