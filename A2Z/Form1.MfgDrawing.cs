@@ -1530,7 +1530,7 @@ namespace A2Z
             // T-046: 가공도 보조선을 DASHED_DOUBLEDOTTED → SOLID 로 통일 (전 경로 일관성)
             if (shapeDrawingIds.Count > 0)
             {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.5f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);  // T-040 v6: 0.5→0.1 (극가는 보조선 통일)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
                 vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
             }
@@ -1983,7 +1983,7 @@ namespace A2Z
                     // T-046: EA 두 번째 뷰 보조선도 가공도 메인과 동일 SOLID
                     if (eaShapeIds.Count > 0)
                     {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.5f);
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);  // T-040 v6: 0.5→0.1 (극가는 보조선 통일)
                         vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
                         vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(eaShapeIds);
                     }

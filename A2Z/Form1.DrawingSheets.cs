@@ -1972,7 +1972,7 @@ namespace A2Z
             // 보조선(ShapeDrawing) → 2D 개체로 추가 (모델 실선보다 가늘게)
             if (shapeDrawingIds != null && shapeDrawingIds.Count > 0)
             {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.3f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);  // T-040 v6: 0.3→0.1 (극가는 보조선)
                 vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             }
