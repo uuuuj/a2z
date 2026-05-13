@@ -509,8 +509,10 @@ namespace A2Z
                 DiagLog($"T-064 STRU '{struNode.NodeName}' 가시성 격리 — allBody={allBodyIndices.Count}, STRU={memberIndices.Count}");
             }
 
-            // 2) xraySelectedNodeIndices 설정 (격리) — DetectClash가 이 set만 페어로 만든다
-            xraySelectedNodeIndices = new List<int>(memberIndices);
+            // 2) xraySelectedNodeIndices 초기화 — 사용자 평소 btnMainDimension_Click(Form1.BOM.cs:347) 패턴 그대로.
+            // 격리는 *가시성*으로만 수행 (CollectBOMData가 보이는 부재만 수집). xraySelectedNodeIndices 의존은
+            // SDK 상태와 race 가능 (사용자 보고: 첫 클릭 T-023, 재클릭 시 일부만 동작 비결정 동작).
+            xraySelectedNodeIndices.Clear();
 
             // ★ CollectBOMData 호출 — bomList를 STRU 부재만으로 갱신
             // (Form1.BOM.cs:345 주석: "xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며")

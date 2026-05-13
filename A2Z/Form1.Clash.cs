@@ -506,14 +506,18 @@ namespace A2Z
                 if (!IsSingleConnectedComponent(out componentCount))
                 {
                     HideBusyOverlay();
-                    MessageBox.Show(
-                        "치수 추출은 모든 부재가 **하나의 덩어리로 연결**되어 있을 때만 가능합니다.\n\n" +
-                        $"현재: 서로 연결되지 않은 부재 그룹 {componentCount}개 발견 (Clash 인접 기준)\n\n" +
-                        "해결 방법:\n" +
-                        "- 떨어진 부재를 모델트리 체크박스로 숨기기\n" +
-                        "- 한 덩어리만 남기고 다시 치수 추출",
-                        "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    DiagLog($"btnMainDimension BLOCKED components={componentCount} (T-023 v3)");
+                    // T-064 P2 본진 진행 중엔 모달 차단 — 사용자 액션 대기로 흐름 정지·비결정 동작 방지.
+                    if (!_p2aInProgress)
+                    {
+                        MessageBox.Show(
+                            "치수 추출은 모든 부재가 **하나의 덩어리로 연결**되어 있을 때만 가능합니다.\n\n" +
+                            $"현재: 서로 연결되지 않은 부재 그룹 {componentCount}개 발견 (Clash 인접 기준)\n\n" +
+                            "해결 방법:\n" +
+                            "- 떨어진 부재를 모델트리 체크박스로 숨기기\n" +
+                            "- 한 덩어리만 남기고 다시 치수 추출",
+                            "치수 추출 사전조건", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    DiagLog($"btnMainDimension BLOCKED components={componentCount} (T-023 v3, p2aInProgress={_p2aInProgress})");
                     return;
                 }
 
