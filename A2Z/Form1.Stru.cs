@@ -13,10 +13,17 @@ namespace A2Z
         // STRU(Structure 단위) 식별 — 사용자 모델링 컨벤션 기반.
         // 모델트리: /E1(파일) → /E1(어셈블리) → /E1(어셈블리) → /M1(STRU) → FRMWORK 어셈블리들 → 부재.
         // 즉 STRU = 자식 중 NodeName이 "FRMWORK "로 시작하는 어셈블리가 있는 어셈블리.
-        // P1 범위: 추출 + CheckedListBox 표시 + 전체선택/해제 + 체크 시 3D 강조 (체크박스 영역만, 카메라 fit 없음, 다중 체크 강조 유지).
+        // P1 범위:
+        //   - 추출 + CheckedListBox 표시 + 전체선택/해제
+        //   - 체크박스 클릭 → 3D 강조 토글 (다중 체크 강조 누적 유지, 카메라 fit 없음)
+        //   - 행 선택 (이름 클릭) → 그 STRU로 카메라 fit (강조 변경 X, 체크 강조 유지)
         // P2/P3 범위(미구현): 도면 리스트 뽑기, STRU별 자동 도면 생성, 일괄 PDF, 간섭검사 격리.
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
+
+        // 가드 — 체크박스 클릭 시 WinForms가 SelectedIndexChanged도 발생시킴(MouseDown 순간).
+        // ItemCheck에서 set, BeginInvoke로 큐 끝 해제. SelectedIndexChanged는 BeginInvoke 지연 후 검사 → 가드 on이면 fit 차단.
+        private bool _suppressStruSelChanged = false;
 
         /// <summary>
         /// 모델트리에서 STRU 단위 추출 (T-064 STRU 일괄 도면).
@@ -157,6 +164,24 @@ namespace A2Z
         /// </summary>
         private void ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)
         {
+            // 가드 set — 같은 클릭으로 SelectedIndexChanged의 fit 차단
+            _suppressStruSelChanged = true;
+            try
+            {
+                ItemCheckCore(e);
+            }
+            finally
+            {
+                // BeginInvoke로 큐 끝에서 해제 — SelectedIndexChanged의 BeginInvoke 콜백 후 해제 보장
+                if (this.IsHandleCreated)
+                    this.BeginInvoke(new Action(() => _suppressStruSelChanged = false));
+                else
+                    _suppressStruSelChanged = false;
+            }
+        }
+
+        private void ItemCheckCore(ItemCheckEventArgs e)
+        {
             if (clbStruList == null) return;
             if (e.Index < 0 || e.Index >= _struNodeCache.Count) return;
 
@@ -205,6 +230,55 @@ namespace A2Z
             catch (Exception ex)
             {
                 DiagLog($"T-064 ClbStruList_ItemCheck ERROR: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// CheckedListBox 행 선택(이름 클릭) 시 카메라만 그 STRU로 fit. 강조(Select/Color)는 변경 안 함 — 체크 강조 유지.
+        /// 체크박스 클릭 시 WinForms가 동일 행을 선택 상태로 만들면서 이 이벤트도 트리거함 →
+        /// BeginInvoke로 한 메시지 사이클 지연 후 _suppressStruSelChanged 검사. ItemCheck가 가드를 set한 상태면 fit 차단.
+        /// </summary>
+        private void ClbStruList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // 큐 지연 — ItemCheck가 같은 클릭으로 발생 중이면 가드가 set됨
+            if (this.IsHandleCreated)
+                this.BeginInvoke(new Action(PerformFlyToSelectedStru));
+            else
+                PerformFlyToSelectedStru();
+        }
+
+        private void PerformFlyToSelectedStru()
+        {
+            if (_suppressStruSelChanged) return;  // 체크박스 클릭으로 인한 SelectedIndexChanged면 fit 차단
+            if (clbStruList == null) return;
+            int selectedIdx = clbStruList.SelectedIndex;
+            if (selectedIdx < 0 || selectedIdx >= _struNodeCache.Count) return;
+
+            var struNode = _struNodeCache[selectedIdx];
+            try
+            {
+                var descendants = vizcore3d.Object3D.GetChildObject3d(
+                    struNode.Index,
+                    VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
+                    true);
+                if (descendants == null || descendants.Count == 0)
+                {
+                    DiagLog($"T-064 ClbStru Select '{struNode.NodeName ?? struNode.NodePath}' descendants=0 (fit skip)");
+                    return;
+                }
+                var memberIndices = descendants
+                    .Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
+                    .Select(b => b.Index)
+                    .ToList();
+                if (memberIndices.Count == 0) return;
+
+                // 카메라 fit만 — Select/RestoreColorAll 호출 없음 (체크 강조 보존)
+                vizcore3d.View.FlyToObject3d(memberIndices, 1.2f);
+                DiagLog($"T-064 ClbStru Select '{struNode.NodeName ?? struNode.NodePath}' fit BODY={memberIndices.Count}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"T-064 ClbStruList_SelectedIndexChanged ERROR: {ex.Message}");
             }
         }
     }

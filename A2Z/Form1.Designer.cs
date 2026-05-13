@@ -1054,6 +1054,7 @@ namespace A2Z
             this.clbStruList.Name = "clbStruList";
             this.clbStruList.Size = new System.Drawing.Size(437, 207);
             this.clbStruList.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.ClbStruList_ItemCheck);
+            this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
             //
             // btnGenerateSheets
             //

@@ -6,6 +6,58 @@
 
 ---
 
+## 2026-05-13 — T-064 P1 UX 보강: 행 선택 시 카메라 fit 복원 (체크 트리거와 분리)
+
+**유형**: feat (P1 UX 보강)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `2dae22e` (P1 UX — 체크박스 트리거)
+
+**사용자 요청** (직전 UX 변경 후 fit 누락 보고):
+- 체크박스 클릭 → 강조 토글 (fit 없음) [기존 유지]
+- **행 선택(이름 클릭) → 카메라 fit (강조 변경 X)** — 직전 커밋에서 SelectedIndexChanged 핸들러 삭제 시 같이 사라졌음
+
+**의미 분리** (두 트리거):
+| 트리거 | 동작 | 의미 |
+|---|---|---|
+| 체크박스 영역 클릭 | ItemCheck → 강조 토글 (Color.Select/Restore) | 출력 대상 / 강조 |
+| 이름·행 영역 클릭 | SelectedIndexChanged → 카메라 fit (FlyToObject3d) | 시각 이동 (강조는 그대로) |
+
+**WinForms 이벤트 race 해결**:
+- 문제: 체크박스 클릭 시 WinForms가 행 선택도 동시 변경 → SelectedIndexChanged도 트리거 → 의도치 않은 fit
+- 가드 패턴: `_suppressStruSelChanged` 필드
+  - ItemCheck 진입부 → 가드 set → 본문 → finally `BeginInvoke(가드 clear)` (큐 끝 지연 해제)
+  - SelectedIndexChanged → `BeginInvoke(PerformFlyToSelectedStru)` 지연 콜백 → 가드 검사 → on이면 return, off면 fit
+- 결과: 체크박스 클릭은 fit 차단, 이름 클릭만 fit 실행
+
+**구현 변경**:
+- `A2Z/Form1.Stru.cs`:
+  - 헤더 P1 범위 주석 갱신 (두 트리거 의미 분리 명시)
+  - `_suppressStruSelChanged` 필드 신규
+  - `ClbStruList_ItemCheck` → 가드 set + 본문 분리(`ItemCheckCore`) + finally BeginInvoke 해제
+  - `ClbStruList_SelectedIndexChanged` 신규 — BeginInvoke 지연 → `PerformFlyToSelectedStru` 호출
+  - `PerformFlyToSelectedStru` 신규 헬퍼 — 가드 검사 + ALL_CHILDREN 후손 BODY 수집 + `FlyToObject3d(1.2f)`만 (Select/RestoreColorAll 호출 없음 — 체크 강조 유지)
+- `A2Z/Form1.Designer.cs`:
+  - `clbStruList.SelectedIndexChanged += new System.EventHandler(ClbStruList_SelectedIndexChanged)` 등록 추가
+
+**기존 4경로(BOM/lvOsnap/lvDim/lvClash) 패턴과 차이**:
+- 기존: SelectedIndexChanged 하나에 강조+fit 묶임 (단일 트리거)
+- STRU P1: 두 트리거 분리 — 체크=강조(누적), 행선택=fit(단발)
+- 사용자 메모리 "패턴 무비판 이식 금지" — 컨텍스트 차이 명시 (체크박스 모드라 의미 분리 가능)
+
+**변경 파일** (3개):
+- `A2Z/Form1.Stru.cs` ±50줄 — `_suppressStruSelChanged` 필드 + 핸들러 가드 + 신규 SelectedIndexChanged + PerformFlyToSelectedStru 헬퍼
+- `A2Z/Form1.Designer.cs` ±1줄 — SelectedIndexChanged 이벤트 등록
+- `docs/tracking/CHANGELOG.md` 항목 추가
+
+**검증 시나리오** (사용자):
+1. STRU 이름 클릭 → 행 선택 → 카메라가 그 STRU로 fit 이동. 빨강 강조 상태는 그대로 유지
+2. 체크박스 클릭 → 강조 토글. 카메라 시점 그대로 (fit 없음). 행이 동시 선택되더라도 가드로 fit 차단
+3. 다른 STRU 이름 클릭 → fit만 이동. 체크된 STRU 빨강은 유지
+4. 여러 STRU 체크 후 한 STRU 이름 클릭 → 카메라 그 STRU로, 빨강은 다중 누적 그대로
+5. DiagLog: `T-064 ClbStru Select '/M1' fit BODY=N` (행 선택 fit 시) / `T-064 ItemCheck idx=N new=Checked ...` (체크 토글 시)
+
+---
+
 ## 2026-05-13 — T-064 P1 UX: 체크박스 트리거 + 다중 강조 누적 + fit 제거
 
 **유형**: feat (P1 UX 미세 조정)
