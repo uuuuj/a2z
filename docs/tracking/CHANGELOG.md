@@ -6,6 +6,63 @@
 
 ---
 
+## 2026-05-13 — T-064 P2a 핫픽스: 가시성 격리 ALL 확장 + 기존 핸들러 가드 차단
+
+**유형**: fix (P2a 검증 결과 두 결함 수정)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `9d2b4aa` (P2a PoC + SDK 호환 패치)
+
+**사용자 사내 PC 검증 결과 두 결함 보고**:
+1. **메시지**: `[도면 리스트 뽑기]` 누르면 "치수추출 사전조건. 치수추출은 ~ / 현재: 서로 연결되지 않은 부재 그룹 0개 발견" 메시지 발생
+   - = 기존 `Clash_OnClashTestFinishedEvent` 흐름(T-023 사전조건 + 시트 생성)이 호출됨 = **P2a 핸들러 swap 실패**
+2. **가시성 격리 미작동**: 사용자 가설 — "도면 리스트 뽑으면 순서대로 하나씩 가시화되고 나머지 지우는 게 맞잖아"
+
+**원인 분석**:
+- 결함 1: 핸들러 swap (`-= 기존 += P2a`) 패턴이 SDK 시그니처 미세 차이 또는 등록 메서드 참조 문제로 실패. 기존 핸들러가 그대로 살아있음 → 결과 콜백이 기존 흐름으로 흘러 T-023 메시지 표시
+- 결함 2: `Object3dFilter.ALL_INCLUDE_BODY` 모수 + BODY 필터만 사용 → BODY는 숨겨도 부모 PART/ASSEMBLY는 그대로 보이는 상태 → `VisibleOnly=true` 검사 대상에 포함될 가능성
+
+**수정 (두 가지 함께)**:
+
+### 1) 핸들러 swap 제거 + 가드 변수 통일
+- `Form1.Clash.cs:Clash_OnClashTestFinishedEvent` 진입부에 P2a 가드 추가:
+  ```csharp
+  if (_p2aInProgress) { DiagLog(...); return; }
+  ```
+- `Form1.Stru.cs:btnExtractDrawingList_Click`:
+  - 기존 핸들러 `-=` 코드 제거 (swap 신뢰 X)
+  - P2a 핸들러 `+=`만 등록 (가드로 기존 흐름 차단되니 충돌 없음)
+  - `handlersSwapped` 플래그 → `p2aHandlerRegistered`로 의미 명확화
+  - finally에서 P2a 핸들러 `-=`만 수행
+
+### 2) 가시성 격리 ALL 노드로 확장
+- 모수: `Object3dFilter.ALL_INCLUDE_BODY` → **`Object3dFilter.ALL`** (BODY/PART/ASSEMBLY 모두)
+- 표시 대상: STRU 후손 BODY만 → **STRU 본인 + 모든 후손 (BODY/PART/ASSEMBLY 다)**
+  ```csharp
+  var struVisibleIndices = new List<int> { struNode.Index };
+  struVisibleIndices.AddRange(descendants.Select(n => n.Index));
+  ```
+- ClashTest 페어 생성용 BODY 필터는 별도 유지
+
+**변경 파일** (2개, ±70줄):
+- `A2Z/Form1.Clash.cs` (+6) — 진입부 가드 1개
+- `A2Z/Form1.Stru.cs` (~64 변경) — 가시성 격리 알고리즘 + 핸들러 swap 제거
+
+**검증 시나리오**:
+- 모델 1개에 STRU 여러 개 있는 상태에서 `[도면 리스트 뽑기]` 클릭
+- 화면에 선택한 STRU 부재만 표시 + 다른 STRU는 모두 사라짐 (격리 정확)
+- T-023 사전조건 메시지 안 뜸 (가드로 차단)
+- `logs/diag-YYYY-MM-DD.log`:
+  - `T-064 P2a 시작 STRU='...' struBODY=N struVisible=K allNodes=M` — M(전체) > K(STRU 후손)
+  - `T-064 P2a 진행 중 — 기존 Clash_OnClashTestFinishedEvent 흐름 차단` (가드 작동 신호)
+  - `T-064 P2a OnFinished` + 결과 페어 DiagLog
+- 처리 끝나면 가시성 자동 복원 (전체 노드 다시 표시)
+
+**잔여 위험** (P2b 진입 전 검토):
+- 페어 N² 등록 — STRU 부재 100개면 4950 페어. SDK 부담 가능. GROUP_VS_GROUP 1개 ClashTest로 단순화 권고
+- 다중 STRU 루프 시 `e.ID` 검사로 콜백 구분 필요
+
+---
+
 ## 2026-05-13 — T-064 P2a PoC: STRU 격리 + DetectClash + 결과 DiagLog (+ SDK 호환 패치)
 
 **유형**: feat (P2a — STRU 가시성 격리 + 간섭검사 PoC) + fix (SDK 시그니처 호환)

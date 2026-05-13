@@ -423,6 +423,13 @@ namespace A2Z
         /// </summary>
         private void Clash_OnClashTestFinishedEvent(object sender, VIZCore3D.NET.Event.EventManager.ClashEventArgs e)
         {
+            // T-064 P2a 가드 — P2a 진행 중이면 기존 흐름(시트 생성·치수추출 사전조건 메시지) 차단.
+            // P2a는 P2aClash_OnFinished에서 결과를 DiagLog만 처리. 핸들러 swap이 SDK 시그니처 문제로 실패할 수 있어 가드 변수로 통일.
+            if (_p2aInProgress)
+            {
+                DiagLog("T-064 P2a 진행 중 — 기존 Clash_OnClashTestFinishedEvent 흐름 차단");
+                return;
+            }
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[Clash Finished] 이벤트 발생! ID: {e.ID}");

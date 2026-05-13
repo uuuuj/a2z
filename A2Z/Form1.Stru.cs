@@ -357,7 +357,8 @@ namespace A2Z
 
             var struNode = _struNodeCache[firstCheckedListIdx];
 
-            // STRU 후손 BODY 인덱스 수집 (ALL_CHILDREN 재귀)
+            // STRU 후손 전체 수집 (ALL_CHILDREN 재귀 — BODY만이 아니라 PART/ASSEMBLY 후손도 포함)
+            // 사용자 보고 "가시성 격리 미작동" 대응: 부모 PART/ASSEMBLY가 안 숨겨지면 검사 대상 누락 가능
             var descendants = vizcore3d.Object3D.GetChildObject3d(
                 struNode.Index,
                 VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
@@ -367,45 +368,48 @@ namespace A2Z
                 DiagLog($"T-064 P2a STRU='{struNode.NodeName}' 후손 0건 (중단)");
                 return;
             }
-            var struBodyIndices = descendants
+            // 표시 대상: STRU 본인 + 모든 후손 (BODY/PART/ASSEMBLY 다)
+            var struVisibleIndices = new List<int> { struNode.Index };
+            struVisibleIndices.AddRange(descendants.Select(n => n.Index));
+
+            // ClashTest 페어용 — BODY만 추출
+            var struBodyNodes = descendants
                 .Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
-                .Select(b => b.Index)
                 .ToList();
-            if (struBodyIndices.Count == 0)
+            if (struBodyNodes.Count == 0)
             {
                 DiagLog($"T-064 P2a STRU='{struNode.NodeName}' BODY 후손 0건 (중단)");
                 return;
             }
-            var struBodyNodes = descendants
-                .Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
-                .ToList();
 
-            // 전체 BODY 인덱스 수집 (가시성 격리용 — 전체 숨김 대상)
-            // ALL_INCLUDE_BODY 사용 후 BODY만 필터 (xml 4733)
+            // 전체 노드 모수 — Object3dFilter.ALL (BODY/PART/ASSEMBLY 모두)
+            // 다른 STRU·다른 모델 부재까지 다 숨겨야 격리 정확. 사용자 가설 "가시성 격리 미작동" 대응.
             var allNodes = vizcore3d.Object3D.FromFilter(
-                VIZCore3D.NET.Data.Object3dFilter.ALL_INCLUDE_BODY, true);
-            var allBodyIndices = (allNodes != null)
-                ? allNodes.Where(n => n.Kind == VIZCore3D.NET.Data.NodeKind.BODY).Select(n => n.Index).ToList()
+                VIZCore3D.NET.Data.Object3dFilter.ALL, false);
+            var allNodeIndices = (allNodes != null)
+                ? allNodes.Select(n => n.Index).ToList()
                 : new List<int>();
 
-            DiagLog($"T-064 P2a 시작 STRU='{struNode.NodeName}' struBODY={struBodyIndices.Count} allBODY={allBodyIndices.Count}");
+            DiagLog($"T-064 P2a 시작 STRU='{struNode.NodeName}' struBODY={struBodyNodes.Count} struVisible={struVisibleIndices.Count} allNodes={allNodeIndices.Count}");
 
             // 진행 가드 set + UI 차단 (위험 리뷰 #2 대응: 사용자가 도중 모델 변경/다른 흐름 트리거 차단)
+            // _p2aInProgress 가드는 Form1.Clash.cs:Clash_OnClashTestFinishedEvent 진입부에서 검사하여
+            // 기존 흐름(시트 생성·사전조건 메시지)을 차단함. swap 대신 가드만 신뢰 (사용자 보고: swap 실패로 기존 흐름 호출됨).
             _p2aInProgress = true;
             btnExtractDrawingList.Enabled = false;
             ShowBusyOverlay($"STRU 격리·간섭검사 진행 중: {struNode.NodeName ?? "STRU"}");
 
-            bool handlersSwapped = false;
+            bool p2aHandlerRegistered = false;
             try
             {
-                // 1) 가시성 격리 — 전체 숨김 후 STRU 후손만 표시
-                //    BeginUpdate/EndUpdate 묶음 (리뷰 권고 #17: 6회 Show를 화면에 한 번에 반영)
+                // 1) 가시성 격리 — 전체 노드(BODY/PART/ASSEMBLY) 숨김 후 STRU 본인+후손 표시
+                //    BeginUpdate/EndUpdate 묶음 (응답성)
                 vizcore3d.BeginUpdate();
                 try
                 {
-                    if (allBodyIndices.Count > 0)
-                        vizcore3d.Object3D.Show(allBodyIndices, false);
-                    vizcore3d.Object3D.Show(struBodyIndices, true);
+                    if (allNodeIndices.Count > 0)
+                        vizcore3d.Object3D.Show(allNodeIndices, false);
+                    vizcore3d.Object3D.Show(struVisibleIndices, true);
                 }
                 finally
                 {
@@ -413,10 +417,9 @@ namespace A2Z
                 }
                 Application.DoEvents();
 
-                // 2) 기존 OnClashTestFinishedEvent 핸들러 임시 해제 + P2a 핸들러 등록
-                vizcore3d.Clash.OnClashTestFinishedEvent -= Clash_OnClashTestFinishedEvent;
+                // 2) P2a 결과 핸들러 등록 (기존 핸들러는 가드로 차단되므로 swap 불필요)
                 vizcore3d.Clash.OnClashTestFinishedEvent += P2aClash_OnFinished;
-                handlersSwapped = true;
+                p2aHandlerRegistered = true;
 
                 // 3) Clash 페어 생성 — STRU 후손 BODY끼리만, VisibleOnly=true로 검사 격리 강화
                 _p2aClashStruNode = struNode;
@@ -474,20 +477,19 @@ namespace A2Z
             }
             finally
             {
-                // 핸들러 원상 복원
-                if (handlersSwapped)
+                // P2a 핸들러 해제 (등록됐을 때만)
+                if (p2aHandlerRegistered)
                 {
                     try { vizcore3d.Clash.OnClashTestFinishedEvent -= P2aClash_OnFinished; } catch { }
-                    try { vizcore3d.Clash.OnClashTestFinishedEvent += Clash_OnClashTestFinishedEvent; } catch { }
                 }
-                // 가시성 복원 — 전체 BODY 다시 표시 (BeginUpdate 묶음)
+                // 가시성 복원 — 전체 노드 다시 표시 (BeginUpdate 묶음)
                 try
                 {
                     vizcore3d.BeginUpdate();
                     try
                     {
-                        if (allBodyIndices.Count > 0)
-                            vizcore3d.Object3D.Show(allBodyIndices, true);
+                        if (allNodeIndices.Count > 0)
+                            vizcore3d.Object3D.Show(allNodeIndices, true);
                     }
                     finally
                     {
@@ -500,7 +502,7 @@ namespace A2Z
                     DiagLog($"T-064 P2a 가시성 복원 ERROR: {ex.Message}");
                 }
                 _p2aClashStruNode = null;
-                // 진행 가드 해제 + UI 차단 해제
+                // 진행 가드 해제 + UI 차단 해제 (가드 해제는 핸들러 해제 후 — 가드 의존 흐름 안전)
                 _p2aInProgress = false;
                 try { btnExtractDrawingList.Enabled = true; } catch { }
                 try { HideBusyOverlay(); } catch { }
