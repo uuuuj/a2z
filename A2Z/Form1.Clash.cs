@@ -373,9 +373,9 @@ namespace A2Z
                         pairClash.Name = $"간섭검사_{targetNodes[i].NodeName}_vs_{targetNodes[j].NodeName}";
                         pairClash.TestKind = VIZCore3D.NET.Data.ClashTest.ClashTestKind.GROUP_VS_GROUP;
                         pairClash.UseClearanceValue = true;
-                        pairClash.ClearanceValue = 1.0f;
+                        pairClash.ClearanceValue = 3.0f;  // T-063: 1→3 (2mm 떨어진 부재까지 안전 커버)
                         pairClash.UseRangeValue = true;
-                        pairClash.RangeValue = 1.0f;
+                        pairClash.RangeValue = 3.0f;      // T-063: Clearance와 동일 — Range < Clearance면 검사 자체 X
                         pairClash.UsePenetrationTolerance = true;
                         pairClash.PenetrationTolerance = 1.0f;
                         pairClash.VisibleOnly = false;
