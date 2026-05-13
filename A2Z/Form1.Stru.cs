@@ -555,78 +555,23 @@ namespace A2Z
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' 시트 {drawingSheetList.Count}개 생성");
 
-            // 6) 각 시트 → 2D 렌더 + PDF 출력
-            int pdfCount = 0;
+            // 6) 시트 PDF 출력 — 사용자 평소 btnExportAllPDF 흐름 그대로 (Form1.DrawingSheets.cs:ExportAllSheetsToPdfCore).
+            // 사용자 지적: "왜 자꾸 기존 코드를 안 써?" → 기존 코드(공용 코어)를 재사용해야 함.
+            // 코어가 다음을 자동 처리: lvDrawingSheet 순회 + Selected=true(핸들러 자동 트리거) +
+            //   가공도면 GenerateMfgDrawing2DAll(시트 1개 List) + 그 외 GenerateSheetDrawing2D +
+            //   Export2PDFBy2DView + 메모리 정리 + GC. showSummary=false로 메시지박스 차단.
+            //
+            // STRU별 하위 폴더에 저장 → 사용자가 각 STRU 결과를 분리해서 관리 가능.
             string safeStruName = SanitizeFileName(struNode.NodeName ?? "STRU");
-            string timeStamp = DateTime.Now.ToString("HHmmss");
+            string struSubDir = Path.Combine(saveDir, safeStruName);
+            try { Directory.CreateDirectory(struSubDir); }
+            catch (Exception ex) { DiagLog($"T-064 STRU '{struNode.NodeName}' 폴더 생성 실패: {ex.Message}"); }
 
-            // 옵션 B — lvDrawingSheet.Items 순회 (UI 동기 보장).
-            // MultiSelect=true (ListView 기본값, Designer.cs 미지정) → SelectedIndices.Clear()로 이전 선택 해제 필요.
-            for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
-            {
-                var lvi = lvDrawingSheet.Items[i];
-                var sheet = lvi.Tag as DrawingSheetData;
-                if (sheet == null) continue;
+            DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 시작 → {struSubDir}");
 
-                try
-                {
-                    // ★ 옵션 B 핵심: 행 자동 선택 → LvDrawingSheet_SelectedIndexChanged 자동 트리거.
-                    //   핸들러가 자동으로:
-                    //     - X-Ray 비활성화 + SilhouetteEdge 활성화
-                    //     - Show(bomList, false) + Show(sheet.MemberIndices, true) — 가시성 격리
-                    //     - FlyToObject3d (가공도 제외) — 카메라 fit
-                    //     - 풍선·Clash 심볼 정리 + 기준부재 빨간 하이라이트
-                    //     - 시트 종류별 치수 추출 분기
-                    //         가공도(-3) = ExecuteMfgDrawing
-                    //         설치도(-2) = ExtractInstallationDimensions
-                    //         일반(-1, >=0) = ComputeViewDimensionsForMembers
-                    //     - lvDimension 채움 + CollectBOMInfo 자동 호출
-                    lvDrawingSheet.SelectedIndices.Clear();  // MultiSelect=true 대응 — 이전 선택 해제
-                    lvi.Selected = true;                      // 새 선택 → SelectedIndexChanged 동기 트리거
-                    lvi.EnsureVisible();                      // 진행 표시 — 화면에 보이게 스크롤
-                    Application.DoEvents();                   // 핸들러·치수 계산 완료 대기
-                    System.Threading.Thread.Sleep(200);
+            int pdfCount = ExportAllSheetsToPdfCore(struSubDir, showSummary: false);
 
-                    // ★ 시트 종류별 처리 — 사용자 평소 버튼 흐름과 동일하게:
-                    //   - 제작도(-1) / 조립도(≥0): btnGenerateSheet2D_Click 흐름 = GenerateSheetDrawing2D(sheet)
-                    //   - 가공도(-3): btnMfgDrawing_Click 흐름 = ExecuteMfgDrawing(bomIndex). 단 옵션 B Selected=true가
-                    //     LvDrawingSheet_SelectedIndexChanged 핸들러(Form1.DrawingSheets.cs:601)에서 이미
-                    //     ExecuteMfgDrawing(sheet.MemberIndices[0]) 자동 호출 → 우리 추가 호출 불필요
-                    //   - 설치도(-2): 사용자 의도 "아직 코드 없음" — skip
-                    if (sheet.BaseMemberIndex == -2)
-                    {
-                        DiagLog($"T-064 STRU '{struNode.NodeName}' 설치도 시트(-2) skip — 사용자 의도: 구현 미완성");
-                        continue;
-                    }
-                    if (sheet.BaseMemberIndex != -3)
-                    {
-                        // 제작도(-1) / 조립도(≥0): 2D 도면 렌더 직접 호출 (btnGenerateSheet2D_Click L1049와 동일)
-                        GenerateSheetDrawing2D(sheet);
-                    }
-                    // 가공도(-3): 핸들러가 ExecuteMfgDrawing 자동 호출 — 추가 처리 없음
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(200);       // 2D 렌더 안정
-
-                    // 시트 종류 라벨 + PDF 출력
-                    string kindName = GetSheetKindLabel(sheet);  // 제작도/조립도/설치도/가공도
-                    string pdfFile = $"{safeStruName}_{kindName}_Sheet{sheet.SheetNumber}_{timeStamp}.pdf";
-                    string pdfPath = Path.Combine(saveDir, pdfFile);
-                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                    vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                    DiagLog($"T-064 PDF saved: {pdfPath}");
-                    pdfCount++;
-
-                    // 시트 간 2D 메모리 정리
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' sheet#{sheet.SheetNumber} ERROR: {ex.Message}");
-                }
-            }
-
+            DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
             return pdfCount;
         }
 

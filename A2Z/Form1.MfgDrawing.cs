@@ -658,10 +658,10 @@ namespace A2Z
                 // ── 3. 외곽 테두리 생성 (간단한 1x1 그리드로 깔끔한 A4 테두리) ──
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
-                // 새 SDK(VIZCore3D+.NET) — CrateTemplateBorder가 TemplateBorderInfo 인자를 받는 시그니처로 변경됨.
-                // 가정: SDK가 인자 객체에 결과(MaxX/MinY 등)를 out 패턴으로 채워줌. 검증 필요 (도면 결과로 확인).
-                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = new VIZCore3D.NET.Data.TemplateBorderInfo();
-                vizcore3d.Drawing2D.Template.CrateTemplateBorder(bInfo);
+                // 새 SDK(VIZCore3D+.NET) — 옛 CrateTemplateBorder() 무인자가 CreateTemplateBorder()(스펠링 정정)로 이름 변경됨.
+                // xml line 31246: CreateTemplateBorder() → returns TemplateBorderInfo (옛 무인자 호출과 동일 동작).
+                // (옛 이름 CrateTemplateBorder는 새 시그니처 CrateTemplateBorder(TemplateBorderInfo)로 재정의 — void 반환, 우리 의도와 다름)
+                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CreateTemplateBorder();
 
                 // ── 4. 모델 배치용 그리드 재생성 (8x6) ──
                 const int gridRows = 8;
