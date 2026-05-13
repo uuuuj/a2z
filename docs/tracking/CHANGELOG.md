@@ -6,6 +6,61 @@
 
 ---
 
+## 2026-05-13 — T-064 P1 UX: 체크박스 트리거 + 다중 강조 누적 + fit 제거
+
+**유형**: feat (P1 UX 미세 조정)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `8d131e5` (P1 재설계 — FRMWORK 부모 룰)
+
+**사용자 요청** (P1 식별·강조 검증 통과 후):
+1. 이름(텍스트 라벨)만 클릭해도 체크되는 동작 막기 — 체크박스 영역만 토글
+2. 강조는 체크 상태와 연동 — 체크 시 빨강, 해제 시 빨강 해제
+3. 카메라 fit 제거 — 체크/해제 시 시점 변동 없음
+4. 다중 체크 강조 유지 — 여러 STRU 동시 체크 시 모두 빨강
+
+**구현**:
+- `Form1.Designer.cs` (2줄): `CheckOnClick=true→false`, `SelectedIndexChanged → ItemCheck` 이벤트 등록
+- `Form1.Stru.cs` (메서드 1개 교체):
+  - `ClbStruList_SelectedIndexChanged` **삭제** (50줄)
+  - `ClbStruList_ItemCheck` **신규** (54줄)
+  - 헤더 P1 범위 주석 갱신
+
+**핵심 알고리즘** (다중 강조 누적):
+```
+ItemCheck 이벤트는 체크 *직전* 발생 → e.NewValue가 미래 상태
+  futureCheckedIdx = CheckedIndices ∪ {e.Index} (NewValue=Checked)
+                    또는 CheckedIndices \ {e.Index} (NewValue=Unchecked)
+  allBodyIndices = ∪{stru in futureCheckedIdx} GetChildObject3d(stru.Index, ALL_CHILDREN, true).Where(Kind==BODY)
+  BeginUpdate → RestoreColorAll → Select(allBodyIndices, true, false) → EndUpdate
+  // FlyToObject3d 호출 의도적 제거 — 사용자 요청
+```
+
+**기존 패턴과 의도적 차이** (사용자 메모리 "패턴 무비판 이식 금지" 준수):
+- BOM/lvOsnap/lvDimension/lvClash 행 강조 = `SelectedIndexChanged + Fly`
+- STRU = `ItemCheck + 다중 누적 + fit 없음` — 의미 분리 (체크박스=출력대상, 행선택=별도)
+
+**다중 에이전트 3라운드**:
+1. 라운드 1 (구현 1): general-purpose 위임
+2. 라운드 2 (병렬 2): 패턴 리뷰 "병합 대기" / 위험 리뷰 "조건부 진입 가능"
+3. 라운드 3: 빌드 + commit + push
+
+**P2 진입 시 검토 권고** (위험 리뷰 ⚠️ 2건):
+- `btnSelectAllStru` 전체 선택 시 ItemCheck N회 호출 → 대형 모델 N² 위험 (가드로 일괄 처리 권고)
+- BOM/Dimension 등 다른 강조 흐름과 색상 채널 미분리 (RestoreColorAll 충돌) — 색상 격리 또는 합집합 유지 검토
+
+**변경 파일** (2개, +37/-34):
+- `A2Z/Form1.Designer.cs` ±4
+- `A2Z/Form1.Stru.cs` 207→210줄 (+3 순증, 메서드 교체)
+
+**검증 시나리오** (사용자):
+- STRU 이름 클릭 → 행 선택만, 체크 안 됨, 강조도 안 됨
+- 체크박스 클릭 → 체크 + 부재 빨강. 카메라 시점 안 바뀜
+- 다른 STRU 추가 체크 → 양쪽 부재 모두 빨강 (누적 유지)
+- 체크 해제 → 그 STRU만 강조 해제 (다른 체크된 STRU는 유지)
+- 모든 체크 해제 → 전체 강조 사라짐
+
+---
+
 ## 2026-05-13 — T-064 P1 재설계: STRU 식별 룰 (FRMWORK 부모) + 강조 재귀 명시
 
 **유형**: fix (P1 검증 결과 두 문제 해결)

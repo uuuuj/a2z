@@ -13,7 +13,7 @@ namespace A2Z
         // STRU(Structure 단위) 식별 — 사용자 모델링 컨벤션 기반.
         // 모델트리: /E1(파일) → /E1(어셈블리) → /E1(어셈블리) → /M1(STRU) → FRMWORK 어셈블리들 → 부재.
         // 즉 STRU = 자식 중 NodeName이 "FRMWORK "로 시작하는 어셈블리가 있는 어셈블리.
-        // P1 범위: 추출 + CheckedListBox 표시 + 전체선택/해제 + 행 선택 시 3D 강조 + 카메라 fit.
+        // P1 범위: 추출 + CheckedListBox 표시 + 전체선택/해제 + 체크 시 3D 강조 (체크박스 영역만, 카메라 fit 없음, 다중 체크 강조 유지).
         // P2/P3 범위(미구현): 도면 리스트 뽑기, STRU별 자동 도면 생성, 일괄 PDF, 간섭검사 격리.
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
@@ -149,50 +149,53 @@ namespace A2Z
         }
 
         /// <summary>
-        /// CheckedListBox 행 "선택"(체크와 별개) 시 해당 STRU의 BODY 부재 강조 + 카메라 fit.
-        /// 체크박스는 출력 대상 표시용, 선택은 시각적 강조 전용으로 의미 분리.
-        /// Designer에서 CheckOnClick=true 설정 — 마우스 클릭 1회로 체크와 선택이 동시 발생 (사용자 의도).
-        /// 즉 사용자가 STRU 행을 한 번 클릭하면 (1) 체크 토글 + (2) 3D 강조·fit이 동시 트리거됨.
+        /// CheckedListBox 체크박스 클릭 시 호출 — 체크/해제에 따라 STRU의 BODY 부재를 3D에서 강조/해제.
+        /// Designer에서 CheckOnClick=false 설정 — 체크박스 영역 클릭만 체크 토글 (이름 클릭은 선택만).
+        /// 다중 체크 강조 유지: 매번 RestoreColorAll → 미래 체크된 STRU 전체의 BODY 합집합 → Select(true).
+        /// 카메라 fit(FlyToObject3d) 호출 없음 — 사용자 요청 (체크 시 시점 변동 방지).
+        /// ItemCheck는 체크 상태 변경 *직전*에 발생 — e.NewValue가 미래 상태이므로 CheckedIndices에 e.NewValue 반영해 합집합 계산.
         /// </summary>
-        private void ClbStruList_SelectedIndexChanged(object sender, EventArgs e)
+        private void ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)
         {
             if (clbStruList == null) return;
-            int selectedIdx = clbStruList.SelectedIndex;
-            if (selectedIdx < 0 || selectedIdx >= _struNodeCache.Count) return;
+            if (e.Index < 0 || e.Index >= _struNodeCache.Count) return;
 
-            var struNode = _struNodeCache[selectedIdx];
+            // ItemCheck는 체크 *직전* — e.NewValue로 미래 체크 set 계산
+            var futureCheckedIdx = new HashSet<int>();
+            foreach (int idx in clbStruList.CheckedIndices) futureCheckedIdx.Add(idx);
+            if (e.NewValue == CheckState.Checked) futureCheckedIdx.Add(e.Index);
+            else futureCheckedIdx.Remove(e.Index);
+
             try
             {
-                // 재귀 모든 후손 (Object3DChildOption.ALL_CHILDREN + includeBody:true)
-                // SDK xml 검증: VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN (line 4877)
-                // Manager.Object3DManager.GetChildObject3d(int, Object3DChildOption, bool) (line 50132)
-                var allDescendants = vizcore3d.Object3D.GetChildObject3d(
-                    struNode.Index,
-                    VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
-                    true);  // includeBody
-                if (allDescendants == null || allDescendants.Count == 0)
+                // 미래 체크된 STRU들의 모든 후손 BODY 합집합
+                var allBodyIndices = new HashSet<int>();
+                foreach (int idx in futureCheckedIdx)
                 {
-                    DiagLog($"T-064 ClbStru '{struNode.NodeName ?? struNode.NodePath}' allDescendants=0");
-                    return;
+                    if (idx < 0 || idx >= _struNodeCache.Count) continue;
+                    var stru = _struNodeCache[idx];
+                    var descendants = vizcore3d.Object3D.GetChildObject3d(
+                        stru.Index,
+                        VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
+                        true);
+                    if (descendants == null) continue;
+                    foreach (var b in descendants)
+                    {
+                        if (b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
+                            allBodyIndices.Add(b.Index);
+                    }
                 }
 
-                // BODY만 필터 — Node.Kind == NodeKind.BODY (xml line 9711 P:Node.Kind, line 4583 NodeKind.BODY)
-                var memberIndices = allDescendants
-                    .Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
-                    .Select(b => b.Index)
-                    .ToList();
-                DiagLog($"T-064 ClbStru '{struNode.NodeName ?? struNode.NodePath}' allDescendants={allDescendants.Count}, BODY={memberIndices.Count}");
-                if (memberIndices.Count == 0) return;
+                DiagLog($"T-064 ItemCheck idx={e.Index} new={e.NewValue} futureCheckedSTRU={futureCheckedIdx.Count} totalBODY={allBodyIndices.Count}");
 
-                // 배치 갱신 가드 + 색상 초기화 + 선택 + 카메라 fit
-                // SDK 정정: Color.RestoreColorAll은 Object3D 네임스페이스, FlyToObject3d는 View 직속
-                // try/finally로 EndUpdate 보장 — BeginUpdate 후 예외 발생 시에도 UI 잠금 해제
+                // 배치 갱신 가드 + 전체 색 초기화 + 합집합 강조 (카메라 fit 없음)
                 vizcore3d.BeginUpdate();
                 try
                 {
                     vizcore3d.Object3D.Color.RestoreColorAll();
-                    vizcore3d.Object3D.Select(memberIndices, true, false);
-                    vizcore3d.View.FlyToObject3d(memberIndices, 1.2f);
+                    if (allBodyIndices.Count > 0)
+                        vizcore3d.Object3D.Select(allBodyIndices.ToList(), true, false);
+                    // FlyToObject3d 의도적으로 호출 안 함 — 사용자 요청
                 }
                 finally
                 {
@@ -201,7 +204,7 @@ namespace A2Z
             }
             catch (Exception ex)
             {
-                DiagLog($"T-064 ClbStruList_SelectedIndexChanged ERROR: {ex.Message}");
+                DiagLog($"T-064 ClbStruList_ItemCheck ERROR: {ex.Message}");
             }
         }
     }

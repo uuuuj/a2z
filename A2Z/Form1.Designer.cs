@@ -1047,13 +1047,13 @@ namespace A2Z
             //
             // clbStruList
             //
-            this.clbStruList.CheckOnClick = true;
+            this.clbStruList.CheckOnClick = false;
             this.clbStruList.Dock = System.Windows.Forms.DockStyle.Fill;
             this.clbStruList.FormattingEnabled = true;
             this.clbStruList.IntegralHeight = false;
             this.clbStruList.Name = "clbStruList";
             this.clbStruList.Size = new System.Drawing.Size(437, 207);
-            this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
+            this.clbStruList.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.ClbStruList_ItemCheck);
             //
             // btnGenerateSheets
             //
