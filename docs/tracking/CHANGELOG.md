@@ -6,6 +6,78 @@
 
 ---
 
+## 2026-05-13 — T-064 P2 본진: STRU 일괄 자동 도면 + PDF 출력 (P2a PoC 폐기)
+
+**유형**: feat (P2a PoC 폐기 + 본진 도입)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `086d7d5` (P2a 핫픽스 3 — 가시성 제거)
+
+**사용자 단순화 요청**:
+> "그냥 선택되어 있는 부재들 순서 저장한 다음에 순서대로 치수추출, 제작도부터 가공도까지 출력하고 pdf 만들고 그 다음 부재 치수추출 제작도부터 가공도까지 출력 후 pdf 이렇게 하면 되는거 아니야?"
+
+= 가시성 격리·DetectClash 별도 호출 같은 PoC 폐기. 사용자 평소 작업을 STRU별 자동 반복.
+
+**Explore 사전 추적 결과 — 사용자 평소 흐름**:
+- `xraySelectedNodeIndices` 설정 → `DetectClash()` (비동기)
+- `Clash_OnClashTestFinishedEvent` 콜백에서 자동으로 `CompleteMainDimensionPostClash` → 치수 계산 + `GenerateDrawingSheets()` → `drawingSheetList` 채움 (Sheet1 제작도 + Sheet2~N 조립도 + 설치도 -2 + 가공도 -3)
+- 시트별 `GenerateSheetDrawing2D` (일반) 또는 `GenerateMfgDrawing2DAll` (가공도) → `Export2PDFBy2DView` → 시트별 독립 PDF
+- 핵심 발견: 기존 DetectClash가 `xraySelectedNodeIndices`로 격리 (Form1.Clash.cs:350-353) → **가시성 토글 불필요**
+
+**P2 본진 구현**:
+
+### 폐기 항목 (P2a PoC)
+- `Form1.Stru.cs`: `_p2aClashStruNode`/`_p2aClashStartTime` 필드 제거, `P2aClash_OnFinished` 메서드 제거 (54줄)
+- `Form1.Clash.cs`: `Clash_OnClashTestFinishedEvent` 진입부 P2a 가드 (`if (_p2aInProgress) return;`) 제거
+  - 이유: 본진은 그 흐름의 자동 시트 생성을 *활용*해야 함
+
+### 신설 항목 (P2 본진)
+- `btnExtractDrawingList_Click` 본진 재작성:
+  - CheckedIndices 순서대로 STRU 노드 수집 (사용자 "순서 저장")
+  - FolderBrowserDialog로 PDF 저장 폴더 선택 (1회)
+  - 다중 STRU 시 확인 팝업 ("선택된 N개 STRU의 4종 PDF 일괄 생성")
+  - STRU별 루프 — `ProcessSingleStruFull` 호출
+  - 진행 표시 `ShowBusyOverlay($"STRU 처리 {s+1}/{N}: {NodeName}")`
+  - 실패 정책: 건너뛰고 계속 + 끝 요약 메시지박스
+  - STRU 간 메모리 정리 (DeleteAllObjectBy2DView × 2 + GC.Collect × 2 + Sleep 100ms)
+- `ProcessSingleStruFull(struNode, saveDir)` 신규:
+  1. STRU 후손 BODY 수집 (GetChildObject3d ALL_CHILDREN + Kind==BODY)
+  2. `xraySelectedNodeIndices = STRU BODY` (격리)
+  3. `DetectClash()` 호출 (기존 함수) — 비동기 시작
+  4. `vizcore3d.Clash.IsBusy` 폴링 + DoEvents + Sleep(50) (60초 타임아웃)
+  5. OnClashTestFinishedEvent 자동 콜백이 시트 생성·치수계산까지 진행 → `drawingSheetList` 채워짐
+  6. `drawingSheetList` 순회 → BaseMemberIndex로 시트 종류 식별:
+     - `-3` (가공도): `GenerateMfgDrawing2DAll(new List<DrawingSheetData>{sheet})`
+     - 그 외 (-1 제작도 / -2 설치도 / ≥0 조립도): `GenerateSheetDrawing2D(sheet)`
+  7. `Export2PDFBy2DView({saveDir}/{STRU명}_{종류}_Sheet{N}_{HHmmss}.pdf)`
+  8. 시트 간 메모리 정리
+- `GetSheetKindLabel(sheet)` 신규 — BaseMemberIndex → "제작도"/"조립도"/"설치도"/"가공도" 라벨 매핑
+- `_p2aInProgress` 가드 유지 — 의미 변경 (재진입 차단만, Clash 흐름 차단은 제거)
+
+**다중 에이전트 토론**:
+1. 라운드 1 (Explore 1): 사용자 평소 흐름 추적 — btnExtractDimension(동기) vs DetectClash(비동기) 분리 + GenerateDrawingSheets 한 번에 4종 + 가공도 별도 흐름
+2. 라운드 2 (general-purpose 위임): P2a 폐기 + 본진 구현
+3. 라운드 3 (Explore 압축 리뷰): 안정성 OK, ⚠️ 3건 모두 대형 STRU 시나리오용 (N² 페어, 60s 타임아웃) — 사용자 보통 사용에선 무관
+4. 라운드 4: MSBuild Debug 통과 → commit + push
+
+**변경 파일** (2개, +197/-179):
+- `A2Z/Form1.Stru.cs` 366줄 변경 (최종 545줄)
+- `A2Z/Form1.Clash.cs` 10줄 변경 (가드 제거)
+
+**검증 시나리오** (사내 PC):
+- 모델 열기 → STRU 1개 체크 → `[도면 리스트 뽑기]` → 폴더 선택 → 처리 진행
+- 화면: BusyOverlay에 `"STRU 처리 1/1: /M1"` 표시. 평소 간섭검사 진행 과정 (DetectClash 비동기)
+- 완료 후 메시지박스 `"STRU 일괄 도면 출력 완료 / 성공: 1개 STRU (PDF N개)"`
+- 폴더에 PDF 파일들 — `M1_제작도_Sheet1_HHMMSS.pdf`, `M1_조립도_Sheet2_HHMMSS.pdf` 등 N개
+- DiagLog: `T-064 STRU '/M1' bodies=N`, `DetectClash startResult=True`, `시트 N개 생성`, `PDF saved: ...`, `STRU '/M1' 완료 — PDF M개`
+- 다중 STRU 체크 → 확인 팝업 → STRU별 순차 처리
+
+**잔여 위험** (사용자 검증 후 보강 후보):
+- 60초 타임아웃 부족 가능성 (STRU 부재 100개+ 대형 케이스) — DiagLog `TIMEOUT (60s)` 신호 확인 시 타임아웃 확장
+- 페어 N² 폭발 (기존 DetectClash 동일 패턴) — 대형 STRU 시 검사 시간 ↑
+- DetectClash startResult=false 시 fallback (GenerateDrawingSheets 직접) — 단일 부재 STRU 등 엣지 케이스 의미 검증 필요
+
+---
+
 ## 2026-05-13 — T-064 P2a 핫픽스 3: 가시성 변경 코드 전체 제거 (그룹 한정 격리만)
 
 **유형**: fix (가시성 토글 부작용 회피)

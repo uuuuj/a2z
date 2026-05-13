@@ -9,7 +9,7 @@ namespace A2Z
 {
     public partial class Form1
     {
-        // ─── T-064 P1 + P2a: STRU 목록 + 도면 리스트 뽑기 PoC ───
+        // ─── T-064 P1 + P2 본진: STRU 일괄 도면 출력 ───
         // STRU(Structure 단위) 식별 — 사용자 모델링 컨벤션 기반.
         // 모델트리: /E1(파일) → /E1(어셈블리) → /E1(어셈블리) → /M1(STRU) → FRMWORK 어셈블리들 → 부재.
         // 즉 STRU = 자식 중 NodeName이 "FRMWORK "로 시작하는 어셈블리가 있는 어셈블리.
@@ -19,15 +19,21 @@ namespace A2Z
         //   - 체크박스 클릭 → 3D 강조 토글 (다중 체크 강조 누적 유지, 카메라 fit 없음)
         //   - 행 선택 (이름 클릭) → 그 STRU로 카메라 fit (강조 변경 X, 체크 강조 유지)
         //
-        // P2a 범위 (구현됨 — PoC):
-        //   - [도면 리스트 뽑기] 버튼: 체크된 STRU 첫 번째 1개만 대상
-        //   - 가시성 격리 (전체 BODY 숨김 → STRU 후손 BODY만 표시)
-        //   - DetectClash 호출 (페어 직접 생성 — VisibleOnly=true)
-        //   - 결과 DiagLog 출력 (clashList/시트 생성에는 반영 안 함)
-        //   - 가시성 복원 (try/finally)
-        //   - 기존 Clash_OnClashTestFinishedEvent 임시 해제 + P2a 전용 핸들러 등록 → 복원
+        // P2 본진 범위 (구현됨 — P2a PoC 폐기):
+        //   - [도면 리스트 뽑기] 버튼: 체크된 STRU 전체 순서대로 자동 반복
+        //   - STRU별 흐름 = 사용자 평소 작업:
+        //       (a) xraySelectedNodeIndices = STRU 후손 BODY → DetectClash() 호출
+        //       (b) Clash_OnClashTestFinishedEvent 자동 콜백 → CompleteMainDimensionPostClash
+        //           → GenerateDrawingSheets() → drawingSheetList 자동 채워짐
+        //       (c) IsBusy 폴링으로 비동기 → 동기 흐름 모사
+        //       (d) drawingSheetList 순회 → 시트별 GenerateSheetDrawing2D / GenerateMfgDrawing2DAll
+        //           → Export2PDFBy2DView로 PDF 출력
+        //       (e) 시트 간·STRU 간 2D 메모리 정리 + GC
         //
-        // P2b/c 범위 (미구현): GenerateDrawingSheets 호출, 시트 채우기, 다중 STRU 루프, 확인 팝업, PDF 출력
+        // 폐기된 P2a PoC 흐름:
+        //   - 가시성 격리 (Show false/true) — 부모/자식 가시성 충돌로 무용
+        //   - 페어 직접 생성 + DetectClash 우회 — 본진은 기존 DetectClash가 xraySelectedNodeIndices로 격리
+        //   - P2aClash_OnFinished — 시트 생성 자동 흐름 활용으로 별도 핸들러 불필요
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
 
@@ -35,14 +41,8 @@ namespace A2Z
         // ItemCheck에서 set, BeginInvoke로 큐 끝 해제. SelectedIndexChanged는 BeginInvoke 지연 후 검사 → 가드 on이면 fit 차단.
         private bool _suppressStruSelChanged = false;
 
-        // ─── T-064 P2a 전용 필드 ───
-        // P2a는 *기존* Clash_OnClashTestFinishedEvent (시트 생성까지 수행) 흐름을 *회피*해야 함.
-        // 컨텍스트 분리: P2a는 PoC라 결과를 DiagLog만 — clashList/시트 생성에 반영 안 함 (사용자 메모리: 패턴 무비판 이식 금지).
-        private VIZCore3D.NET.Data.Node _p2aClashStruNode = null;
-        private DateTime _p2aClashStartTime;
-
-        // 진행 가드 — P2a 실행 중 같은 버튼·간섭검사 버튼 재진입 차단 (위험 리뷰 #2/#7 대응).
-        // true면 btnExtractDrawingList_Click 재진입 거부 + 사용자가 다른 흐름 트리거 시 UI 차단으로 격리 상태 유지.
+        // 진행 가드 — STRU 일괄 도면 실행 중 같은 버튼 재진입 차단.
+        // 이름은 P2a PoC 유산이지만 본진에서도 동일 역할 유지.
         private bool _p2aInProgress = false;
 
         /// <summary>
@@ -303,29 +303,27 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-064 P2a — [도면 리스트 뽑기] 버튼 (PoC).
-        /// 체크된 STRU 중 첫 번째 1개에 대해 가시성 격리 + 간섭검사 수행 + 결과 DiagLog.
+        /// T-064 P2 본진 — [도면 리스트 뽑기] 버튼.
+        /// 체크된 STRU 전체를 순서대로 자동 반복:
+        ///   각 STRU에 대해 사용자 평소 작업(부재 선택 → 간섭검사 → 자동 시트 생성 → PDF) 수행.
+        /// xraySelectedNodeIndices 격리로 STRU 후손 BODY만 검사 (기존 DetectClash 그대로 활용).
+        /// 가시성 토글 없음 — Show false/true는 부모/자식 가시성 충돌 위험.
         ///
         /// 흐름:
-        ///   1) 가드: 모델 열림 확인, 체크된 STRU ≥ 1개 확인 (다중이면 첫 번째만 처리 — P2c에서 루프)
-        ///   2) STRU 후손 BODY 인덱스 수집 + 전체 BODY 인덱스 수집
-        ///   3) 가시성 격리: 전체 BODY 숨김 → STRU 후손 BODY만 표시
-        ///   4) 기존 OnClashTestFinishedEvent 핸들러 임시 해제 → P2a 전용 핸들러 등록
-        ///   5) STRU 후손 BODY끼리 페어 직접 생성 (VisibleOnly=true로 검사 격리 강화) + PerformInterferenceCheck
-        ///   6) IsBusy 폴링 (최대 60초 타임아웃)
-        ///   7) finally: 핸들러 원상 복원 + 가시성 복원
-        ///
-        /// 컨텍스트 분리 (사용자 메모리 - 패턴 무비판 이식 금지):
-        ///   - 기존 DetectClash()를 재사용하지 않음 (VisibleOnly=false 고정이라 격리 의도와 충돌).
-        ///   - 기존 Clash_OnClashTestFinishedEvent는 시트 생성까지 수행 — P2a PoC는 결과만 DiagLog.
-        ///   - 따라서 페어를 P2a 내부에서 직접 만들고, 완료 핸들러도 P2a 전용으로 분리.
+        ///   1) 가드: 모델 열림 + 체크된 STRU ≥ 1개 + 재진입 차단
+        ///   2) CheckedIndices 순서(리스트 표시 순서)대로 STRU 노드 수집
+        ///   3) PDF 저장 폴더 선택 (FolderBrowserDialog)
+        ///   4) 다중 STRU면 확인 팝업 (사용자 요구사항)
+        ///   5) STRU별 ProcessSingleStruFull 호출 — 실패해도 다음 STRU 진행
+        ///   6) STRU 간 2D 메모리 정리 + GC
+        ///   7) finally: 진행 가드 해제 + UI 복원 + 결과 요약
         /// </summary>
         private void btnExtractDrawingList_Click(object sender, EventArgs e)
         {
-            // 진행 가드 — 위험 리뷰 #7 대응 (재진입 차단)
+            // 재진입 가드
             if (_p2aInProgress)
             {
-                DiagLog("T-064 P2a 이미 진행 중 — 재진입 무시");
+                DiagLog("T-064 P2 이미 진행 중 — 재진입 무시");
                 return;
             }
             if (!vizcore3d.Model.IsOpen())
@@ -339,112 +337,131 @@ namespace A2Z
                 return;
             }
 
-            // P2a: 첫 번째 체크된 STRU만 처리 (다중은 P2c에서 루프)
-            int firstCheckedListIdx = -1;
-            for (int i = 0; i < clbStruList.Items.Count; i++)
+            // 체크된 STRU 순서대로 수집 (CheckedIndices = 리스트 표시 순서)
+            var checkedStrus = new List<VIZCore3D.NET.Data.Node>();
+            foreach (int idx in clbStruList.CheckedIndices)
             {
-                if (clbStruList.GetItemChecked(i)) { firstCheckedListIdx = i; break; }
+                if (idx >= 0 && idx < _struNodeCache.Count)
+                    checkedStrus.Add(_struNodeCache[idx]);
             }
-            if (firstCheckedListIdx < 0 || firstCheckedListIdx >= _struNodeCache.Count)
+            if (checkedStrus.Count == 0) return;
+
+            // PDF 저장 폴더 선택
+            string saveDir;
+            using (var dlg = new FolderBrowserDialog())
             {
-                DiagLog($"T-064 P2a 체크 STRU 인덱스 무효 idx={firstCheckedListIdx} cache={_struNodeCache.Count}");
-                return;
-            }
-            if (clbStruList.CheckedItems.Count > 1)
-            {
-                DiagLog($"T-064 P2a 체크 {clbStruList.CheckedItems.Count}개 중 첫 번째만 처리 (P2a PoC, 다중은 P2c에서)");
+                dlg.Description = $"PDF 저장 폴더 선택 ({checkedStrus.Count}개 STRU)";
+                dlg.SelectedPath = @"c:\";
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+                saveDir = dlg.SelectedPath;
             }
 
-            var struNode = _struNodeCache[firstCheckedListIdx];
+            // 다중 STRU 확인 팝업 (사용자 요구사항 6번)
+            if (checkedStrus.Count > 1)
+            {
+                var ret = MessageBox.Show(
+                    $"선택된 {checkedStrus.Count}개 STRU의 도면 4종(제작/조립/설치/가공) PDF를 일괄 생성합니다.\n계속하시겠습니까?",
+                    "확인", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (ret != DialogResult.Yes) return;
+            }
 
-            // STRU 후손 전체 수집 (ALL_CHILDREN 재귀)
+            _p2aInProgress = true;
+            btnExtractDrawingList.Enabled = false;
+
+            int successCount = 0, failCount = 0;
+            var errors = new List<string>();
+            int totalPdfCount = 0;
+
+            try
+            {
+                for (int s = 0; s < checkedStrus.Count; s++)
+                {
+                    var stru = checkedStrus[s];
+                    ShowBusyOverlay($"STRU 처리 {s + 1}/{checkedStrus.Count}: {stru.NodeName}");
+                    Application.DoEvents();
+
+                    try
+                    {
+                        int pdfCount = ProcessSingleStruFull(stru, saveDir);
+                        successCount++;
+                        totalPdfCount += pdfCount;
+                        DiagLog($"T-064 STRU '{stru.NodeName}' 완료 — PDF {pdfCount}개 생성");
+                    }
+                    catch (Exception ex)
+                    {
+                        failCount++;
+                        errors.Add($"{stru.NodeName}: {ex.Message}");
+                        DiagLog($"T-064 STRU '{stru.NodeName}' ERROR: {ex.Message}\n{ex.StackTrace}");
+                    }
+
+                    // STRU 간 메모리 정리
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(100);
+                }
+            }
+            finally
+            {
+                _p2aInProgress = false;
+                try { btnExtractDrawingList.Enabled = true; } catch { }
+                try { HideBusyOverlay(); } catch { }
+            }
+
+            // 결과 요약
+            string msg = $"STRU 일괄 도면 출력 완료\n\n성공: {successCount}개 STRU (PDF {totalPdfCount}개)\n실패: {failCount}개";
+            if (errors.Count > 0)
+            {
+                int maxShow = Math.Min(10, errors.Count);
+                msg += $"\n\n실패 목록 (최대 10건):\n{string.Join("\n", errors.Take(maxShow))}";
+                if (errors.Count > maxShow) msg += $"\n... +{errors.Count - maxShow}건";
+            }
+            MessageBox.Show(msg, "완료", MessageBoxButtons.OK,
+                failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// T-064 P2 본진 — 단일 STRU 처리.
+        /// 부재 선택 → DetectClash 비동기 → 자동 시트 생성 → 시트별 PDF 출력.
+        /// 사용자 평소 작업(부재 선택 → 간섭검사 → 자동 시트 + PDF) 흐름을 STRU 단위로 자동 반복.
+        /// xraySelectedNodeIndices 격리로 STRU 후손 BODY만 검사 (가시성 토글 불필요).
+        /// </summary>
+        private int ProcessSingleStruFull(VIZCore3D.NET.Data.Node struNode, string saveDir)
+        {
+            // 1) STRU 후손 BODY 수집
             var descendants = vizcore3d.Object3D.GetChildObject3d(
                 struNode.Index,
                 VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
                 true);
             if (descendants == null || descendants.Count == 0)
-            {
-                DiagLog($"T-064 P2a STRU='{struNode.NodeName}' 후손 0건 (중단)");
-                return;
-            }
-
-            // ClashTest 페어용 — BODY만 추출
-            var struBodyNodes = descendants
+                throw new Exception("STRU 후손 0건");
+            var memberIndices = descendants
                 .Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
+                .Select(b => b.Index)
                 .ToList();
-            if (struBodyNodes.Count == 0)
+            if (memberIndices.Count == 0)
+                throw new Exception("STRU 후손 BODY 0건");
+
+            DiagLog($"T-064 STRU '{struNode.NodeName}' bodies={memberIndices.Count}");
+
+            // 2) xraySelectedNodeIndices 설정 (격리) — DetectClash가 이 set만 페어로 만든다
+            xraySelectedNodeIndices = new List<int>(memberIndices);
+
+            // 3) DetectClash 호출 (비동기) — OnFinished가 자동으로 시트 생성·치수계산까지 진행
+            bool startResult = DetectClash();
+            DiagLog($"T-064 STRU '{struNode.NodeName}' DetectClash startResult={startResult}");
+            if (!startResult)
             {
-                DiagLog($"T-064 P2a STRU='{struNode.NodeName}' BODY 후손 0건 (중단)");
-                return;
+                // Clash 페어 0개 등 시작 실패 — 단일 부재 또는 모든 부재가 서로 멀어진 경우.
+                // 그래도 GenerateDrawingSheets 직접 호출 시도 (Sheet 1 + 가공도라도 생성)
+                GenerateDrawingSheets();
             }
-
-            DiagLog($"T-064 P2a 시작 STRU='{struNode.NodeName}' struBODY={struBodyNodes.Count} (가시성 미변경 — ClashTest 그룹으로만 격리)");
-
-            // 진행 가드 set + UI 차단 (재진입 방지)
-            // _p2aInProgress 가드는 Form1.Clash.cs:Clash_OnClashTestFinishedEvent 진입부에서 검사하여
-            // 기존 흐름(시트 생성·사전조건 메시지)을 차단함.
-            //
-            // 가시성 변경 코드 제거 (사용자 보고 대응):
-            //   - 이전: Show(allNodes, false) + Show(struVisible, true) → 부모/자식 가시성 상호작용으로
-            //     체크된 STRU 부재까지 사라졌다가 finally에서 다시 표시되는 현상 발생
-            //   - 변경: 기존 DetectClash(Form1.Clash.cs:340~363) 패턴과 동일 — 가시성은 안 건드리고
-            //     ClashTest GroupA/B에 STRU BODY만 등록하여 SDK가 그룹 외 검사 안 함
-            //   - 사용자 시각 인지는 ShowBusyOverlay 텍스트("STRU 격리·간섭검사 진행 중: {NodeName}")로 충분
-            _p2aInProgress = true;
-            btnExtractDrawingList.Enabled = false;
-            ShowBusyOverlay($"STRU 격리·간섭검사 진행 중: {struNode.NodeName ?? "STRU"}");
-
-            bool p2aHandlerRegistered = false;
-            try
+            else
             {
-                // P2a 결과 핸들러 등록 (기존 핸들러는 가드로 차단되므로 swap 불필요)
-                vizcore3d.Clash.OnClashTestFinishedEvent += P2aClash_OnFinished;
-                p2aHandlerRegistered = true;
-
-                // 3) Clash 페어 생성 — STRU 후손 BODY끼리만, VisibleOnly=true로 검사 격리 강화
-                _p2aClashStruNode = struNode;
-                _p2aClashStartTime = DateTime.Now;
-
-                vizcore3d.Clash.Clear();
-                int pairCount = 0;
-                for (int i = 0; i < struBodyNodes.Count; i++)
-                {
-                    for (int j = i + 1; j < struBodyNodes.Count; j++)
-                    {
-                        var pairClash = new VIZCore3D.NET.Data.ClashTest();
-                        pairClash.Name = $"P2a_{struBodyNodes[i].NodeName}_vs_{struBodyNodes[j].NodeName}";
-                        pairClash.TestKind = VIZCore3D.NET.Data.ClashTest.ClashTestKind.GROUP_VS_GROUP;
-                        pairClash.UseClearanceValue = true;
-                        pairClash.ClearanceValue = 3.0f;  // T-063 기준 유지
-                        pairClash.UseRangeValue = true;
-                        pairClash.RangeValue = 3.0f;
-                        pairClash.UsePenetrationTolerance = true;
-                        pairClash.PenetrationTolerance = 1.0f;
-                        // VisibleOnly=false — 기존 DetectClash(Form1.Clash.cs:381) 패턴과 동일.
-                        // 사용자 보고: VisibleOnly=true면 SDK 내부에서 가시성을 재설정해 격리가 무효화됨.
-                        // 격리는 ClashTest 그룹(GroupA/B = STRU 부재만)으로 한정 → SDK는 그룹 외 검사 안 함.
-                        pairClash.VisibleOnly = false;
-                        pairClash.BottomLevel = 0;
-                        pairClash.GroupA = new List<VIZCore3D.NET.Data.Node> { struBodyNodes[i] };
-                        pairClash.GroupB = new List<VIZCore3D.NET.Data.Node> { struBodyNodes[j] };
-
-                        if (vizcore3d.Clash.Add(pairClash))
-                            pairCount++;
-                    }
-                }
-                DiagLog($"T-064 P2a Clash 페어 {pairCount}개 등록 (VisibleOnly=true)");
-
-                if (pairCount == 0)
-                {
-                    DiagLog($"T-064 P2a 페어 0개 — 검사 생략");
-                    return;
-                }
-
-                // 4) 비동기 검사 시작
-                bool startResult = vizcore3d.Clash.PerformInterferenceCheck();
-                DiagLog($"T-064 P2a PerformInterferenceCheck startResult={startResult}");
-
-                // 5) 완료 폴링 (최대 60초)
+                // 4) 비동기 완료 폴링 (최대 60초 — STRU 크기에 따라 조정 필요)
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 while (vizcore3d.Clash.IsBusy && sw.ElapsedMilliseconds < 60000)
                 {
@@ -452,72 +469,77 @@ namespace A2Z
                     System.Threading.Thread.Sleep(50);
                 }
                 if (vizcore3d.Clash.IsBusy)
-                    DiagLog($"T-064 P2a TIMEOUT (60s) STRU='{struNode.NodeName}'");
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"T-064 P2a ERROR: {ex.Message}\n{ex.StackTrace}");
-            }
-            finally
-            {
-                // P2a 핸들러 해제 (등록됐을 때만)
-                if (p2aHandlerRegistered)
                 {
-                    try { vizcore3d.Clash.OnClashTestFinishedEvent -= P2aClash_OnFinished; } catch { }
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' TIMEOUT (60s)");
+                    throw new Exception("간섭검사 60초 타임아웃");
                 }
-                // 가시성 변경 안 했으므로 복원 불필요
-                _p2aClashStruNode = null;
-                // 진행 가드 해제 + UI 차단 해제 (가드 해제는 핸들러 해제 후 — 가드 의존 흐름 안전)
-                _p2aInProgress = false;
-                try { btnExtractDrawingList.Enabled = true; } catch { }
-                try { HideBusyOverlay(); } catch { }
-                DiagLog($"T-064 P2a 종료");
             }
+
+            // 5) drawingSheetList 채워졌는지 확인
+            if (drawingSheetList == null || drawingSheetList.Count == 0)
+                throw new Exception("시트 0건 — GenerateDrawingSheets 결과 비어있음");
+
+            DiagLog($"T-064 STRU '{struNode.NodeName}' 시트 {drawingSheetList.Count}개 생성");
+
+            // 6) 각 시트 → 2D 렌더 + PDF 출력
+            int pdfCount = 0;
+            string safeStruName = SanitizeFileName(struNode.NodeName ?? "STRU");
+            string timeStamp = DateTime.Now.ToString("HHmmss");
+
+            foreach (var sheet in drawingSheetList.ToList()) // 복사본 순회 (안전)
+            {
+                try
+                {
+                    // 시트 종류 식별 + 파일명 컨벤션
+                    string kindName = GetSheetKindLabel(sheet);  // 제작도/조립도/설치도/가공도
+
+                    // 2D 렌더 — 가공도면(-3)은 별도 흐름
+                    if (sheet.BaseMemberIndex == -3)
+                    {
+                        GenerateMfgDrawing2DAll(new List<DrawingSheetData> { sheet });
+                    }
+                    else
+                    {
+                        GenerateSheetDrawing2D(sheet);
+                    }
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(200);
+
+                    // PDF 출력
+                    string pdfFile = $"{safeStruName}_{kindName}_Sheet{sheet.SheetNumber}_{timeStamp}.pdf";
+                    string pdfPath = Path.Combine(saveDir, pdfFile);
+                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                    DiagLog($"T-064 PDF saved: {pdfPath}");
+                    pdfCount++;
+
+                    // 시트 간 메모리 정리
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' sheet#{sheet.SheetNumber} ERROR: {ex.Message}");
+                }
+            }
+
+            return pdfCount;
         }
 
         /// <summary>
-        /// T-064 P2a — 간섭검사 완료 콜백 (PoC).
-        /// 기존 Clash_OnClashTestFinishedEvent는 결과를 clashList → 시트 생성까지 처리하나,
-        /// P2a는 PoC라 결과를 DiagLog만 출력. clashList/lvClash 등 기존 상태에는 영향 주지 않음.
+        /// 시트 종류 라벨 — BaseMemberIndex로 식별.
+        ///   -1 = 제작도 (Sheet 1)
+        ///   -2 = 설치도
+        ///   -3 = 가공도
+        ///    >= 0 = 조립도 (Sheet 2~N, 1-hop Clash 이웃)
         /// </summary>
-        private void P2aClash_OnFinished(object sender, VIZCore3D.NET.Event.EventManager.ClashEventArgs e)
+        private string GetSheetKindLabel(DrawingSheetData sheet)
         {
-            try
-            {
-                double elapsed = (DateTime.Now - _p2aClashStartTime).TotalSeconds;
-                string struName = _p2aClashStruNode?.NodeName ?? "(null)";
-                int testCount = vizcore3d.Clash.ClashTestCount;
-                DiagLog($"T-064 P2a OnFinished STRU='{struName}' ID={e.ID} elapsed={elapsed:F2}s ClashTestCount={testCount}");
-
-                int totalPairs = 0;
-                for (int i = 0; i < testCount; i++)
-                {
-                    var clashTest = vizcore3d.Clash.Items[i];
-                    if (clashTest == null) continue;
-
-                    var results = vizcore3d.Clash.GetResultItem(
-                        clashTest,
-                        VIZCore3D.NET.Manager.ClashManager.ResultGroupingOptions.PART);
-                    if (results == null || results.Count == 0) continue;
-
-                    foreach (var r in results)
-                    {
-                        totalPairs++;
-                        DiagLog($"T-064 P2a result[{totalPairs}] A_idx={r.NodeIndexA} A='{r.NodeNameA}' B_idx={r.NodeIndexB} B='{r.NodeNameB}'");
-                        if (totalPairs >= 50)
-                        {
-                            DiagLog($"T-064 P2a result log 상한 50건 도달 — 이후 생략");
-                            break;
-                        }
-                    }
-                    if (totalPairs >= 50) break;
-                }
-                DiagLog($"T-064 P2a 결과 요약 STRU='{struName}' totalPairs={totalPairs}");
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"T-064 P2a OnFinished ERROR: {ex.Message}\n{ex.StackTrace}");
-            }
+            if (sheet.BaseMemberIndex == -1) return "제작도";
+            if (sheet.BaseMemberIndex == -2) return "설치도";
+            if (sheet.BaseMemberIndex == -3) return "가공도";
+            return "조립도";  // BaseMemberIndex >= 0 (Sheet 2~N, 1-hop Clash 이웃)
         }
     }
 }
