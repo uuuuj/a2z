@@ -357,8 +357,7 @@ namespace A2Z
 
             var struNode = _struNodeCache[firstCheckedListIdx];
 
-            // STRU 후손 전체 수집 (ALL_CHILDREN 재귀 — BODY만이 아니라 PART/ASSEMBLY 후손도 포함)
-            // 사용자 보고 "가시성 격리 미작동" 대응: 부모 PART/ASSEMBLY가 안 숨겨지면 검사 대상 누락 가능
+            // STRU 후손 전체 수집 (ALL_CHILDREN 재귀)
             var descendants = vizcore3d.Object3D.GetChildObject3d(
                 struNode.Index,
                 VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN,
@@ -368,9 +367,6 @@ namespace A2Z
                 DiagLog($"T-064 P2a STRU='{struNode.NodeName}' 후손 0건 (중단)");
                 return;
             }
-            // 표시 대상: STRU 본인 + 모든 후손 (BODY/PART/ASSEMBLY 다)
-            var struVisibleIndices = new List<int> { struNode.Index };
-            struVisibleIndices.AddRange(descendants.Select(n => n.Index));
 
             // ClashTest 페어용 — BODY만 추출
             var struBodyNodes = descendants
@@ -382,19 +378,18 @@ namespace A2Z
                 return;
             }
 
-            // 전체 노드 모수 — Object3dFilter.ALL (BODY/PART/ASSEMBLY 모두)
-            // 다른 STRU·다른 모델 부재까지 다 숨겨야 격리 정확. 사용자 가설 "가시성 격리 미작동" 대응.
-            var allNodes = vizcore3d.Object3D.FromFilter(
-                VIZCore3D.NET.Data.Object3dFilter.ALL, false);
-            var allNodeIndices = (allNodes != null)
-                ? allNodes.Select(n => n.Index).ToList()
-                : new List<int>();
+            DiagLog($"T-064 P2a 시작 STRU='{struNode.NodeName}' struBODY={struBodyNodes.Count} (가시성 미변경 — ClashTest 그룹으로만 격리)");
 
-            DiagLog($"T-064 P2a 시작 STRU='{struNode.NodeName}' struBODY={struBodyNodes.Count} struVisible={struVisibleIndices.Count} allNodes={allNodeIndices.Count}");
-
-            // 진행 가드 set + UI 차단 (위험 리뷰 #2 대응: 사용자가 도중 모델 변경/다른 흐름 트리거 차단)
+            // 진행 가드 set + UI 차단 (재진입 방지)
             // _p2aInProgress 가드는 Form1.Clash.cs:Clash_OnClashTestFinishedEvent 진입부에서 검사하여
-            // 기존 흐름(시트 생성·사전조건 메시지)을 차단함. swap 대신 가드만 신뢰 (사용자 보고: swap 실패로 기존 흐름 호출됨).
+            // 기존 흐름(시트 생성·사전조건 메시지)을 차단함.
+            //
+            // 가시성 변경 코드 제거 (사용자 보고 대응):
+            //   - 이전: Show(allNodes, false) + Show(struVisible, true) → 부모/자식 가시성 상호작용으로
+            //     체크된 STRU 부재까지 사라졌다가 finally에서 다시 표시되는 현상 발생
+            //   - 변경: 기존 DetectClash(Form1.Clash.cs:340~363) 패턴과 동일 — 가시성은 안 건드리고
+            //     ClashTest GroupA/B에 STRU BODY만 등록하여 SDK가 그룹 외 검사 안 함
+            //   - 사용자 시각 인지는 ShowBusyOverlay 텍스트("STRU 격리·간섭검사 진행 중: {NodeName}")로 충분
             _p2aInProgress = true;
             btnExtractDrawingList.Enabled = false;
             ShowBusyOverlay($"STRU 격리·간섭검사 진행 중: {struNode.NodeName ?? "STRU"}");
@@ -402,22 +397,7 @@ namespace A2Z
             bool p2aHandlerRegistered = false;
             try
             {
-                // 1) 가시성 격리 — 전체 노드(BODY/PART/ASSEMBLY) 숨김 후 STRU 본인+후손 표시
-                //    BeginUpdate/EndUpdate 묶음 (응답성)
-                vizcore3d.BeginUpdate();
-                try
-                {
-                    if (allNodeIndices.Count > 0)
-                        vizcore3d.Object3D.Show(allNodeIndices, false);
-                    vizcore3d.Object3D.Show(struVisibleIndices, true);
-                }
-                finally
-                {
-                    vizcore3d.EndUpdate();
-                }
-                Application.DoEvents();
-
-                // 2) P2a 결과 핸들러 등록 (기존 핸들러는 가드로 차단되므로 swap 불필요)
+                // P2a 결과 핸들러 등록 (기존 핸들러는 가드로 차단되므로 swap 불필요)
                 vizcore3d.Clash.OnClashTestFinishedEvent += P2aClash_OnFinished;
                 p2aHandlerRegistered = true;
 
@@ -485,25 +465,7 @@ namespace A2Z
                 {
                     try { vizcore3d.Clash.OnClashTestFinishedEvent -= P2aClash_OnFinished; } catch { }
                 }
-                // 가시성 복원 — 전체 노드 다시 표시 (BeginUpdate 묶음)
-                try
-                {
-                    vizcore3d.BeginUpdate();
-                    try
-                    {
-                        if (allNodeIndices.Count > 0)
-                            vizcore3d.Object3D.Show(allNodeIndices, true);
-                    }
-                    finally
-                    {
-                        vizcore3d.EndUpdate();
-                    }
-                    Application.DoEvents();
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"T-064 P2a 가시성 복원 ERROR: {ex.Message}");
-                }
+                // 가시성 변경 안 했으므로 복원 불필요
                 _p2aClashStruNode = null;
                 // 진행 가드 해제 + UI 차단 해제 (가드 해제는 핸들러 해제 후 — 가드 의존 흐름 안전)
                 _p2aInProgress = false;

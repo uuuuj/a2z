@@ -6,6 +6,59 @@
 
 ---
 
+## 2026-05-13 — T-064 P2a 핫픽스 3: 가시성 변경 코드 전체 제거 (그룹 한정 격리만)
+
+**유형**: fix (가시성 토글 부작용 회피)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `20a9984` (P2a 핫픽스 2 — VisibleOnly=false)
+
+**사용자 사내 검증 결과**:
+> "이번엔 도면리스트 뽑기 누르면 체크되어있던 모델들까지 모두 한 번에 사라졌다가 다시 생겨"
+
+= 가시성 격리 시점에 **체크된 STRU 부재까지 같이 사라짐** → finally 복원 시 모두 다시 표시. 핫픽스 1에서 `Object3dFilter.ALL` 모수 + STRU 본인+후손 표시로 확장했으나 부모/자식 가시성 상호작용 충돌로 STRU 부재까지 숨겨지는 부작용.
+
+**원인 추정**:
+- `Show(allNodes, false)` 호출 시 부모 ASSEMBLY까지 false → 자식 부재(STRU 본인 + 후손)도 SDK 표시 트리에서 사라짐
+- 후속 `Show(struVisibleIndices, true)`가 부모/자식 chain을 완전 복원 못 함
+- 검사 진행 중 사용자는 빈 화면 → finally `Show(allNodes, true)`로 모두 다시 표시되며 "사라졌다 다시 생김" 시퀀스
+
+**근본 해결** — 기존 `DetectClash(Form1.Clash.cs:340~363)` 패턴과 통일:
+- 기존도 **가시성을 안 건드림**. 그냥 보이는 부재(또는 xraySelectedNodeIndices)에서 targetNodes 만들어 ClashTest GroupA/B로 한정
+- SDK는 ClashTest 그룹 외 검사 안 함 → 격리는 그룹으로 충분, 가시성 조작 불필요
+- 우리도 동일 적용
+
+**수정** (가시성 변경 코드 전체 제거):
+- `Form1.Stru.cs:btnExtractDrawingList_Click`:
+  - `allNodes`/`allNodeIndices` 수집 코드 제거
+  - `struVisibleIndices` 변수 제거
+  - `Show(allNodes, false)` + `Show(struVisible, true)` 호출 제거
+  - try 블록 안 `BeginUpdate/EndUpdate` 묶음 제거
+  - finally 안 `Show(allNodes, true)` 복원 코드 제거
+- ClashTest 페어 생성 (GroupA={STRU BODY[i]}, GroupB={STRU BODY[j]}, VisibleOnly=false)로 격리만 — 사용자 시각으로 화면 변화는 없음
+- 사용자 인지: `ShowBusyOverlay` 텍스트("STRU 격리·간섭검사 진행 중: {NodeName}")로 처리 상태 표시
+
+**변경 파일** (1개, ~60줄 제거):
+- `A2Z/Form1.Stru.cs` — 가시성 토글 블록 전체 제거 + 진단 로그 조정
+
+**검증** (사내 PC):
+- `[도면 리스트 뽑기]` 클릭 → 화면 변화 없음 (가시성 그대로) + BusyOverlay 진행 표시
+- 검사 진행 후 DiagLog 확인:
+  - `T-064 P2a 시작 STRU='/M1' struBODY=N (가시성 미변경 — ClashTest 그룹으로만 격리)`
+  - `T-064 P2a Clash 페어 K개 등록`
+  - `T-064 P2a 진행 중 — 기존 Clash_OnClashTestFinishedEvent 흐름 차단` (가드 작동)
+  - `T-064 P2a OnFinished` + `T-064 P2a result[i] ...` + `T-064 P2a 결과 요약 STRU='/M1' totalPairs=K`
+- T-023 사전조건 메시지 안 뜸
+
+**P2a 범위 재확인**:
+- PoC라 lvDrawingSheet에 도면 시트 채우지 않음 — **사용자가 "도면 리스트가 안 나온다"는 P2a 범위 외**. 도면 시트는 P2b에서 GenerateDrawingSheets 호출 시 본격
+- P2a 검증 포인트는 **간섭검사가 STRU 단위로 정확히 도는지**만 (DiagLog 결과 페어 확인)
+
+**잔여 위험** (P2b 진입 시):
+- 페어 N² 등록 (STRU 부재 100개면 4950 페어) — SDK 부담. GROUP_VS_GROUP에서 GroupA=GroupB=전체 STRU BODY 1개 ClashTest로 단순화 검토
+- 다중 STRU 루프 시 e.ID 검사 필수
+
+---
+
 ## 2026-05-13 — T-064 P2a 핫픽스 2: VisibleOnly=true → false (SDK 가시성 재설정 회피)
 
 **유형**: fix (1줄 SDK 옵션 정정)
