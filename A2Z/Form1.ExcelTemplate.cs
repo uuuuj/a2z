@@ -15,8 +15,8 @@ namespace A2Z
         /// 이 핸들러로 엑셀 템플릿이 정상 적용되는지 사내 PC 시각 검증 → 결과 따라 메인 흐름 전환 결정.
         ///
         /// 의존 리소스 (솔루션 루트):
-        ///   - 사용자템플릿_엑셀_제작도.xlsx  (메인 4면도 템플릿)
-        ///   - Logo.png                       ({Image} 슬롯용)
+        ///   - 사용자템플릿_엑셀_제작도_Rev.01.xlsx  (메인 4면도 템플릿, 격자 없는 깨끗한 버전)
+        ///   - Logo.png                              ({Image} 슬롯용)
         /// </summary>
         private void btnExcelTemplatePoC_Click(object sender, EventArgs e)
         {
@@ -28,7 +28,7 @@ namespace A2Z
             }
 
             string solutionPath = GetSolutionPath();
-            string xlsxPath = Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
+            string xlsxPath = Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도_Rev.01.xlsx");
             string logoPath = Path.Combine(solutionPath, "Logo.png");
 
             if (!File.Exists(xlsxPath))
