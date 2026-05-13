@@ -1810,9 +1810,12 @@ namespace A2Z
                     }
 
                     // 영역 중심으로 이동 (PoC 패턴: Y에 +15 오프셋)
+                    // 사용자 사양 (2026-05-14): ISO(View_1)와 Looking Y(View_4)는 모델이
+                    // 왼쪽으로 치우쳐서 X에 +10mm 추가. Z(View_2)·X(View_3)는 그대로.
+                    float xOffset = (p.Index == 1 || p.Index == 4) ? 10f : 0f;
                     float cx = p.X + p.Width / 2f;
                     float cy = p.Y + p.Height / 2f;
-                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx, cy + 15f);
+                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx + xOffset, cy + 15f);
 
                     viewsRendered++;
                 }
