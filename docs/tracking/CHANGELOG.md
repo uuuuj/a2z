@@ -6,6 +6,84 @@
 
 ---
 
+## 2026-05-13 — T-064 P1 재설계: STRU 식별 룰 (FRMWORK 부모) + 강조 재귀 명시
+
+**유형**: fix (P1 검증 결과 두 문제 해결)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `1e4d43a` (P1 초안)
+
+**배경**: 사용자 사내 PC 실기 검증 결과 두 문제 보고
+1. STRU 목록에 "MNOP /M1", "EFGH /M1" 같은 합성 NodeName이 표시됨 (사용자 의도 STRU는 `/M1` 하나)
+2. STRU 행 클릭 시 일부 부재만 빨간 강조 (전체 후손 BODY 누락)
+
+**원인 분석** (다중 에이전트 토론):
+- 실수 1: `CollectStruList`의 NodeName/NodePath OR 필터에서 NodePath는 모든 노드가 `/` 시작(예: `/E1/E1/M1/MNOP`)이라 LEAF_ASSEMBLY 모수의 *모든* 노드가 통과
+- 실수 2: `GetChildObject3d(idx, NodeFilterKind.BODY)` 오버로드의 재귀 여부 SDK 문서 미명시 → 직접 자식만 반환 가능성
+
+**사용자 발견 (결정적 단서)**:
+- 트리 구조: `/E1(파일) → /E1 → /E1 → /M1(STRU) → IJKL/MNOP(NodeName="FRMWORK 0 of STRUCTURE ...") → 부재들`
+- **STRU = NodeName이 "FRMWORK "(대소문자 무시)로 시작하는 어셈블리의 부모 어셈블리**
+- 향후 다른 STRU 식별 룰 추가 가능한 **확장 구조** 필요
+
+**알고리즘 재설계** (옵션: 룰 union):
+```
+CollectStruList:
+  1) FromFilter(Object3dFilter.ASSEMBLY, true) — 모든 어셈블리 모수
+  2) 진단: 어셈블리 상위 30건 NodeName/parentIdx/depth 로깅
+  3) struIndices = HashSet<int>() — 룰들의 union
+  4) RuleByFrameworkChildParent(assemblies) 호출 → ParentIndex yield
+  5) (향후) RuleByUdaMarking, RuleByDepthThreshold, RuleByNameSlashPrefix 추가 자리
+  6) assemblies.Where(n => struIndices.Contains(n.Index))
+  7) Fallback (룰 0건): NodeName "/" 시작 + 공백 없는 어셈블리
+
+RuleByFrameworkChildParent:
+  - assemblies 순회
+  - NodeName.StartsWith("FRMWORK ", OrdinalIgnoreCase) + ParentIndex >= 0 필터
+  - ParentIndex 수집 후 List 반환
+  - 진단: FRMWORK 어셈블리 카운트 로깅
+
+ClbStruList_SelectedIndexChanged (강조):
+  - GetChildObject3d(idx, Object3DChildOption.ALL_CHILDREN, true) — 재귀 명시
+  - allDescendants.Where(b => b.Kind == NodeKind.BODY) — BODY 필터
+  - 진단: allDescendants/BODY 카운트 로깅
+  - BeginUpdate/EndUpdate try/finally + RestoreColorAll + Select + FlyToObject3d
+```
+
+**SDK API 검증** (sdk-verifier, `lib\VIZCore3D.NET.xml`):
+- `Object3dFilter.ASSEMBLY` (line 4728) — LEAF_ASSEMBLY 대신
+- `Object3DChildOption.ALL_CHILDREN` (line 4877) — 재귀 명시 오버로드
+- `NodeKind.BODY` (line 4583) — `Node.Kind` 프로퍼티(line 9711)로 비교
+- `Manager.Object3DManager.GetChildObject3d(int, Object3DChildOption, bool)` (line 50132) 오버로드 사용
+
+**변경 파일** (2개, +85/-33):
+- `A2Z/Form1.Stru.cs` 158→207줄 (+49 순증)
+  - `CollectStruList` 재작성: ASSEMBLY 모수 + 룰 union + fallback
+  - `RuleByFrameworkChildParent` 신규: FRMWORK prefix → ParentIndex 1단계 추출
+  - `ClbStruList_SelectedIndexChanged` 강조: ALL_CHILDREN 재귀 + Kind==BODY 필터
+- `docs/tracking/TASKS.md` (+4) — T-064 P1 항목에 룰 재설계+재귀 명시 2줄
+
+**다중 에이전트 4라운드 토론**:
+1. 라운드 1 (병렬 2): sdk-verifier 심화 검증(Object3dFilter 전체 멤버, GetChildObject3d 오버로드, ParentIndex 패턴) + Explore(코드베이스 트리 순회·DiagLog 동작)
+2. 라운드 2 (구현 1): general-purpose 에이전트 코드 작성 위임 — 두 차례 사용자 정정 후 정확한 FRMWORK 룰 알고리즘 적용
+3. 라운드 3 (병렬 2): 패턴 일관성 리뷰 "병합 권장" + 위험 리뷰 "검증 진입 가능" (경미한 ⚠️ 2건 P2 진입 시 검토 권고)
+4. 라운드 4: MSBuild Debug 통과 → commit + push
+
+**검증 시나리오** (사용자 사내 PC):
+- 모델 열기 → 좌측 STRU 목록에 `/M1` 1건만 표시 (이전 "MNOP /M1", "EFGH /M1" 합성형 사라짐)
+- `/M1` 행 클릭 → DiagLog `T-064 ClbStru '/M1' allDescendants=N, BODY=M` (logs/diag-YYYY-MM-DD.log)
+- 3D에서 QRST/UVWX/DAJS/YZAB 4개 부재 모두 빨강 + 카메라 fit
+- Fallback 작동 확인: 만약 룰 매칭 0건이면 디버그 표시 + 경고 로그
+
+**확장 인터페이스** (향후 룰 추가):
+- 같은 union 패턴으로 `RuleByUdaMarking` / `RuleByDepthThreshold` / `RuleByNameSlashPrefix` 등 추가 가능
+- 각 룰은 `IEnumerable<int>` 반환 (STRU 인덱스 후보) → HashSet 합집합
+
+**다음 단계 (P2)**:
+- `[도면 리스트 뽑기]` 버튼 추가 — 체크된 STRU별 가시성 토글(STRU 후손 BODY만 Visible=true) → DetectClash → GenerateDrawingSheets → lvDrawingSheet 누적 + STRU 컬럼 추가
+- 리뷰 권고: P2 진입 시 `GetAllDescendantBodies(int nodeIdx)` 헬퍼 메서드 추출 검토 (ALL_CHILDREN 패턴 재사용성)
+
+---
+
 ## 2026-05-13 — T-064 P1: STRU 일괄 도면 출력 — 목록·강조 단계
 
 **유형**: feat (신규 흐름 P1 — STRU 추출 + UI + 행 선택 강조)

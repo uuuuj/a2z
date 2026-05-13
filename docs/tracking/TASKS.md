@@ -497,7 +497,9 @@
   - [ ] **P3** — `[STRU 도면 자동 생성]` 단일 STRU 4종 PDF (파일명 `{STRU}_{종류}_{HHmmss}.pdf`)
   - [ ] **P4** — 다중 STRU 배치 + 진행률 + 실패 정책 + 메모리 강화
 - **P1 구현**:
-  - 신규 `A2Z/Form1.Stru.cs` (157줄) — `CollectStruList`(NodePath fallback) / `PopulateStruCheckList` / `btnSelectAllStru_Click` / `ClbStruList_SelectedIndexChanged` (3D 강조+fit)
+  - 신규 `A2Z/Form1.Stru.cs` — `CollectStruList` / `RuleByFrameworkChildParent` / `PopulateStruCheckList` / `btnSelectAllStru_Click` / `ClbStruList_SelectedIndexChanged` (3D 강조+fit)
+  - **STRU 식별 룰 재설계 (사용자 모델트리 분석 기반)**: STRU = 자식 중 NodeName이 "FRMWORK " 시작 어셈블리가 있는 어셈블리. 모수를 `LEAF_ASSEMBLY` → `ASSEMBLY`로 확대 + `RuleByFrameworkChildParent`에서 `ParentIndex`로 1단계 부모 추출. 향후 룰 추가 가능한 union HashSet 구조.
+  - **재귀 강조 명시화**: `GetChildObject3d(idx, NodeFilterKind.BODY)` → `GetChildObject3d(idx, Object3DChildOption.ALL_CHILDREN, true)` 후 `Where(b => b.Kind == NodeKind.BODY)` 필터. SDK xml line 4877/4583 검증.
   - SDK 정정 적용: `Object3D.Color.RestoreColorAll` (View.Color 아님), `View.FlyToObject3d` (View.Camera 아님). sdk-verifier 사전 검증.
   - `BeginUpdate/EndUpdate`는 try/finally로 감싸 예외 시에도 UI 잠금 해제 보장
   - CheckedListBox 의미 분리: 선택(`SelectedIndex`)=강조용 / 체크(`CheckedItems`)=출력 대상용. `CheckOnClick=true`로 클릭 1회에 동시 트리거
