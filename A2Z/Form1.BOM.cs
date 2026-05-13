@@ -484,7 +484,10 @@ namespace A2Z
                 HideBusyOverlay();
 
                 // 5. 요약 MessageBox (오버레이 없이)
-                MessageBox.Show(summary, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // T-064 P2 본진 진행 중엔 메시지박스 차단 — 매 STRU마다 사용자가 OK 눌러야 하는 부담 회피.
+                // P2 본진 끝나면 btnExtractDrawingList_Click에서 통합 결과 메시지박스 표시.
+                if (!_p2aInProgress)
+                    MessageBox.Show(summary, "자동 처리 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 DiagLog($"CompleteMainDimensionPostClash EXIT OK " +
                     $"chain={chainDimensionList.Count} osnap={osnapPointsWithNames.Count} " +

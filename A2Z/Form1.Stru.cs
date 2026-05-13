@@ -582,8 +582,19 @@ namespace A2Z
                     lvDrawingSheet.SelectedIndices.Clear();  // MultiSelect=true 대응 — 이전 선택 해제
                     lvi.Selected = true;                      // 새 선택 → SelectedIndexChanged 동기 트리거
                     lvi.EnsureVisible();                      // 진행 표시 — 화면에 보이게 스크롤
-                    Application.DoEvents();                   // 핸들러·렌더 완료 대기
-                    System.Threading.Thread.Sleep(200);       // 안전 대기 (2D 렌더 안정)
+                    Application.DoEvents();                   // 핸들러·치수 계산 완료 대기
+                    System.Threading.Thread.Sleep(200);
+
+                    // ★ 2D 도면 렌더 직접 호출 — 핸들러는 가시성·치수 계산만 자동, 2D 시트 렌더는 별도.
+                    // 사용자 btnExportAllPDF(Form1.DrawingSheets.cs:1097) 패턴과 동일:
+                    //   가공도(-3): GenerateMfgDrawing2DAll
+                    //   그 외(제작도/조립도/설치도): GenerateSheetDrawing2D
+                    if (sheet.BaseMemberIndex == -3)
+                        GenerateMfgDrawing2DAll(new List<DrawingSheetData> { sheet });
+                    else
+                        GenerateSheetDrawing2D(sheet);
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(200);       // 2D 렌더 안정
 
                     // 시트 종류 라벨 + PDF 출력
                     string kindName = GetSheetKindLabel(sheet);  // 제작도/조립도/설치도/가공도
