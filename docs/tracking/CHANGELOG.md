@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-05-13 — T-064 P2a 핫픽스 2: VisibleOnly=true → false (SDK 가시성 재설정 회피)
+
+**유형**: fix (1줄 SDK 옵션 정정)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `239880c` (P2a 핫픽스 1 — ALL 확장 + 가드)
+
+**사용자 사내 검증 결과**:
+> "다른 부재들이 잠깐 사라지는데 간섭검사할 때는 다시 사라졌던 부재가 다시 나타나고 간섭검사 해서 도면리스트가 안 나오는 거 같은데"
+
+즉 가시성 격리 자체는 작동 (Show 호출 후 다른 부재 일시 숨김) — 그러나 `PerformInterferenceCheck()` 호출 직후 SDK가 가시성을 자동 복원. 검사가 전체 모델 대상으로 진행 → 다른 STRU·다른 모델 부재 포함 결과.
+
+**원인 확정** (기존 `Form1.Clash.cs:DetectClash` 비교):
+- 기존 코드 L348~363에서 가시성을 **코드 레벨에서 사전 필터링**해 `targetNodes` 만들고
+- L381: `VisibleOnly = false` — SDK에 "가시성 건드리지 마, 등록된 그룹만 검사" 명시
+- 우리 P2a만 `VisibleOnly = true`였음 → SDK가 검사 직전 가시성을 자체 재설정 (격리 무효화)
+
+**수정** (1줄):
+- `Form1.Stru.cs` P2a `pairClash.VisibleOnly = true` → **`false`**
+- 격리는 ClashTest 그룹(GroupA/B = STRU 후손 BODY만)으로 *한정* → SDK는 그 그룹 외 검사 안 함
+- 우리 사전 가시성 격리(Show 호출)는 시각 확인용으로 유지 (사용자가 "이 STRU를 처리 중"임을 시각 인지)
+
+**검증** (사내 PC):
+- `[도면 리스트 뽑기]` → 가시성 격리 유지 (다른 부재 사라진 상태 유지) + 검사 진행
+- DiagLog: `T-064 P2a 결과 요약 STRU='/M1' totalPairs=K` — K가 의미 있는 값 (격리 작동 시 K = STRU 내부 간섭쌍만)
+- T-023 사전조건 메시지 안 뜸 (P2a 가드 유효)
+
+**P2a 범위 명확화** (사용자 "도면리스트 안 나옴" 보고 대응):
+P2a는 **PoC 단계** — 결과는 DiagLog만 출력, lvDrawingSheet 도면 리스트는 채우지 않음. 도면 시트 생성은 **P2b**에서 GenerateDrawingSheets 호출 + STRU 컬럼 추가 시 본격 진행. 본 변경은 검사 자체가 STRU 격리되어 정확히 도는지 확인하는 단계.
+
+**변경 파일** (1개, ±4줄):
+- `A2Z/Form1.Stru.cs` — `VisibleOnly` 옵션 1개 + 주석
+
+---
+
 ## 2026-05-13 — T-064 P2a 핫픽스: 가시성 격리 ALL 확장 + 기존 핸들러 가드 차단
 
 **유형**: fix (P2a 검증 결과 두 결함 수정)

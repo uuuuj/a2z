@@ -440,7 +440,10 @@ namespace A2Z
                         pairClash.RangeValue = 3.0f;
                         pairClash.UsePenetrationTolerance = true;
                         pairClash.PenetrationTolerance = 1.0f;
-                        pairClash.VisibleOnly = true;      // P2a 핵심 — 보이는 노드만 검사 (격리 강화)
+                        // VisibleOnly=false — 기존 DetectClash(Form1.Clash.cs:381) 패턴과 동일.
+                        // 사용자 보고: VisibleOnly=true면 SDK 내부에서 가시성을 재설정해 격리가 무효화됨.
+                        // 격리는 ClashTest 그룹(GroupA/B = STRU 부재만)으로 한정 → SDK는 그룹 외 검사 안 함.
+                        pairClash.VisibleOnly = false;
                         pairClash.BottomLevel = 0;
                         pairClash.GroupA = new List<VIZCore3D.NET.Data.Node> { struBodyNodes[i] };
                         pairClash.GroupB = new List<VIZCore3D.NET.Data.Node> { struBodyNodes[j] };
