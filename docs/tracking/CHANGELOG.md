@@ -6,6 +6,58 @@
 
 ---
 
+## 2026-05-14 — T-064 P2 본진: 엑셀 분기에 치수 그리기 + 풍선 + 모델 shrink 이식
+
+**유형**: fix (도면리스트 뽑기 PDF 치수 누락 해결)
+**커밋**: `pending`
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**관련**: T-038 (모델 스케일), T-039 (보조선 길이), T-028 (치수 엔진 통합)
+
+**사용자 보고**:
+> "도면리스트 뽑기에서 모델 크기 더 줄여도 될 거 같아 그리고 치수는 왜 안 그리는지 확인해볼 수 있어? 2D 출력이랑 가공도 출력 누르면 치수는 원래 추출 되는데 도면리스트 뽑기로 하니까 치수를 안 그리네?"
+
+**원인 진단**:
+- `UseExcelTemplate = true` 디폴트(`Form1.DrawingSheets.cs:1289`)로 일반 시트(제작도/조립도/설치도)는 `GenerateSheetDrawing2D` → **`GenerateSheetDrawing2D_WithExcelTemplate`**(L1639~) 로 분기.
+- 그 엑셀 분기 본문은 `ComputeViewDimensionsForMembers`로 `chainDimensionList`만 채우고(L1687~1704), 4개 View 영역 루프(L1779~1821)에서는 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin` + `RescaleObject` + `MoveObjectTo`만 호출 — **`ShowAllDimensions` / `CreateIsoBalloonNotes` / `Add2DObjectFromShapeDrawing` / `Add2DMeasureFrom3DMeasure` 호출이 통째로 누락**.
+- 옛 `GenerateSheetDrawing2D` 본문(L1295~1638)은 4번 `RenderSheetViewForDrawing` 호출 → 각각이 X/Y/Z 뷰에서 `ShowAllDimensions(viewDir, true, estScale)` 호출 → 치수선·보조선·풍선 모두 그림. **엑셀 분기에서는 이 단계가 누락**.
+- 가공도(`GenerateMfgDrawing2DAll`)는 직전 P3 롤백(`Form1.MfgDrawing.cs:631`)으로 옛 GridStructure 8×3 흐름 유지 → 치수 정상 → 사용자가 "가공도는 추출됨"으로 인식.
+- 결과: 도면리스트 뽑기 시 일반 시트만 모델·격자만 보이고 치수·풍선 누락. 메인 2D 출력 버튼도 동일 함수 사용 → 동일 증상이지만 사용자가 단일 시트만 보고 못 알아챈 것으로 추정.
+
+**수정 (이번 커밋)**:
+
+1. `GenerateSheetDrawing2D_WithExcelTemplate` 루프 본문(L1775~1821) 통째로 교체 — 옛 `RenderSheetViewForDrawing` 패턴을 viewArea 영역 기반으로 옮김:
+   - `viewArea.Index` → `viewDirection` 문자열 매핑 (1=ISO / 2=Z / 3=X / 4=Y)
+   - 매 뷰마다 `Review.Note/Measure.Clear()` + `ShapeDrawing.Clear()` + `_lastModelShiftCanvas*` 초기화
+   - 시트 부재만 보이도록 가시성 격리 + `SetRenderMode(DASH_LINE)` + `MoveCamera` + `ApplyOrientationRotation`(비-ISO만) + `FlyToObject3d(1.25f)`
+   - **ISO 뷰**: `CreateIsoBalloonNotes(memberIndices, true)` → `FromScreen` 가시성 필터 → `visibleNoteIds` 수집 → 2D 캡처 준비
+   - **X/Y/Z 뷰**: `EstimateFitScaleForViewArea(availW, availH, viewDir, memberIndices)` → `ShowAllDimensions(viewDir, true, estScale)` → `shapeDrawingIds` 수집
+   - `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin` 캡처 → fit + shrink → `MoveObjectTo`
+   - 보조선 `Add2DObjectFromShapeDrawing` (X/Y/Z만, line width 0.1 → 2.0 복원)
+   - 풍선 `Add2DNoteFrom3DNote(visibleNoteIds)` + 원형 SnapBox (ISO만, text height 10.5 → 7 복원)
+   - 치수 `ApplyParallelTextShift(viewDir, objScale, measureItems)` + `Add2DMeasureFrom3DMeasure(measureIds)` (X/Y/Z만)
+
+2. 새 헬퍼 `EstimateFitScaleForViewArea(availW, availH, viewDirection, memberIndices)` 추가 — 옛 `EstimateFitScaleForCell`의 viewArea 영역 버전. GridStructure 셀(`GetGridCellWidth/Height/Margin`) 대신 viewArea 영역 입력.
+
+3. **모델 shrink 사용자 사양** (2026-05-14 확정): Z=0.65 / X·Y·ISO=0.70. 옛 RenderSheetViewForDrawing의 0.70/0.75에서 추가 5% 축소. `estScale`의 `fitFactor`와 `RescaleObject`의 `shrinkFactor`가 동일 값 → 보조선 위치와 모델 fit 결과 일치.
+
+4. ISO/Y X +10mm 오프셋 + 전 영역 Y +15mm 오프셋은 직전 커밋(`a2427c4`) 사용자 사양 그대로 유지.
+
+**영향 범위**:
+- 코드: `A2Z/Form1.DrawingSheets.cs` (+170 / -50 줄, 헬퍼 신설 + 루프 본체 교체)
+- 문서: `docs/기능/도면시트/시트 2D 렌더.md` (분기 D 추가 + 변경 이력 + last_updated)
+
+**검증 흐름** (R12):
+- 사용자 사내 PC 빌드 → 도면리스트 뽑기 실행 → PDF 4종 중 일반 시트(제작/조립/설치)에 치수·풍선 표시 확인
+- 모델이 라벨/보조선 영역 침범하지 않는지 시각 확인 (Z 65% / X·Y·ISO 70% 차지)
+- 가공도는 영향 없음 (옛 GridStructure 경로 그대로)
+
+**잔여 / 후속 결정** (사용자 검증 후):
+- 치수 텍스트 시프트(`ApplyParallelTextShift`)가 viewArea 좌표에서도 동일 시각 효과인지 확인
+- 모델 shrink 0.65/0.70이 적정한지 (더 줄이거나 늘릴 여지)
+- 보조선 길이(5/10mm 캔버스 절대)가 viewArea fit과 정합한지
+
+---
+
 ## 2026-05-13 — T-064 P2 핫픽스: DetectClash 전 CollectBOMData 호출 (T-023 연결성 통과)
 
 **유형**: fix (bomList 사전 갱신)

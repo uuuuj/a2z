@@ -509,7 +509,12 @@
   - 가시성 토글 try/finally 복원 (P2에서 도입 필요)
   - 묶음 GC (P3에서 도입)
   - 가공도 vs 제작/조립/설치 함수 시그니처 차이 — P2 진입 전 SDK 매핑 점검
-- **다음 단계**: 사용자 사내 PC에서 모델 열기 → 좌측 STRU 패널 표시 → 행 클릭 시 3D 빨강+fit 확인 → P2 진입
+- **P2 본진 진행 (2026-05-14)**:
+  - [x] 가시성 격리·CollectBOMData·DetectClash·시트 자동 생성 흐름 (직전 커밋들)
+  - [x] 가공도 P3 분기 제거 → 옛 GridStructure 8×3 흐름 유지 (`a2427c4`)
+  - [x] **엑셀 분기에 치수 그리기 이식** (이번 커밋) — `GenerateSheetDrawing2D_WithExcelTemplate` 루프 본문을 옛 `RenderSheetViewForDrawing` 패턴으로 교체. ISO 풍선 + X/Y/Z `ShowAllDimensions` + `Add2DObjectFromShapeDrawing`/`Add2DMeasureFrom3DMeasure`. 모델 shrink Z=0.65/X·Y·ISO=0.70 (사용자 사양). 새 헬퍼 `EstimateFitScaleForViewArea` 추가.
+  - [ ] 사용자 사내 PC 실기 검증 — 일반 시트 PDF에 치수+풍선 표시, 모델 영역 적정 (라벨·보조선 침범 없음) 확인
+- **다음 단계**: 사용자 사내 PC에서 모델 열기 → 좌측 STRU 패널 표시 → 행 클릭 시 3D 빨강+fit 확인 → 도면 리스트 뽑기 → 일반 시트 치수 확인
 
 ### T-032 — 치수 계산 성능 최적화 (Osnap 맵 재사용)
 - **생성일**: 2026-04-22

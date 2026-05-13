@@ -1775,7 +1775,12 @@ namespace A2Z
                 const float margin = 5f;
                 int viewsRendered = 0;
 
-                // ── 7. 각 View 영역에 모델 투영 ──
+                // ── 7. 각 View 영역에 모델 + 치수/풍선 투영 ──
+                // T-064 P2 본진 (2026-05-14): 메인 도면 엑셀 분기에 치수 그리기 이식.
+                //   - ISO(Index=1): CreateIsoBalloonNotes + FromScreen 가시성 필터 → Add2DNoteFrom3DNote
+                //   - Z/X/Y(Index=2/3/4): ShowAllDimensions(viewDir, true, estScale) → shapeDrawingIds + Add2DObjectFromShapeDrawing + Add2DMeasureFrom3DMeasure
+                //   - 모델 fit + 사용자 사양 추가 shrink: Z=0.65 / X·Y·ISO=0.70 (라벨·보조선 영역 확보)
+                // 옛 RenderSheetViewForDrawing(L1891~) 패턴을 viewArea 영역 기반으로 옮김.
                 for (int i = 0; i < viewAreas.Count; i++)
                 {
                     var p = viewAreas[i];
@@ -1785,8 +1790,88 @@ namespace A2Z
                         continue;
                     }
 
+                    // viewArea Index → ShowAllDimensions의 viewDirection 문자열 매핑
+                    string viewDir;
+                    switch (p.Index)
+                    {
+                        case 1: viewDir = "ISO"; break;
+                        case 2: viewDir = "Z"; break;
+                        case 3: viewDir = "X"; break;
+                        case 4: viewDir = "Y"; break;
+                        default: continue;
+                    }
+
+                    // 매 뷰마다 3D 어노테이션 초기화 (옛 RenderSheetViewForDrawing L1903~1905)
+                    vizcore3d.Review.Note.Clear();
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
+                    _lastModelShiftCanvasX = 0f;
+                    _lastModelShiftCanvasY = 0f;
+
+                    // 시트 부재만 보이기 (X-Ray off)
+                    vizcore3d.BeginUpdate();
+                    if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
+                    vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                    vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                    xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                    vizcore3d.EndUpdate();
+
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                     vizcore3d.View.MoveCamera(camDir);
 
+                    if (viewDir != "ISO" && sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
+                        ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
+
+                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.25f);
+
+                    // ── 뷰별 3D 어노테이션 ──
+                    List<int> shapeDrawingIds = null;
+                    List<int> visibleNoteIds = null;
+
+                    if (viewDir == "ISO")
+                    {
+                        // ISO 풍선 — 옛 RenderSheetViewForDrawing L1957~1991
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
+                        vizcore3d.View.XRay.Enable = true;
+                        vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                        vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                        vizcore3d.View.XRay.Clear();
+                        vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                        vizcore3d.EndUpdate();
+
+                        Dictionary<int, int> nodeToNoteMap = CreateIsoBalloonNotes(sheet.MemberIndices, true);
+
+                        vizcore3d.View.EnableBoxSelectionFrontObjectOnly = true;
+                        var visibleNodes = vizcore3d.Object3D.FromScreen(false, VIZCore3D.NET.Data.LeafNodeKind.BODY);
+                        visibleNoteIds = new List<int>();
+                        foreach (var node in visibleNodes)
+                        {
+                            int noteId;
+                            if (nodeToNoteMap.TryGetValue(node.Index, out noteId) ||
+                                nodeToNoteMap.TryGetValue(node.ParentIndex, out noteId))
+                            {
+                                if (!visibleNoteIds.Contains(noteId)) visibleNoteIds.Add(noteId);
+                            }
+                        }
+
+                        // 풍선 생성 후 시트 부재만 보이기 (2D 캡처 준비)
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.View.XRay.Enable = false;
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                        vizcore3d.EndUpdate();
+                    }
+                    else
+                    {
+                        // X/Y/Z 치수 — 옛 RenderSheetViewForDrawing L1995~2002
+                        float availW = p.Width - 2f * margin;
+                        float availH = p.Height - 2f * margin;
+                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, sheet.MemberIndices);
+                        shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
+                    }
+
+                    // ── 모델 4면도 캡처 ──
                     int objId = vizcore3d.Drawing2D.Object2D
                         .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                             VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
@@ -1796,26 +1881,65 @@ namespace A2Z
                         continue;
                     }
 
-                    // 영역 내 fit 계산
+                    // ── 영역 fit + 추가 shrink (사용자 사양 2026-05-14: Z=0.65 / X·Y·ISO=0.70) ──
                     float fitW = p.Width - 2f * margin;
                     float fitH = p.Height - 2f * margin;
                     float objW = 0f, objH = 0f;
                     vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
                     float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-
                     if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
                     {
                         float fitScale = Math.Min(fitW / objW, fitH / objH);
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, objScale * fitScale);
+                        float shrinkFactor = (viewDir == "Z") ? 0.65f : 0.70f;
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, objScale * fitScale * shrinkFactor);
                     }
 
-                    // 영역 중심으로 이동 (PoC 패턴: Y에 +15 오프셋)
-                    // 사용자 사양 (2026-05-14): ISO(View_1)와 Looking Y(View_4)는 모델이
-                    // 왼쪽으로 치우쳐서 X에 +10mm 추가. Z(View_2)·X(View_3)는 그대로.
+                    // ── 영역 중심으로 이동 ──
+                    // ISO(View_1)·Looking Y(View_4)만 X +10mm, 모두 Y +15mm (직전 사용자 사양)
                     float xOffset = (p.Index == 1 || p.Index == 4) ? 10f : 0f;
                     float cx = p.X + p.Width / 2f;
                     float cy = p.Y + p.Height / 2f;
                     vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx + xOffset, cy + 15f);
+
+                    // ── 보조선(ShapeDrawing) → 2D 추가 (X/Y/Z만, ISO는 보조선 없음) ──
+                    if (shapeDrawingIds != null && shapeDrawingIds.Count > 0)
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
+                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
+                    }
+
+                    // ── 풍선 Note → 2D (ISO는 가시성 필터, X/Y/Z는 풍선 없음 → noteIds 빈 컬렉션) ──
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(10.5f);
+                    var convertedNoteIndices = new List<int>();
+                    if (visibleNoteIds != null && visibleNoteIds.Count > 0)
+                    {
+                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+                        convertedNoteIndices.AddRange(visibleNoteIds);
+                    }
+                    foreach (int nIdx in convertedNoteIndices)
+                    {
+                        try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
+                        catch { }
+                    }
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+
+                    // ── 치수(Measure) → 2D (X/Y/Z만, ApplyParallelTextShift로 텍스트 시프트 후) ──
+                    if (viewDir != "ISO")
+                    {
+                        var measureItems = vizcore3d.Review.Measure.Items;
+                        var measureIds = new List<int>();
+                        foreach (var m in measureItems)
+                            if (m.Visible) measureIds.Add(m.ID);
+
+                        if (measureIds.Count > 0)
+                        {
+                            ApplyParallelTextShift(viewDir,
+                                vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
+                                measureItems);
+                            vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
+                        }
+                    }
 
                     viewsRendered++;
                 }
@@ -1880,6 +2004,51 @@ namespace A2Z
             float scaleH = (availH * 0.8f) / modelH;
             float scale = Math.Min(scaleW, scaleH);
             DiagLog($"T-038+039 EstimateFitScaleForCell row={row} col={col} view={viewDirection} cell=({cellW:F1},{cellH:F1}) model=({modelW:F1},{modelH:F1}) scale={scale:F4}");
+            return scale > 0f ? scale : 1f;
+        }
+
+        /// <summary>
+        /// T-064 P2 본진 (2026-05-14): 엑셀 분기용 viewArea 기반 fit scale 추정.
+        /// EstimateFitScaleForCell(GridStructure 셀 기반)과 동일 알고리즘이지만 입력을 viewArea 영역으로.
+        /// 사용자 사양: Z=0.65 / X·Y=0.70 (모델 차지 비율). ShowAllDimensions 보조선 위치 계산 기준.
+        /// 모델 RescaleObject 시점의 shrinkFactor와 동일 값을 유지해야 보조선이 모델 fit 결과와 일치.
+        /// </summary>
+        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices)
+        {
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            if (bomList != null && memberIndices != null && memberIndices.Count > 0)
+            {
+                var idxSet = new HashSet<int>(memberIndices);
+                foreach (var b in bomList)
+                {
+                    if (!idxSet.Contains(b.Index)) continue;
+                    if (b.MinX < minX) minX = b.MinX;
+                    if (b.MaxX > maxX) maxX = b.MaxX;
+                    if (b.MinY < minY) minY = b.MinY;
+                    if (b.MaxY > maxY) maxY = b.MaxY;
+                    if (b.MinZ < minZ) minZ = b.MinZ;
+                    if (b.MaxZ > maxZ) maxZ = b.MaxZ;
+                }
+            }
+            if (maxX == float.MinValue) return 1f;
+
+            float modelW, modelH;
+            switch (viewDirection)
+            {
+                case "X": modelW = maxY - minY; modelH = maxZ - minZ; break;
+                case "Y": modelW = maxX - minX; modelH = maxZ - minZ; break;
+                default:  modelW = maxX - minX; modelH = maxY - minY; break;  // "Z"/null
+            }
+            if (modelW < 1e-3f || modelH < 1e-3f) return 1f;
+
+            // 사용자 사양 (2026-05-14): Z=0.65 / X·Y=0.70 — RescaleObject shrinkFactor와 동일 유지
+            float fitFactor = (viewDirection == "Z") ? 0.65f : 0.70f;
+            float scaleW = (availW * fitFactor) / modelW;
+            float scaleH = (availH * fitFactor) / modelH;
+            float scale = Math.Min(scaleW, scaleH);
+            DiagLog($"P2 EstimateFitScaleForViewArea view={viewDirection} area=({availW:F1},{availH:F1}) model=({modelW:F1},{modelH:F1}) fitFactor={fitFactor:F2} scale={scale:F4}");
             return scale > 0f ? scale : 1f;
         }
 
