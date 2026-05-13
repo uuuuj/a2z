@@ -433,6 +433,13 @@ namespace A2Z
                 }
                 catch (Exception ex) { DiagLog($"T-064 최종 가시성 복원 ERROR: {ex.Message}"); }
 
+                // _p2aInProgress reset 지연 — race 방지 (사용자 보고: 결과 메시지박스 후 "자동 처리 완료" 팝업)
+                // 시나리오: 마지막 STRU의 OnFinished 콜백이 *finally 진입 후*에 늦게 도착 가능.
+                //   → reset이 콜백 도착 *전*이면 가드 통과 → "자동 처리 완료" 메시지박스 표시됨.
+                //   → 500ms 추가 대기 + DoEvents로 큐의 콜백 처리 후 reset.
+                System.Threading.Thread.Sleep(500);
+                Application.DoEvents();
+
                 _p2aInProgress = false;
                 try { btnExtractDrawingList.Enabled = true; } catch { }
                 try { HideBusyOverlay(); } catch { }
@@ -535,16 +542,37 @@ namespace A2Z
             }
             else
             {
-                // 4) 비동기 완료 폴링 (최대 60초 — STRU 크기에 따라 조정 필요)
+                // 4) 비동기 완료 폴링 — race 방지 패턴 (사용자 보고: 즉시 "시트 0건" + 뒤에서 자동 처리 완료)
+                //   ① PerformInterferenceCheck() 반환 직후 IsBusy가 *아직 false* 가능 (SDK 비동기 시작 지연)
+                //   ② IsBusy=false면 폴링 즉시 종료 → drawingSheetList 비어있음 → throw → race
+                //   ③ 그 후 OnFinished 콜백 늦게 도착 → CompleteMainDimensionPostClash 실행 → "자동 처리 완료" 메시지박스
+                //
+                // 해결:
+                //   - 폴링 진입 *전* 300ms sleep — SDK 비동기 스레드 시작 보장
+                //   - drawingSheetList.Count 변화도 종료 조건 — OnFinished가 시트 채울 때까지 대기
+                //   - 폴링 종료 *후* 추가 300ms sleep — OnFinished 후속 처리 완료 대기
+                int beforeSheetCount = drawingSheetList?.Count ?? 0;
+                System.Threading.Thread.Sleep(300);  // SDK 비동기 시작 보장
+                Application.DoEvents();
+
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                while (vizcore3d.Clash.IsBusy && sw.ElapsedMilliseconds < 60000)
+                while (sw.ElapsedMilliseconds < 60000)
                 {
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(50);
+                    // IsBusy=false AND 시트가 새로 채워졌으면 OnFinished 완료된 것
+                    if (!vizcore3d.Clash.IsBusy &&
+                        drawingSheetList != null &&
+                        drawingSheetList.Count > beforeSheetCount)
+                    {
+                        System.Threading.Thread.Sleep(300);  // OnFinished 후속 작업 (시트 lvDrawingSheet 동기 등) 완료 대기
+                        Application.DoEvents();
+                        break;
+                    }
                 }
-                if (vizcore3d.Clash.IsBusy)
+                if (sw.ElapsedMilliseconds >= 60000)
                 {
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' TIMEOUT (60s)");
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' TIMEOUT (60s) — sheets before={beforeSheetCount} after={drawingSheetList?.Count ?? 0}");
                     throw new Exception("간섭검사 60초 타임아웃");
                 }
             }
@@ -569,7 +597,9 @@ namespace A2Z
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 시작 → {struSubDir}");
 
-            int pdfCount = ExportAllSheetsToPdfCore(struSubDir, showSummary: false);
+            // groupMfgSheets:true — 가공도 시트들을 모아서 GenerateMfgDrawing2DAll(List) 1번 호출 (btnMfgDrawingSheet 패턴)
+            // 사용자 지적: "가공도는 한 번에 뽑는 코드 기존에 있는데?"
+            int pdfCount = ExportAllSheetsToPdfCore(struSubDir, showSummary: false, groupMfgSheets: true);
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
             return pdfCount;
