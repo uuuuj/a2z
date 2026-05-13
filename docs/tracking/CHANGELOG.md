@@ -6,6 +6,76 @@
 
 ---
 
+## 2026-05-13 — T-064 P2a PoC: STRU 격리 + DetectClash + 결과 DiagLog (+ SDK 호환 패치)
+
+**유형**: feat (P2a — STRU 가시성 격리 + 간섭검사 PoC) + fix (SDK 시그니처 호환)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `c32bd52` (P1 UX 보강)
+
+**P2a 범위** (PoC):
+- `[도면 리스트 뽑기]` 버튼 신설 (panelDrawingButtons)
+- 체크된 STRU 첫 번째 1개 대상 — 다중 체크 시 첫 번째만 처리 + DiagLog 안내 (다중은 P2c)
+- 가시성 격리: 전체 BODY 숨김 → STRU 후손 BODY만 표시 (Object3D.Show bulk)
+- 간섭검사 격리: P2a 전용 ClashTest 페어 직접 생성 (VisibleOnly=true 핵심) + PerformInterferenceCheck
+- 결과 DiagLog만 — clashList/시트 생성에 반영 안 함 (PoC라 컨텍스트 분리)
+- 가시성 복원 (try/finally)
+- 기존 OnClashTestFinishedEvent 핸들러 임시 해제 + P2a 전용 P2aClash_OnFinished 등록 후 finally 복원
+
+**SDK 사전 검증** (sdk-verifier 라운드 1):
+- `Object3D.Show(List<int>, bool)` (xml 49431) — bulk 가시성
+- `ClashTest.VisibleOnly` (xml 2709) — 핵심 격리 옵션
+- `Clash.PerformInterferenceCheck()` (xml 40608) + `IsBusy` (40055) + `OnClashTestFinishedEvent` (40065)
+- `Clash.GetResultItem(ClashTest, ResultGroupingOptions.PART)` (xml 40661)
+- `Object3dFilter.ALL_INCLUDE_BODY` (xml 4733)
+- `Object3DChildOption.ALL_CHILDREN` (xml 4877) + `NodeKind.BODY` (4583) — P1 패턴 재사용
+
+**P2a 보강 3건** (위험 리뷰 발견 후 즉시 적용):
+1. **진행 가드** `_p2aInProgress` — 재진입 차단. P2a 실행 중 같은 버튼·간섭검사 재호출 시 early return
+2. **UI 차단** `ShowBusyOverlay`/`HideBusyOverlay` + 버튼 Enabled=false — 사용자가 도중 모델 변경·다른 흐름 트리거 방지 (격리 상태 고착 위험 ❌)
+3. **`BeginUpdate`/`EndUpdate` 묶음** — Show 호출 6회를 화면에 한 번에 반영 (응답성)
+
+**SDK 호환 패치** (외부 회귀 대응, P2a 무관):
+- 사용자 SDK 업그레이드: `VIZCore3D.NET` → **`VIZCore3D+.NET`** (Vibe 3D Lab 새 SDK, csproj `HintPath` OneDrive 경로)
+- 새 시그니처: `Drawing2DTemplateManager.CrateTemplateBorder(TemplateBorderInfo borderInfo)` — 옛 무인자 호출 폐기
+- 3곳 패치:
+  - `Form1.MfgDrawing.cs:661` — `new TemplateBorderInfo()` 인스턴스 만들어서 인자로 전달. bInfo.MaxX/MinY 후속 사용은 SDK out 패턴 가정 (사용자 검증 시 도면 결과로 확인)
+  - `Form1.DrawingSheets.cs:1309` — 단순 호출, 변수 미수신
+  - `Form1.ExcelTemplate.cs:82` — `var bInfo` 제거 (void 반환), DiagLog 유지
+
+**다중 에이전트 4라운드** (P2a):
+1. 라운드 1 (병렬 2): sdk-verifier 심화 검증 + 코드베이스 기존 흐름 조사 — `ClashTest.VisibleOnly=true` 발견 + DetectClash 비동기 콜백 패턴 확정
+2. 라운드 2 (구현 1): general-purpose 위임 — ClashTest 재사용 포기·P2a 신규 생성 결정
+3. 라운드 3 (병렬 2): 패턴 리뷰 "전 항목 ✅" + 위험 리뷰 ❌ 2건(UI 차단·진행 가드) + ⚠️ 1건(BeginUpdate) 발견 → 즉시 보강
+4. 라운드 4: SDK 호환 패치(외부 회귀) → MSBuild Debug 통과 → commit + push
+
+**변경 파일** (5개, +298/-9):
+- `A2Z/Form1.Designer.cs` (+17) — btnExtractDrawingList 신설 + panelDrawingButtons 40→70px 확대
+- `A2Z/Form1.Stru.cs` (+277) — 필드 3개 (P2a struNode/시작시각/inProgress) + btnExtractDrawingList_Click + P2aClash_OnFinished 핸들러
+- `A2Z/Form1.DrawingSheets.cs` (+3) — SDK 호환 1줄
+- `A2Z/Form1.ExcelTemplate.cs` (+5) — SDK 호환 (var 제거)
+- `A2Z/Form1.MfgDrawing.cs` (+5) — SDK 호환 (new 인스턴스 + 호출 분리)
+
+**검증 시나리오** (사용자 사내 PC):
+- 모델 열기 → STRU 1개 체크 → `[도면 리스트 뽑기]` 클릭
+- `logs/diag-YYYY-MM-DD.log`:
+  - `T-064 P2a 시작 STRU='/M1' struBODY=N allBODY=M`
+  - `T-064 P2a Clash 페어 K개 등록 (VisibleOnly=true)`
+  - `T-064 P2a PerformInterferenceCheck startResult=True`
+  - `T-064 P2a OnFinished STRU='/M1' ID=... elapsed=...s`
+  - `T-064 P2a result[i] A_idx=... A='...' B_idx=... B='...'` (최대 50건)
+  - `T-064 P2a 결과 요약 STRU='/M1' totalPairs=...`
+- 버튼 클릭 중 다른 흐름 차단 (BusyOverlay 표시) + 진행 가드 작동
+- 처리 끝나면 가시성 자동 복원 (전체 BODY 표시 상태로)
+- **SDK 호환 검증**: 기존 도면 생성·가공도·PoC 엑셀 흐름이 빌드 통과만 확인. 실행 결과는 사용자 시각 검증 필요 (`bInfo.MaxX/MinY` 사용 부분이 새 SDK out 패턴 채워주는지)
+
+**P2b 대비 위험 메모** (이번 ⚠️ 미해결, P2b 진입 시 처리):
+- 다중 STRU 루프 시 `OnClashTestFinishedEvent` 콜백에 `e.ID` 검사 필수 (다른 ClashTest 완료 혼선 방지)
+- IsBusy 동기화 지연 → OnFinished 플래그로 폴링 종료 전환 권고
+- xraySelectedNodeIndices 동기화 (시트 생성 연결 시 주의)
+- 다른 강조 흐름(BOM/Dimension) 색상 채널 충돌
+
+---
+
 ## 2026-05-13 — T-064 P1 UX 보강: 행 선택 시 카메라 fit 복원 (체크 트리거와 분리)
 
 **유형**: feat (P1 UX 보강)

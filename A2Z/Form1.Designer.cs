@@ -121,6 +121,7 @@ namespace A2Z
             this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
             this.btnExportAllPDF = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
+            this.btnExtractDrawingList = new System.Windows.Forms.Button();
             this.groupBoxStru = new System.Windows.Forms.GroupBox();
             this.clbStruList = new System.Windows.Forms.CheckedListBox();
             this.panelStruHeader = new System.Windows.Forms.Panel();
@@ -1000,15 +1001,16 @@ namespace A2Z
             //
             // panelDrawingButtons
             //
+            this.panelDrawingButtons.Controls.Add(this.btnExtractDrawingList);
             this.panelDrawingButtons.Controls.Add(this.btnExportAllPDF);
             this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
             this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
             this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 928);
+            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 898);
             this.panelDrawingButtons.Name = "panelDrawingButtons";
-            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 40);
+            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 70);
             this.panelDrawingButtons.TabIndex = 2;
             //
             // groupBoxStru — T-064 P1 STRU 목록 (Dock=Top, 240px)
@@ -1105,6 +1107,16 @@ namespace A2Z
             this.btnExportAllPDF.Text = "ALL";
             this.btnExportAllPDF.UseVisualStyleBackColor = true;
             this.btnExportAllPDF.Click += new System.EventHandler(this.btnExportAllPDF_Click);
+            //
+            // btnExtractDrawingList — T-064 P2a 도면 리스트 뽑기 (PoC)
+            //
+            this.btnExtractDrawingList.Location = new System.Drawing.Point(6, 38);
+            this.btnExtractDrawingList.Name = "btnExtractDrawingList";
+            this.btnExtractDrawingList.Size = new System.Drawing.Size(120, 28);
+            this.btnExtractDrawingList.TabIndex = 5;
+            this.btnExtractDrawingList.Text = "도면 리스트 뽑기";
+            this.btnExtractDrawingList.UseVisualStyleBackColor = true;
+            this.btnExtractDrawingList.Click += new System.EventHandler(this.btnExtractDrawingList_Click);
             //
             // panelDrawingBOMHeader
             //
@@ -1443,6 +1455,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colSheetCount;
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnGenerateSheets;
+        private System.Windows.Forms.Button btnExtractDrawingList;  // T-064 P2a — 도면 리스트 뽑기 PoC
         private System.Windows.Forms.Button btnMfgDrawingSheet;
         private System.Windows.Forms.Button btnGenerateSheet2D;
         private System.Windows.Forms.Button btnExportSheet2DPDF;

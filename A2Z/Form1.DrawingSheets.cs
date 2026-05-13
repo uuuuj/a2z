@@ -1306,7 +1306,8 @@ namespace A2Z
                 // ── 4. 템플릿 생성 (외곽 테두리) ──
                 // BOM/tableInfo는 셀 기반(RenderTemplateOnGridStructure)으로 이관되어
                 // 이전에 절대좌표 앵커로 쓰던 bInfo는 더 이상 필요 없음.
-                vizcore3d.Drawing2D.Template.CrateTemplateBorder();
+                // 새 SDK(VIZCore3D+.NET) — TemplateBorderInfo 인자 필수
+                vizcore3d.Drawing2D.Template.CrateTemplateBorder(new VIZCore3D.NET.Data.TemplateBorderInfo());
 
                 // BOM 최대 데이터 행수 — 셀 (1,3) 높이(약 95mm) 내 수용 한도
                 const int BOM_MAX_DATA_ROWS = 14;

@@ -79,8 +79,9 @@ namespace A2Z
                     DiagLog($"[PoC-Excel-Step3] 2D 모드 진입 완료. CanvasSize=({wCanvas}, {hCanvas})");
 
                     // 외곽 테두리 생성 (선택 — 시각 확인용)
-                    var bInfo = vizcore3d.Drawing2D.Template.CrateTemplateBorder();
-                    DiagLog("[PoC-Excel-Step3] CrateTemplateBorder 호출 완료");
+                    // 새 SDK(VIZCore3D+.NET) — TemplateBorderInfo 인자 필수
+                    vizcore3d.Drawing2D.Template.CrateTemplateBorder(new VIZCore3D.NET.Data.TemplateBorderInfo());
+                    DiagLog("[PoC-Excel-Step3] CrateTemplateBorder 호출 완료 (새 SDK 시그니처 적용)");
                 }
                 catch (Exception modeEx)
                 {
