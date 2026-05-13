@@ -1709,7 +1709,7 @@ namespace A2Z
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
+                string xlsxPath = System.IO.Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도_Rev.01.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
