@@ -1,10 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using VIZCore3D.NET.Data;
 
@@ -13,228 +9,194 @@ namespace A2Z
     public partial class Form1
     {
         /// <summary>
-        /// REQ-002 / T-012 PoC Step 3 (옵션 A 본진) —
-        /// SDK가 ImportExcel로 생성한 JSON을 우리가 직접 파싱하고,
-        /// ShapeDrawing.AddLine + Drawing2D.Object2D.Add2DObjectFromShapeDrawing 으로 2D 캔버스에 직접 렌더.
-        /// SDK 자동 적용(Step 1/2)이 사용자 추가 템플릿에 동작 안 함이 확정되어 우리가 렌더 책임.
+        /// REQ-002 / T-012 PoC Step 4 — Softhills 신 API 3종 (2026-05-13 배포) 동작 검증.
+        /// Set2DViewTemplateMark + ImportExcelWithData + GetViewAreasFromExcel 한 번에 호출.
+        /// 메인 도면 흐름(GenerateSheetDrawing2D)은 다른 에이전트가 수정 중이라 건드리지 않음.
+        /// 이 핸들러로 엑셀 템플릿이 정상 적용되는지 사내 PC 시각 검증 → 결과 따라 메인 흐름 전환 결정.
+        ///
+        /// 의존 리소스 (솔루션 루트):
+        ///   - 사용자템플릿_엑셀_제작도.xlsx  (메인 4면도 템플릿)
+        ///   - Logo.png                       ({Image} 슬롯용)
         /// </summary>
         private void btnExcelTemplatePoC_Click(object sender, EventArgs e)
         {
-            // 1. JSON 경로 자동 검색 — SDK 내부 폴더의 가장 오래된 SHI(Template_0)
-            string sdkTemplateRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "SOFTHILLS", "VIZCore3D+.NET", "Template");
-
-            string jsonPath = null;
-            string candidate = Path.Combine(sdkTemplateRoot, "Template_0", "사용자템플릿_엑셀_Rev_01.json");
-            if (File.Exists(candidate))
+            if (!vizcore3d.Model.IsOpen())
             {
-                jsonPath = candidate;
-            }
-            else if (Directory.Exists(sdkTemplateRoot))
-            {
-                // Template_0 이름 변경됐을 경우 최신 폴더 검색
-                var folders = Directory.GetDirectories(sdkTemplateRoot, "Template_*")
-                    .OrderBy(d => new DirectoryInfo(d).CreationTime)
-                    .ToList();
-                foreach (var folder in folders)
-                {
-                    var jsonFiles = Directory.GetFiles(folder, "*.json");
-                    if (jsonFiles.Length > 0)
-                    {
-                        jsonPath = jsonFiles[0];
-                        break;
-                    }
-                }
+                MessageBox.Show("먼저 모델 파일을 열어주세요.", "안내",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
-            if (jsonPath == null)
+            string solutionPath = GetSolutionPath();
+            string xlsxPath = Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
+            string logoPath = Path.Combine(solutionPath, "Logo.png");
+
+            if (!File.Exists(xlsxPath))
             {
-                using (var ofd = new OpenFileDialog())
-                {
-                    ofd.Title = "SDK 변환 JSON 파일 선택";
-                    ofd.Filter = "JSON files (*.json)|*.json";
-                    ofd.InitialDirectory = sdkTemplateRoot;
-                    if (ofd.ShowDialog() != DialogResult.OK) return;
-                    jsonPath = ofd.FileName;
-                }
+                MessageBox.Show($"엑셀 파일을 찾을 수 없습니다.\n{xlsxPath}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (!File.Exists(logoPath))
+            {
+                MessageBox.Show($"로고 파일을 찾을 수 없습니다.\n{logoPath}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            DiagLog($"[PoC-Excel-Step3] 시작 jsonPath={jsonPath}");
+            DiagLog($"[PoC-Excel-Step4] 시작 xlsx={Path.GetFileName(xlsxPath)} logo={Path.GetFileName(logoPath)}");
 
             try
             {
-                // ─── 2D 도면 모드 진입 시퀀스 (기존 GenerateSheetDrawing2D 패턴) ───
-                // 사용자 지적: 이 시퀀스 누락으로 Step 3 이전 안 보였음
-                try
+                // 1. 히든라인 모델 투영을 위한 EdgeData 사전 생성
+                vizcore3d.Object3D.GenerateEdgeData();
+                DiagLog("[PoC-Excel-Step4] GenerateEdgeData OK");
+
+                // 2. 모델/치수 라인 두께 (메인 도면과 동일 톤)
+                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);
+
+                // 3. data Dictionary 구성 (도면정보 하드코딩 + BOM 8컬럼)
+                Dictionary<int, string> data = new Dictionary<int, string>();
+                data[1] = "CEDAR FLNG";      // 프로젝트명 (임시 하드코딩 — 추후 출처 결정)
+                data[2] = "SN2688";          // 선박번호
+                data[3] = "DETAIL DRAWING";  // 도면종류
+
+                // BOM 8컬럼 × 15행 — lvDrawingBOMInfo Row 0(요약행) 제외
+                int bomMapped = 0;
+                if (lvDrawingBOMInfo.Items.Count > 1)
                 {
-                    vizcore3d.ToolbarDrawing2D.Visible = true;
-                    vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
-                    // 우리 JSON 데이터 범위 약 355×227mm — A3 landscape(420×297) 안전 수용
-                    vizcore3d.Drawing2D.View.SetCanvasSize(420, 297);
-                    vizcore3d.Drawing2D.View.SetSelectCanvas(1);
-
-                    float wCanvas = 0f, hCanvas = 0f;
-                    vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
-                    DiagLog($"[PoC-Excel-Step3] 2D 모드 진입 완료. CanvasSize=({wCanvas}, {hCanvas})");
-
-                    // 외곽 테두리 생성 (선택 — 시각 확인용)
-                    // 새 SDK(VIZCore3D+.NET) — TemplateBorderInfo 인자 필수
-                    vizcore3d.Drawing2D.Template.CrateTemplateBorder(new VIZCore3D.NET.Data.TemplateBorderInfo());
-                    DiagLog("[PoC-Excel-Step3] CrateTemplateBorder 호출 완료 (새 SDK 시그니처 적용)");
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 15);
+                    for (int i = 0; i < n; i++)
+                    {
+                        ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
+                        data[4   + i] = item.Text;                              // NO
+                        data[19  + i] = SafeSubItem(item, 1);                   // ITEM
+                        data[34  + i] = SafeSubItem(item, 2);                   // MATERIAL
+                        data[49  + i] = SafeSubItem(item, 3);                   // SIZE
+                        data[64  + i] = SafeSubItem(item, 4);                   // Q'TY
+                        data[79  + i] = SafeSubItem(item, 5);                   // T/W
+                        data[94  + i] = SafeSubItem(item, 6);                   // MA
+                        data[109 + i] = SafeSubItem(item, 7);                   // FA
+                    }
+                    bomMapped = n;
                 }
-                catch (Exception modeEx)
+                DiagLog($"[PoC-Excel-Step4] data 구성: 도면정보 3 + BOM {bomMapped}행 (Input 총 {data.Count}개)");
+
+                // 4. 신 API #1 — 로고 매핑 ({Image} 셀들에 동일 로고)
+                vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(logoPath, logoPath);
+                DiagLog("[PoC-Excel-Step4] Set2DViewTemplateMark OK");
+
+                // 5. 신 API #2 — 엑셀 템플릿 적용 + {Input_N} 데이터 치환
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                DiagLog("[PoC-Excel-Step4] ImportExcelWithData OK");
+
+                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+
+                // 6. 신 API #3 — {View_N} 영역 좌표 파싱
+                var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
+                if (viewAreas == null || viewAreas.Count == 0)
                 {
-                    DiagLog($"[PoC-Excel-Step3] 2D 모드 진입 실패 {modeEx.GetType().Name}: {modeEx.Message}");
-                }
-
-                // 2. JSON 파싱
-                var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
-                var jsonText = File.ReadAllText(jsonPath);
-                var data = serializer.Deserialize<Dictionary<string, object>>(jsonText);
-
-                var lineArr = data.ContainsKey("Line") ? data["Line"] as ArrayList : null;
-                var textArr = data.ContainsKey("Text") ? data["Text"] as ArrayList : null;
-                var imageArr = data.ContainsKey("Image") ? data["Image"] as ArrayList : null;
-
-                int lineCount = lineArr?.Count ?? 0;
-                int textCount = textArr?.Count ?? 0;
-                int imageCount = imageArr?.Count ?? 0;
-                DiagLog($"[PoC-Excel-Step3] JSON 파싱 OK: Line={lineCount} Text={textCount} Image={imageCount}");
-
-                // 3. InputBox — 시도 모드 선택
-                string mode = Microsoft.VisualBasic.Interaction.InputBox(
-                    "모드 선택:\n\n" +
-                    "  4 : SDK 자동 적용 (Set2DViewDefaultTemplate) — 사용자 가설 검증, 권장\n" +
-                    "  1 : Line 10개만 직접 그리기 (Step 3 검증)\n" +
-                    "  2 : Line 전체 직접 그리기 (" + lineCount + "개)\n" +
-                    "  0 : 기존 ShapeDrawing 모두 제거 (clear)",
-                    "PoC-Excel Step 4",
-                    "4");
-                if (string.IsNullOrEmpty(mode)) return;
-                mode = mode.Trim();
-
-                if (mode == "0")
-                {
-                    try { vizcore3d.ShapeDrawing.Clear(); DiagLog("[PoC-Excel-Step4] ShapeDrawing.Clear 호출"); }
-                    catch (Exception clearEx) { DiagLog($"[PoC-Excel-Step4] ShapeDrawing.Clear 실패 {clearEx.Message}"); }
-                    MessageBox.Show("ShapeDrawing 제거 시도 완료. 캔버스 확인.", "PoC-Excel");
+                    DiagLog("[PoC-Excel-Step4] GetViewAreasFromExcel 비어있음");
+                    MessageBox.Show("엑셀에서 {View_N} 영역을 찾지 못했습니다.", "오류",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
+                DiagLog($"[PoC-Excel-Step4] GetViewAreasFromExcel {viewAreas.Count}개 영역 반환");
 
-                if (mode == "4")
+                // 7. {View_N} 인덱스 ↔ 카메라 방향 매핑 (메인 4면도 규약)
+                Dictionary<int, CameraDirection> cameraMap = new Dictionary<int, CameraDirection>
                 {
-                    // 사용자 가설 검증: Step 1/2 실패가 2D 모드 진입 누락 때문일 가능성
-                    // 2D 모드 진입은 이미 위에서 완료. 여기서는 인덱스 입력 받아 적용만.
-                    string idxInput = Microsoft.VisualBasic.Interaction.InputBox(
-                        "Set2DViewDefaultTemplate에 사용할 인덱스:\n\n" +
-                        "  -1 : 빈 템플릿\n" +
-                        "  0~2 : DSME 내장\n" +
-                        "  3+ : 사용자 추가 SHI (3이 가장 유력 — Template_0)\n\n" +
-                        "여러 값 시도 가능. CrateTemplateBorder + ViewMode=Both 가 위에서 호출됐으니 이번엔 잘 그려질 가능성.",
-                        "PoC-Excel Step 4 — SDK 자동 적용",
-                        "3");
-                    if (string.IsNullOrEmpty(idxInput)) return;
-                    if (!int.TryParse(idxInput.Trim(), out int idx))
+                    { 1, CameraDirection.ISO_PLUS },   // ISO
+                    { 2, CameraDirection.Z_MINUS  },   // LOOKING "Z"
+                    { 3, CameraDirection.X_MINUS  },   // LOOKING "X"
+                    { 4, CameraDirection.Y_MINUS  },   // LOOKING "Y"
+                };
+
+                const float margin = 5f;
+                int viewsRendered = 0;
+
+                // 8. 각 View 영역에 모델 투영 (카메라 이동 → 객체 생성 → fit → 영역 중심 이동)
+                for (int i = 0; i < viewAreas.Count; i++)
+                {
+                    var p = viewAreas[i];
+                    if (!cameraMap.TryGetValue(p.Index, out CameraDirection camDir))
                     {
-                        MessageBox.Show("정수 필요", "PoC-Excel");
-                        return;
+                        DiagLog($"[PoC-Excel-Step4] View_{p.Index} 카메라 매핑 없음 — 스킵");
+                        continue;
                     }
 
-                    try
+                    vizcore3d.View.MoveCamera(camDir);
+
+                    int objId = vizcore3d.Drawing2D.Object2D
+                        .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                            Drawing2D_ModelViewKind.CURRENT);
+                    if (objId < 0)
                     {
-                        vizcore3d.Drawing2D.Template.Set2DViewDefaultTemplate(idx);
-                        DiagLog($"[PoC-Excel-Step4] Set2DViewDefaultTemplate({idx}) 호출 완료");
-                    }
-                    catch (Exception applyEx)
-                    {
-                        DiagLog($"[PoC-Excel-Step4] Set2DViewDefaultTemplate({idx}) 실패 {applyEx.GetType().Name}: {applyEx.Message}");
+                        DiagLog($"[PoC-Excel-Step4] View_{p.Index} Object2D 생성 실패 objId={objId}");
+                        continue;
                     }
 
-                    MessageBox.Show(
-                        $"Set2DViewDefaultTemplate({idx}) 호출 완료 — 2D 모드 진입 후 적용.\n\n" +
-                        $"2D View 캔버스 확인:\n" +
-                        $"  - SHI 셀 구조(4뷰/BOM/NOTE/도면정보) 보이면 → 사용자 가설 정답!\n" +
-                        $"  - 빈 outline만 또는 DSME 보이면 → 다른 인덱스 시도\n" +
-                        $"  - 아무것도 없으면 → 모드 진입 자체 실패 (DiagLog 확인)",
-                        "PoC-Excel Step 4",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    return;
+                    // 영역 내 fit 계산
+                    float fitW = p.Width - 2f * margin;
+                    float fitH = p.Height - 2f * margin;
+                    float objW = 0f, objH = 0f;
+                    vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+                    float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+
+                    if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
+                    {
+                        float fitScale = Math.Min(fitW / objW, fitH / objH);
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, objScale * fitScale);
+                    }
+
+                    // 영역 중심으로 이동 (다운로드 샘플 패턴: Y에 +15 오프셋)
+                    float cx = p.X + p.Width / 2f;
+                    float cy = p.Y + p.Height / 2f;
+                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx, cy + 15f);
+
+                    DiagLog($"[PoC-Excel-Step4] View_{p.Index} 투영 OK dir={camDir} " +
+                            $"area=({p.X:F1},{p.Y:F1},{p.Width:F1},{p.Height:F1}) " +
+                            $"objSize=({objW:F1},{objH:F1}) objScale={objScale:F4}");
+                    viewsRendered++;
                 }
 
-                int lineLimit = (mode == "1") ? 10 : lineCount;
+                // 9. 최종 렌더 + 캔버스 오토핏 + 선택 해제
+                vizcore3d.Drawing2D.Render();
+                vizcore3d.Drawing2D.View.SetCanvasResetViewPos(-1);
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
-                // 4. Line 그리기 — ShapeDrawing.AddLine(List<Vertex3DItemCollection>)
-                int linesDrawn = 0;
-                int shapeId = -1;
-                if (lineArr != null && lineLimit > 0)
-                {
-                    var allLines = new List<Vertex3DItemCollection>();
-                    for (int i = 0; i < Math.Min(lineLimit, lineArr.Count); i++)
-                    {
-                        var ln = lineArr[i] as Dictionary<string, object>;
-                        if (ln == null) continue;
-
-                        float minX = Convert.ToSingle(ln["minX"]);
-                        float minY = Convert.ToSingle(ln["minY"]);
-                        float maxX = Convert.ToSingle(ln["maxX"]);
-                        float maxY = Convert.ToSingle(ln["maxY"]);
-
-                        var seg = new Vertex3DItemCollection();
-                        seg.Add(new Vertex3D(minX, minY, 0f));
-                        seg.Add(new Vertex3D(maxX, maxY, 0f));
-                        allLines.Add(seg);
-                        linesDrawn++;
-                    }
-
-                    try
-                    {
-                        shapeId = vizcore3d.ShapeDrawing.AddLine(allLines, -1, System.Drawing.Color.Black, 0.3f, true);
-                        DiagLog($"[PoC-Excel-Step3] ShapeDrawing.AddLine OK count={linesDrawn} shapeId={shapeId}");
-                    }
-                    catch (Exception lineEx)
-                    {
-                        DiagLog($"[PoC-Excel-Step3] ShapeDrawing.AddLine 실패 {lineEx.GetType().Name}: {lineEx.Message}");
-                    }
-
-                    // 3D ShapeDrawing → 2D 캔버스로 변환
-                    if (shapeId > 0)
-                    {
-                        try
-                        {
-                            vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(new List<int> { shapeId });
-                            DiagLog($"[PoC-Excel-Step3] Add2DObjectFromShapeDrawing OK shapeId={shapeId}");
-                        }
-                        catch (Exception conv2dEx)
-                        {
-                            DiagLog($"[PoC-Excel-Step3] Add2DObjectFromShapeDrawing 실패 {conv2dEx.GetType().Name}: {conv2dEx.Message}");
-                        }
-                    }
-                }
+                DiagLog($"[PoC-Excel-Step4] 완료 — Views {viewsRendered}/{viewAreas.Count}, BOM {bomMapped}행");
 
                 MessageBox.Show(
-                    $"PoC Step 3 결과 (Line만):\n" +
-                    $"  - JSON: {Path.GetFileName(jsonPath)}\n" +
-                    $"  - Line 추가: {linesDrawn}/{lineCount} (shapeId={shapeId})\n" +
-                    $"  - Text({textCount}) / Image({imageCount}): 다음 단계\n\n" +
-                    "2D View 캔버스 확인.\n" +
-                    "  - 셀 테두리가 보이면 → 좌표·렌더 성공! Text/Image 단계 진행\n" +
-                    "  - 안 보이면 → 좌표 단위 mismatch 또는 2D 모드 진입 필요\n" +
-                    "  - 일부만 보이면 → 좌표 범위 OK, 일부 누락 원인 분석",
-                    "PoC-Excel Step 3",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                    $"엑셀 템플릿 PoC 적용 완료\n\n" +
+                    $"  • 도면정보 (Input_1~3) : 3개 매핑\n" +
+                    $"  • BOM 표               : {bomMapped}행 매핑\n" +
+                    $"  • View 영역            : {viewsRendered}/{viewAreas.Count}개 렌더\n\n" +
+                    "2D 캔버스에서 결과를 확인해주세요.",
+                    "PoC Step 4 — 신 API 검증",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                DiagLog($"[PoC-Excel-Step3] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                DiagLog($"[PoC-Excel-Step4] 오류 {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show(
-                    $"오류: {ex.GetType().Name}\n{ex.Message}\n\nlogs/diag-yyyy-mm-dd.log 참고.",
-                    "PoC-Excel Step 3 실패",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                    $"PoC 오류: {ex.GetType().Name}\n{ex.Message}\n\nlogs/diag-yyyy-mm-dd.log 참고.",
+                    "PoC Step 4 실패",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// ListViewItem.SubItems[idx] 안전 조회 (인덱스 초과 시 빈 문자열).
+        /// </summary>
+        private static string SafeSubItem(ListViewItem item, int idx)
+        {
+            if (item == null || item.SubItems == null) return "";
+            if (idx < 0 || idx >= item.SubItems.Count) return "";
+            return item.SubItems[idx].Text ?? "";
         }
     }
 }
