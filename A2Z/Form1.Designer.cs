@@ -121,6 +121,11 @@ namespace A2Z
             this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
             this.btnExportAllPDF = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
+            this.groupBoxStru = new System.Windows.Forms.GroupBox();
+            this.clbStruList = new System.Windows.Forms.CheckedListBox();
+            this.panelStruHeader = new System.Windows.Forms.Panel();
+            this.lblStruTitle = new System.Windows.Forms.Label();
+            this.btnSelectAllStru = new System.Windows.Forms.Button();
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
             this.btnUdaImportCSV = new System.Windows.Forms.Button();
@@ -982,6 +987,7 @@ namespace A2Z
             // splitContainerDrawing.Panel1 - 도면 시트 목록
             //
             this.splitContainerDrawing.Panel1.Controls.Add(this.lvDrawingSheet);
+            this.splitContainerDrawing.Panel1.Controls.Add(this.groupBoxStru);
             //
             // splitContainerDrawing.Panel2 - BOM 정보
             //
@@ -1004,6 +1010,50 @@ namespace A2Z
             this.panelDrawingButtons.Name = "panelDrawingButtons";
             this.panelDrawingButtons.Size = new System.Drawing.Size(443, 40);
             this.panelDrawingButtons.TabIndex = 2;
+            //
+            // groupBoxStru — T-064 P1 STRU 목록 (Dock=Top, 240px)
+            //
+            this.groupBoxStru.Controls.Add(this.clbStruList);
+            this.groupBoxStru.Controls.Add(this.panelStruHeader);
+            this.groupBoxStru.Dock = System.Windows.Forms.DockStyle.Top;
+            this.groupBoxStru.Name = "groupBoxStru";
+            this.groupBoxStru.Size = new System.Drawing.Size(443, 240);
+            this.groupBoxStru.Text = "STRU 목록 (모델트리)";
+            //
+            // panelStruHeader
+            //
+            this.panelStruHeader.Controls.Add(this.btnSelectAllStru);
+            this.panelStruHeader.Controls.Add(this.lblStruTitle);
+            this.panelStruHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelStruHeader.Name = "panelStruHeader";
+            this.panelStruHeader.Size = new System.Drawing.Size(437, 30);
+            //
+            // lblStruTitle
+            //
+            this.lblStruTitle.AutoSize = true;
+            this.lblStruTitle.Location = new System.Drawing.Point(8, 7);
+            this.lblStruTitle.Name = "lblStruTitle";
+            this.lblStruTitle.Text = "STRU 목록 (0개)";
+            //
+            // btnSelectAllStru
+            //
+            this.btnSelectAllStru.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnSelectAllStru.Location = new System.Drawing.Point(330, 3);
+            this.btnSelectAllStru.Name = "btnSelectAllStru";
+            this.btnSelectAllStru.Size = new System.Drawing.Size(100, 24);
+            this.btnSelectAllStru.Text = "전체 선택/해제";
+            this.btnSelectAllStru.UseVisualStyleBackColor = true;
+            this.btnSelectAllStru.Click += new System.EventHandler(this.btnSelectAllStru_Click);
+            //
+            // clbStruList
+            //
+            this.clbStruList.CheckOnClick = true;
+            this.clbStruList.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.clbStruList.FormattingEnabled = true;
+            this.clbStruList.IntegralHeight = false;
+            this.clbStruList.Name = "clbStruList";
+            this.clbStruList.Size = new System.Drawing.Size(437, 207);
+            this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
             //
             // btnGenerateSheets
             //
@@ -1416,5 +1466,11 @@ namespace A2Z
         private System.Windows.Forms.Button btnGlobalAxisX;
         private System.Windows.Forms.Button btnGlobalAxisY;
         private System.Windows.Forms.Button btnGlobalAxisZ;
+        // T-064 P1 STRU 목록 UI
+        private System.Windows.Forms.GroupBox groupBoxStru;
+        private System.Windows.Forms.CheckedListBox clbStruList;
+        private System.Windows.Forms.Panel panelStruHeader;
+        private System.Windows.Forms.Label lblStruTitle;
+        private System.Windows.Forms.Button btnSelectAllStru;
     }
 }

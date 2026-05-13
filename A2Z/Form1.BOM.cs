@@ -228,6 +228,9 @@ namespace A2Z
 
                     // Body → Part 이름 매핑 구축
                     BuildBodyToPartNameMap();
+
+                    // T-064 P1: STRU 목록 채우기
+                    PopulateStruCheckList();
                 }
                 else
                 {

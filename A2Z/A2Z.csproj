@@ -88,6 +88,10 @@
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Form1.Stru.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Form1.GlobalViews.cs">
       <DependentUpon>Form1.cs</DependentUpon>
       <SubType>Form</SubType>

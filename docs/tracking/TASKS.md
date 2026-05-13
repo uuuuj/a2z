@@ -480,6 +480,35 @@
 
 ## IN_PROGRESS
 
+### T-064 — STRU 일괄 도면 출력 (P1 STRU 목록·강조 완료)
+- **생성일**: 2026-05-13
+- **착수일**: 2026-05-13
+- **상태**: IN_PROGRESS (P1 구현 완료, 사용자 사내 PC 실기 검증 대기)
+- **관련**: 사용자 직접 — STRU 단위 다중 선택 → 4종 도면(제작/조립/설치/가공) PDF 일괄 출력 흐름 도입
+- **배경**: HYI-STRU 브랜치(2f024d1 외 4커밋)에서 STRU 흐름 시도했으나 간섭검사 폐기(1d17cc6) 범위가 과도해 HYI로 회귀. "리스트 뽑기까지만" 출발로 토론 → 전체 계획 합의
+- **계획 합의 사항**:
+  - 4종 도면 매핑: 제작도=Sheet1(-1) / **조립도=Sheet 2~N(≥0, 1-hop Clash 이웃)** / 설치도=Sheet(-2) / 가공도=Sheet(-3)
+  - 버튼 구성: 2버튼 — `[도면 리스트 뽑기]`(간섭검사+시트목록 미리보기) / `[STRU 도면 자동 생성]`(즉시 4종 PDF)
+  - 간섭검사 격리: **방법 A — 가시성 토글** (STRU별 Visible 토글 후 DetectClash 호출. SDK가 부재 단위 인자 미지원 — 사용자 통찰 "전체 1회도 어차피 오래걸려"로 N회 호출 감수)
+  - HYI-STRU 자산: 구조만 참조 + `6bc89cf` NodePath fallback 패턴만 cherry-pick
+- **Phase 분할**:
+  - [x] **P1** — STRU 목록 표시 + 행 선택 시 3D 강조+카메라 fit (이번 커밋)
+  - [ ] **P2** — `[도면 리스트 뽑기]` 버튼 (체크된 STRU별 가시성 토글 → DetectClash → GenerateDrawingSheets → lvDrawingSheet 누적, STRU 컬럼 추가)
+  - [ ] **P3** — `[STRU 도면 자동 생성]` 단일 STRU 4종 PDF (파일명 `{STRU}_{종류}_{HHmmss}.pdf`)
+  - [ ] **P4** — 다중 STRU 배치 + 진행률 + 실패 정책 + 메모리 강화
+- **P1 구현**:
+  - 신규 `A2Z/Form1.Stru.cs` (157줄) — `CollectStruList`(NodePath fallback) / `PopulateStruCheckList` / `btnSelectAllStru_Click` / `ClbStruList_SelectedIndexChanged` (3D 강조+fit)
+  - SDK 정정 적용: `Object3D.Color.RestoreColorAll` (View.Color 아님), `View.FlyToObject3d` (View.Camera 아님). sdk-verifier 사전 검증.
+  - `BeginUpdate/EndUpdate`는 try/finally로 감싸 예외 시에도 UI 잠금 해제 보장
+  - CheckedListBox 의미 분리: 선택(`SelectedIndex`)=강조용 / 체크(`CheckedItems`)=출력 대상용. `CheckOnClick=true`로 클릭 1회에 동시 트리거
+  - Designer.cs: `groupBoxStru` (Dock=Top 240px) + clbStruList + 라벨 + 전체선택 버튼만 (P2/P3 버튼 미포함)
+  - BOM.cs: `BuildBodyToPartNameMap()` 직후 `PopulateStruCheckList()` 호출 1줄
+- **위험 관리**:
+  - 가시성 토글 try/finally 복원 (P2에서 도입 필요)
+  - 묶음 GC (P3에서 도입)
+  - 가공도 vs 제작/조립/설치 함수 시그니처 차이 — P2 진입 전 SDK 매핑 점검
+- **다음 단계**: 사용자 사내 PC에서 모델 열기 → 좌측 STRU 패널 표시 → 행 클릭 시 3D 빨강+fit 확인 → P2 진입
+
 ### T-032 — 치수 계산 성능 최적화 (Osnap 맵 재사용)
 - **생성일**: 2026-04-22
 - **착수일**: 2026-04-22

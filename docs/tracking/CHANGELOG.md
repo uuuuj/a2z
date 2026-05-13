@@ -6,6 +6,59 @@
 
 ---
 
+## 2026-05-13 — T-064 P1: STRU 일괄 도면 출력 — 목록·강조 단계
+
+**유형**: feat (신규 흐름 P1 — STRU 추출 + UI + 행 선택 강조)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**관련 자산**: HYI-STRU 브랜치 4커밋(2f024d1, 6bc89cf, 4f99335, 1d17cc6) 중 `6bc89cf` NodePath fallback 패턴만 가져옴. 나머지는 P2/P3로 재설계 보류.
+
+**배경**: 사용자 요구 6항목 (STRU 목록 / 체크박스 / 자동 도면 4종 PDF / 행 강조 / 도면 리스트 뽑기 / 다중 체크 확인 팝업)을 다중 에이전트 토론으로 4 Phase로 분할. 합의 핵심 — 조립도는 Sheet 2~N(1-hop Clash 이웃, 부분조립)으로 매핑, 간섭검사 격리는 가시성 토글 방식, 버튼 2개로 분리(미리보기 / 즉시 PDF).
+
+**P1 구현 범위**: STRU 목록 표시 + 행 선택 시 3D 부재 강조 + 카메라 fit. PDF/일괄처리 미포함.
+
+**변경 파일**:
+- 신규 `A2Z/Form1.Stru.cs` (157줄) — partial class Form1 멤버 4개
+  - `CollectStruList` — `FromFilter(LEAF_ASSEMBLY, includeNodePath:true)` + NodeName/NodePath "/" 시작 필터 + 0건 fallback + 진단 DiagLog
+  - `PopulateStruCheckList` — CheckedListBox 채우기 (표시: NodeName→NodePath→`(Index N)`)
+  - `btnSelectAllStru_Click` — 전체 선택/해제 토글
+  - `ClbStruList_SelectedIndexChanged` — 선택 행 STRU의 GetChildObject3d(BODY) → 3D 강조+fit
+- `A2Z/Form1.Designer.cs` (+56) — `groupBoxStru`(Dock=Top 240px) + `clbStruList`(CheckOnClick=true) + 라벨 + 전체선택 버튼
+- `A2Z/Form1.BOM.cs` (+3) — 모델 Open `BuildBodyToPartNameMap()` 직후 `PopulateStruCheckList()` 호출
+- `A2Z/A2Z.csproj` (+4) — Form1.Stru.cs Compile 항목 (DependentUpon=Form1.cs)
+
+**핵심 알고리즘 (P1 ClbStruList_SelectedIndexChanged)**:
+```
+SelectedIndex → _struNodeCache[idx] → GetChildObject3d(BODY) → memberIndices
+BeginUpdate → try { RestoreColorAll → Select(true,false) → FlyToObject3d(1.2f) } finally { EndUpdate }
+```
+
+**SDK 정정 사항** (sdk-verifier 사전 검증):
+- `vizcore3d.Object3D.Color.RestoreColorAll()` — `View.Color`가 아닌 `Object3D.Color`
+- `vizcore3d.View.FlyToObject3d(indices, 1.2f)` — `View.Camera`가 아닌 `View` 직속
+- `vizcore3d.Object3D.Select(indices, selection:true, pivot:false)`
+
+**의미 분리** (CheckedListBox vs ListView 컨텍스트 차이 — 패턴 무비판 이식 금지):
+- 체크(`CheckedItems`) = 출력 대상 표시용 (P2/P3에서 활용)
+- 선택(`SelectedIndex`) = 시각 강조 전용
+- `CheckOnClick=true` — 사용자 마우스 클릭 1회로 체크와 강조 동시 발생
+
+**다중 에이전트 토론 흐름**:
+1. 라운드 1 (병렬 3): sdk-verifier SDK 검증 + REQ-005 패턴 추출 + HYI 라인 매핑
+2. 라운드 2 (구현 1): general-purpose 에이전트 코드 작성 위임
+3. 라운드 3 (병렬 2): 패턴 일관성 리뷰 + 위험·정책 리뷰 → try/finally 누락 1건 발견·수정, R13 요지 병기 보강
+4. 라운드 4: MSBuild Debug 빌드 통과 → commit + push
+
+**검증 포인트** (사용자 실기):
+- 모델 열기 → 좌측 STRU 패널에 N개 항목 표시 (NodeName 또는 NodePath 또는 `(Index N)`)
+- "전체 선택/해제" 버튼 동작
+- 행 클릭 시 (1) 체크 토글 + (2) 3D에서 해당 STRU의 모든 부재 빨간 강조 + 카메라 fit
+- 모델 트리에 LEAF_ASSEMBLY가 NodeName으로 "/" 시작하지 않으면 fallback 작동 (LEAF_ASSEMBLY 전체 표시)
+- DiagLog에서 `T-064 LeafAssy[i]: name='...' path='...' kind=... depth=...` 진단 가능
+
+**다음 단계**: P2 — `[도면 리스트 뽑기]` 버튼 (체크된 STRU별 가시성 토글 → DetectClash → GenerateDrawingSheets → lvDrawingSheet 누적, STRU 컬럼 추가, 다중 체크 시 확인 팝업)
+
+---
+
 ## 2026-05-13 — T-037 3차: BOM 열 너비 6/20/17/30/8/9/6/5 (합 101mm)
 
 **유형**: feat (사용자 사양 BOM 열 너비 갱신)
