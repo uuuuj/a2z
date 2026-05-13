@@ -1096,19 +1096,32 @@ namespace A2Z
         /// </summary>
         private void btnExportAllPDF_Click(object sender, EventArgs e)
         {
+            // 옛 동작 그대로 — saveDir 하드코딩 c:\, 완료 메시지박스 표시.
+            // T-064 P2 본진은 ExportAllSheetsToPdfCore(struSubDir, showSummary:false)로 직접 호출.
+            ExportAllSheetsToPdfCore(@"c:\", showSummary: true);
+        }
+
+        /// <summary>
+        /// lvDrawingSheet 모든 시트를 PDF로 일괄 출력 (공용 코어).
+        /// 사용자 평소 btnExportAllPDF 흐름 + T-064 P2 본진 STRU 일괄 처리에서 공용 사용.
+        /// </summary>
+        /// <param name="saveDir">PDF 저장 폴더</param>
+        /// <param name="showSummary">true면 완료/오류 메시지박스 표시 (옛 btnExportAllPDF 동작). false면 DiagLog만 (P2 본진).</param>
+        /// <returns>PDF 출력 성공 개수</returns>
+        private int ExportAllSheetsToPdfCore(string saveDir, bool showSummary)
+        {
             if (!vizcore3d.Model.IsOpen())
             {
-                MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                if (showSummary) MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return 0;
             }
 
             if (lvDrawingSheet.Items.Count == 0)
             {
-                MessageBox.Show("도면 시트가 없습니다. 먼저 '도면 생성'을 해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                if (showSummary) MessageBox.Show("도면 시트가 없습니다. 먼저 '도면 생성'을 해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return 0;
             }
 
-            string saveDir = @"c:\";
             int totalCount = lvDrawingSheet.Items.Count;
             int successCount = 0;
 
@@ -1159,11 +1172,11 @@ namespace A2Z
                         vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
                         vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
                         successCount++;
-                        System.Diagnostics.Debug.WriteLine($"[ALL PDF] {i + 1}/{totalCount} 저장: {pdfPath}");
+                        DiagLog($"[ALL PDF] {i + 1}/{totalCount} 저장: {pdfPath}");
                     }
                     catch (Exception pdfEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[ALL PDF] {i + 1}/{totalCount} 실패: {pdfEx.Message}");
+                        DiagLog($"[ALL PDF] {i + 1}/{totalCount} 실패: {pdfEx.Message}");
                     }
 
                     // ── 메모리 정리 (매 시트 처리 후) ──
@@ -1180,12 +1193,17 @@ namespace A2Z
                     System.Threading.Thread.Sleep(100);
                 }
 
-                MessageBox.Show($"PDF 일괄 출력 완료!\n\n총 {totalCount}개 중 {successCount}개 저장됨\n저장 경로: {saveDir}", "ALL PDF 출력 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (showSummary)
+                    MessageBox.Show($"PDF 일괄 출력 완료!\n\n총 {totalCount}개 중 {successCount}개 저장됨\n저장 경로: {saveDir}", "ALL PDF 출력 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"ALL PDF 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DiagLog($"ExportAllSheetsToPdfCore ERROR: {ex.Message}\n{ex.StackTrace}");
+                if (showSummary)
+                    MessageBox.Show($"ALL PDF 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
+            return successCount;
         }
 
         /// <summary>
@@ -1306,8 +1324,8 @@ namespace A2Z
                 // ── 4. 템플릿 생성 (외곽 테두리) ──
                 // BOM/tableInfo는 셀 기반(RenderTemplateOnGridStructure)으로 이관되어
                 // 이전에 절대좌표 앵커로 쓰던 bInfo는 더 이상 필요 없음.
-                // 새 SDK(VIZCore3D+.NET) — TemplateBorderInfo 인자 필수
-                vizcore3d.Drawing2D.Template.CrateTemplateBorder(new VIZCore3D.NET.Data.TemplateBorderInfo());
+                // 새 SDK(VIZCore3D+.NET) — CreateTemplateBorder()(스펠링 정정, xml 31246, 무인자 + 반환값)
+                vizcore3d.Drawing2D.Template.CreateTemplateBorder();
 
                 // BOM 최대 데이터 행수 — 셀 (1,3) 높이(약 95mm) 내 수용 한도
                 const int BOM_MAX_DATA_ROWS = 14;
