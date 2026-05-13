@@ -512,6 +512,16 @@ namespace A2Z
             // 2) xraySelectedNodeIndices 설정 (격리) — DetectClash가 이 set만 페어로 만든다
             xraySelectedNodeIndices = new List<int>(memberIndices);
 
+            // ★ CollectBOMData 호출 — bomList를 STRU 부재만으로 갱신
+            // (Form1.BOM.cs:345 주석: "xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며")
+            // Clash_OnClashTestFinishedEvent의 IsSingleConnectedComponent(Form1.Clash.cs:506)가 bomList 기반
+            // 연결성 그래프 검사를 수행하므로, bomList가 전체 모델 BOM이면 STRU 부재가 다른 부재들과 분리된
+            // 그룹으로 카운트되어 컴포넌트 > 1 → T-023 메시지 + return → 시트 생성 안 됨.
+            // 가시성 격리 + xraySelectedNodeIndices 설정 후 CollectBOMData 호출 → bomList에 STRU 부재만 →
+            // 연결성 검사 시 STRU 부재끼리만 그래프 → 정상.
+            bool bomCollected = CollectBOMData();
+            DiagLog($"T-064 STRU '{struNode.NodeName}' CollectBOMData success={bomCollected}, bomList={bomList?.Count ?? 0}");
+
             // 3) DetectClash 호출 (비동기) — OnFinished가 자동으로 시트 생성·치수계산까지 진행
             bool startResult = DetectClash();
             DiagLog($"T-064 STRU '{struNode.NodeName}' DetectClash startResult={startResult}");

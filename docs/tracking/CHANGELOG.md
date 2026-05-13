@@ -6,6 +6,77 @@
 
 ---
 
+## 2026-05-13 — T-064 P2 핫픽스: DetectClash 전 CollectBOMData 호출 (T-023 연결성 통과)
+
+**유형**: fix (bomList 사전 갱신)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `c4e09be` (P2 옵션 C — 가시성 격리 추가)
+
+**사용자 사내 검증 결과**:
+> "선택부재랑 나머지 부재랑 둘 다 사라졌다가 다시 선택부재 생기고 그다음 나머지 부재 생기면서 안돼"
+
+= 가시성 격리는 작동 (사용자 시각 시퀀스 우리 흐름과 정합), 하지만 검사·시트 생성 *실패*.
+
+**원인 추적 (Form1.Clash.cs L506-518, Form1.BOM.cs)**:
+
+```csharp
+// Clash_OnClashTestFinishedEvent 안의 연결성 판정 (L506):
+if (!IsSingleConnectedComponent(out componentCount)) {
+    MessageBox.Show("치수 추출 사전조건 / 서로 연결되지 않은 부재 그룹 ...");
+    return;  // ← 여기서 return → CompleteMainDimensionPostClash 호출 안 됨 → 시트 생성 X
+}
+```
+
+`IsSingleConnectedComponent`(L536-557)는 **`bomList` 기반 그래프 검사**. 우리 옵션 C 가시성 격리는 화면 표시만 변경하고 bomList는 *전체 모델 BOM 그대로* → STRU 3개 부재가 다른 부재들과 분리된 그룹 → componentCount > 1 → T-023 메시지 + return → drawingSheetList 비어있음 → 우리 ProcessSingleStruFull `throw "시트 0건"`.
+
+**결정적 단서** (Form1.BOM.cs L345 주석):
+> "xraySelectedNodeIndices가 **CollectBOMData / DetectClash에서 필터로 쓰이며**"
+
+= `CollectBOMData()` (Form1.BOM.cs:627)를 호출하면 `xraySelectedNodeIndices` 필터 적용 → bomList에 STRU 부재만 들어감.
+
+**수정** (1줄 추가):
+```csharp
+xraySelectedNodeIndices = new List<int>(memberIndices);
+
+// ★ CollectBOMData 호출 — bomList를 STRU 부재만으로 갱신
+//   (가시성 격리 + xraySelectedNodeIndices 설정 후) → IsSingleConnectedComponent가
+//   STRU 3개 부재끼리만 연결성 그래프 검사 → 닿아있으면 컴포넌트 1개 → T-023 통과
+bool bomCollected = CollectBOMData();
+DiagLog($"T-064 STRU '{stru.NodeName}' CollectBOMData success={bomCollected}, bomList={bomList.Count}");
+
+bool startResult = DetectClash();
+```
+
+**핵심 흐름** (수정 후):
+1. STRU 후손 BODY 수집 (memberIndices)
+2. 가시성 격리 (옵션 C — Show false + Show true)
+3. `xraySelectedNodeIndices = memberIndices` (격리)
+4. **`CollectBOMData()` 호출 → bomList = STRU 부재만**
+5. DetectClash → 비동기 → OnFinished
+6. IsSingleConnectedComponent: bomList=STRU 3개, clashList=STRU 페어 검사 결과 → 닿아있으면 컴포넌트 1개 → 통과
+7. CompleteMainDimensionPostClash → GenerateDrawingSheets → drawingSheetList + lvDrawingSheet 채워짐
+8. 시트별 Selected=true → 핸들러 자동 처리 → PDF 출력
+
+**변경 파일** (2개, +13/-1):
+- `A2Z/Form1.Stru.cs` `ProcessSingleStruFull`에 CollectBOMData 호출 1줄 + DiagLog 1줄 + 주석
+- `docs/tracking/CHANGELOG.md` 항목
+
+**빌드**: MSBuild Debug 통과
+
+**검증 시나리오** (사내 PC):
+- STRU 1개 체크 → `[도면 리스트 뽑기]` → 폴더 선택
+- 다른 부재 사라짐 (옵션 C 가시성 격리 — 그대로)
+- DiagLog: `T-064 STRU '/M1' CollectBOMData success=True, bomList=3`
+- T-023 메시지 **안 뜸** (bomList=3개 STRU 부재 끼리 연결성 검사)
+- 시트 자동 생성 + 시트별 화면 갱신 + PDF 출력
+- 처리 끝나면 모든 부재 다시 표시
+
+**잔여 위험**:
+- STRU 부재 3개가 *실제로* 안 닿아있으면 여전히 componentCount > 1 → T-023. 이 경우는 사용자 평소 작업에서도 동일하게 실패할 SDK 한계.
+- `CollectBOMData()`가 BOM 수집 도중 시간 소요 — 단 한 STRU 처리당 1회라 무관
+
+---
+
 ## 2026-05-13 — T-064 P2 옵션 C (A+B 결합): STRU 시작 시 가시성 격리 추가
 
 **유형**: fix (DetectClash 결과 정상화)
