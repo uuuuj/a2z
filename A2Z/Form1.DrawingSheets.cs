@@ -1664,6 +1664,49 @@ namespace A2Z
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);
 
+                // ── 1.5. 시트 부재 가시성 격리 (옛 GenerateSheetDrawing2D 1234~1252와 동일) ──
+                // T-064 P2 핫픽스 (2026-05-14): PoC는 사용자가 모델 전체 보이는 상태에서 호출 →
+                // Create2DViewObjectWithModelHiddenLine이 전체 모델로 4면도 생성.
+                // P2 자동 흐름은 ExportAllSheetsToPdfCore → 시트 선택 → 이 메서드 호출인데,
+                // 가시성 격리·BOM·치수 단계가 없으면 빈 객체 4면도 → 캔버스에 엑셀 격자만 남음.
+                vizcore3d.BeginUpdate();
+                if (!vizcore3d.View.XRay.Enable)
+                    vizcore3d.View.XRay.Enable = true;
+                vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
+                vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+                vizcore3d.View.XRay.Clear();
+                vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
+                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                vizcore3d.Clash.ClearResultSymbol();
+                vizcore3d.EndUpdate();
+
+                // ── 1.6. 치수 데이터 계산 (옛 본문 1257~1276 동일 — Osnap 기반 6조합 합집합) ──
+                chainDimensionList.Clear();
+                lvDimension.Items.Clear();
+                chainDimensionList.AddRange(
+                    ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+                int dimNo = 1;
+                foreach (var dim in chainDimensionList)
+                {
+                    dim.No = dimNo;
+                    ListViewItem dlvi = new ListViewItem(dimNo.ToString());
+                    dlvi.SubItems.Add(dim.Axis);
+                    dlvi.SubItems.Add(dim.ViewName);
+                    dlvi.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
+                    dlvi.SubItems.Add(dim.StartPointStr);
+                    dlvi.SubItems.Add(dim.EndPointStr);
+                    dlvi.Tag = dim;
+                    lvDimension.Items.Add(dlvi);
+                    dimNo++;
+                }
+
+                // ── 1.7. BOM 정보 수집 (옛 본문 1278~1279 동일 — lvDrawingBOMInfo 채우기) ──
+                // 이 호출이 lvDrawingBOMInfo의 8컬럼을 채워야 아래 data 매핑이 BOM 슬롯에 정상 적용됨.
+                CollectBOMInfo(false);
+
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
                 string xlsxPath = System.IO.Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
