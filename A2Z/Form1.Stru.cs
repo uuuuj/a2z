@@ -585,14 +585,23 @@ namespace A2Z
                     Application.DoEvents();                   // 핸들러·치수 계산 완료 대기
                     System.Threading.Thread.Sleep(200);
 
-                    // ★ 2D 도면 렌더 직접 호출 — 핸들러는 가시성·치수 계산만 자동, 2D 시트 렌더는 별도.
-                    // 사용자 btnExportAllPDF(Form1.DrawingSheets.cs:1097) 패턴과 동일:
-                    //   가공도(-3): GenerateMfgDrawing2DAll
-                    //   그 외(제작도/조립도/설치도): GenerateSheetDrawing2D
-                    if (sheet.BaseMemberIndex == -3)
-                        GenerateMfgDrawing2DAll(new List<DrawingSheetData> { sheet });
-                    else
+                    // ★ 시트 종류별 처리 — 사용자 평소 버튼 흐름과 동일하게:
+                    //   - 제작도(-1) / 조립도(≥0): btnGenerateSheet2D_Click 흐름 = GenerateSheetDrawing2D(sheet)
+                    //   - 가공도(-3): btnMfgDrawing_Click 흐름 = ExecuteMfgDrawing(bomIndex). 단 옵션 B Selected=true가
+                    //     LvDrawingSheet_SelectedIndexChanged 핸들러(Form1.DrawingSheets.cs:601)에서 이미
+                    //     ExecuteMfgDrawing(sheet.MemberIndices[0]) 자동 호출 → 우리 추가 호출 불필요
+                    //   - 설치도(-2): 사용자 의도 "아직 코드 없음" — skip
+                    if (sheet.BaseMemberIndex == -2)
+                    {
+                        DiagLog($"T-064 STRU '{struNode.NodeName}' 설치도 시트(-2) skip — 사용자 의도: 구현 미완성");
+                        continue;
+                    }
+                    if (sheet.BaseMemberIndex != -3)
+                    {
+                        // 제작도(-1) / 조립도(≥0): 2D 도면 렌더 직접 호출 (btnGenerateSheet2D_Click L1049와 동일)
                         GenerateSheetDrawing2D(sheet);
+                    }
+                    // 가공도(-3): 핸들러가 ExecuteMfgDrawing 자동 호출 — 추가 처리 없음
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(200);       // 2D 렌더 안정
 
