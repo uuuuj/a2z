@@ -583,13 +583,7 @@ namespace A2Z
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' 시트 {drawingSheetList.Count}개 생성");
 
-            // 6) 시트 PDF 출력 — 사용자 평소 btnExportAllPDF 흐름 그대로 (Form1.DrawingSheets.cs:ExportAllSheetsToPdfCore).
-            // 사용자 지적: "왜 자꾸 기존 코드를 안 써?" → 기존 코드(공용 코어)를 재사용해야 함.
-            // 코어가 다음을 자동 처리: lvDrawingSheet 순회 + Selected=true(핸들러 자동 트리거) +
-            //   가공도면 GenerateMfgDrawing2DAll(시트 1개 List) + 그 외 GenerateSheetDrawing2D +
-            //   Export2PDFBy2DView + 메모리 정리 + GC. showSummary=false로 메시지박스 차단.
-            //
-            // STRU별 하위 폴더에 저장 → 사용자가 각 STRU 결과를 분리해서 관리 가능.
+            // 6) STRU 폴더 생성
             string safeStruName = SanitizeFileName(struNode.NodeName ?? "STRU");
             string struSubDir = Path.Combine(saveDir, safeStruName);
             try { Directory.CreateDirectory(struSubDir); }
@@ -597,9 +591,110 @@ namespace A2Z
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 시작 → {struSubDir}");
 
-            // groupMfgSheets:true — 가공도 시트들을 모아서 GenerateMfgDrawing2DAll(List) 1번 호출 (btnMfgDrawingSheet 패턴)
-            // 사용자 지적: "가공도는 한 번에 뽑는 코드 기존에 있는데?"
-            int pdfCount = ExportAllSheetsToPdfCore(struSubDir, showSummary: false, groupMfgSheets: true);
+            string timeStamp = DateTime.Now.ToString("HHmmss");
+            int pdfCount = 0;
+
+            // ─── 7) 일반 시트 루프 (제작도/조립도/설치도) — 시트별 처리 ───
+            // 사용자 평소 흐름: 시트 클릭 → "2D 출력" 버튼 → "PDF 출력" 버튼
+            //   = lvi.Selected=true (핸들러 자동) → GenerateSheetDrawing2D(sheet) → Export2PDFBy2DView(file)
+            for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
+            {
+                var lvi = lvDrawingSheet.Items[i];
+                var sheet = lvi.Tag as DrawingSheetData;
+                if (sheet == null || sheet.MemberIndices.Count == 0) continue;
+
+                string sheetLabel = lvi.Text;
+                if (sheetLabel.StartsWith("가공도")) continue;  // 가공도는 8단계에서 묶음 처리
+
+                try
+                {
+                    // 시트 클릭 시뮬 (사용자 평소 동작 = lvDrawingSheet 행 선택)
+                    foreach (ListViewItem sel in lvDrawingSheet.SelectedItems) sel.Selected = false;
+                    lvi.Selected = true;
+                    lvi.EnsureVisible();
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(200);
+
+                    // = btnGenerateSheet2D_Click 흐름 ("2D 출력" 버튼)
+                    GenerateSheetDrawing2D(sheet);
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(200);
+
+                    // = btnExportSheet2DPDF_Click 흐름 ("PDF 출력" 버튼) — SaveFileDialog 우회
+                    string safeBaseName = SanitizeFileName(sheet.BaseMemberName ?? "Unknown");
+                    string safeSheetLabel = SanitizeFileName(sheetLabel);
+                    string pdfFile = $"{safeBaseName}_{safeSheetLabel}_{timeStamp}.pdf";
+                    string pdfPath = Path.Combine(struSubDir, pdfFile);
+                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                    DiagLog($"T-064 PDF saved: {pdfPath}");
+                    pdfCount++;
+
+                    // 메모리 정리
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(100);
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-064 시트 #{sheet.SheetNumber} ({sheetLabel}) ERROR: {ex.Message}");
+                }
+            }
+
+            // ─── 8) 가공도 묶음 처리 ("가공도 출력" 버튼 → "PDF 출력" 버튼) ───
+            // 사용자 평소 흐름: btnMfgDrawingSheet → btnExportSheet2DPDF
+            //   = GenerateMfgDrawing2DAll(가공도 시트 List) → Export2PDFBy2DView(file)
+            var mfgSheets = new List<DrawingSheetData>();
+            foreach (ListViewItem lvi in lvDrawingSheet.Items)
+            {
+                if (lvi.Text.StartsWith("가공도"))
+                {
+                    var s = lvi.Tag as DrawingSheetData;
+                    if (s != null && s.MemberIndices.Count > 0) mfgSheets.Add(s);
+                }
+            }
+
+            if (mfgSheets.Count > 0)
+            {
+                try
+                {
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 묶음 처리 — 시트 {mfgSheets.Count}개");
+
+                    // = btnMfgDrawingSheet_Click 흐름 ("가공도 출력" 버튼, 8×3 그리드 한 번에)
+                    GenerateMfgDrawing2DAll(mfgSheets);
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(300);
+
+                    // = btnExportSheet2DPDF_Click 흐름 ("PDF 출력" 버튼)
+                    string pdfFile = $"가공도_All_{timeStamp}.pdf";
+                    string pdfPath = Path.Combine(struSubDir, pdfFile);
+                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                    DiagLog($"T-064 가공도 PDF saved: {pdfPath}");
+                    pdfCount++;
+
+                    // 메모리 정리
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(100);
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 묶음 ERROR: {ex.Message}");
+                }
+            }
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
             return pdfCount;
