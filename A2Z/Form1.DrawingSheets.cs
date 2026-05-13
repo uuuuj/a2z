@@ -1283,12 +1283,24 @@ namespace A2Z
             return name;
         }
 
+        // P2 — 엑셀 템플릿 기반 도면 흐름 분기 플래그.
+        // true (P2 기본): GenerateSheetDrawing2D_WithExcelTemplate (ImportExcelWithData + GetViewAreasFromExcel + fit)
+        // false: 옛 직접 그리기 흐름 (안전 fallback, P4 정리 시 결정).
+        private bool UseExcelTemplate = true;
+
         /// <summary>
         /// 선택된 시트 부재만 대상으로 2D 도면 생성
         /// (ISO 풍선번호 + X/Y/Z 치수선 + BOM 테이블 + 도면정보)
         /// </summary>
         private void GenerateSheetDrawing2D(DrawingSheetData sheet)
         {
+            // P2 — 엑셀 템플릿 분기
+            if (UseExcelTemplate)
+            {
+                GenerateSheetDrawing2D_WithExcelTemplate(sheet);
+                return;
+            }
+
             try
             {
                 vizcore3d.View.EnableAnimation = false;
@@ -1606,6 +1618,168 @@ namespace A2Z
             catch (Exception ex)
             {
                 MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// P2 — 엑셀 템플릿 기반 도면 생성 (Softhills 신 API 3종 활용).
+        /// 사용자평소템플릿_엑셀_제작도.xlsx 활용 — 제작도/조립도/설치도 공통 (시트 종류 라벨만 다름).
+        ///
+        /// 흐름:
+        ///   1) 캔버스 초기화 (옛 코드와 동일 — Clear2DView + ViewMode + SetCanvasSize)
+        ///   2) 모델/치수 라인 두께 (옛 코드와 동일)
+        ///   3) data Dictionary 구성 — {Input_N} 슬롯 치환 (도면정보 + BOM 8컬럼 × 15행)
+        ///   4) ImportExcelWithData — 엑셀 자동 그리기 (BOM 테이블·도면정보·외곽 테두리 포함)
+        ///   5) GetViewAreasFromExcel — {View_n} 영역 좌표 파싱
+        ///   6) 각 View 영역에 모델 투영 (카메라 회전 + Create2DViewObjectWithModelHiddenLine + fit + MoveObjectTo)
+        ///
+        /// PoC 패턴 (btnExcelTemplatePoC_Click)을 메인 도면 흐름에 적용.
+        /// 시트 부재는 *현재 visible*이라는 조건 — ProcessSingleStruFull/옵션B에서 격리·시트 선택 처리됨.
+        /// </summary>
+        private void GenerateSheetDrawing2D_WithExcelTemplate(DrawingSheetData sheet)
+        {
+            try
+            {
+                vizcore3d.View.EnableAnimation = false;
+
+                // ── 0. 기존 3D 어노테이션 모두 초기화 ──
+                vizcore3d.Review.Note.Clear();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+
+                // ── 1. 2D 완전 초기화 (옛 코드와 동일) ──
+                Clear2DView();
+                if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
+                {
+                    vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
+                    Application.DoEvents();
+                }
+
+                // A4 캔버스 — 엑셀이 더 큰 페이지면 ImportExcelWithData가 자동 조정 가능
+                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
+                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+
+                // 모델/치수 라인 두께
+                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);
+
+                // ── 2. 엑셀 파일 경로 ──
+                string solutionPath = GetSolutionPath();
+                string xlsxPath = System.IO.Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
+                if (!System.IO.File.Exists(xlsxPath))
+                {
+                    DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
+                    throw new Exception($"엑셀 파일 없음: {xlsxPath}");
+                }
+
+                // ── 3. data Dictionary 구성 ({Input_N} 슬롯 치환) ──
+                // 슬롯 컨벤션 (PoC와 동일):
+                //   1 = 프로젝트명, 2 = 선박번호, 3 = 도면종류
+                //   4..18 = BOM No (15행), 19..33 = ITEM, 34..48 = MATERIAL, 49..63 = SIZE,
+                //   64..78 = Q'TY, 79..93 = T/W, 94..108 = MA, 109..123 = FA
+                Dictionary<int, string> data = new Dictionary<int, string>();
+                // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
+                data[1] = "CEDAR FLNG";
+                data[2] = "SN2688";
+                // 시트 종류 라벨 — 제작도/조립도/설치도/가공도 (GetSheetKindLabel: Form1.Stru.cs)
+                data[3] = GetSheetKindLabel(sheet);
+
+                // BOM 8컬럼 × 15행 — lvDrawingBOMInfo Row 0(요약행) 제외
+                int bomMapped = 0;
+                if (lvDrawingBOMInfo.Items.Count > 1)
+                {
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 15);
+                    for (int i = 0; i < n; i++)
+                    {
+                        ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
+                        data[4 + i]   = item.Text;                              // NO
+                        data[19 + i]  = SafeSubItem(item, 1);                   // ITEM
+                        data[34 + i]  = SafeSubItem(item, 2);                   // MATERIAL
+                        data[49 + i]  = SafeSubItem(item, 3);                   // SIZE
+                        data[64 + i]  = SafeSubItem(item, 4);                   // Q'TY
+                        data[79 + i]  = SafeSubItem(item, 5);                   // T/W
+                        data[94 + i]  = SafeSubItem(item, 6);                   // MA
+                        data[109 + i] = SafeSubItem(item, 7);                   // FA
+                    }
+                    bomMapped = n;
+                }
+                DiagLog($"P2 data 구성: kind='{data[3]}' BOM {bomMapped}행 (Input 총 {data.Count}개)");
+
+                // ── 4. ImportExcelWithData — 엑셀 자동 그리기 + 데이터 치환 ──
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+                DiagLog($"P2 ImportExcelWithData OK — {Path.GetFileName(xlsxPath)}");
+
+                // ── 5. GetViewAreasFromExcel — {View_n} 영역 좌표 파싱 ──
+                var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
+                if (viewAreas == null || viewAreas.Count == 0)
+                {
+                    DiagLog("P2 GetViewAreasFromExcel 비어있음 — 엑셀에 {View_N} 태그 없음");
+                    return;
+                }
+                DiagLog($"P2 GetViewAreasFromExcel: {viewAreas.Count}개 영역");
+
+                // ── 6. View 인덱스 ↔ 카메라 매핑 (4면도 규약 — PoC와 동일) ──
+                Dictionary<int, VIZCore3D.NET.Data.CameraDirection> cameraMap = new Dictionary<int, VIZCore3D.NET.Data.CameraDirection>
+                {
+                    { 1, VIZCore3D.NET.Data.CameraDirection.ISO_PLUS },   // ISO
+                    { 2, VIZCore3D.NET.Data.CameraDirection.Z_MINUS  },   // LOOKING "Z"
+                    { 3, VIZCore3D.NET.Data.CameraDirection.X_MINUS  },   // LOOKING "X"
+                    { 4, VIZCore3D.NET.Data.CameraDirection.Y_MINUS  },   // LOOKING "Y"
+                };
+
+                const float margin = 5f;
+                int viewsRendered = 0;
+
+                // ── 7. 각 View 영역에 모델 투영 ──
+                for (int i = 0; i < viewAreas.Count; i++)
+                {
+                    var p = viewAreas[i];
+                    if (!cameraMap.TryGetValue(p.Index, out VIZCore3D.NET.Data.CameraDirection camDir))
+                    {
+                        DiagLog($"P2 View_{p.Index} 카메라 매핑 없음 — 스킵");
+                        continue;
+                    }
+
+                    vizcore3d.View.MoveCamera(camDir);
+
+                    int objId = vizcore3d.Drawing2D.Object2D
+                        .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                            VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+                    if (objId < 0)
+                    {
+                        DiagLog($"P2 View_{p.Index} Object2D 생성 실패 objId={objId}");
+                        continue;
+                    }
+
+                    // 영역 내 fit 계산
+                    float fitW = p.Width - 2f * margin;
+                    float fitH = p.Height - 2f * margin;
+                    float objW = 0f, objH = 0f;
+                    vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+                    float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+
+                    if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
+                    {
+                        float fitScale = Math.Min(fitW / objW, fitH / objH);
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, objScale * fitScale);
+                    }
+
+                    // 영역 중심으로 이동 (PoC 패턴: Y에 +15 오프셋)
+                    float cx = p.X + p.Width / 2f;
+                    float cy = p.Y + p.Height / 2f;
+                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx, cy + 15f);
+
+                    viewsRendered++;
+                }
+
+                DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{viewAreas.Count}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate ERROR: {ex.Message}\n{ex.StackTrace}");
+                throw;
             }
         }
 
