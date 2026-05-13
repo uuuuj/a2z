@@ -6,6 +6,96 @@
 
 ---
 
+## 2026-05-13 — T-064 P2 옵션 B: lvDrawingSheet 행 자동 선택으로 핸들러 트리거
+
+**유형**: refactor (가시성 격리 패턴 교체)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `e15e1e2` (P2 본진 — GenerateSheetDrawing2D 직접 호출)
+
+**사용자 검증 보고**:
+> "이번에도 다른 부재들이 사라지지 않아 뭐가 문제일까?"
+
+= 직전 P2 본진은 가시성 격리가 없었음 (P2a 핫픽스 3에서 가시성 토글 전체 제거 + GenerateSheetDrawing2D 직접 호출 흐름이 가시성을 안 건드림).
+
+**사용자 결정적 단서**:
+> "현재 도면목록에서 조립도나 가공도 이름을 누르면 그 조립도 부재들이나 가공도 부재만 나오게 되어 있잖아 거기서 힌트를 얻을 수는 없을까?"
+
+= 기존 `LvDrawingSheet_SelectedIndexChanged`(Form1.DrawingSheets.cs:517-649) 패턴 활용. 시트 행 클릭 시 핸들러가 가시성·X-Ray·SilhouetteEdge·카메라·풍선·기준부재 하이라이트·치수 추출(가공도/설치도/일반 분기)을 **모두 자동 처리**.
+
+**기존 핸들러 핵심 패턴** (잘 작동하는 가시성 격리):
+```csharp
+List<int> allIndices = new List<int>();
+foreach (BOMData b in bomList) allIndices.Add(b.Index);  // BOM BODY만!
+vizcore3d.Object3D.Show(allIndices, false);                // 모든 BOM 부재 숨김
+vizcore3d.Object3D.Show(sheet.MemberIndices, true);        // 시트 부재만 표시
+```
+
+핵심 발견 — 모수가 **`bomList` BODY만**. 우리 시도 2가 부모/자식 충돌난 이유는 `Object3dFilter.ALL`로 BODY+PART+ASSEMBLY까지 토글했기 때문. BOM BODY만 토글하면 부모는 그대로라 충돌 없음.
+
+**옵션 B 결정** (옵션 A 가시성 토글 직접 작성 대비):
+- `lvDrawingSheet.Items[i].Selected = true`로 `SelectedIndexChanged` 핸들러 자동 트리거
+- 핸들러가 가시성 격리·시각 효과·치수 추출·BOM 자동 수집까지 모두 자동
+- 사용자 평소 시트 클릭 흐름과 100% 일치 — 시트마다 화면이 자동 갱신됨
+- 우리는 PDF 출력만 별도 호출
+
+**사전 조사 확인** (두 의문점 모두 해결):
+- BOM 갱신: `Clash_OnClashTestFinishedEvent` → `CompleteMainDimensionPostClash`(Form1.BOM.cs:399) 자동 호출 → BOM·치수 자동 처리
+- `GenerateDrawingSheets` (Form1.DrawingSheets.cs:18~): 매번 `drawingSheetList.Clear()` + `lvDrawingSheet.Items.Clear()` (L20-21) → STRU별 깨끗 갱신
+- `lvDrawingSheet.MultiSelect` 기본값 `true` → `SelectedIndices.Clear()` 유지 필요
+
+**ProcessSingleStruFull 본문 변경** (Form1.Stru.cs):
+```csharp
+// 전 (직접 호출):
+foreach (var sheet in drawingSheetList.ToList()) {
+    if (sheet.BaseMemberIndex == -3) GenerateMfgDrawing2DAll(new List<DrawingSheetData> { sheet });
+    else GenerateSheetDrawing2D(sheet);
+    Export2PDFBy2DView(...);
+}
+
+// 후 (옵션 B 자동 트리거):
+for (int i = 0; i < lvDrawingSheet.Items.Count; i++) {
+    var lvi = lvDrawingSheet.Items[i];
+    var sheet = lvi.Tag as DrawingSheetData;
+    lvDrawingSheet.SelectedIndices.Clear();  // 이전 선택 해제 (MultiSelect=true)
+    lvi.Selected = true;                      // SelectedIndexChanged 자동 트리거
+    lvi.EnsureVisible();                      // 화면 스크롤
+    Application.DoEvents();                   // 핸들러 완료 대기
+    Thread.Sleep(200);                        // 2D 렌더 안정
+    
+    // PDF 출력 (시트 종류는 핸들러가 자동 분기)
+    Export2PDFBy2DView({STRU}_{종류}_Sheet{N}_{HHmmss}.pdf);
+    DeleteAllObjectBy2DView + DeleteAllNonObjectBy2DView;  // 시트 간 메모리 정리
+}
+```
+
+**핵심 제거**:
+- `GenerateSheetDrawing2D(sheet)` 직접 호출 (핸들러가 자동 호출)
+- `GenerateMfgDrawing2DAll(...)` 직접 호출 (핸들러의 `ExecuteMfgDrawing` 분기가 자동)
+- 시트 종류별 분기 (`if BaseMemberIndex == -3 else`) — 핸들러가 자동 분기
+
+**사용자 평소 클릭 흐름과 일치**:
+- 시트마다 화면이 자동 갱신 (사용자가 한 시트 클릭하는 것과 동일)
+- 가공도 시트 시 카메라가 정면(X_PLUS)으로, 일반 시트 시 ISO_PLUS fit
+- 기준부재 빨간 하이라이트 자동
+- 풍선·심볼 자동 정리
+
+**변경 파일** (1개, +43/-22):
+- `A2Z/Form1.Stru.cs` — `ProcessSingleStruFull` 본문 옵션 B로 교체 + 헤더 주석 갱신
+
+**검증 시나리오** (사내 PC):
+- STRU 1개 체크 → `[도면 리스트 뽑기]` → 폴더 선택
+- DetectClash 진행 (화면 변화 없음, BusyOverlay 표시)
+- 시트 자동 생성 후 lvDrawingSheet 채워짐
+- **시트마다 화면이 자동 갱신** (시트 부재만 보임 + 카메라 fit + 기준부재 빨강) ← 사용자 의도
+- 시트별 PDF 출력 (`{STRU명}_제작도_Sheet1_HHMMSS.pdf` 등)
+- 다중 STRU 체크 시 각 STRU마다 동일 흐름
+
+**의문점 검증 보류** (사용자 검증):
+- `Items[i].Selected = true`가 즉시 동기 트리거인지 (WinForms 표준은 동기, `Application.DoEvents()`로 보강)
+- 핸들러의 무거운 작업(`ComputeViewDimensionsForMembers`) 동기 완료 대기 시 200ms Sleep 충분한지
+
+---
+
 ## 2026-05-13 — T-064 P2 본진: STRU 일괄 자동 도면 + PDF 출력 (P2a PoC 폐기)
 
 **유형**: feat (P2a PoC 폐기 + 본진 도입)

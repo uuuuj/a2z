@@ -19,21 +19,25 @@ namespace A2Z
         //   - 체크박스 클릭 → 3D 강조 토글 (다중 체크 강조 누적 유지, 카메라 fit 없음)
         //   - 행 선택 (이름 클릭) → 그 STRU로 카메라 fit (강조 변경 X, 체크 강조 유지)
         //
-        // P2 본진 범위 (구현됨 — P2a PoC 폐기):
+        // P2 본진 범위 (구현됨 — P2a PoC 폐기, 옵션 B 재설계):
         //   - [도면 리스트 뽑기] 버튼: 체크된 STRU 전체 순서대로 자동 반복
         //   - STRU별 흐름 = 사용자 평소 작업:
         //       (a) xraySelectedNodeIndices = STRU 후손 BODY → DetectClash() 호출
         //       (b) Clash_OnClashTestFinishedEvent 자동 콜백 → CompleteMainDimensionPostClash
-        //           → GenerateDrawingSheets() → drawingSheetList 자동 채워짐
+        //           → GenerateDrawingSheets() → drawingSheetList + lvDrawingSheet 자동 채워짐
         //       (c) IsBusy 폴링으로 비동기 → 동기 흐름 모사
-        //       (d) drawingSheetList 순회 → 시트별 GenerateSheetDrawing2D / GenerateMfgDrawing2DAll
-        //           → Export2PDFBy2DView로 PDF 출력
+        //       (d) 옵션 B — lvDrawingSheet 행 자동 선택으로 LvDrawingSheet_SelectedIndexChanged 자동 트리거
+        //           → 핸들러가 사용자 단서 "조립도/가공도 이름 클릭" 패턴을 그대로 자동화:
+        //              가시성 격리·X-Ray 해제·SilhouetteEdge·카메라 fit·풍선·기준부재 하이라이트·
+        //              시트 종류별 치수 추출 분기·BOM 수집을 모두 자동 처리.
+        //           → 우리는 PDF 출력(Export2PDFBy2DView)과 시트 간 메모리 정리만 수행.
         //       (e) 시트 간·STRU 간 2D 메모리 정리 + GC
         //
         // 폐기된 P2a PoC 흐름:
         //   - 가시성 격리 (Show false/true) — 부모/자식 가시성 충돌로 무용
         //   - 페어 직접 생성 + DetectClash 우회 — 본진은 기존 DetectClash가 xraySelectedNodeIndices로 격리
         //   - P2aClash_OnFinished — 시트 생성 자동 흐름 활용으로 별도 핸들러 불필요
+        //   - GenerateSheetDrawing2D / GenerateMfgDrawing2DAll 직접 호출 — 옵션 B 핸들러 자동 트리거로 대체
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
 
@@ -424,10 +428,18 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-064 P2 본진 — 단일 STRU 처리.
+        /// T-064 P2 본진 — 단일 STRU 처리 (옵션 B 재설계).
         /// 부재 선택 → DetectClash 비동기 → 자동 시트 생성 → 시트별 PDF 출력.
         /// 사용자 평소 작업(부재 선택 → 간섭검사 → 자동 시트 + PDF) 흐름을 STRU 단위로 자동 반복.
         /// xraySelectedNodeIndices 격리로 STRU 후손 BODY만 검사 (가시성 토글 불필요).
+        ///
+        /// 옵션 B — lvDrawingSheet 행 자동 선택으로 LvDrawingSheet_SelectedIndexChanged 핸들러 자동 트리거.
+        /// 사용자 단서 "현재 도면목록에서 조립도나 가공도 이름을 누르면 그 조립도/가공도 부재만 나오게 되어 있잖아"
+        /// = 시트 행 클릭 시 핸들러가 가시성 격리·X-Ray·SilhouetteEdge·카메라 fit·풍선 정리·기준부재 하이라이트·
+        ///   시트 종류별 치수 추출(가공도=ExecuteMfgDrawing / 설치도=ExtractInstallationDimensions / 일반=ComputeViewDimensionsForMembers)·
+        ///   BOM 자동 수집을 *모두 자동 처리*. 우리는 PDF 출력만 수행.
+        ///
+        /// drawingSheetList 대신 lvDrawingSheet.Items를 순회 — UI 동기 보장 (GenerateDrawingSheets가 둘 다 갱신).
         /// </summary>
         private int ProcessSingleStruFull(VIZCore3D.NET.Data.Node struNode, string saveDir)
         {
@@ -486,26 +498,35 @@ namespace A2Z
             string safeStruName = SanitizeFileName(struNode.NodeName ?? "STRU");
             string timeStamp = DateTime.Now.ToString("HHmmss");
 
-            foreach (var sheet in drawingSheetList.ToList()) // 복사본 순회 (안전)
+            // 옵션 B — lvDrawingSheet.Items 순회 (UI 동기 보장).
+            // MultiSelect=true (ListView 기본값, Designer.cs 미지정) → SelectedIndices.Clear()로 이전 선택 해제 필요.
+            for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
             {
+                var lvi = lvDrawingSheet.Items[i];
+                var sheet = lvi.Tag as DrawingSheetData;
+                if (sheet == null) continue;
+
                 try
                 {
-                    // 시트 종류 식별 + 파일명 컨벤션
+                    // ★ 옵션 B 핵심: 행 자동 선택 → LvDrawingSheet_SelectedIndexChanged 자동 트리거.
+                    //   핸들러가 자동으로:
+                    //     - X-Ray 비활성화 + SilhouetteEdge 활성화
+                    //     - Show(bomList, false) + Show(sheet.MemberIndices, true) — 가시성 격리
+                    //     - FlyToObject3d (가공도 제외) — 카메라 fit
+                    //     - 풍선·Clash 심볼 정리 + 기준부재 빨간 하이라이트
+                    //     - 시트 종류별 치수 추출 분기
+                    //         가공도(-3) = ExecuteMfgDrawing
+                    //         설치도(-2) = ExtractInstallationDimensions
+                    //         일반(-1, >=0) = ComputeViewDimensionsForMembers
+                    //     - lvDimension 채움 + CollectBOMInfo 자동 호출
+                    lvDrawingSheet.SelectedIndices.Clear();  // MultiSelect=true 대응 — 이전 선택 해제
+                    lvi.Selected = true;                      // 새 선택 → SelectedIndexChanged 동기 트리거
+                    lvi.EnsureVisible();                      // 진행 표시 — 화면에 보이게 스크롤
+                    Application.DoEvents();                   // 핸들러·렌더 완료 대기
+                    System.Threading.Thread.Sleep(200);       // 안전 대기 (2D 렌더 안정)
+
+                    // 시트 종류 라벨 + PDF 출력
                     string kindName = GetSheetKindLabel(sheet);  // 제작도/조립도/설치도/가공도
-
-                    // 2D 렌더 — 가공도면(-3)은 별도 흐름
-                    if (sheet.BaseMemberIndex == -3)
-                    {
-                        GenerateMfgDrawing2DAll(new List<DrawingSheetData> { sheet });
-                    }
-                    else
-                    {
-                        GenerateSheetDrawing2D(sheet);
-                    }
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(200);
-
-                    // PDF 출력
                     string pdfFile = $"{safeStruName}_{kindName}_Sheet{sheet.SheetNumber}_{timeStamp}.pdf";
                     string pdfPath = Path.Combine(saveDir, pdfFile);
                     vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
@@ -514,7 +535,7 @@ namespace A2Z
                     DiagLog($"T-064 PDF saved: {pdfPath}");
                     pdfCount++;
 
-                    // 시트 간 메모리 정리
+                    // 시트 간 2D 메모리 정리
                     try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
                     try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
                 }
