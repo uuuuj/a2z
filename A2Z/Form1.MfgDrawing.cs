@@ -628,12 +628,9 @@ namespace A2Z
         /// </summary>
         private void GenerateMfgDrawing2DAll(List<DrawingSheetData> mfgSheets)
         {
-            // P3 — 엑셀 템플릿 분기 (UseExcelTemplate은 Form1.DrawingSheets.cs:1289 정의)
-            if (UseExcelTemplate)
-            {
-                GenerateMfgDrawing2DAll_WithExcelTemplate(mfgSheets);
-                return;
-            }
+            // T-064 P3 롤백 (2026-05-14): 사용자 결정 — 가공도는 옛 GridStructure 흐름 유지.
+            // 메인 도면(GenerateSheetDrawing2D)만 엑셀 템플릿(P2), 가공도는 검증 끝난 옛 코드 그대로.
+            // P3 신 메서드(GenerateMfgDrawing2DAll_WithExcelTemplate)는 향후 재시도 위해 dead code로 보존.
 
             try
             {
