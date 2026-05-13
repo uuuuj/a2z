@@ -1297,9 +1297,9 @@ namespace A2Z
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 1, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 2, 10f, 10f, 10f, LABEL_BOTTOM_MARGIN);
 
-                    // 2026-05-13 사용자 사양: BOM 오른쪽 2 (위 이동 0 — 1단위 아래로 내림)
+                    // 2026-05-13 T-037 4차: BOM 열 합 77→101mm 24mm 증가 → 왼쪽으로 24mm 이동 (left 12 → -12)
                     // SetGridCellMargins(row, col, left, right, top, bottom)
-                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 3, 12f, 10f, 10f, 10f);   // BOM (left 12, bottom 10 — 1단위 내림)
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(1, 3, -12f, 10f, 10f, 10f);  // BOM (left -12 = 셀 경계 밖 음수 마진)
                     vizcore3d.Drawing2D.GridStructure.SetGridCellMargins(2, 3, 12f, 10f, 10f, 13f);   // tableInfo (left 12, bottom 13)
                 }
 
