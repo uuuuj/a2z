@@ -6,6 +6,88 @@
 
 ---
 
+## 2026-05-13 — T-064 P2 옵션 C (A+B 결합): STRU 시작 시 가시성 격리 추가
+
+**유형**: fix (DetectClash 결과 정상화)
+**관련 TASK**: T-064 (STRU 일괄 도면 출력)
+**이전 커밋**: `5bde34c` (P2 옵션 B — 시트별 자동 트리거)
+
+**사용자 사내 검증 결과**:
+> "다른 부재들이 사라지지 않아 바로 간섭검사해서 떨어져있다고 안된다 팝업 나와"
+
+DiagLog 분석:
+- `T-064 STRU '/M1' bodies=3` (STRU 부재 3개 OK)
+- `DetectClash startResult=True` (검사 시작 OK)
+- `ERROR 시트 0건` (drawingSheetList 비어있음)
+- T-023 메시지 "서로 연결되지 않은 부재 그룹 0개" 팝업
+
+**원인 추적**:
+- `Form1.Dimensions.cs:btnExtractDimension_Click` 흐름의 `CollectBOMData()`가 *보이는 부재만* bomList 수집 (Explore 사전 추적 결과)
+- 사용자 평소 작업: 다른 부재 *지움(숨김)* → bomList에 STRU만 → 연결성 판정 정상 → 시트 생성
+- 자동화 (옵션 B): 가시성 안 건드림 → bomList에 *전체 모델 BODY* → 다른 STRU 부재까지 포함 → STRU 부재가 다른 STRU와 분리된 그룹 → 연결성 0개 → T-023 메시지 → GenerateDrawingSheets 호출 안 됨 → 시트 0건
+
+→ **DetectClash 시점에 가시성 격리가 필요**. 옵션 B는 시트 생성 *후* 격리라 늦음.
+
+**옵션 C — A+B 결합**:
+- 옵션 A (직접 가시성 토글) + 옵션 B (시트별 자동 트리거) 결합
+- STRU 시작 시점에 우리가 가시성 격리 (옵션 A 패턴) → DetectClash 진행 시 보이는 부재만 검사 → bomList 정상 → 시트 생성
+- 시트 생성 후 시트별 Selected=true 자동 트리거 (옵션 B 유지) → 시트마다 화면 갱신
+- 마지막 STRU 처리 후 최종 가시성 복원 (모든 BODY 다시 표시)
+
+**핵심 구현** (Form1.Stru.cs `ProcessSingleStruFull`):
+```csharp
+// ★ STRU 시작 시 가시성 격리 (DetectClash 호출 전)
+var allBodies = vizcore3d.Object3D.FromFilter(
+    VIZCore3D.NET.Data.Object3dFilter.ALL_INCLUDE_BODY, false);
+var allBodyIndices = allBodies?.Where(n => n.Kind == NodeKind.BODY)
+                              .Select(n => n.Index).ToList() ?? new List<int>();
+
+vizcore3d.BeginUpdate();
+try {
+    vizcore3d.Object3D.Show(allBodyIndices, false);  // 전체 BODY 숨김
+    vizcore3d.Object3D.Show(memberIndices, true);     // STRU BODY만 표시
+} finally {
+    vizcore3d.EndUpdate();
+}
+
+xraySelectedNodeIndices = new List<int>(memberIndices);
+DetectClash();  // 보이는 부재(STRU)만 검사 → 연결성 정상 → 시트 생성
+// ...
+// 시트별 Selected=true (옵션 B 유지)
+```
+
+**최종 가시성 복원** (`btnExtractDrawingList_Click` finally):
+```csharp
+// 모든 STRU 처리 끝나면 전체 BODY 다시 표시 (사용자 일반 사용 흐름 복귀)
+var allBodies = FromFilter(ALL_INCLUDE_BODY).Where(BODY);
+Object3D.Show(allBodies, true);
+```
+
+**모수 선택 이유** (Object3dFilter.ALL_INCLUDE_BODY + Kind==BODY):
+- 시도 1(같은 패턴)은 VisibleOnly=true와 결합돼 SDK 가시성 복원 부작용 — 핫픽스 2에서 VisibleOnly=false 해결됨
+- 시도 2(`Object3dFilter.ALL` — BODY+PART+ASSEMBLY)는 부모/자식 충돌 발생
+- 현재(BODY만) — 부모 PART/ASSEMBLY 안 건드림 → 충돌 없음. 기존 LvDrawingSheet 핸들러도 동일 원리(BOM BODY 모수)
+
+**변경 파일** (2개, +50/-3):
+- `A2Z/Form1.Stru.cs`:
+  - `ProcessSingleStruFull` 시작부에 가시성 격리 블록 추가 (~26줄)
+  - `btnExtractDrawingList_Click` finally에 최종 복원 블록 추가 (~24줄)
+- `docs/tracking/CHANGELOG.md` 항목
+
+**검증 시나리오** (사내 PC):
+- STRU 체크 → `[도면 리스트 뽑기]` → 폴더 선택
+- **★ 다른 부재들이 사라짐** (STRU만 보이는 상태) ← 사용자 의도와 일치
+- DetectClash 진행 (시간 소요 — 페어 검사)
+- 시트 자동 생성 → 시트별 화면 자동 갱신 (그 시트 부재만)
+- 시트별 PDF 출력
+- 처리 끝나면 모든 부재 다시 표시
+- DiagLog: `T-064 STRU '/M1' 가시성 격리 — allBody=N, STRU=M`, `시트 K개 생성`, `최종 가시성 복원`
+
+**잔여 위험**:
+- 첫 STRU에서 가시성 격리 → DetectClash → OnFinished의 `CollectBOMData`가 STRU 부재만 수집. 두 번째 STRU 처리 시 우리가 다시 `FromFilter(ALL_INCLUDE_BODY)`로 전체 모수 수집 + 격리 → 정상 회복
+
+---
+
 ## 2026-05-13 — T-064 P2 옵션 B: lvDrawingSheet 행 자동 선택으로 핸들러 트리거
 
 **유형**: refactor (가시성 격리 패턴 교체)

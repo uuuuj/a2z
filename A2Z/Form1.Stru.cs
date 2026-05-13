@@ -410,6 +410,29 @@ namespace A2Z
             }
             finally
             {
+                // 모든 BODY 다시 표시 — 가시성 복원 (마지막 STRU 처리 후 사용자 일반 사용 흐름 복귀)
+                try
+                {
+                    var allBodies = vizcore3d.Object3D.FromFilter(
+                        VIZCore3D.NET.Data.Object3dFilter.ALL_INCLUDE_BODY, false);
+                    if (allBodies != null)
+                    {
+                        var allBodyIndices = allBodies
+                            .Where(n => n.Kind == VIZCore3D.NET.Data.NodeKind.BODY)
+                            .Select(n => n.Index)
+                            .ToList();
+                        if (allBodyIndices.Count > 0)
+                        {
+                            vizcore3d.BeginUpdate();
+                            try { vizcore3d.Object3D.Show(allBodyIndices, true); }
+                            finally { vizcore3d.EndUpdate(); }
+                            Application.DoEvents();
+                            DiagLog($"T-064 최종 가시성 복원 — allBody={allBodyIndices.Count}");
+                        }
+                    }
+                }
+                catch (Exception ex) { DiagLog($"T-064 최종 가시성 복원 ERROR: {ex.Message}"); }
+
                 _p2aInProgress = false;
                 try { btnExtractDrawingList.Enabled = true; } catch { }
                 try { HideBusyOverlay(); } catch { }
@@ -458,6 +481,33 @@ namespace A2Z
                 throw new Exception("STRU 후손 BODY 0건");
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' bodies={memberIndices.Count}");
+
+            // ★ 옵션 A+B 결합: STRU 시작 시 가시성 격리
+            // 사용자 평소 작업 시 다른 부재를 *숨김* 상태에서 치수추출 → CollectBOMData가 보이는 부재만 수집 → 연결성 정상.
+            // 자동화에서도 동일 패턴 — 다른 STRU·다른 모델 부재를 숨김 → DetectClash → OnFinished에서 bomList에 STRU 부재만 → 정상 시트 생성.
+            // 모수: Object3dFilter.ALL_INCLUDE_BODY + Kind==BODY 필터 (부모 PART/ASSEMBLY 안 건드림 — 시도 2의 부모/자식 충돌 회피).
+            // VisibleOnly=false 기본 (기존 DetectClash 유지) — SDK가 가시성 재설정 안 함.
+            var allBodies = vizcore3d.Object3D.FromFilter(
+                VIZCore3D.NET.Data.Object3dFilter.ALL_INCLUDE_BODY, false);
+            var allBodyIndices = (allBodies != null)
+                ? allBodies.Where(n => n.Kind == VIZCore3D.NET.Data.NodeKind.BODY).Select(n => n.Index).ToList()
+                : new List<int>();
+
+            if (allBodyIndices.Count > 0)
+            {
+                vizcore3d.BeginUpdate();
+                try
+                {
+                    vizcore3d.Object3D.Show(allBodyIndices, false);  // 전체 BODY 숨김
+                    vizcore3d.Object3D.Show(memberIndices, true);     // STRU BODY만 표시
+                }
+                finally
+                {
+                    vizcore3d.EndUpdate();
+                }
+                Application.DoEvents();
+                DiagLog($"T-064 STRU '{struNode.NodeName}' 가시성 격리 — allBody={allBodyIndices.Count}, STRU={memberIndices.Count}");
+            }
 
             // 2) xraySelectedNodeIndices 설정 (격리) — DetectClash가 이 set만 페어로 만든다
             xraySelectedNodeIndices = new List<int>(memberIndices);
