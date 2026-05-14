@@ -863,7 +863,9 @@ namespace A2Z
                 (mMaxX - mMinX) * (mMaxX - mMinX) +
                 (mMaxY - mMinY) * (mMaxY - mMinY) +
                 (mMaxZ - mMinZ) * (mMaxZ - mMinZ));
-            float baseOffsetDist = Math.Max(200f, isoDiag * 0.35f);
+            // T-064 (2026-05-14): ISO 풍선 거리 단축 — 옛 (200, 0.35) → (100, 0.22)
+            // 사용자 사양: 도면리스트 뽑기 ISO 뷰 풍선이 모델에서 너무 멀어 PDF 시각 거슬림
+            float baseOffsetDist = Math.Max(100f, isoDiag * 0.22f);
 
             // 모델 2D AABB (겹침 검사용)
             float[] cornersX = { mMinX, mMaxX };
@@ -1895,8 +1897,11 @@ namespace A2Z
                     }
 
                     // ── 영역 중심으로 이동 ──
-                    // ISO(View_1)·Looking Y(View_4)만 X +10mm, 모두 Y +15mm (직전 사용자 사양)
-                    float xOffset = (p.Index == 1 || p.Index == 4) ? 10f : 0f;
+                    // ISO(View_1) X +10mm / Looking Y(View_4) X +20mm (사용자 사양 2026-05-14: Y뷰 추가 오른쪽)
+                    // Z(View_2), X(View_3)는 그대로. 모두 Y +15mm 공통.
+                    float xOffset = (p.Index == 1) ? 10f
+                                  : (p.Index == 4) ? 20f
+                                  : 0f;
                     float cx = p.X + p.Width / 2f;
                     float cy = p.Y + p.Height / 2f;
                     vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx + xOffset, cy + 15f);

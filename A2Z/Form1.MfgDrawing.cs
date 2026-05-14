@@ -358,10 +358,13 @@ namespace A2Z
                 float minVisExt_3d = Math.Min(visExt1_3d, visExt2_3d);
                 float offFactor_3d = (minVisExt_3d < 100f) ? 0.5f : 1.0f;
 
-                float mfgChainOff1 = 100.0f * offFactor_3d;  // 1단 체인치수 보조선
-                float mfgChainOff2 = 200.0f * offFactor_3d;  // 2단 체인치수 보조선
+                // T-064 (2026-05-14): 가공도 보조선 = 제작도와 동일하게 짧게 (사용자 사양)
+                //   제작도(ShowAllDimensions v10): 캔버스 절대 5/10mm 고정
+                //   가공도(DrawDimension): 모델 좌표 기준이라 일괄 50% 축소로 1차 근사 — 100→50/200→100/250→125/300→150
+                float mfgChainOff1 = 50.0f * offFactor_3d;   // 1단 체인치수 보조선 (옛 100)
+                float mfgChainOff2 = 100.0f * offFactor_3d;  // 2단 체인치수 보조선 (옛 200)
 
-                // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
+                // 전체길이 치수가 1000mm 초과하면 보조선 150mm, 아니면 125mm (옛 300/250 → 50%)
                 float maxTotalDist = 0f;
                 foreach (var td in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
                 {
@@ -374,7 +377,7 @@ namespace A2Z
                     }
                     if (dist > maxTotalDist) maxTotalDist = dist;
                 }
-                float mfgTotalOff = (maxTotalDist > 1000.0f ? 300.0f : 250.0f) * offFactor_3d;
+                float mfgTotalOff = (maxTotalDist > 1000.0f ? 150.0f : 125.0f) * offFactor_3d;
 
                 foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                 {
@@ -1272,8 +1275,9 @@ namespace A2Z
                     float minVisExtent = Math.Min(visExt1, visExt2);
                     float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
 
-                    float mfgChainOff1 = 100.0f * offFactor;  // 1단 체인치수 보조선
-                    float mfgChainOff2 = 200.0f * offFactor;  // 2단 체인치수 보조선
+                    // T-064 (2026-05-14): 제작도와 동일하게 짧게 — 50% 축소 (메인 흐름과 동일 패턴)
+                    float mfgChainOff1 = 50.0f * offFactor;   // 1단 (옛 100)
+                    float mfgChainOff2 = 100.0f * offFactor;  // 2단 (옛 200)
                     mfgTotalOff *= offFactor;
 
                     foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
@@ -1923,11 +1927,12 @@ namespace A2Z
                             float eaMinVisExt = Math.Min(eaVisExt1, eaVisExt2);
                             float eaOffFactor = (eaMinVisExt < 100f) ? 0.5f : 1.0f;
 
-                            float eaTotalOff = (eaMaxTotalDist > 1000.0f ? 300.0f : 250.0f) * eaOffFactor;
+                            // T-064 (2026-05-14): 제작도와 동일 — EA 신규뷰 보조선도 50% 축소
+                            float eaTotalOff = (eaMaxTotalDist > 1000.0f ? 150.0f : 125.0f) * eaOffFactor;
 
                             var eaExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
-                            float eaChainOff1 = 100.0f * eaOffFactor;
-                            float eaChainOff2 = 200.0f * eaOffFactor;
+                            float eaChainOff1 = 50.0f * eaOffFactor;   // 1단 (옛 100)
+                            float eaChainOff2 = 100.0f * eaOffFactor;  // 2단 (옛 200)
 
                             foreach (var dim in newDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                             {
