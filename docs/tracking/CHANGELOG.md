@@ -6,10 +6,54 @@
 
 ---
 
+## 2026-05-14 — T-064 4차: 가공도 엑셀 템플릿 롤백 (옛 외곽 + table2 복귀)
+
+**유형**: revert (가공도 엑셀 템플릿 적용 폐기)
+**커밋**: `pending`
+**관련 TASK**: T-064 (도면리스트 뽑기)
+
+**사용자 사양** (2026-05-14):
+> "가공도 그냥 템플릿 안쓰는 버전으로 되돌리자"
+
+**변경**:
+- [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) `GenerateMfgDrawing2DAll`의 엑셀 import 블록을 옛 외곽 + table2로 복귀:
+  - 옛 (2차 `27aae40`에서 도입): `CollectBOMInfo(false)` + `ImportExcelWithData(사용자템플릿_엑셀_가공도.xlsx, mfgData)` + 파일 없을 시 fallback 분기
+  - 새 (롤백): `AddGridStructure(1, 1, w, h)` + `SetMargins(10, 10, 10, 10)` + `CreateTemplateBorder()` → `bInfo` 반환 + `TemplateTableData table2` (5행×4컬럼: 작성 일자/소속/담당자/검수자/Image) + `table2.X = bInfo.MaxX`, `table2.Y = bInfo.MinY` Anchor → `RenderTemplate(table2)`
+
+**유지되는 다른 변경 (롤백 대상 아님)**:
+- 모델 크기 30% (`contentW/H * 0.30`)
+- 라벨 오른쪽 이동 + 폭 25→40mm + IsTextWrapped=true
+- 캔버스 리셋 (`RemoveCanvasBy2DView` 진입 시 호출)
+- 그리드 4행 (`gridRows=4`, `usableRowStart=1`)
+- 풍선 비활성화 (`Note.Clear()` + `noteIds.Clear()` + `eaNoteIds.Clear()`)
+- 치수 텍스트 8mm
+- 홀 Osnap CIRCLE 제외
+- EA 회전 비활성화 (`isEA=false`, `isEA3d=false`)
+- 가공도 보조선 50% 축소
+- PDF 저장 경로 고정 (`Application.StartupPath/Drawings`)
+
+**영향 범위**:
+- 코드: `A2Z/Form1.MfgDrawing.cs` (엑셀 import 블록 → 옛 외곽 + table2 복귀)
+- 문서: `docs/기능/가공도/가공도 시트.md` 변경 이력
+- 자원: `사용자템플릿_엑셀_가공도.xlsx` git 추적 유지 (재사용 가능성)
+
+**검증 흐름** (R12):
+- 사내 PC 빌드 → 도면리스트 뽑기 → 가공도 PDF 확인:
+  - 외곽 테두리 + 우측 하단 도면정보 테이블(작성일자/소속/담당자/검수자/Logo)이 옛 방식대로 표시되는지
+  - BOM 표가 *없음* (엑셀 슬롯이 사라졌으므로) — 사용자 설계상 별도 표시 방식 결정 필요
+  - 다른 변경(모델 30%, 라벨 오른쪽, ISO/Looking 잔존 해결 등)은 영향 없이 유지되는지
+
+**잔여 / 후속**:
+- 가공도 BOM 표시 방식 — 사용자 결정 (별도 GridStructure 셀에 RenderTemplateOnGridStructure 또는 엑셀 부분 적용 재시도)
+- 5번 (BOM 라벨 칸 초과 — 본 라운드 라벨 변경으로 부분 해결)
+- 6번 (재실행 초기화) 보류 유지
+
+---
+
 ## 2026-05-14 — T-064 3차 fine-tune: 가공도 모델 30% + 라벨 오른쪽 + 캔버스 리셋 강화
 
 **유형**: fix (사용자 검증 보고 fine-tune)
-**커밋**: `pending`
+**커밋**: `1cfa193`
 **관련 TASK**: T-064 (도면리스트 뽑기)
 
 **사용자 사양** (2026-05-14):
