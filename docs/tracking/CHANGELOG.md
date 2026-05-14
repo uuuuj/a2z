@@ -6,10 +6,59 @@
 
 ---
 
+## 2026-05-14 — T-064 가공도 정비: 풍선 비활성화 + 치수 텍스트 키움 + 홀 Osnap 제외 + 그리드 4행
+
+**유형**: fix (가공도 사용자 사양 4종 통합 정비)
+**커밋**: `pending`
+**관련 TASK**: T-064 (도면리스트 뽑기 가공도 fine-tune)
+
+**사용자 사양** (2026-05-14):
+> "가공도에서 풍선 뺴주고 텍스트 키워줘, 가공도에 홀이 있는 부재가 있으면 홀 주변의 Osnap이 모두 치수재는대 사용돼서 엄청 많은 치수가 생기는데 이것도 수정이 필요할 거 같고, 그리드도 4개의 행 으로 바꾸자"
+
+**변경 4종** (모두 `A2Z/Form1.MfgDrawing.cs`):
+
+1. **PDF 풍선 비활성화** — 가공도 출력 PDF에서 풍선(반지름·홀·슬롯홀) 빼기
+   - `RenderMfgViewForDrawing` L1717 직후 `noteIds.Clear()` 1줄 추가 → 가공도 메인 시트 풍선 무효화
+   - EA 신규뷰 L2094 직후 `eaNoteIds.Clear()` 1줄 추가 → EA 두 번째 뷰 풍선 무효화
+   - `ExecuteMfgDrawing` 슬롯홀 풍선 블록 끝(L548 직후) `vizcore3d.Review.Note.Clear()` 1줄 추가 → 3D 미리보기 풍선도 비활성화
+   - **복귀**: 세 Clear() 줄 주석 처리만 하면 풍선 즉시 복구
+
+2. **치수 텍스트 크기 키움** — `GenerateMfgDrawing2DAll` L703 `MeasureTextHeight 5f → 8f` — 풍선 빠진 자리 가독성 보강
+
+3. **홀 Osnap 제외** — `GetOsnapPoint` 결과에서 `OsnapKind.CIRCLE` 케이스 별도 분리해 `break` (POINT/LINE만 치수 추출 사용)
+   - `ExecuteMfgDrawing` L162 부근 (단일 부재 가공도)
+   - `RenderMfgViewForDrawing` L1060 부근 (시트 묶음 가공도)
+   - 효과: 홀이 많은 부재(예: 플레이트 N개 홀)의 치수가 *홀당 N개* 폭주 → POINT·LINE Osnap 기반 부재 외곽 치수만 남음. 홀 정보는 별도 표시 (현재 풍선 비활성화로 BOM에서 확인)
+
+4. **그리드 8행 → 5행** — `GenerateMfgDrawing2DAll` L673~678
+   - `gridRows 8 → 5`
+   - `usableRowEnd 7 → 5` (사용 행 6 → 4)
+   - `rowsPerCol`은 계산식 (`end - start + 1`)이라 자동 6 → 4
+   - `maxSlots = rowsPerCol × 3 = 18 → 12` 자동 변경
+   - 효과: 한 페이지 부재 18→12로 줄여 각 부재 셀 면적 확대 (작은 부재 더 잘 보임)
+
+**영향 범위**:
+- 코드: `A2Z/Form1.MfgDrawing.cs` (~10줄 변경, 3D Note.Clear / noteIds.Clear / eaNoteIds.Clear / OsnapKind.CIRCLE 분리 2곳 / 그리드 4상수 / 치수 텍스트 1상수)
+- 문서: `docs/기능/가공도/가공도 시트.md` + `docs/기능/가공도/가공도 단일.md` 변경 이력 추가, last_updated 갱신
+
+**검증 흐름** (R12):
+- 사용자 사내 PC 빌드 → 도면리스트 뽑기 → 가공도 PDF 확인:
+  - 풍선이 모두 사라졌는지 (반지름·홀·슬롯홀 모두)
+  - 치수 텍스트가 옛 5mm → 8mm로 확대됐는지 (가독성)
+  - 홀이 많은 부재의 치수 개수가 적절히 줄었는지 (POINT/LINE Osnap만)
+  - 한 페이지에 부재 12개씩 배치 + 각 부재 셀 면적이 옛 18개 분할 대비 1.5배 커졌는지
+
+**잔여 후속**:
+- 사용자 검증 후 그리드 행수 fine-tune 가능 (5행이 너무 적으면 6, 너무 많으면 4)
+- 치수 텍스트 8mm가 셀 영역 대비 적정 여부
+- 홀 Osnap 완전 제외가 정합한지 — 일부 홀에 치수 필요한 경우 별도 분기 검토
+
+---
+
 ## 2026-05-14 — T-064 fine-tune: ISO 풍선 단축 + Y뷰 추가 오른쪽 + 가공도 보조선 50% 축소
 
 **유형**: fix (사용자 검증 fine-tune 1차)
-**커밋**: `pending`
+**커밋**: `74dd643`
 **관련 TASK**: T-064 (도면리스트 뽑기 fine-tune), T-039 (가공도 보조선 통일 — 잔여 작업 일부)
 
 **사용자 사양** (2026-05-14):

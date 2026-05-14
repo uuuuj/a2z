@@ -172,10 +172,14 @@ namespace A2Z
                                 if (osnap.End != null)
                                     mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
                                 break;
-                            case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
                             case VIZCore3D.NET.Data.OsnapKind.POINT:
                                 if (osnap.Center != null)
                                     mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
+                                break;
+                            // T-064 (2026-05-14): 사용자 사양 — CIRCLE Osnap(홀·원형 부재) 치수 추출에서 제외.
+                            // 홀이 있는 부재의 Osnap이 모두 사용돼 너무 많은 치수가 생성되는 문제 회피.
+                            // 홀 정보는 풍선·별도 표시로 처리, 치수는 부재 BBox/LINE Osnap만으로 충분.
+                            case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
                                 break;
                         }
                     }
@@ -544,6 +548,11 @@ namespace A2Z
                     catch { }
                 }
 
+                // T-064 (2026-05-14): 사용자 사양 — 가공도 3D 뷰 미리보기 풍선도 비활성화
+                //   ExecuteMfgDrawing이 생성한 반지름·홀·슬롯홀 풍선을 즉시 클리어 → 미리보기와 PDF 모두 풍선 없음.
+                //   풍선 복귀 시 아래 Clear() 한 줄 주석 처리.
+                vizcore3d.Review.Note.Clear();
+
                 // 10. Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
                 //     반드시 모든 drawing 완료 후 마지막에 적용해야 유지됨
                 //     LockZAxis를 false로 유지 (true로 복원하면 렌더링 엔진이 회전을 리셋)
@@ -670,12 +679,14 @@ namespace A2Z
                 // (옛 이름 CrateTemplateBorder는 새 시그니처 CrateTemplateBorder(TemplateBorderInfo)로 재정의 — void 반환, 우리 의도와 다름)
                 VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CreateTemplateBorder();
 
-                // ── 4. 모델 배치용 그리드 재생성 (8x6) ──
-                const int gridRows = 8;
+                // ── 4. 모델 배치용 그리드 재생성 (5x6) ──
+                // T-064 (2026-05-14): 사용자 사양 — 그리드 4행으로 (8→5, 사용 행 6→4).
+                // 한 페이지 부재 18→12로 줄여 각 부재 셀 영역 확대.
+                const int gridRows = 5;
                 const int gridCols = 6;   // 라벨(1,3,5) + 모델(2,4,6)
                 const int usableRowStart = 2;  // 2행부터
-                const int usableRowEnd = 7;    // 7행까지
-                const int rowsPerCol = usableRowEnd - usableRowStart + 1; // 6
+                const int usableRowEnd = 5;    // 5행까지 (옛 7)
+                const int rowsPerCol = usableRowEnd - usableRowStart + 1; // 4 (옛 6)
 
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(gridRows, gridCols, wCanvas, hCanvas);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
@@ -700,7 +711,8 @@ namespace A2Z
 
                 vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(5f);
+                // T-064 (2026-05-14): 사용자 사양 — 가공도 치수 텍스트 키움 (5→8mm, 풍선 비활성화에 따른 보강)
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(8f);
 
                 // ── 4. 각 가공도 시트를 열 우선 순서로 셀에 배치 (2~7행만 사용) ──
                 // 라벨 칼럼(1,3,5) + 모델 칼럼(2,4,6) 구조
@@ -1070,10 +1082,12 @@ namespace A2Z
                             if (osnap.End != null)
                                 mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
                             break;
-                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
                         case VIZCore3D.NET.Data.OsnapKind.POINT:
                             if (osnap.Center != null)
                                 mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
+                            break;
+                        // T-064 (2026-05-14): 사용자 사양 — CIRCLE Osnap 치수 추출 제외 (홀 과다 치수 회피, 위와 동일)
+                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
                             break;
                     }
                 }
@@ -1720,6 +1734,9 @@ namespace A2Z
             {
                 noteIds.Add(note.ID);
             }
+            // T-064 (2026-05-14): 사용자 사양 — 가공도 PDF 풍선 비활성화 (수집된 noteIds 무효화)
+            // 풍선 복귀 시 아래 Clear() 한 줄 주석 처리하면 됨
+            noteIds.Clear();
             if (noteIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
@@ -2092,6 +2109,8 @@ namespace A2Z
                     List<int> eaNoteIds = new List<int>();
                     foreach (var note in vizcore3d.Review.Note.Items)
                         eaNoteIds.Add(note.ID);
+                    // T-064 (2026-05-14): 사용자 사양 — 가공도 EA 신규뷰 PDF 풍선 비활성화 (위와 동일 패턴)
+                    eaNoteIds.Clear();
                     if (eaNoteIds.Count > 0)
                     {
                         vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
