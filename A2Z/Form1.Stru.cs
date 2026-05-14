@@ -350,15 +350,22 @@ namespace A2Z
             }
             if (checkedStrus.Count == 0) return;
 
-            // PDF 저장 폴더 선택
-            string saveDir;
-            using (var dlg = new FolderBrowserDialog())
+            // T-064 (2026-05-14) 사용자 사양: PDF 저장 폴더 고정 (Release/Debug 빌드 출력 폴더 하위 Drawings/)
+            //   Application.StartupPath = 실행 중인 exe 위치 (bin\Debug 또는 bin\Release)
+            //   FolderBrowserDialog 제거 — 매번 묻지 않고 자동 저장
+            string saveDir = Path.Combine(Application.StartupPath, "Drawings");
+            if (!Directory.Exists(saveDir))
             {
-                dlg.Description = $"PDF 저장 폴더 선택 ({checkedStrus.Count}개 STRU)";
-                dlg.SelectedPath = @"c:\";
-                if (dlg.ShowDialog() != DialogResult.OK) return;
-                saveDir = dlg.SelectedPath;
+                try { Directory.CreateDirectory(saveDir); }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-064 PDF 저장 폴더 생성 실패: {saveDir} — {ex.Message}");
+                    MessageBox.Show($"PDF 저장 폴더를 만들지 못했습니다.\n\n{saveDir}\n\n{ex.Message}",
+                        "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
             }
+            DiagLog($"T-064 PDF 저장 폴더 (자동): {saveDir}");
 
             // 다중 STRU 확인 팝업 (사용자 요구사항 6번)
             if (checkedStrus.Count > 1)

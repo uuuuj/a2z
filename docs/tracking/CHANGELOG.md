@@ -6,10 +6,75 @@
 
 ---
 
+## 2026-05-14 — T-064 2차 정비: PDF 경로 고정 + EA 회전 제거 + 가공도 엑셀 템플릿 + 상단 여백 제거
+
+**유형**: feat + fix (가공도 통합 정비 2차, Plan 에이전트 토론 후)
+**커밋**: `pending`
+**관련 TASK**: T-064 (도면리스트 뽑기)
+
+**사용자 사양** (2026-05-14):
+1. *"도면 리스트 뽑기 누르면 Release나 DEBUG에 도면 생성되게 물어보지 말고 고정"*
+2. *"가공도에서는 edge도 일반 부재처럼 일단 그냥 90도 두번 찍지말고 바로 보여주자"*
+3. *"가공도 상단에 여백이 있는 장치가 들어가 있는 거 같은데 그거 줄이거나 없애야하고"*
+4. *"가공도템플릿 사용자템플릿_엑셀_가공도.xlsx 이거 사용하면 될 거 같아... 배치는 지금 가공도랑 똑같이 해주고 템플릿만 사용 추가하는거야"*
+5. *"BOM 이름이 길면 정해진 텍스트 칸을 넘어가서 이건 어떻게 할 수 있을지 생각해보자"* — 권고안만 (별도 결정)
+6. *"도면 리스트 뽑기를 두 번 못누르는 거 같아..."* — 보류
+
+**변경 4종** (1~4):
+
+1. **PDF 저장 경로 고정** — [Form1.Stru.cs](A2Z/Form1.Stru.cs) `btnExtractDrawingList_Click`:
+   - `FolderBrowserDialog` 제거
+   - `string saveDir = Path.Combine(Application.StartupPath, "Drawings");` + `Directory.CreateDirectory` 자동
+   - `Application.StartupPath` = 실행 중인 exe 위치 = `bin\Debug` 또는 `bin\Release` (.NET Framework 4.8 표준)
+
+2. **EA(앵글) 회전 비활성화** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) 2변수:
+   - `ExecuteMfgDrawing` `bool isEA3d = IsAngleFromSpref(bom.Index)` → `bool isEA3d = false`
+   - `RenderMfgViewForDrawing` `bool isEA = IsAngleFromSpref(bom.Index)` → `bool isEA = false`
+   - 효과: EA 카메라 MINUS/180° 보정 블록 + EA 신규뷰(두 번째 뷰) 모두 dead. 일반 부재처럼 viewDirection + ApplyOrientationRotation 자연 흐름
+
+3. **그리드 5행 → 4행 (상단 여백 제거)** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) L689~693:
+   - `gridRows 5 → 4`, `usableRowStart 2 → 1`, `usableRowEnd 5 → 4`, `rowsPerCol 4`(자동)
+   - 효과: Row 1 빈 행 제거 → 상단 여백 사라짐, 부재 수 12 유지
+
+4. **가공도 엑셀 템플릿 적용** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) L676~714:
+   - 옛 외곽 1×1 그리드 + `CreateTemplateBorder` + `table2`(우측 하단 도면정보) **모두 제거**
+   - 새 흐름: `CollectBOMInfo(false)` → `data[1..123]` 구성 → `ImportExcelWithData(사용자템플릿_엑셀_가공도.xlsx, data)` → `SetSelectCanvas(1)`
+   - BOM 매핑은 제작도(`Form1.DrawingSheets.cs:1731~1749`) 패턴 그대로 — `{Input_1~3}` 도면정보 + `{Input_4~123}` 8컬럼×15행 BOM
+   - 모델 배치 그리드 `AddGridStructure(4, 6)` 그대로 — 엑셀 import 후 *그 위에* 덮어쓰기
+   - 엑셀 파일 없으면 옛 외곽 fallback (DiagLog 경고)
+   - 엑셀 파일 `사용자템플릿_엑셀_가공도.xlsx` git 신규 추적
+
+**5번 BOM 이름 라벨 칸 초과 — Plan 권고안 (별도 결정)**:
+- 5가지 옵션 분석. **추천**: 옵션 (a) `labelTable.IsTextWrapped = false → true` + 임계 길이 초과 시 폰트 축소
+- 코드 변경 최소, 정보 손실 없음, 행 높이가 늘어나면 같은 row 모델 셀도 함께 늘어나 균형 유지
+- **별도 결정 후 적용 예정** (이번 커밋 미포함)
+
+**6번 도면 리스트 뽑기 재실행 초기화 — 보류** (사용자 *"나중에 수정하자"*)
+
+**영향 범위**:
+- 코드: `A2Z/Form1.Stru.cs` (PDF 경로) + `A2Z/Form1.MfgDrawing.cs` (4곳: isEA3d, isEA, 그리드 4행, 엑셀 import 블록)
+- 문서: `docs/기능/가공도/가공도 시트.md` 변경 이력
+- 자원: `사용자템플릿_엑셀_가공도.xlsx` git 신규 추적
+
+**검증 흐름** (R12):
+- 사용자 사내 PC 빌드 → 도면리스트 뽑기 → 자동 저장 경로(`bin/Debug/Drawings/`) 확인
+- 가공도 PDF 시각 검증:
+  - 외곽 + BOM 테이블 + 도면정보(프로젝트명/선박/도면종류)가 엑셀 템플릿대로 표시되는지
+  - EA 부재가 일반 부재처럼 한 방향만 표시되는지 (두 번째 뷰 없음)
+  - 상단 여백이 줄어 모델 셀이 캔버스 상단까지 차오르는지
+  - 한 페이지 12개 부재 배치 그대로
+
+**잔여 위험 / 후속 결정**:
+- (4) `AddGridStructure(4,6)`가 `ImportExcelWithData` 후에 정상 그리드 셀 생성하는지 사내 PC 1회 확인 — 실패 시 P3 dead code 패턴(엑셀 `{View_N}` 슬롯 + `GetViewAreasFromExcel`)으로 전환 (엑셀 파일에 `{View_N}` 슬롯 신규 추가 필요)
+- (1) PDF 누적 폴더가 너무 커지면 `bin/Debug/Drawings/{yyyy-MM-dd}/` 일자 분리 권고
+- (5) BOM 라벨 처리 사용자 결정 후 별도 커밋
+
+---
+
 ## 2026-05-14 — T-064 가공도 정비: 풍선 비활성화 + 치수 텍스트 키움 + 홀 Osnap 제외 + 그리드 4행
 
 **유형**: fix (가공도 사용자 사양 4종 통합 정비)
-**커밋**: `pending`
+**커밋**: `718e534`
 **관련 TASK**: T-064 (도면리스트 뽑기 가공도 fine-tune)
 
 **사용자 사양** (2026-05-14):
