@@ -6,10 +6,59 @@
 
 ---
 
+## 2026-05-14 — T-064 fine-tune: ISO 풍선 단축 + Y뷰 추가 오른쪽 + 가공도 보조선 50% 축소
+
+**유형**: fix (사용자 검증 fine-tune 1차)
+**커밋**: `pending`
+**관련 TASK**: T-064 (도면리스트 뽑기 fine-tune), T-039 (가공도 보조선 통일 — 잔여 작업 일부)
+
+**사용자 사양** (2026-05-14):
+1. *"ISO 풍선 더 짧아도 되겠다"*
+2. *"Y뷰는 오른쪽으로 더 옮겨주고"*
+3. *"가공도 보조선 길이 전부 다 제작도랑 똑같이 맞춰줘"*
+
+**변경**:
+
+1. **ISO 풍선 거리 단축** ([Form1.DrawingSheets.cs](A2Z/Form1.DrawingSheets.cs) `CreateIsoBalloonNotes`):
+   - 옛: `baseOffsetDist = Math.Max(200f, isoDiag * 0.35f)`
+   - 새: `baseOffsetDist = Math.Max(100f, isoDiag * 0.22f)`
+   - 최소 200→100mm, 대각 비율 0.35→0.22 → 풍선이 모델 가까이 옴
+
+2. **엑셀 분기 Y뷰 추가 오른쪽** ([Form1.DrawingSheets.cs](A2Z/Form1.DrawingSheets.cs) `GenerateSheetDrawing2D_WithExcelTemplate` 영역 이동 블록):
+   - 옛: `xOffset = (p.Index == 1 || p.Index == 4) ? 10f : 0f`
+   - 새: `xOffset = (p.Index == 1) ? 10f : (p.Index == 4) ? 20f : 0f`
+   - ISO(View_1) 10mm 유지, Y(View_4) 10→20mm (Z/X는 0mm 그대로)
+
+3. **가공도 보조선 50% 축소** ([Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) 3경로):
+   - 메인 ExecuteMfgDrawing(L361~377): `100/200/250/300 → 50/100/125/150`
+   - MULTI 분기(L1275~1276): 동일 패턴
+   - EA 신규뷰(L1929~1930 + L1926): 동일 패턴
+   - `offFactor` 작은 모델 0.5x 분기는 그대로 (추가 축소 가능)
+   - **근사 통일**: 제작도는 `ShowAllDimensions` v10 캔버스 절대 5/10mm, 가공도는 모델 좌표 기준이라 셀 estScale 의존이 정확. 1차 50% 단순 축소 — 부족 시 estScale 환산 도입
+
+**영향 범위**:
+- 코드: `A2Z/Form1.DrawingSheets.cs` (2곳) + `A2Z/Form1.MfgDrawing.cs` (3경로)
+- 문서: `docs/기능/도면시트/시트 2D 렌더.md` + `docs/기능/가공도/가공도 단일.md` 변경 이력
+
+**검증 흐름** (R12):
+- 사용자 사내 PC 빌드 → 도면리스트 뽑기 → PDF 4종 확인:
+  - ISO 풍선이 모델에 더 가까이 붙는지
+  - Y뷰가 영역 중앙에서 오른쪽으로 충분히 이동했는지 (10→20mm)
+  - 가공도 보조선이 제작도와 시각적으로 비슷한 길이인지
+
+**잔여 / 후속 결정 (BOM 진단 — 별도 결정 필요)**:
+- DiagLog `P2 data 구성: BOM 4행`은 정상이지만 PDF 빈 BOM 원인 진단 완료:
+  - `사용자템플릿_엑셀_제작도_Rev.01.xlsx` 슬롯 컨벤션 = **2컬럼 × 5행** (AN3~AN7 + AP3~AP7, `{Input_4}~{Input_13}`만 존재)
+  - 코드는 PoC 컨벤션 **8컬럼 × 15행** = `{Input_4}~{Input_123}` 매핑 → 슬롯 누락으로 ImportExcelWithData 매핑 실패
+  - 헤더는 ID/ITEM/MATERIAL/SIZE 4컬럼인데 AR/AU에 슬롯이 안 들어가 있음 (사용자 미완성으로 추정)
+- **방향 결정 필요** — (A) 엑셀에 슬롯 추가 / (B) 코드 매핑을 엑셀 실제 컨벤션에 맞춤
+
+---
+
 ## 2026-05-14 — T-064 P2 본진: 엑셀 분기에 치수 그리기 + 풍선 + 모델 shrink 이식
 
 **유형**: fix (도면리스트 뽑기 PDF 치수 누락 해결)
-**커밋**: `pending`
+**커밋**: `59630c7`
 **관련 TASK**: T-064 (STRU 일괄 도면 출력)
 **관련**: T-038 (모델 스케일), T-039 (보조선 길이), T-028 (치수 엔진 통합)
 
