@@ -677,53 +677,13 @@ namespace A2Z
                 float wCanvas = 0.0f, hCanvas = 0.0f;
                 vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
 
-                // ── 3. 가공도 엑셀 템플릿 적용 (T-064 2026-05-14) ──
-                // 사용자 사양: 사용자템플릿_엑셀_가공도.xlsx의 외곽·BOM·도면정보 슬롯 사용.
-                // 모델 배치는 GridStructure 4×6 그대로 — 엑셀 import 후 그 위에 그리드 덮어쓰기.
-                // BOM 매핑은 제작도(Form1.DrawingSheets.cs:1731~1749)와 동일 컨벤션 ({Input_1~3} 도면정보 + {Input_4~123} BOM 8컬럼×15행).
-                CollectBOMInfo(false);
-
-                string mfgXlsxPath = System.IO.Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx");
-                bool mfgExcelApplied = false;
-                if (System.IO.File.Exists(mfgXlsxPath))
-                {
-                    Dictionary<int, string> mfgData = new Dictionary<int, string>();
-                    mfgData[1] = "CEDAR FLNG";  // 프로젝트명
-                    mfgData[2] = "SN2688";       // 선박번호
-                    mfgData[3] = "가공도";       // 도면종류
-
-                    int bomMapped = 0;
-                    if (lvDrawingBOMInfo.Items.Count > 1)
-                    {
-                        int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 15);
-                        for (int i = 0; i < n; i++)
-                        {
-                            ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
-                            mfgData[4 + i]   = item.Text;                        // NO
-                            mfgData[19 + i]  = SafeSubItem(item, 1);             // ITEM
-                            mfgData[34 + i]  = SafeSubItem(item, 2);             // MATERIAL
-                            mfgData[49 + i]  = SafeSubItem(item, 3);             // SIZE
-                            mfgData[64 + i]  = SafeSubItem(item, 4);             // Q'TY
-                            mfgData[79 + i]  = SafeSubItem(item, 5);             // T/W
-                            mfgData[94 + i]  = SafeSubItem(item, 6);             // MA
-                            mfgData[109 + i] = SafeSubItem(item, 7);             // FA
-                        }
-                        bomMapped = n;
-                    }
-
-                    vizcore3d.Drawing2D.Template.ImportExcelWithData(mfgXlsxPath, mfgData);
-                    vizcore3d.Drawing2D.View.SetSelectCanvas(1);
-                    mfgExcelApplied = true;
-                    DiagLog($"T-064 가공도 엑셀 템플릿 적용 — BOM {bomMapped}행, Input 총 {mfgData.Count}개");
-                }
-                else
-                {
-                    // 엑셀 파일 없으면 옛 외곽 테두리 fallback (1x1 그리드 + CreateTemplateBorder)
-                    vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
-                    vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
-                    vizcore3d.Drawing2D.Template.CreateTemplateBorder();
-                    DiagLog($"T-064 가공도 엑셀 파일 없음 — fallback (옛 외곽 테두리) — {mfgXlsxPath}");
-                }
+                // ── 3. 외곽 테두리 생성 (간단한 1x1 그리드로 깔끔한 A4 테두리) ──
+                // T-064 (2026-05-14 4차): 사용자 사양 "가공도 그냥 템플릿 안쓰는 버전으로 되돌리자"
+                //   → 직전 commit 27aae40 (가공도 엑셀 템플릿 ImportExcelWithData) 롤백.
+                //   → 옛 외곽 1×1 그리드 + CreateTemplateBorder + table2 (우측 하단 도면정보) 복귀.
+                vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
+                vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
+                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CreateTemplateBorder();
 
                 // ── 4. 모델 배치용 그리드 재생성 (4x6) ──
                 // T-064 (2026-05-14 2차): 사용자 사양 — 상단 빈 행 제거 (gridRows 5→4, Row 1부터 사용)
@@ -739,8 +699,23 @@ namespace A2Z
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(gridRows, gridCols, wCanvas, hCanvas);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
 
-                // T-064 (2026-05-14): 옛 table2(도면정보 우측 하단 Anchor) 제거 — 엑셀 템플릿의 {Input_1~3} 슬롯이 채움.
-                // 엑셀 적용 실패 시 fallback 외곽에 도면정보 없어도 부재 배치는 정상.
+                // 도면정보 — A4 우측 하단 모서리에 Anchor 절대좌표 방식으로 배치 (T-064 4차: 엑셀 템플릿 롤백 복귀)
+                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
+                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
+                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
+                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
+                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
+                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
+                table2.ImageHeight = 50;
+                table2.IsTextWrapped = true;
+                table2.ColumnWidths = new Dictionary<int, int>() { { 0, 15 }, { 1, 30 }, { 2, 10 }, { 3, 10 } };
+
+                // bInfo 좌표 기반 Anchor 방식: 우측 하단 모서리에 붙이기
+                table2.HorizontalAnchor = VIZCore3D.NET.Data.TableHorizontalAnchor.Right;
+                table2.VerticalAnchor = VIZCore3D.NET.Data.TableVerticalAnchor.Bottom;
+                table2.X = bInfo.MaxX;   // 테두리 우측
+                table2.Y = bInfo.MinY;   // 테두리 하단
+                vizcore3d.Drawing2D.Template.RenderTemplate(table2);
 
                 vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
