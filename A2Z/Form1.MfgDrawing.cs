@@ -196,7 +196,9 @@ namespace A2Z
                 // 열린 방향(BB중심 - 무게중심)이 화면 우하로 가도록 카메라 조정
                 bool isMinusCamera3d = false;
                 bool use1803d = false;  // T-036: DiagLog에서 접근 가능하도록 바깥 스코프로 승격
-                bool isEA3d = IsAngleFromSpref(bom.Index);
+                // T-064 (2026-05-14) 사용자 사양: EA 회전 비활성화 — 일반 부재처럼 바로 표시 (90° 두 번 찍기 금지)
+                // IsAngleFromSpref 결과 무시. EA 카메라 보정 블록 + 신규뷰 두 번째 뷰 통째로 dead.
+                bool isEA3d = false;  // 옛: IsAngleFromSpref(bom.Index)
                 if (isEA3d && mfgOsnapWithNames.Count > 0)
                 {
                     // 기존뷰 화면에 보이는 축: 수평(H)과 수직(V)
@@ -671,43 +673,70 @@ namespace A2Z
                 float wCanvas = 0.0f, hCanvas = 0.0f;
                 vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
 
-                // ── 3. 외곽 테두리 생성 (간단한 1x1 그리드로 깔끔한 A4 테두리) ──
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
-                // 새 SDK(VIZCore3D+.NET) — 옛 CrateTemplateBorder() 무인자가 CreateTemplateBorder()(스펠링 정정)로 이름 변경됨.
-                // xml line 31246: CreateTemplateBorder() → returns TemplateBorderInfo (옛 무인자 호출과 동일 동작).
-                // (옛 이름 CrateTemplateBorder는 새 시그니처 CrateTemplateBorder(TemplateBorderInfo)로 재정의 — void 반환, 우리 의도와 다름)
-                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CreateTemplateBorder();
+                // ── 3. 가공도 엑셀 템플릿 적용 (T-064 2026-05-14) ──
+                // 사용자 사양: 사용자템플릿_엑셀_가공도.xlsx의 외곽·BOM·도면정보 슬롯 사용.
+                // 모델 배치는 GridStructure 4×6 그대로 — 엑셀 import 후 그 위에 그리드 덮어쓰기.
+                // BOM 매핑은 제작도(Form1.DrawingSheets.cs:1731~1749)와 동일 컨벤션 ({Input_1~3} 도면정보 + {Input_4~123} BOM 8컬럼×15행).
+                CollectBOMInfo(false);
 
-                // ── 4. 모델 배치용 그리드 재생성 (5x6) ──
-                // T-064 (2026-05-14): 사용자 사양 — 그리드 4행으로 (8→5, 사용 행 6→4).
-                // 한 페이지 부재 18→12로 줄여 각 부재 셀 영역 확대.
-                const int gridRows = 5;
+                string mfgXlsxPath = System.IO.Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx");
+                bool mfgExcelApplied = false;
+                if (System.IO.File.Exists(mfgXlsxPath))
+                {
+                    Dictionary<int, string> mfgData = new Dictionary<int, string>();
+                    mfgData[1] = "CEDAR FLNG";  // 프로젝트명
+                    mfgData[2] = "SN2688";       // 선박번호
+                    mfgData[3] = "가공도";       // 도면종류
+
+                    int bomMapped = 0;
+                    if (lvDrawingBOMInfo.Items.Count > 1)
+                    {
+                        int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 15);
+                        for (int i = 0; i < n; i++)
+                        {
+                            ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
+                            mfgData[4 + i]   = item.Text;                        // NO
+                            mfgData[19 + i]  = SafeSubItem(item, 1);             // ITEM
+                            mfgData[34 + i]  = SafeSubItem(item, 2);             // MATERIAL
+                            mfgData[49 + i]  = SafeSubItem(item, 3);             // SIZE
+                            mfgData[64 + i]  = SafeSubItem(item, 4);             // Q'TY
+                            mfgData[79 + i]  = SafeSubItem(item, 5);             // T/W
+                            mfgData[94 + i]  = SafeSubItem(item, 6);             // MA
+                            mfgData[109 + i] = SafeSubItem(item, 7);             // FA
+                        }
+                        bomMapped = n;
+                    }
+
+                    vizcore3d.Drawing2D.Template.ImportExcelWithData(mfgXlsxPath, mfgData);
+                    vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+                    mfgExcelApplied = true;
+                    DiagLog($"T-064 가공도 엑셀 템플릿 적용 — BOM {bomMapped}행, Input 총 {mfgData.Count}개");
+                }
+                else
+                {
+                    // 엑셀 파일 없으면 옛 외곽 테두리 fallback (1x1 그리드 + CreateTemplateBorder)
+                    vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
+                    vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
+                    vizcore3d.Drawing2D.Template.CreateTemplateBorder();
+                    DiagLog($"T-064 가공도 엑셀 파일 없음 — fallback (옛 외곽 테두리) — {mfgXlsxPath}");
+                }
+
+                // ── 4. 모델 배치용 그리드 재생성 (4x6) ──
+                // T-064 (2026-05-14 2차): 사용자 사양 — 상단 빈 행 제거 (gridRows 5→4, Row 1부터 사용)
+                //   옛 1차(718e534): gridRows=5, usableRowStart=2 → Row 1이 빈 상단 여백 차지
+                //   2차: gridRows=4, usableRowStart=1 → Row 1부터 모델 배치 → 상단 여백 사라짐
+                //   한 페이지 부재 수는 12개로 유지 (rowsPerCol=4 × 3 모델 그룹)
+                const int gridRows = 4;
                 const int gridCols = 6;   // 라벨(1,3,5) + 모델(2,4,6)
-                const int usableRowStart = 2;  // 2행부터
-                const int usableRowEnd = 5;    // 5행까지 (옛 7)
-                const int rowsPerCol = usableRowEnd - usableRowStart + 1; // 4 (옛 6)
+                const int usableRowStart = 1;  // 1행부터 (옛 2)
+                const int usableRowEnd = 4;    // 4행까지 (옛 5)
+                const int rowsPerCol = usableRowEnd - usableRowStart + 1; // 4
 
                 vizcore3d.Drawing2D.GridStructure.AddGridStructure(gridRows, gridCols, wCanvas, hCanvas);
                 vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
 
-                // 도면정보 — A4 우측 하단 모서리에 Anchor 절대좌표 방식으로 배치
-                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
-                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
-                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
-                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
-                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
-                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
-                table2.ImageHeight = 50;
-                table2.IsTextWrapped = true;
-                table2.ColumnWidths = new Dictionary<int, int>() { { 0, 15 }, { 1, 30 }, { 2, 10 }, { 3, 10 } };
-
-                // bInfo 좌표 기반 Anchor 방식: 우측 하단 모서리에 붙이기
-                table2.HorizontalAnchor = VIZCore3D.NET.Data.TableHorizontalAnchor.Right;
-                table2.VerticalAnchor = VIZCore3D.NET.Data.TableVerticalAnchor.Bottom;
-                table2.X = bInfo.MaxX;   // 테두리 우측
-                table2.Y = bInfo.MinY;   // 테두리 하단
-                vizcore3d.Drawing2D.Template.RenderTemplate(table2);
+                // T-064 (2026-05-14): 옛 table2(도면정보 우측 하단 Anchor) 제거 — 엑셀 템플릿의 {Input_1~3} 슬롯이 채움.
+                // 엑셀 적용 실패 시 fallback 외곽에 도면정보 없어도 부재 배치는 정상.
 
                 vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
@@ -1096,7 +1125,8 @@ namespace A2Z
             // EA 앵글 판별 및 기존뷰 카메라 방향 보정 (L자가 펼쳐져 보이도록)
             // Osnap 무게중심은 L자 내부코너 쪽으로 편향됨
             // 열린 방향(BB중심 - 무게중심)이 화면 우하로 가도록 카메라 조정
-            bool isEA = IsAngleFromSpref(bom.Index);
+            // T-064 (2026-05-14) 사용자 사양: EA 회전 비활성화 — isEA를 false 고정으로 EA 보정 + 신규뷰 두 번째 뷰 통째 dead
+            bool isEA = false;  // 옛: IsAngleFromSpref(bom.Index)
             bool isAboveWider = false;
             bool isLShape = false;
             bool isMinusCameraSelected = false;
