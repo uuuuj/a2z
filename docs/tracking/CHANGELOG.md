@@ -6,10 +6,65 @@
 
 ---
 
+## 2026-05-14 — T-064 3차 fine-tune: 가공도 모델 30% + 라벨 오른쪽 + 캔버스 리셋 강화
+
+**유형**: fix (사용자 검증 보고 fine-tune)
+**커밋**: `pending`
+**관련 TASK**: T-064 (도면리스트 뽑기)
+
+**사용자 사양** (2026-05-14):
+1. *"라벨 폭을 늘리던가 오른쪽으로 이동해야할 거 같고"*
+2. *"가공도 BOM이 안채워지고 있어"*
+3. *"가공도 모델도 크기 키워도 될 거 같고"*
+4. *"가공도에 ISO LOOKING Z X Z 라벨이 뜨는데 이건 가공도에는 없어야 돼"*
+
+**변경 3종 (1·3·4 — BOM은 진단 대기)**:
+
+1. **라벨 오른쪽 이동 + 폭 확대 + 줄바꿈** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) `GenerateMfgDrawing2DAll` 모델 배치 루프
+   - 옛: `labelCol = modelGroup*2+1` (왼쪽), `modelCol = modelGroup*2+2` (오른쪽)
+   - 새: `modelCol = modelGroup*2+1` (왼쪽), `labelCol = modelGroup*2+2` (오른쪽) — swap
+   - `ColumnWidths {0, 25} → {0, 40}` (15mm 확대)
+   - `IsTextWrapped false → true` (긴 BOM 이름 줄바꿈)
+
+3. **모델 크기 4% → 30%** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) `RenderMfgViewForDrawing` L1728~1729
+   - `targetW = contentW * 0.04f` → `* 0.30f`
+   - `targetH = contentH * 0.04f` → `* 0.30f`
+   - 옛 4% (너무 작음) → 30% (셀 컨텐츠 30% 차지)
+
+4. **캔버스 리셋 강화 (ISO/Looking 잔존 제거 시도)** — [Form1.MfgDrawing.cs](A2Z/Form1.MfgDrawing.cs) `GenerateMfgDrawing2DAll` 캔버스 설정부
+   - 진입 시 `RemoveCanvasBy2DView()` 호출 추가
+   - 직후 `SetCanvasSize(297, 210)` 재호출
+   - **가설**: 메인 도면(`GenerateSheetDrawing2D_WithExcelTemplate`)이 그리드 셀에 그렸던 ISO/Looking Z/X/Y 라벨이 가공도 진입 시 캔버스 잔존. `Clear2DView`만으론 그리드 셀 데이터 잔존 가능성 → 캔버스 자체 새로 만들어 강제 클리어
+
+**2. BOM 안 채워짐 — 진단 데이터 대기**:
+- DiagLog `T-064 가공도 엑셀 템플릿 적용 — BOM N행`이 이미 출력 중 — 사용자에게 N값 + PDF 시각 확인 요청
+- 가설 후보:
+  - (A) `lvDrawingBOMInfo`가 빈 결과 (요약행만) — `CollectBOMInfo(false)`가 가공도 묶음 출력 시 시트 컨텍스트 없이 호출되어 0건 가능
+  - (B) `mfgData` 정상 매핑 + 엑셀 슬롯 위치 정상이지만 `AddGridStructure(4,6)`이 `ImportExcelWithData` 결과를 덮어씀 (Plan 위험 항목)
+- 검증 후 다음 라운드에서 (A)면 가공도 BOM 별도 수집 / (B)면 `ImportExcelWithData` 호출 위치를 모델 배치 후 마지막으로 이동
+
+**영향 범위**:
+- 코드: `A2Z/Form1.MfgDrawing.cs` (3곳: labelCol/modelCol swap + label table 속성, RenderMfgViewForDrawing 모델 fit factor, GenerateMfgDrawing2DAll 캔버스 리셋)
+- 문서: `docs/기능/가공도/가공도 시트.md` 변경 이력
+
+**검증 흐름** (R12):
+- 사내 PC 빌드 → 도면리스트 뽑기 → 가공도 PDF 확인:
+  - 모델이 셀 안에서 적당히 크게 보이는지 (옛 대비 7.5배)
+  - 라벨이 모델 오른쪽에 표시되고 긴 이름은 줄바꿈으로 처리되는지
+  - ISO/Looking Z/X/Y 라벨이 사라졌는지 (RemoveCanvasBy2DView 효과)
+  - BOM 표가 채워졌는지 — **DiagLog `BOM N행` 값과 함께 보고 부탁** (가설 좁히기 위해)
+
+**잔여 / 후속 결정**:
+- 2번 BOM 진단 결과 후 다음 라운드
+- 6번 (재실행 초기화) 보류 유지
+- 모델 30%가 너무 크거나 작으면 fine-tune
+
+---
+
 ## 2026-05-14 — T-064 2차 정비: PDF 경로 고정 + EA 회전 제거 + 가공도 엑셀 템플릿 + 상단 여백 제거
 
 **유형**: feat + fix (가공도 통합 정비 2차, Plan 에이전트 토론 후)
-**커밋**: `pending`
+**커밋**: `27aae40`
 **관련 TASK**: T-064 (도면리스트 뽑기)
 
 **사용자 사양** (2026-05-14):
