@@ -666,6 +666,10 @@ namespace A2Z
                 }
 
                 // ── 2. 캔버스 설정 ──
+                // T-064 (2026-05-14 3차): 사용자 사양 — 가공도에 ISO/Looking 라벨이 잔존하는 문제 회피.
+                //   메인 도면(GenerateSheetDrawing2D_WithExcelTemplate)이 그린 그리드 셀 라벨이 가공도 진입 시 잔존.
+                //   캔버스 자체를 제거하고 새로 만들어 모든 잔존물 제거.
+                try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
                 vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);  // A4 가로
 
                 int selectedCanvas = 1;
@@ -751,15 +755,16 @@ namespace A2Z
                 for (int i = 0; i < count; i++)
                 {
                     int modelGroup = i / rowsPerCol;              // 0, 1, 2
-                    int rowInGroup = i % rowsPerCol;              // 0~5
-                    int row = rowInGroup + usableRowStart;        // 2~7행
-                    int labelCol = modelGroup * 2 + 1;            // 1, 3, 5
-                    int modelCol = modelGroup * 2 + 2;            // 2, 4, 6
+                    int rowInGroup = i % rowsPerCol;              // 0~3
+                    int row = rowInGroup + usableRowStart;        // 1~4행
+                    // T-064 (2026-05-14 3차): 사용자 사양 — 라벨을 모델 오른쪽으로 이동 (옛 라벨 왼쪽 → 모델 왼쪽 / 라벨 오른쪽)
+                    int modelCol = modelGroup * 2 + 1;            // 1, 3, 5 (옛 labelCol)
+                    int labelCol = modelGroup * 2 + 2;            // 2, 4, 6 (옛 modelCol)
 
                     // 모델 2D 렌더링
                     RenderMfgViewForDrawing(row, modelCol, mfgSheets[i].MemberIndices[0]);
 
-                    // 라벨 배치 (모델 Name) — 1행 텍스트, 가로 크기 50% 축소
+                    // 라벨 배치 (모델 Name) — 오른쪽 셀, 넓힘 + 줄바꿈 허용
                     try
                     {
                         BOMData labelBom = bomList.FirstOrDefault(b => b.Index == mfgSheets[i].MemberIndices[0]);
@@ -767,8 +772,9 @@ namespace A2Z
                         {
                             VIZCore3D.NET.Data.TemplateTableData labelTable = new VIZCore3D.NET.Data.TemplateTableData(1, 1);
                             labelTable.SetText(0, 0, labelBom.Name);
-                            labelTable.IsTextWrapped = false;
-                            labelTable.ColumnWidths = new Dictionary<int, int>() { { 0, 25 } };
+                            // T-064 (2026-05-14 3차): 사용자 사양 — 라벨 폭 25→40mm, 긴 이름은 줄바꿈 (IsTextWrapped=true)
+                            labelTable.IsTextWrapped = true;
+                            labelTable.ColumnWidths = new Dictionary<int, int>() { { 0, 40 } };
 
                             vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(row, labelCol,
                                 VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
@@ -1725,8 +1731,10 @@ namespace A2Z
 
                 if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
                 {
-                    float targetW = contentW * 0.04f;
-                    float targetH = contentH * 0.04f;
+                    // T-064 (2026-05-14 3차): 사용자 사양 — 가공도 모델 크기 키움 (4% → 30%)
+                    // 옛 0.04 (너무 작음) → 0.30 (셀 컨텐츠 30% 차지). 셀 면적 늘어난 그리드(4행)와 함께 모델 가독성 보강.
+                    float targetW = contentW * 0.30f;
+                    float targetH = contentH * 0.30f;
                     float scaleW = targetW / objW;
                     float scaleH = targetH / objH;
                     float fitScale = Math.Min(scaleW, scaleH);
