@@ -622,11 +622,10 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
-                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv1, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
-                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // Level 2 치수 (중간)
@@ -634,11 +633,10 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
-                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv2, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
-                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이) — 통상 >13mm지만 일관성 위해 동일 토글
@@ -648,11 +646,10 @@ namespace A2Z
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
-                    int mid = DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         lv0, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
-                    if (mid > 0) dim.MeasureId = mid;
                 }
 
                 // 보조선 그리기 — ShapeDrawing ID 수집
@@ -2161,45 +2158,6 @@ namespace A2Z
             DiagLog($"T-040 TextShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm threshold={threshold:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
         }
 
-        // 측정축 두 좌표 일치로 SDK MeasureItem.ID 찾기 (옵션 A 매칭)
-        private int FindMeasureByDimCoords(
-            List<VIZCore3D.NET.Data.MeasureItem> measures,
-            ChainDimensionData dim,
-            string axis)
-        {
-            float dimStart = GetAxisValue(dim.StartPoint, axis);
-            float dimEnd = GetAxisValue(dim.EndPoint, axis);
-            const float tol = 0.5f;
-
-            foreach (var m in measures)
-            {
-                if (!m.Visible) continue;
-                VIZCore3D.NET.Data.Vertex3D a = null, b = null;
-                foreach (var pos in m.Position)
-                {
-                    if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
-                    if (pos.Position == null) continue;
-                    if (a == null) a = pos.Position;
-                    else { b = pos.Position; break; }
-                }
-                if (a == null || b == null) continue;
-
-                float aAx, bAx;
-                switch (axis)
-                {
-                    case "X": aAx = a.X; bAx = b.X; break;
-                    case "Y": aAx = a.Y; bAx = b.Y; break;
-                    case "Z": aAx = a.Z; bAx = b.Z; break;
-                    default: continue;
-                }
-
-                if ((Math.Abs(aAx - dimStart) <= tol && Math.Abs(bAx - dimEnd) <= tol) ||
-                    (Math.Abs(aAx - dimEnd) <= tol && Math.Abs(bAx - dimStart) <= tol))
-                    return m.ID;
-            }
-            return -1;
-        }
-
         private List<ChainDimensionData> AddChainDimensionByAxis(
             List<VIZCore3D.NET.Data.Vector3D> points, string axis, float tolerance,
             string viewDirection = null)
@@ -2480,11 +2438,6 @@ namespace A2Z
             result.AddRange(keyToDim.Values);
             return result;
         }
-
-        // T-027 FilterOsnapByViewDimensionUsage 제거 (2026-04-22, T-028 통합).
-        //   사유: 2D 출력 엔진(FilterOsnapForDimAxis + nodeOsnapMap)과 로직이 달라 치수 결과 불일치를 유발.
-        //   대체: ComputeViewDimensionsForMembers(memberIndices, viewDirection, tolerance)
-        //   과거 코드는 git 이력(커밋 bb48a16) 참조.
 
         /// <summary>
         /// Osnap 필터링 공통 함수 — X/Y/Z 보기 모두 동일 규칙 적용
