@@ -381,12 +381,10 @@ namespace A2Z
 
             // ─── P1: 엑셀 템플릿 init 1회 (검증 게이트 — 출력 결과 불변, no-op) ───
             // Set2DViewTemplateMark: 로고 매핑 1회
-            // GenerateEdgeData: 히든라인 모델 투영용 엣지 데이터 사전 생성 (모델 1번 열면 1회로 충분)
-            // P2에서 ImportExcelWithData + GetViewAreasFromExcel 호출 시 사전 조건.
-            // 매트릭스: ExportAllSheetsToPdfCore 시작 부분 권고 — 우리 P2 본진은 그 코어 호출 안 함 → 여기서 1회.
+            // (2026-05-18) GenerateEdgeData 호출은 GenerateSheetDrawing2D 진입부로 이동
+            //   사유: 수동(btnGenerateSheet2D_Click) 경로에도 동일 사전 조건 필요 — DRY + 단일 지점 보장
             try
             {
-                vizcore3d.Object3D.GenerateEdgeData();
                 string solutionPath = GetSolutionPath();
                 string logoPath = System.IO.Path.Combine(solutionPath, "Logo.png");
                 if (System.IO.File.Exists(logoPath))

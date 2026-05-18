@@ -1297,6 +1297,10 @@ namespace A2Z
         /// </summary>
         private void GenerateSheetDrawing2D(DrawingSheetData sheet)
         {
+            // 사전 조건: 히든라인 모델 투영용 엣지 데이터 갱신 (ISO 방향 튀어나온 모서리 누락 방지)
+            // 자동(ProcessSingleStruFull)·수동(btnGenerateSheet2D_Click) 모두 이 함수 통과 → 단일 지점에서 보장
+            vizcore3d.Object3D.GenerateEdgeData();
+
             // P2 — 엑셀 템플릿 분기
             if (UseExcelTemplate)
             {
