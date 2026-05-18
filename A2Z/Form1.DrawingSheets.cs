@@ -649,7 +649,8 @@ namespace A2Z
                 $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0}");
 
             // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
-            CollectBOMInfo(false);
+            // D1 (2026-05-18): sheet 명시 전달 — lvDrawingSheet.SelectedItems[0] 묵시 의존 제거
+            CollectBOMInfo(false, sheet);
 
             // T-036 (2026-04-23 3차 → 2026-04-24 4차 3·4단계 → 5단계): 가공도 시트 카메라 복원.
             //   진화 경로:
@@ -1373,7 +1374,8 @@ namespace A2Z
                 }
 
                 // BOM 자동 수집
-                CollectBOMInfo(false);
+                // D1 (2026-05-18): sheet 명시 전달 — 함수 인자 그대로 위임
+                CollectBOMInfo(false, sheet);
 
                 // ── 3. 그리드 구조 먼저 생성 (CrateTemplateBorder가 그리드 필요) ──
                 {
@@ -1707,7 +1709,8 @@ namespace A2Z
 
                 // ── 1.7. BOM 정보 수집 (옛 본문 1278~1279 동일 — lvDrawingBOMInfo 채우기) ──
                 // 이 호출이 lvDrawingBOMInfo의 8컬럼을 채워야 아래 data 매핑이 BOM 슬롯에 정상 적용됨.
-                CollectBOMInfo(false);
+                // D1 (2026-05-18): sheet 명시 전달 — _WithExcelTemplate 함수 인자 그대로 위임
+                CollectBOMInfo(false, sheet);
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
