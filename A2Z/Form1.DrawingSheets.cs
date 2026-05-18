@@ -608,10 +608,11 @@ namespace A2Z
                 else
                 {
                     // 일반 시트 — 2D 출력과 동일한 Osnap 엔진 (3뷰 × 2축 = 6조합 + 중복 제거)
+                    // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
                     chainDimensionList.Clear();
                     lvDimension.Items.Clear();
                     chainDimensionList.AddRange(
-                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
 
                     int no = 1;
                     foreach (var dim in chainDimensionList)
@@ -1357,10 +1358,11 @@ namespace A2Z
                 //   이전: ExtractInstallationDimensions (BBox 기반) → 작업데이터 탭과 도면 측 데이터 불일치
                 //   현재: ComputeViewDimensionsForMembers (Osnap 기반, 도면 측과 동일 엔진 — 3뷰×2축 6조합 합집합)
                 {
+                    // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
                     chainDimensionList.Clear();
                     lvDimension.Items.Clear();
                     chainDimensionList.AddRange(
-                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
                     int dimNo = 1;
                     foreach (var dim in chainDimensionList)
                     {
@@ -1692,10 +1694,11 @@ namespace A2Z
                 vizcore3d.EndUpdate();
 
                 // ── 1.6. 치수 데이터 계산 (옛 본문 1257~1276 동일 — Osnap 기반 6조합 합집합) ──
+                // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
                 chainDimensionList.Clear();
                 lvDimension.Items.Clear();
                 chainDimensionList.AddRange(
-                    ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f));
+                    ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
                 int dimNo = 1;
                 foreach (var dim in chainDimensionList)
                 {
