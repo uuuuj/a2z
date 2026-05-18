@@ -379,6 +379,57 @@ namespace A2Z
             _p2aInProgress = true;
             btnExtractDrawingList.Enabled = false;
 
+            // ─── 자동 출력 진입 사전 초기화 (2026-05-19, 사용자 제안) ───
+            //   증상: 수동 작업 잔재(drawingSheetList 시트)가 있으면 폴링 조건
+            //         (Count > beforeSheetCount)이 영원히 미만족 → 60초 타임아웃.
+            //   해결: 자동 출력 = "처음부터 다시" 의도 명확히. 모든 상태 깨끗한 시작.
+            try
+            {
+                vizcore3d.BeginUpdate();
+                try
+                {
+                    // (1) 전체 모델 표시 — STRU 격리 전 깨끗한 상태 보장
+                    List<VIZCore3D.NET.Data.Node> allBodies =
+                        vizcore3d.Object3D.GetPartialNode(false, false, true);
+                    if (allBodies != null && allBodies.Count > 0)
+                        vizcore3d.Object3D.Show(allBodies.Select(n => n.Index).ToList(), true);
+
+                    // (2) 2D 캔버스 잔재 제거
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+
+                    // (3) 3D 풍선·치수·보조선 잔재 제거
+                    vizcore3d.Review.Note.Clear();
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
+                }
+                finally { vizcore3d.EndUpdate(); }
+
+                // (4) 시트 잔재 — 60초 에러 직접 차단
+                if (drawingSheetList != null) drawingSheetList.Clear();
+                if (lvDrawingSheet != null) lvDrawingSheet.Items.Clear();
+
+                // (5) 치수 잔재
+                if (chainDimensionList != null) chainDimensionList.Clear();
+                if (lvDimension != null) lvDimension.Items.Clear();
+
+                // (6) BOM 정보 표 잔재
+                if (lvDrawingBOMInfo != null) lvDrawingBOMInfo.Items.Clear();
+
+                // (7) X-Ray 선택 잔재
+                if (xraySelectedNodeIndices != null) xraySelectedNodeIndices.Clear();
+
+                // (8) Osnap 캐시 — STRU 전환 시 부재 다르므로 fresh 시작 (E1 fallback이 보충하지만 명시 초기화)
+                if (_lastCollectedNodeOsnapMap != null) _lastCollectedNodeOsnapMap.Clear();
+
+                DiagLog("자동 출력 진입 사전 초기화 완료 (모델 전체 표시 + 2D/3D 잔재 제거)");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"자동 출력 사전 초기화 ERROR: {ex.Message}");
+                // 초기화 실패해도 본진 시도 — 안전망
+            }
+
             // ─── P1: 엑셀 템플릿 init 1회 (검증 게이트 — 출력 결과 불변, no-op) ───
             // Set2DViewTemplateMark: 로고 매핑 1회
             // (2026-05-18) GenerateEdgeData 호출은 GenerateSheetDrawing2D 진입부로 이동
@@ -579,9 +630,9 @@ namespace A2Z
                 //
                 // 해결:
                 //   - 폴링 진입 *전* 300ms sleep — SDK 비동기 스레드 시작 보장
-                //   - drawingSheetList.Count 변화도 종료 조건 — OnFinished가 시트 채울 때까지 대기
+                //   - drawingSheetList.Count > 0 종료 조건 (절대) — 진입부에서 Clear됐으므로 안전
                 //   - 폴링 종료 *후* 추가 300ms sleep — OnFinished 후속 처리 완료 대기
-                int beforeSheetCount = drawingSheetList?.Count ?? 0;
+                // (2026-05-19) 진입부 초기화로 잔재 0 보장 → `Count > beforeSheetCount` → `Count > 0` 단순화
                 System.Threading.Thread.Sleep(300);  // SDK 비동기 시작 보장
                 Application.DoEvents();
 
@@ -590,10 +641,10 @@ namespace A2Z
                 {
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(50);
-                    // IsBusy=false AND 시트가 새로 채워졌으면 OnFinished 완료된 것
+                    // IsBusy=false AND 시트 1개 이상 채워졌으면 OnFinished 완료된 것
                     if (!vizcore3d.Clash.IsBusy &&
                         drawingSheetList != null &&
-                        drawingSheetList.Count > beforeSheetCount)
+                        drawingSheetList.Count > 0)
                     {
                         System.Threading.Thread.Sleep(300);  // OnFinished 후속 작업 (시트 lvDrawingSheet 동기 등) 완료 대기
                         Application.DoEvents();
@@ -602,7 +653,7 @@ namespace A2Z
                 }
                 if (sw.ElapsedMilliseconds >= 60000)
                 {
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' TIMEOUT (60s) — sheets before={beforeSheetCount} after={drawingSheetList?.Count ?? 0}");
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' TIMEOUT (60s) — sheets={drawingSheetList?.Count ?? 0}");
                     throw new Exception("간섭검사 60초 타임아웃");
                 }
             }
