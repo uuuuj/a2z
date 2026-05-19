@@ -20,7 +20,7 @@ namespace A2Z
         //   - 행 선택 (이름 클릭) → 그 STRU로 카메라 fit (강조 변경 X, 체크 강조 유지)
         //
         // P2 본진 범위 (구현됨 — P2a PoC 폐기, 옵션 B 재설계):
-        //   - [도면 리스트 뽑기] 버튼: 체크된 STRU 전체 순서대로 자동 반복
+        //   - [도면 일괄 출력] 버튼: 체크된 STRU 전체 순서대로 자동 반복
         //   - STRU별 흐름 = 사용자 평소 작업:
         //       (a) xraySelectedNodeIndices = STRU 후손 BODY → DetectClash() 호출
         //       (b) Clash_OnClashTestFinishedEvent 자동 콜백 → CompleteMainDimensionPostClash
@@ -313,7 +313,7 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-064 P2 본진 — [도면 리스트 뽑기] 버튼.
+        /// T-064 P2 본진 — [도면 일괄 출력] 버튼.
         /// 체크된 STRU 전체를 순서대로 자동 반복:
         ///   각 STRU에 대해 사용자 평소 작업(부재 선택 → 간섭검사 → 자동 시트 생성 → PDF) 수행.
         /// xraySelectedNodeIndices 격리로 STRU 후손 BODY만 검사 (기존 DetectClash 그대로 활용).

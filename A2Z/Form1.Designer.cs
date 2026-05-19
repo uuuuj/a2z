@@ -1108,13 +1108,13 @@ namespace A2Z
             this.btnExportAllPDF.UseVisualStyleBackColor = true;
             this.btnExportAllPDF.Click += new System.EventHandler(this.btnExportAllPDF_Click);
             //
-            // btnExtractDrawingList — T-064 P2a 도면 리스트 뽑기 (PoC)
+            // btnExtractDrawingList — T-064 P2a 도면 일괄 출력 (라벨 변경 2026-05-19)
             //
             this.btnExtractDrawingList.Location = new System.Drawing.Point(6, 38);
             this.btnExtractDrawingList.Name = "btnExtractDrawingList";
             this.btnExtractDrawingList.Size = new System.Drawing.Size(120, 28);
             this.btnExtractDrawingList.TabIndex = 5;
-            this.btnExtractDrawingList.Text = "도면 리스트 뽑기";
+            this.btnExtractDrawingList.Text = "도면 일괄 출력";
             this.btnExtractDrawingList.UseVisualStyleBackColor = true;
             this.btnExtractDrawingList.Click += new System.EventHandler(this.btnExtractDrawingList_Click);
             //
@@ -1455,7 +1455,7 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colSheetCount;
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnGenerateSheets;
-        private System.Windows.Forms.Button btnExtractDrawingList;  // T-064 P2a — 도면 리스트 뽑기 PoC
+        private System.Windows.Forms.Button btnExtractDrawingList;  // T-064 P2a — 도면 일괄 출력 (라벨 변경 2026-05-19)
         private System.Windows.Forms.Button btnMfgDrawingSheet;
         private System.Windows.Forms.Button btnGenerateSheet2D;
         private System.Windows.Forms.Button btnExportSheet2DPDF;
