@@ -695,12 +695,15 @@ namespace A2Z
 
                 try
                 {
-                    // 시트 클릭 시뮬 (사용자 평소 동작 = lvDrawingSheet 행 선택)
+                    // Step A (2026-05-19): UI 트릭(lvi.Selected=true + DoEvents + Sleep) 제거 →
+                    //   ApplySheetSelection(sheet) 직접 호출. 시트당 200ms 단축 + 이벤트 타이밍 의존 제거.
+                    //   UI 선택 표시는 시각 일관성 위해 유지 (사용자가 진행 중 어떤 시트 처리되는지 확인 가능)
                     foreach (ListViewItem sel in lvDrawingSheet.SelectedItems) sel.Selected = false;
                     lvi.Selected = true;
                     lvi.EnsureVisible();
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(200);
+
+                    // = LvDrawingSheet_SelectedIndexChanged 본체 (이벤트 시뮬 X, 메서드 직접 호출)
+                    ApplySheetSelection(sheet);
 
                     // = btnGenerateSheet2D_Click 흐름 ("2D 출력" 버튼)
                     GenerateSheetDrawing2D(sheet);
