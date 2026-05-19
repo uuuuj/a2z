@@ -296,9 +296,15 @@ namespace A2Z
                     .ToList();
                 if (memberIndices.Count == 0) return;
 
-                // 카메라 fit만 — Select/RestoreColorAll 호출 없음 (체크 강조 보존)
+                // STRU 부재 활성화 (2026-05-19, 사용자 사양: "최소한 그 부재는 활성화돼야 한다")
+                //   - 다른 부재 가시성은 손대지 않음 (사용자: "활성화/비활성화 처리는 무거워 보임" 우려 반영 = Show 호출 최소화)
+                //   - Show API 자체는 가벼운 SDK 호출 (visible 플래그만 설정)
+                //   - 체크 강조(색상) 보존은 RestoreColorAll/Select 미호출로 그대로 유지
+                vizcore3d.Object3D.Show(memberIndices, true);
+
+                // 카메라 fit
                 vizcore3d.View.FlyToObject3d(memberIndices, 1.2f);
-                DiagLog($"T-064 ClbStru Select '{struNode.NodeName ?? struNode.NodePath}' fit BODY={memberIndices.Count}");
+                DiagLog($"T-064 ClbStru Select '{struNode.NodeName ?? struNode.NodePath}' show+fit BODY={memberIndices.Count}");
             }
             catch (Exception ex)
             {
