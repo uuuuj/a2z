@@ -512,18 +512,28 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 도면 시트 선택 시 X-Ray + 치수 표시
+        /// 도면 시트 선택 시 X-Ray + 치수 표시 (UI 이벤트 → ApplySheetSelection 위임)
         /// </summary>
         private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lvDrawingSheet.SelectedItems.Count == 0)
             {
                 // [T-016 진단 로그] 빈 선택 (이벤트 두 번 발생 패턴)
-                DiagLog($"LvDrawingSheet_SelectedIndexChanged SKIP (no selection)");
+                DiagLog("LvDrawingSheet_SelectedIndexChanged SKIP (no selection)");
                 return;
             }
-
             DrawingSheetData sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            ApplySheetSelection(sheet);
+        }
+
+        /// <summary>
+        /// 도면 시트 적용 본체 — Step A (2026-05-19): 수동 클릭(LvDrawingSheet_SelectedIndexChanged)과
+        /// 자동 일괄 출력(ProcessSingleStruFull) 양쪽이 공통으로 호출하는 단일 진입점.
+        /// 자동 경로의 lvi.Selected=true + Thread.Sleep(200) UI 트릭 제거를 위해 추출.
+        /// 가시성·XRay·SilhouetteEdge·하이라이트·치수 분기·BOM 수집·카메라 회전 보존 모두 포함.
+        /// </summary>
+        public void ApplySheetSelection(DrawingSheetData sheet)
+        {
             if (sheet == null || sheet.MemberIndices.Count == 0)
             {
                 // [T-016 진단 로그] 무효 시트
