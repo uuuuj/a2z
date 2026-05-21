@@ -31,6 +31,13 @@ namespace A2Z
         public float OrientationAngle { get; set; }
 
         /// <summary>
+        /// Step B3 (2026-05-19): 코어가 vizcore3d.ShapeDrawing.AddLine으로 등록한 보조선 ID 목록.
+        /// 자동 어댑터(RenderMfgViewForDrawing)가 Add2DObjectFromShapeDrawing 호출에 사용.
+        /// 수동 어댑터(ExecuteMfgDrawing)는 3D 시각화만 하므로 미사용.
+        /// </summary>
+        public System.Collections.Generic.List<int> ShapeDrawingIds { get; set; } = new System.Collections.Generic.List<int>();
+
+        /// <summary>
         /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).
         /// LvDrawingSheet_SelectedIndexChanged의 시트 진입 후처리 회전 분기에서 사용.
         /// </summary>
