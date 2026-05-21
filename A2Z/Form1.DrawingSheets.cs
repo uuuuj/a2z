@@ -672,19 +672,19 @@ namespace A2Z
             //       BeginUpdate가 막지 못함. ExecuteMfgDrawing 이후 외부 FitToView가 모두 제거됐으므로
             //       카메라 위치는 변하지 않음 → **SetCameraData 호출 불필요**. ScreenAxisRotation만 재적용.
             //       (만약 회전이 ExecuteMfgDrawing 직후 그대로 유지된다면 이 블록 자체도 no-op)
-            if (sheet.BaseMemberIndex == -3 && (_mfgDrawingZ90Applied || _mfgDrawingR180Applied))
+            if (sheet.BaseMemberIndex == -3 && (_lastMfgViewPose?.ApplyZ90 == true || _lastMfgViewPose?.ApplyR180 == true))
             {
                 try
                 {
                     // BeginUpdate로 감싸 회전 적용 시점을 1회 paint로 통합
                     vizcore3d.BeginUpdate();
 
-                    if (_mfgDrawingZ90Applied)
+                    if (_lastMfgViewPose?.ApplyZ90 == true)
                     {
                         vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                         vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                     }
-                    if (_mfgDrawingR180Applied)
+                    if (_lastMfgViewPose?.ApplyR180 == true)
                     {
                         vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                         vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
@@ -693,7 +693,7 @@ namespace A2Z
                     vizcore3d.EndUpdate();
 
                     DiagLog($"T-036 카메라 회전 재적용: sheet#={sheet.SheetNumber} " +
-                        $"Z90={_mfgDrawingZ90Applied} R180={_mfgDrawingR180Applied}");
+                        $"Z90={_lastMfgViewPose?.ApplyZ90} R180={_lastMfgViewPose?.ApplyR180}");
                 }
                 catch (Exception ex)
                 {
