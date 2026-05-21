@@ -130,9 +130,115 @@ namespace A2Z
             //   ExecuteMfgDrawing / RenderMfgViewForDrawing 양쪽에서 LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90).
             //   B1b1a는 결정만, 어댑터가 적용.
             pose.ApplyZ90 = (pose.LongestAxis == "Z");
-            pose.ApplyR180 = false;  // EA 분기(isEA=false dead). B1b2에서 활성 시 갱신
 
-            // B1b1b/c에서 추가 채울 필드: CameraData (Osnap 후 GetCameraData), 그 외 풍선 데이터
+            // ── 5. Osnap 수집 (LINE/POINT만, CIRCLE 제외 — T-064 사양) ──
+            //   B1b1b 추가 (2026-05-19): 자동 함수 본체 L1004~L1027 추출.
+            var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+            var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+            if (osnapListMfg != null)
+            {
+                foreach (var osnap in osnapListMfg)
+                {
+                    switch (osnap.Kind)
+                    {
+                        case VIZCore3D.NET.Data.OsnapKind.LINE:
+                            if (osnap.Start != null)
+                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), bom.Name));
+                            if (osnap.End != null)
+                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
+                            break;
+                        case VIZCore3D.NET.Data.OsnapKind.POINT:
+                            if (osnap.Center != null)
+                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
+                            break;
+                        // T-064 (2026-05-14): CIRCLE Osnap 치수 추출 제외 (홀 과다 치수 회피)
+                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
+                            break;
+                    }
+                }
+            }
+
+            // ── 5-1. EA 앵글 카메라 보정 (isEA=false 비활성, 사용자 사양 보존) ──
+            //   메모리 feedback_isea_preservation.md — isEA false 고정은 사용자 의도된 비활성화, 제거 금지.
+            //   B1b1b 추가 (2026-05-19): 자동 함수 본체 L1029~L1105 추출 (분기 그대로).
+            bool isEA = false;  // 옛: IsAngleFromSpref(bom.Index)
+            bool isAboveWider = false;
+            bool isLShape = false;
+            bool isMinusCameraSelected = false;
+            bool isEAUse180 = false;
+
+            if (isEA && mfgOsnapWithNames.Count > 0)
+            {
+                float bbCenterH = 0f, bbCenterV = 0f;
+                float sumH = 0f, sumV = 0f;
+                foreach (var pt in mfgOsnapWithNames)
+                {
+                    switch (viewDirection)
+                    {
+                        case "X": sumH += pt.point.Y; sumV += pt.point.Z; break;
+                        case "Y": sumH += pt.point.X; sumV += pt.point.Z; break;
+                        default:  sumH += pt.point.X; sumV += pt.point.Y; break;
+                    }
+                }
+                float centroidH = sumH / mfgOsnapWithNames.Count;
+                float centroidV = sumV / mfgOsnapWithNames.Count;
+                switch (viewDirection)
+                {
+                    case "X": bbCenterH = (bom.MinY + bom.MaxY) / 2f; bbCenterV = (bom.MinZ + bom.MaxZ) / 2f; break;
+                    case "Y": bbCenterH = (bom.MinX + bom.MaxX) / 2f; bbCenterV = (bom.MinZ + bom.MaxZ) / 2f; break;
+                    default:  bbCenterH = (bom.MinX + bom.MaxX) / 2f; bbCenterV = (bom.MinY + bom.MaxY) / 2f; break;
+                }
+
+                float openH = bbCenterH - centroidH;
+                float openV = bbCenterV - centroidV;
+                bool use180 = (openV > 0);
+
+                bool useMinus;
+                if (viewDirection == "Y")
+                {
+                    bool needRight = use180 ? (openH < 0) : (openH > 0);
+                    useMinus = !needRight;
+                }
+                else
+                {
+                    bool needRight = use180 ? (openH > 0) : (openH < 0);
+                    useMinus = !needRight;
+                }
+
+                isMinusCameraSelected = useMinus;
+
+                if (useMinus)
+                {
+                    switch (viewDirection)
+                    {
+                        case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_MINUS); break;
+                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
+                        default:  vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_MINUS); break;
+                    }
+                    ApplyOrientationRotation(bom.Index, viewDirection);
+                }
+
+                if (use180)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                }
+
+                isEAUse180 = use180;
+                isAboveWider = false;
+                isLShape = true;
+            }
+
+            // ── 5-2. 은선 Osnap 필터링 (카메라 방향 결정 후 적용) ──
+            mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
+                bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
+
+            // pose 갱신 — EA 분기 결과 반영 (isEA=false면 모두 false 유지)
+            pose.UsedMinusCamera = isMinusCameraSelected;
+            pose.ApplyR180 = isEAUse180;
+
+            // B1b1c (예정): mfgOsnapWithNames → MergeCoordinates → AddChainDimensionByAxis 치수 계산
+            // B1b2  (예정): 풍선 4분면 배치 (자동 함수 L1195~L1527 추출)
             return pose;
         }
 
