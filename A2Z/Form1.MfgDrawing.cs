@@ -127,7 +127,7 @@ namespace A2Z
             pose.OrientationAngle = orientAngle_saved;
 
             // Z 최장축 시 90° 회전 결정 (실제 적용은 어댑터)
-            //   ExecuteMfgDrawing / RenderMfgViewForDrawing 양쪽에서 LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90).
+            //   ExecuteMfgDrawing / RenderMfgViewForDrawing 양쪽에서 pose.LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90).
             //   B1b1a는 결정만, 어댑터가 적용.
             pose.ApplyZ90 = (pose.LongestAxis == "Z");
 
@@ -384,7 +384,342 @@ namespace A2Z
                 }
             }
 
-            // B1b2 (예정): 풍선 4분면 배치 (자동 함수 본체 풍선 영역 추출 + Clear 제거)
+            // ── 8. 풍선 4분면 배치 (B1b2 2026-05-19) ──
+            //   자동 함수 본체 L1518~L1850 추출. 색상 Cyan → Blue 통일 (수동 스타일).
+            //   Note.Clear()/noteIds.Clear()는 어댑터(B2/B3)에서 제거 — 코어는 vizcore3d.Review.Note.Add 호출.
+            // 8. 풍선 배치 — 4분면 가상선 방식 + 체인치수 겹침 방지
+
+            // 뷰 방향별 축 매핑 (hAxis=화면 수평, vAxis=화면 수직, dAxis=깊이)
+            int bHAxis_m, bVAxis_m, bDAxis_m;
+            switch (viewDirection)
+            {
+                case "X": bHAxis_m = 1; bVAxis_m = 2; bDAxis_m = 0; break; // H=Y, V=Z, D=X
+                case "Y": bHAxis_m = 0; bVAxis_m = 2; bDAxis_m = 1; break; // H=X, V=Z, D=Y
+                default:  bHAxis_m = 0; bVAxis_m = 1; bDAxis_m = 2; break; // H=X, V=Y, D=Z
+            }
+
+            float[] mfgMinArr = { bom.MinX, bom.MinY, bom.MinZ };
+            float[] mfgMaxArr = { bom.MaxX, bom.MaxY, bom.MaxZ };
+            float modelMinH_m = mfgMinArr[bHAxis_m];
+            float modelMaxH_m = mfgMaxArr[bHAxis_m];
+            float modelMinV_m = mfgMinArr[bVAxis_m];
+            float modelMaxV_m = mfgMaxArr[bVAxis_m];
+
+            // ── 체인치수 실제 끝단 좌표 계산 ──
+            float dimExtMinH_m = modelMinH_m;
+            float dimExtMaxH_m = modelMaxH_m;
+            float dimExtMinV_m = modelMinV_m;
+            float dimExtMaxV_m = modelMaxV_m;
+
+            if (hasDimensions)
+            {
+                // Osnap에서 추출된 치수 데이터가 있으면 실제 치수선 끝단 추적
+                float tolerance_m = 0.5f;
+                var mergedPts_m = MergeCoordinates(mfgOsnapWithNames, tolerance_m);
+                List<string> visAxes_m = new List<string>();
+                switch (viewDirection)
+                {
+                    case "X": visAxes_m.Add("Y"); visAxes_m.Add("Z"); break;
+                    case "Y": visAxes_m.Add("X"); visAxes_m.Add("Z"); break;
+                    default:  visAxes_m.Add("X"); visAxes_m.Add("Y"); break;
+                }
+                var allMfgDims = new List<ChainDimensionData>();
+                foreach (var ax in visAxes_m)
+                    allMfgDims.AddRange(AddChainDimensionByAxis(mergedPts_m, ax, tolerance_m, viewDirection));
+
+                // 축별 오프셋 방향 (이미 계산된 mfgAxisPosOff 활용 가능하지만, 안전을 위해 재참조)
+                float mfgCX = (bom.MinX + bom.MaxX) / 2f;
+                float mfgCY = (bom.MinY + bom.MaxY) / 2f;
+                float mfgCZ = (bom.MinZ + bom.MaxZ) / 2f;
+
+                // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
+                var mfgAxisPosOff_m = new Dictionary<string, bool>();
+                foreach (var grp in allMfgDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
+                {
+                    string offAxis = GetRemainingAxis(viewDirection, grp.Key);
+                    float cv2 = offAxis == "X" ? mfgCX : offAxis == "Y" ? mfgCY : mfgCZ;
+                    var values = grp.SelectMany(d => new[]
+                    {
+                        GetAxisValue(d.StartPoint, offAxis),
+                        GetAxisValue(d.EndPoint, offAxis)
+                    });
+                    mfgAxisPosOff_m[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv2);
+                }
+
+                // EA 앵글: 체인치수 방향 오버라이드 (풍선 위치 계산용)
+                if (isEA)
+                {
+                    if (mfgAxisPosOff_m.ContainsKey(pose.LongestAxis))
+                        mfgAxisPosOff_m[pose.LongestAxis] = !isAboveWider;
+                    foreach (string ax in new List<string>(mfgAxisPosOff_m.Keys))
+                    {
+                        if (ax != pose.LongestAxis)
+                            mfgAxisPosOff_m[ax] = isLShape;
+                    }
+                }
+
+                // 모델 가시 축 최소 크기 → 작은 모델이면 보조선 오프셋 50% 축소
+                float visExt1_m = 0f, visExt2_m = 0f;
+                switch (viewDirection)
+                {
+                    case "X": visExt1_m = bom.MaxY - bom.MinY; visExt2_m = bom.MaxZ - bom.MinZ; break;
+                    case "Y": visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxZ - bom.MinZ; break;
+                    default:  visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxY - bom.MinY; break;
+                }
+                float minVisExt_m = Math.Min(visExt1_m, visExt2_m);
+                float offFactor_m = (minVisExt_m < 100f) ? 0.5f : 1.0f;
+
+                float mfgOff1 = 100.0f * offFactor_m, mfgOff2 = 200.0f * offFactor_m;
+                float maxTotalDist_m = 0f;
+                foreach (var td in allMfgDims.Where(d => d.IsTotal && d.IsVisible))
+                {
+                    float dist2 = 0f;
+                    switch (td.Axis)
+                    {
+                        case "X": dist2 = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
+                        case "Y": dist2 = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
+                        case "Z": dist2 = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
+                    }
+                    if (dist2 > maxTotalDist_m) maxTotalDist_m = dist2;
+                }
+                float mfgTotalOff_m = (maxTotalDist_m > 1000.0f ? 300.0f : 250.0f) * offFactor_m;
+
+                foreach (var dim in allMfgDims.Where(d => d.IsVisible))
+                {
+                    float dimOff;
+                    if (dim.IsTotal)
+                        dimOff = mfgTotalOff_m;
+                    else if (dim.DisplayLevel > 0)
+                        dimOff = mfgOff2;
+                    else
+                        dimOff = mfgOff1;
+
+                    string offAxis = GetRemainingAxis(viewDirection, dim.Axis);
+                    bool posOff = mfgAxisPosOff_m.ContainsKey(dim.Axis) && mfgAxisPosOff_m[dim.Axis];
+                    float baseline2 = 0;
+                    switch (offAxis)
+                    {
+                        case "X": baseline2 = posOff ? bom.MaxX : bom.MinX; break;
+                        case "Y": baseline2 = posOff ? bom.MaxY : bom.MinY; break;
+                        case "Z": baseline2 = posOff ? bom.MaxZ : bom.MinZ; break;
+                    }
+                    float dimLinePos = posOff ? (baseline2 + dimOff) : (baseline2 - dimOff);
+
+                    int offAxisIdx = offAxis == "X" ? 0 : (offAxis == "Y" ? 1 : 2);
+                    if (offAxisIdx == bHAxis_m)
+                    {
+                        dimExtMinH_m = Math.Min(dimExtMinH_m, dimLinePos);
+                        dimExtMaxH_m = Math.Max(dimExtMaxH_m, dimLinePos);
+                    }
+                    else if (offAxisIdx == bVAxis_m)
+                    {
+                        dimExtMinV_m = Math.Min(dimExtMinV_m, dimLinePos);
+                        dimExtMaxV_m = Math.Max(dimExtMaxV_m, dimLinePos);
+                    }
+
+                    // 치수선 자체의 H/V 범위
+                    float[] dimStartArr = { dim.StartPoint.X, dim.StartPoint.Y, dim.StartPoint.Z };
+                    float[] dimEndArr = { dim.EndPoint.X, dim.EndPoint.Y, dim.EndPoint.Z };
+                    dimExtMinH_m = Math.Min(dimExtMinH_m, Math.Min(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
+                    dimExtMaxH_m = Math.Max(dimExtMaxH_m, Math.Max(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
+                    dimExtMinV_m = Math.Min(dimExtMinV_m, Math.Min(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
+                    dimExtMaxV_m = Math.Max(dimExtMaxV_m, Math.Max(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
+                }
+            }
+
+            // ── 가상 사각형 경계선: 체인치수 끝단 바깥에 풍선 배치 ──
+            float dimMargin_m = 30f;
+            float rectLeft_m  = dimExtMinH_m - dimMargin_m;
+            float rectRight_m = dimExtMaxH_m + dimMargin_m;
+
+            float modelSpan_m = Math.Max(modelMaxH_m - modelMinH_m, modelMaxV_m - modelMinV_m);
+            float balloonSpacing_m = Math.Max(20f, modelSpan_m * 0.04f);
+
+            float textGap_m = Math.Max(4f, modelSpan_m * 0.006f);
+            Func<string, (float w, float h)> mfgEstTextSize = (text) =>
+            {
+                float charWidth = Math.Max(3f, modelSpan_m * 0.005f);
+                float lineHeight = Math.Max(7f, modelSpan_m * 0.009f);
+                return (text.Length * charWidth + textGap_m, lineHeight + textGap_m);
+            };
+
+            // --- 풍선 항목 수집 ---
+            List<(float originH, float originV, float depthVal, string text, Color color,
+                  float arrowX, float arrowY, float arrowZ)> mfgBalloonEntries =
+                new List<(float, float, float, string, Color, float, float, float)>();
+
+            // 반지름 풍선 수집
+            bool isTrueCylinder = false;
+            if (bom.CircleRadius > 0)
+            {
+                float diam = bom.CircleRadius * 2f;
+                float bsX = Math.Abs(bom.MaxX - bom.MinX);
+                float bsY = Math.Abs(bom.MaxY - bom.MinY);
+                float bsZ = Math.Abs(bom.MaxZ - bom.MinZ);
+                float ct = Math.Max(2f, diam * 0.2f);
+                int mCnt = 0;
+                if (Math.Abs(bsX - diam) < ct) mCnt++;
+                if (Math.Abs(bsY - diam) < ct) mCnt++;
+                if (Math.Abs(bsZ - diam) < ct) mCnt++;
+                isTrueCylinder = mCnt >= 2;
+            }
+            if (isTrueCylinder)
+            {
+                float oH_c = mfgMaxArr[bHAxis_m] / 2f + mfgMinArr[bHAxis_m] / 2f; // center H
+                float oV_c = mfgMaxArr[bVAxis_m] / 2f + mfgMinArr[bVAxis_m] / 2f; // center V
+                float depthVal = viewDirection == "X" ? bom.CenterX : viewDirection == "Y" ? bom.CenterY : bom.CenterZ;
+                mfgBalloonEntries.Add((oH_c, oV_c, depthVal,
+                    $"R{bom.CircleRadius:F1}", Color.Red,
+                    bom.CenterX, bom.CenterY, bom.CenterZ));
+            }
+
+            // 홀 풍선 수집
+            if (bom.Holes != null && bom.Holes.Count > 0)
+            {
+                try
+                {
+                    var mfgHoleGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
+                    foreach (var grp in mfgHoleGroups)
+                    {
+                        int hCount = grp.Count();
+                        string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
+                        var hole = grp.First();
+                        float[] holeArr = { hole.CenterX, hole.CenterY, hole.CenterZ };
+                        float oH = holeArr[bHAxis_m];
+                        float oV = holeArr[bVAxis_m];
+                        float depthVal = holeArr[bDAxis_m];
+                        mfgBalloonEntries.Add((oH, oV, depthVal, holeText, Color.FromArgb(0, 160, 0),
+                            hole.CenterX, hole.CenterY, hole.CenterZ));
+                    }
+                }
+                catch { }
+            }
+
+            // 슬롯홀 풍선 수집
+            if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
+            {
+                try
+                {
+                    var slotGroups = bom.SlotHoles.GroupBy(s =>
+                        $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
+                    foreach (var grp in slotGroups)
+                    {
+                        var slot = grp.First();
+                        int sCount = grp.Count();
+                        float slotWidth = slot.Radius * 2f;
+                        string slotText = sCount > 1
+                            ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
+                            : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
+                        float[] slotArr = { slot.CenterX, slot.CenterY, slot.CenterZ };
+                        float oH = slotArr[bHAxis_m];
+                        float oV = slotArr[bVAxis_m];
+                        float depthVal = slotArr[bDAxis_m];
+                        mfgBalloonEntries.Add((oH, oV, depthVal, slotText, Color.FromArgb(180, 0, 180),
+                            slot.CenterX, slot.CenterY, slot.CenterZ));
+                    }
+                }
+                catch { }
+            }
+
+            // --- 풍선 일괄 배치 (4분면 가상선 방식 + 체인치수 겹침 방지) ---
+            float modelCenterH_m = (modelMinH_m + modelMaxH_m) / 2f;
+            float modelCenterV_m = (modelMinV_m + modelMaxV_m) / 2f;
+
+            // 0=왼쪽위, 1=왼쪽아래, 2=오른쪽위, 3=오른쪽아래
+            var mfgSortedBalloons = new List<(int quadrant, float originH, float originV, float depthVal,
+                string text, Color color, float arrowX, float arrowY, float arrowZ, float sortKey)>();
+
+            foreach (var entry in mfgBalloonEntries)
+            {
+                bool isLeft = entry.originH <= modelCenterH_m;
+                bool isTop  = entry.originV >= modelCenterV_m;
+
+                int quadrant;
+                float sortKey;
+                if (isLeft && isTop)       { quadrant = 0; sortKey = -entry.originV; }
+                else if (isLeft && !isTop)  { quadrant = 1; sortKey = entry.originV; }
+                else if (!isLeft && isTop)  { quadrant = 2; sortKey = -entry.originV; }
+                else                        { quadrant = 3; sortKey = entry.originV; }
+
+                mfgSortedBalloons.Add((quadrant, entry.originH, entry.originV, entry.depthVal,
+                    entry.text, entry.color, entry.arrowX, entry.arrowY, entry.arrowZ, sortKey));
+            }
+
+            mfgSortedBalloons.Sort((a, b) =>
+            {
+                int sc = a.quadrant.CompareTo(b.quadrant);
+                return sc != 0 ? sc : a.sortKey.CompareTo(b.sortKey);
+            });
+
+            // 각 분면별 V 시작점 (체인치수 끝단 바깥)
+            float leftTopNextV_m  = dimExtMaxV_m;
+            float leftBotNextV_m  = dimExtMinV_m;
+            float rightTopNextV_m = dimExtMaxV_m;
+            float rightBotNextV_m = dimExtMinV_m;
+
+            foreach (var balloon in mfgSortedBalloons)
+            {
+                try
+                {
+                    var textSz = mfgEstTextSize(balloon.text);
+                    float textW = textSz.w;
+                    float textH = textSz.h;
+
+                    float textPosH, textPosV;
+                    switch (balloon.quadrant)
+                    {
+                        case 0: // 왼쪽위
+                            textPosH = rectLeft_m;
+                            textPosV = leftTopNextV_m;
+                            leftTopNextV_m -= (textH + balloonSpacing_m);
+                            break;
+                        case 1: // 왼쪽아래
+                            textPosH = rectLeft_m;
+                            textPosV = leftBotNextV_m;
+                            leftBotNextV_m += (textH + balloonSpacing_m);
+                            break;
+                        case 2: // 오른쪽위
+                            textPosH = rectRight_m;
+                            textPosV = rightTopNextV_m;
+                            rightTopNextV_m -= (textH + balloonSpacing_m);
+                            break;
+                        case 3: // 오른쪽아래
+                            textPosH = rectRight_m;
+                            textPosV = rightBotNextV_m;
+                            rightBotNextV_m += (textH + balloonSpacing_m);
+                            break;
+                        default:
+                            textPosH = rectRight_m;
+                            textPosV = balloon.originV;
+                            break;
+                    }
+
+                    // 3D 좌표 복원
+                    float[] xyz = new float[3];
+                    xyz[bHAxis_m] = textPosH;
+                    xyz[bVAxis_m] = textPosV;
+                    xyz[bDAxis_m] = balloon.depthVal;
+
+                    VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(xyz[0], xyz[1], xyz[2]);
+                    VIZCore3D.NET.Data.Vertex3D arrowPos = new VIZCore3D.NET.Data.Vertex3D(
+                        balloon.arrowX, balloon.arrowY, balloon.arrowZ);
+
+                    VIZCore3D.NET.Data.NoteStyle mfgNoteStyle = vizcore3d.Review.Note.GetStyle();
+                    mfgNoteStyle.UseSymbol = false;
+                    mfgNoteStyle.BackgroudTransparent = true;
+                    mfgNoteStyle.FontBold = true;
+                    mfgNoteStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                    mfgNoteStyle.FontColor = balloon.color;
+                    mfgNoteStyle.LineColor = balloon.color;
+                    mfgNoteStyle.LineWidth = 1;
+                    mfgNoteStyle.ArrowColor = balloon.color;
+                    mfgNoteStyle.ArrowWidth = 2;
+
+                    vizcore3d.Review.Note.AddNoteSurface(balloon.text, textPos, arrowPos, mfgNoteStyle);
+                }
+                catch { }
+            }
+
             return pose;
         }
 
