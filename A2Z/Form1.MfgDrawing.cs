@@ -57,12 +57,83 @@ namespace A2Z
         ///   - RenderMfgViewForDrawing (자동, 2D 캡처): pose는 지역변수만 사용 (write scope X).
         ///     2D 변환 후 noteIds.Clear() — 사용자 사양(T-064) 그대로 보존 (가공도 PDF 풍선 비활성).
         ///
-        /// B1a (skeleton): 빈 스텁. B1b에서 본문 추출.
+        /// B1a (2026-05-19): skeleton + Models/MfgViewPose.cs.
+        /// B1b1a (2026-05-19): 격리·BBox·축·카메라·ORIENTATION 추출 (호출자 0건).
+        /// B1b1b (예정): Osnap·치수.
+        /// B1b1c (예정): 풍선 4분면 배치.
+        /// B2/B3 (예정): ExecuteMfgDrawing / RenderMfgViewForDrawing 어댑터 변환.
         /// </summary>
         private MfgViewPose BuildMfgSceneCore(int bomIndex)
         {
-            throw new System.NotImplementedException(
-                "Step B1b에서 ExecuteMfgDrawing + RenderMfgViewForDrawing 공통 3D 장면 로직 추출 예정");
+            var pose = new MfgViewPose();
+
+            BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
+            if (bom == null) return pose;
+
+            // ── 1. 부재 격리: 전체 숨김 → 해당 bom만 Show ──
+            //   BeginUpdate/EndUpdate는 호출자(어댑터)가 자기 범위로 관리.
+            vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+            List<int> targetIndices = new List<int> { bom.Index };
+            vizcore3d.Object3D.Show(targetIndices, true);
+
+            // ── 2. BBox + 최장축 판별 ──
+            float sizeX = bom.MaxX - bom.MinX;
+            float sizeY = bom.MaxY - bom.MinY;
+            float sizeZ = bom.MaxZ - bom.MinZ;
+
+            if (sizeX >= sizeY && sizeX >= sizeZ) pose.LongestAxis = "X";
+            else if (sizeY >= sizeX && sizeY >= sizeZ) pose.LongestAxis = "Y";
+            else pose.LongestAxis = "Z";
+
+            // ── 3. 카메라 방향 결정 (PAD/PLATE 분기) ──
+            bool isPadOrPlate = IsPadOrPlateFromSpref(bom.Index);
+            string viewDirection;
+            VIZCore3D.NET.Data.CameraDirection cameraDir;
+
+            if (isPadOrPlate)
+            {
+                // PAD/PLATE: 최단축 방향 (평판을 정면에서 봄)
+                string shortestAxis;
+                if (sizeX <= sizeY && sizeX <= sizeZ) shortestAxis = "X";
+                else if (sizeY <= sizeX && sizeY <= sizeZ) shortestAxis = "Y";
+                else shortestAxis = "Z";
+
+                switch (shortestAxis)
+                {
+                    case "X": viewDirection = "X"; cameraDir = VIZCore3D.NET.Data.CameraDirection.X_PLUS; break;
+                    case "Y": viewDirection = "Y"; cameraDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS; break;
+                    default:  viewDirection = "Z"; cameraDir = VIZCore3D.NET.Data.CameraDirection.Z_PLUS; break;
+                }
+            }
+            else
+            {
+                // 일반: 최장축이 수평으로 보이는 방향
+                switch (pose.LongestAxis)
+                {
+                    case "Y": viewDirection = "X"; cameraDir = VIZCore3D.NET.Data.CameraDirection.X_PLUS; break;
+                    default:  viewDirection = "Y"; cameraDir = VIZCore3D.NET.Data.CameraDirection.Y_PLUS; break;
+                }
+            }
+
+            vizcore3d.View.MoveCamera(cameraDir);
+            pose.ViewDirection = viewDirection;
+            pose.CameraDirection = cameraDir;
+            pose.UsedMinusCamera = false;  // B1b2에서 EA/MINUS 분기 시 갱신
+
+            // ── 4. ORIENTATION UDA 기반 카메라 회전 ──
+            var (orientAxis_saved, orientAngle_saved) = ParseOrientation(bom.Index);
+            ApplyOrientationRotation(bom.Index, viewDirection);
+            pose.OrientationAxis = orientAxis_saved;
+            pose.OrientationAngle = orientAngle_saved;
+
+            // Z 최장축 시 90° 회전 결정 (실제 적용은 어댑터)
+            //   ExecuteMfgDrawing / RenderMfgViewForDrawing 양쪽에서 LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90).
+            //   B1b1a는 결정만, 어댑터가 적용.
+            pose.ApplyZ90 = (pose.LongestAxis == "Z");
+            pose.ApplyR180 = false;  // EA 분기(isEA=false dead). B1b2에서 활성 시 갱신
+
+            // B1b1b/c에서 추가 채울 필드: CameraData (Osnap 후 GetCameraData), 그 외 풍선 데이터
+            return pose;
         }
 
         /// <summary>

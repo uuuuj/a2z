@@ -27,6 +27,7 @@ namespace A2Z
         public bool UsedMinusCamera { get; set; }
         public bool ApplyZ90 { get; set; }
         public bool ApplyR180 { get; set; }
+        public string OrientationAxis { get; set; }
         public float OrientationAngle { get; set; }
 
         /// <summary>
