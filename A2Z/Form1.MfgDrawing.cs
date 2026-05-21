@@ -237,8 +237,154 @@ namespace A2Z
             pose.UsedMinusCamera = isMinusCameraSelected;
             pose.ApplyR180 = isEAUse180;
 
-            // B1b1c (예정): mfgOsnapWithNames → MergeCoordinates → AddChainDimensionByAxis 치수 계산
-            // B1b2  (예정): 풍선 4분면 배치 (자동 함수 L1195~L1527 추출)
+            // ── 6. 치수 계산 (MergeCoordinates + AddChainDimensionByAxis) ──
+            //   B1b1c (2026-05-19): 자동 본체 L1217~L1369 추출.
+            //   색상 통일 (사용자 사양 2026-05-19): Cyan → Blue (수동 스타일 채택).
+            bool hasDimensions = mfgOsnapWithNames.Count > 0;
+            float mfgTotalOff = 250.0f;
+            var mfgDimensions = new List<ChainDimensionData>();
+            var shapeDrawingIds = new List<int>();
+
+            if (hasDimensions)
+            {
+                float tolerance = 0.5f;
+                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(mfgOsnapWithNames, tolerance);
+
+                List<string> mfgVisibleAxes = new List<string>();
+                switch (viewDirection)
+                {
+                    case "X": mfgVisibleAxes.Add("Y"); mfgVisibleAxes.Add("Z"); break;
+                    case "Y": mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Z"); break;
+                    default:  mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Y"); break;
+                }
+
+                foreach (var ax in mfgVisibleAxes)
+                    mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
+
+                // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
+                float maxTotalDist = 0f;
+                foreach (var td in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
+                {
+                    float dist = 0f;
+                    switch (td.Axis)
+                    {
+                        case "X": dist = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
+                        case "Y": dist = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
+                        case "Z": dist = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
+                    }
+                    if (dist > maxTotalDist) maxTotalDist = dist;
+                }
+                mfgTotalOff = maxTotalDist > 1000.0f ? 300.0f : 250.0f;
+
+                if (mfgDimensions.Count > 0)
+                {
+                    // 7. 치수 그리기 (수동 스타일 Blue, 사용자 사양 2026-05-19)
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
+
+                    VIZCore3D.NET.Data.MeasureStyle mfgStyle = vizcore3d.Review.Measure.GetStyle();
+                    mfgStyle.Prefix = false;
+                    mfgStyle.Unit = false;
+                    mfgStyle.NumberOfDecimalPlaces = 0;
+                    mfgStyle.DX_DY_DZ = false;
+                    mfgStyle.Frame = false;
+                    mfgStyle.ContinuousDistance = false;
+                    mfgStyle.BackgroundTransparent = true;
+                    mfgStyle.FontColor = System.Drawing.Color.Blue;       // ← 통일 Blue (옛 Cyan)
+                    mfgStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                    mfgStyle.FontBold = true;
+                    mfgStyle.LineColor = System.Drawing.Color.Blue;       // ← 통일 Blue
+                    mfgStyle.LineWidth = 1;
+                    mfgStyle.ArrowColor = System.Drawing.Color.Blue;      // ← 통일 Blue
+                    mfgStyle.ArrowSize = 5;
+                    mfgStyle.AssistantLine = false;
+                    mfgStyle.AlignDistanceText = true;
+                    mfgStyle.AlignDistanceTextMargine = 3;
+                    vizcore3d.Review.Measure.SetStyle(mfgStyle);
+
+                    float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
+                    float mfgGlobalMaxX = bom.MaxX, mfgGlobalMaxY = bom.MaxY, mfgGlobalMaxZ = bom.MaxZ;
+                    float mfgCenterX = (mfgGlobalMinX + mfgGlobalMaxX) / 2f;
+                    float mfgCenterY = (mfgGlobalMinY + mfgGlobalMaxY) / 2f;
+                    float mfgCenterZ = (mfgGlobalMinZ + mfgGlobalMaxZ) / 2f;
+
+                    // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
+                    var mfgAxisPosOff = new Dictionary<string, bool>();
+                    foreach (var grp in mfgDimensions.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
+                    {
+                        string offAxis = GetRemainingAxis(viewDirection, grp.Key);
+                        float centerVal = offAxis == "X" ? mfgCenterX : offAxis == "Y" ? mfgCenterY : mfgCenterZ;
+                        var values = grp.SelectMany(d => new[]
+                        {
+                            GetAxisValue(d.StartPoint, offAxis),
+                            GetAxisValue(d.EndPoint, offAxis)
+                        });
+                        mfgAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, centerVal);
+                    }
+
+                    // EA 앵글: 체인치수 방향 강제 오버라이드 (isEA=false 비활)
+                    if (isEA)
+                    {
+                        if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
+                            mfgAxisPosOff[pose.LongestAxis] = !isAboveWider;
+                        foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
+                        {
+                            if (ax != pose.LongestAxis)
+                                mfgAxisPosOff[ax] = isLShape;
+                        }
+                    }
+
+                    var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
+
+                    // 작은 모델 보조선 축소 (offFactor)
+                    float visExt1 = 0f, visExt2 = 0f;
+                    switch (viewDirection)
+                    {
+                        case "X": visExt1 = bom.MaxY - bom.MinY; visExt2 = bom.MaxZ - bom.MinZ; break;
+                        case "Y": visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxZ - bom.MinZ; break;
+                        default:  visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxY - bom.MinY; break;
+                    }
+                    float minVisExtent = Math.Min(visExt1, visExt2);
+                    float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
+
+                    float mfgChainOff1 = 50.0f * offFactor;
+                    float mfgChainOff2 = 100.0f * offFactor;
+                    mfgTotalOff *= offFactor;
+
+                    // 3 패스: level=0 / level>0 / IsTotal
+                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
+                    {
+                        if (isEA && isLShape && dim.Axis == pose.LongestAxis) continue;
+                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff1,
+                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                    }
+                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
+                    {
+                        if (isEA && isLShape && dim.Axis == pose.LongestAxis) continue;
+                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff2,
+                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                    }
+                    foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
+                    {
+                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
+                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                    }
+
+                    if (mfgExtLines.Count > 0)
+                    {
+                        int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Blue, 0.3f, true);  // ← 통일 Blue
+                        if (shapeId >= 0) shapeDrawingIds.Add(shapeId);
+                    }
+                }
+            }
+
+            // B1b2 (예정): 풍선 4분면 배치 (자동 함수 본체 풍선 영역 추출 + Clear 제거)
             return pose;
         }
 
