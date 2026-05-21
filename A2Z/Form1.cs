@@ -122,28 +122,13 @@ namespace A2Z
         private float _lastModelShiftCanvasY = 0f;
 
         /// <summary>
-        /// T-036: ExecuteMfgDrawing이 회전 직후 저장한 카메라 스냅샷.
-        /// LvDrawingSheet_SelectedIndexChanged 말미에 SetCameraData(false)로 복원해
-        /// 외부 FitToView가 카메라 위치/줌을 리셋한 경우를 방어.
-        ///
-        /// **주의 (2026-04-24 4차)**: SDK 검증 결과 `CameraData`는 `Matrix`/`Depth`/`Zoom`/`RotatePivot`/`ModelCenter`만
-        /// 포함하며 **`ScreenAxisRotation` 회전각은 별도 상태**로 관리됨 (XML L2552-2606). 그래서 SetCameraData만으로는
-        /// 화면축 회전이 복원되지 않음. 아래 _mfgDrawingZ90Applied / _mfgDrawingR180Applied 플래그로 추적해
-        /// 복원 후 RotateCameraByScreenAxis를 재호출하는 방식으로 보완.
+        /// Step B2 (2026-05-19): 가공도 공통 코어 결과 보존.
+        /// 옛 _mfgDrawingZ90Applied / _mfgDrawingR180Applied / _mfgDrawingCameraSnapshot 3 필드 통합.
+        /// ExecuteMfgDrawing(수동)이 BuildMfgSceneCore 결과로 채움.
+        /// LvDrawingSheet_SelectedIndexChanged 말미 후처리 회전이 pose.ApplyZ90 / ApplyR180 / CameraData 참조.
+        /// RenderMfgViewForDrawing(자동)은 pose write X (지역변수만, Codex P3).
         /// </summary>
-        private VIZCore3D.NET.Data.CameraData _mfgDrawingCameraSnapshot = null;
-
-        /// <summary>
-        /// T-036 4차: ExecuteMfgDrawing에서 Z 최장축 90° 회전이 적용됐는지 추적.
-        /// LvDrawingSheet 핸들러 말미 복원 단계에서 RotateCameraByScreenAxis(0,0,90)을 재적용.
-        /// </summary>
-        private bool _mfgDrawingZ90Applied = false;
-
-        /// <summary>
-        /// T-036 4차: ExecuteMfgDrawing에서 EA 앵글 R180 회전이 적용됐는지 추적.
-        /// LvDrawingSheet 핸들러 말미 복원 단계에서 RotateCameraByScreenAxis(0,0,180)을 재적용.
-        /// </summary>
-        private bool _mfgDrawingR180Applied = false;
+        private MfgViewPose _lastMfgViewPose = null;
 
         /// <summary>
         /// Osnap 자동 처리 성공 여부
