@@ -46,6 +46,26 @@ namespace A2Z
         }
 
         /// <summary>
+        /// Step B (2026-05-19): 가공도 공통 3D 장면 생성 코어.
+        /// 수동(ExecuteMfgDrawing)·자동(RenderMfgViewForDrawing) 두 함수의 공통 3D 로직을 분리.
+        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(홀/슬롯) 생성. ISO 없음(가공도 사양).
+        /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
+        ///
+        /// 호출자별 후속 처리:
+        ///   - ExecuteMfgDrawing (수동, 3D 뷰 유지): pose를 _lastMfgViewPose에 저장.
+        ///     LvDrawingSheet_SelectedIndexChanged 후처리 회전이 참조.
+        ///   - RenderMfgViewForDrawing (자동, 2D 캡처): pose는 지역변수만 사용 (write scope X).
+        ///     2D 변환 후 noteIds.Clear() — 사용자 사양(T-064) 그대로 보존 (가공도 PDF 풍선 비활성).
+        ///
+        /// B1a (skeleton): 빈 스텁. B1b에서 본문 추출.
+        /// </summary>
+        private MfgViewPose BuildMfgSceneCore(int bomIndex)
+        {
+            throw new System.NotImplementedException(
+                "Step B1b에서 ExecuteMfgDrawing + RenderMfgViewForDrawing 공통 3D 장면 로직 추출 예정");
+        }
+
+        /// <summary>
         /// 가공도 핵심 로직 (BOM Index를 받아서 가공도 출력)
         /// btnMfgDrawing_Click과 도면정보 탭 가공도 시트에서 공통 사용
         /// </summary>
