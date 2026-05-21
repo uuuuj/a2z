@@ -243,7 +243,7 @@ namespace A2Z
             bool hasDimensions = mfgOsnapWithNames.Count > 0;
             float mfgTotalOff = 250.0f;
             var mfgDimensions = new List<ChainDimensionData>();
-            var shapeDrawingIds = new List<int>();
+            // shapeDrawingIds → pose.ShapeDrawingIds (B3, 2026-05-19)
 
             if (hasDimensions)
             {
@@ -379,7 +379,7 @@ namespace A2Z
                     if (mfgExtLines.Count > 0)
                     {
                         int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Blue, 0.3f, true);  // ← 통일 Blue
-                        if (shapeId >= 0) shapeDrawingIds.Add(shapeId);
+                        if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
                     }
                 }
             }
@@ -1022,708 +1022,60 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 가공도 셀 렌더 헬퍼: ExecuteMfgDrawing 치수/풍선 로직 + RenderSheetViewForDrawing 2D 캡처 패턴 결합
+        /// 가공도 셀 렌더 — 그리드 셀 안에 단일 부재 2D 캡처.
+        /// Step B3 (2026-05-19): 어댑터로 축소.
+        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선)은 BuildMfgSceneCore가 수행.
+        /// 자동 어댑터 후처리:
+        ///   - DASH_LINE RenderMode (PDF 은선용)
+        ///   - FlyToObject3d (카메라 fit)
+        ///   - pose.ApplyZ90 / pose.ApplyR180 적용
+        ///   - 2D 캔버스 변환 (Create2DViewObjectWithModelHiddenLineAtCanvasOrigin)
+        ///   - 그리드 셀 fit (FitObjectToGridCellAspect + 30% scale + 20mm min)
+        ///   - ShapeDrawing → 2D (pose.ShapeDrawingIds 사용)
+        ///   - Note(풍선) → 2D (Add2DNoteFrom3DNote)
+        ///   - Measure → 2D + ApplyParallelTextShift
+        ///   - 두께 복원
+        /// 
+        /// Codex P3 제약 (2026-05-18): _lastMfgViewPose write X (지역변수만).
+        /// 사용자 사양 (2026-05-19): noteIds.Clear() 제거 — PDF에 풍선 표시.
+        /// EA 신규뷰 dead 분기(자동 본체 L2128~L2211)는 isEA 재활성 시 별도 작업으로 복원 예정.
         /// </summary>
         private int RenderMfgViewForDrawing(int row, int col, int bomIndex)
         {
             BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
             if (bom == null) return -1;
 
-            List<int> shapeDrawingIds = new List<int>();
+            // ── 공통 코어 호출 (지역변수 pose만, _lastMfgViewPose write X) ──
+            var pose = BuildMfgSceneCore(bomIndex);
 
-            // 1. 3D 어노테이션 초기화
-            vizcore3d.Review.Note.Clear();
-            vizcore3d.Review.Measure.Clear();
-            vizcore3d.ShapeDrawing.Clear();
-
-            // 2. 부재 표시: XRay 끄기 → 전체 숨김 → 해당 bom만 Show
-            vizcore3d.BeginUpdate();
-            if (vizcore3d.View.XRay.Enable)
-                vizcore3d.View.XRay.Enable = false;
-            vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
-            List<int> targetIndices = new List<int> { bom.Index };
-            vizcore3d.Object3D.Show(targetIndices, true);
-            vizcore3d.EndUpdate();
-
-            // 3. 축 크기 판별 → 카메라 방향 결정
-            float sizeX = bom.MaxX - bom.MinX;
-            float sizeY = bom.MaxY - bom.MinY;
-            float sizeZ = bom.MaxZ - bom.MinZ;
-
-            // PAD/PLATE 판별: SPREF 값에 PAD 또는 PLATE 포함 여부
-            bool isPadOrPlate = IsPadOrPlateFromSpref(bom.Index);
-
-            string longestAxis;
-            if (sizeX >= sizeY && sizeX >= sizeZ)
-                longestAxis = "X";
-            else if (sizeY >= sizeX && sizeY >= sizeZ)
-                longestAxis = "Y";
-            else
-                longestAxis = "Z";
-
-            string viewDirection;
-            if (isPadOrPlate)
-            {
-                // PAD/PLATE: 최단축 방향으로 카메라 설정 (평판을 정면에서 봄)
-                string shortestAxis;
-                if (sizeX <= sizeY && sizeX <= sizeZ)
-                    shortestAxis = "X";
-                else if (sizeY <= sizeX && sizeY <= sizeZ)
-                    shortestAxis = "Y";
-                else
-                    shortestAxis = "Z";
-
-                switch (shortestAxis)
-                {
-                    case "X":
-                        viewDirection = "X";
-                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
-                        break;
-                    case "Y":
-                        viewDirection = "Y";
-                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
-                        break;
-                    default: // Z
-                        viewDirection = "Z";
-                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS);
-                        break;
-                }
-            }
-            else
-            {
-                // 기존 로직: 최장축이 수평으로 보이는 방향
-                switch (longestAxis)
-                {
-                    case "Y":
-                        viewDirection = "X";
-                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
-                        break;
-                    default:
-                        viewDirection = "Y";
-                        vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
-                        break;
-                }
-            }
-
-            // 3-1. ORIENTATION UDA 기반 카메라 회전
-            var (orientAxis_saved, orientAngle_saved) = ParseOrientation(bom.Index);
-            ApplyOrientationRotation(bom.Index, viewDirection);
-
-            // 4. DASH_LINE + SilhouetteEdge + FlyToObject3d (은선 점선 포함 2D 캡처용)
+            // ── 자동 어댑터 후처리: DASH_LINE + FlyToObject3d ──
             vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
             vizcore3d.View.SilhouetteEdge = true;
             vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+
+            List<int> targetIndices = new List<int> { bom.Index };
             vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
 
-            // 5. Osnap 수집 → MergeCoordinates → 체인치수 추출
-            var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-            var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
-            if (osnapListMfg != null)
-            {
-                foreach (var osnap in osnapListMfg)
-                {
-                    switch (osnap.Kind)
-                    {
-                        case VIZCore3D.NET.Data.OsnapKind.LINE:
-                            if (osnap.Start != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), bom.Name));
-                            if (osnap.End != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
-                            break;
-                        case VIZCore3D.NET.Data.OsnapKind.POINT:
-                            if (osnap.Center != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
-                            break;
-                        // T-064 (2026-05-14): 사용자 사양 — CIRCLE Osnap 치수 추출 제외 (홀 과다 치수 회피, 위와 동일)
-                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
-                            break;
-                    }
-                }
-            }
-
-            // EA 앵글 판별 및 기존뷰 카메라 방향 보정 (L자가 펼쳐져 보이도록)
-            // Osnap 무게중심은 L자 내부코너 쪽으로 편향됨
-            // 열린 방향(BB중심 - 무게중심)이 화면 우하로 가도록 카메라 조정
-            // T-064 (2026-05-14) 사용자 사양: EA 회전 비활성화 — isEA를 false 고정으로 EA 보정 + 신규뷰 두 번째 뷰 통째 dead
-            bool isEA = false;  // 옛: IsAngleFromSpref(bom.Index)
-            bool isAboveWider = false;
-            bool isLShape = false;
-            bool isMinusCameraSelected = false;
-            bool isEAUse180 = false;
-
-            if (isEA && mfgOsnapWithNames.Count > 0)
-            {
-                // 기존뷰 화면에 보이는 축으로 무게중심/BB중심 계산
-                float bbCenterH = 0f, bbCenterV = 0f;
-                float sumH = 0f, sumV = 0f;
-                foreach (var pt in mfgOsnapWithNames)
-                {
-                    switch (viewDirection)
-                    {
-                        case "X": sumH += pt.point.Y; sumV += pt.point.Z; break;
-                        case "Y": sumH += pt.point.X; sumV += pt.point.Z; break;
-                        default:  sumH += pt.point.X; sumV += pt.point.Y; break;
-                    }
-                }
-                float centroidH = sumH / mfgOsnapWithNames.Count;
-                float centroidV = sumV / mfgOsnapWithNames.Count;
-                switch (viewDirection)
-                {
-                    case "X": bbCenterH = (bom.MinY + bom.MaxY) / 2f; bbCenterV = (bom.MinZ + bom.MaxZ) / 2f; break;
-                    case "Y": bbCenterH = (bom.MinX + bom.MaxX) / 2f; bbCenterV = (bom.MinZ + bom.MaxZ) / 2f; break;
-                    default:  bbCenterH = (bom.MinX + bom.MaxX) / 2f; bbCenterV = (bom.MinY + bom.MaxY) / 2f; break;
-                }
-
-                // 열린 방향 = BB중심 - 무게중심
-                float openH = bbCenterH - centroidH;
-                float openV = bbCenterV - centroidV;
-
-                // 열린 방향이 화면 우하로 가도록 카메라 조정
-                bool use180 = (openV > 0);
-
-                bool useMinus;
-                if (viewDirection == "Y")
-                {
-                    bool needRight = use180 ? (openH < 0) : (openH > 0);
-                    useMinus = !needRight;
-                }
-                else
-                {
-                    bool needRight = use180 ? (openH > 0) : (openH < 0);
-                    useMinus = !needRight;
-                }
-
-                isMinusCameraSelected = useMinus;
-
-                if (useMinus)
-                {
-                    switch (viewDirection)
-                    {
-                        case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_MINUS); break;
-                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
-                        default:  vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_MINUS); break;
-                    }
-                    ApplyOrientationRotation(bom.Index, viewDirection);
-                    vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-                }
-
-                if (use180)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                    vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-                }
-
-                isEAUse180 = use180;
-                isAboveWider = false;
-                isLShape = true;
-            }
-
-            // 5-1. 은선 Osnap 필터링 (카메라 방향 결정 후 적용)
-            mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
-                bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
-
-            bool hasDimensions = mfgOsnapWithNames.Count > 0;
-            float mfgTotalOff = 250.0f; // 기본값; hasDimensions 블록에서 갱신
-
-            if (hasDimensions)
-            {
-                // 6. 좌표 병합 + 뷰 방향 기준 visible 축만 체인치수 추출
-                float tolerance = 0.5f;
-                List<VIZCore3D.NET.Data.Vector3D> mergedPoints = MergeCoordinates(mfgOsnapWithNames, tolerance);
-
-                List<string> mfgVisibleAxes = new List<string>();
-                switch (viewDirection)
-                {
-                    case "X": mfgVisibleAxes.Add("Y"); mfgVisibleAxes.Add("Z"); break;
-                    case "Y": mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Z"); break;
-                    default:  mfgVisibleAxes.Add("X"); mfgVisibleAxes.Add("Y"); break;
-                }
-
-                var mfgDimensions = new List<ChainDimensionData>();
-                foreach (var ax in mfgVisibleAxes)
-                    mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
-
-                // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
-                float maxTotalDist = 0f;
-                foreach (var td in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
-                {
-                    float dist = 0f;
-                    switch (td.Axis)
-                    {
-                        case "X": dist = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
-                        case "Y": dist = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
-                        case "Z": dist = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
-                    }
-                    if (dist > maxTotalDist) maxTotalDist = dist;
-                }
-                mfgTotalOff = maxTotalDist > 1000.0f ? 300.0f : 250.0f;
-
-                if (mfgDimensions.Count > 0)
-                {
-                    // 7. 치수 그리기
-                    vizcore3d.BeginUpdate();
-                    vizcore3d.Review.Measure.Clear();
-                    vizcore3d.ShapeDrawing.Clear();
-
-                    VIZCore3D.NET.Data.MeasureStyle mfgStyle = vizcore3d.Review.Measure.GetStyle();
-                    mfgStyle.Prefix = false;
-                    mfgStyle.Unit = false;
-                    mfgStyle.NumberOfDecimalPlaces = 0;
-                    mfgStyle.DX_DY_DZ = false;
-                    mfgStyle.Frame = false;
-                    mfgStyle.ContinuousDistance = false;
-                    mfgStyle.BackgroundTransparent = true;
-                    mfgStyle.FontColor = System.Drawing.Color.Cyan;
-                    mfgStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                    mfgStyle.FontBold = true;
-                    mfgStyle.LineColor = System.Drawing.Color.Cyan;
-                    mfgStyle.LineWidth = 1;
-                    mfgStyle.ArrowColor = System.Drawing.Color.Cyan;
-                    mfgStyle.ArrowSize = 5;
-                    mfgStyle.AssistantLine = false;
-                    mfgStyle.AlignDistanceText = true;
-                    mfgStyle.AlignDistanceTextMargine = 3;
-                    vizcore3d.Review.Measure.SetStyle(mfgStyle);
-
-                    float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
-                    float mfgGlobalMaxX = bom.MaxX, mfgGlobalMaxY = bom.MaxY, mfgGlobalMaxZ = bom.MaxZ;
-                    float mfgCenterX = (mfgGlobalMinX + mfgGlobalMaxX) / 2f;
-                    float mfgCenterY = (mfgGlobalMinY + mfgGlobalMaxY) / 2f;
-                    float mfgCenterZ = (mfgGlobalMinZ + mfgGlobalMaxZ) / 2f;
-
-                    // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
-                    var mfgAxisPosOff = new Dictionary<string, bool>();
-                    foreach (var grp in mfgDimensions.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
-                    {
-                        string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                        float centerVal = offAxis == "X" ? mfgCenterX : offAxis == "Y" ? mfgCenterY : mfgCenterZ;
-                        var values = grp.SelectMany(d => new[]
-                        {
-                            GetAxisValue(d.StartPoint, offAxis),
-                            GetAxisValue(d.EndPoint, offAxis)
-                        });
-                        mfgAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, centerVal);
-                    }
-
-                    // EA 앵글: 체인치수 방향 강제 오버라이드
-                    if (isEA)
-                    {
-                        // 길이방향: 신규뷰 반대쪽으로
-                        // 아래 넓음(신규뷰 아래) → 기존뷰 길이축 치수를 위(positive)로
-                        // 위쪽 넓음(신규뷰 위)   → 기존뷰 길이축 치수를 아래(negative)로
-                        if (mfgAxisPosOff.ContainsKey(longestAxis))
-                            mfgAxisPosOff[longestAxis] = !isAboveWider;
-
-                        // 비길이축(측면): 신규뷰와 겹치지 않도록 방향 강제
-                        // 신규뷰 아래(isLShape) → 비길이축 치수를 위(positive)로
-                        // 신규뷰 위(!isLShape)  → 비길이축 치수를 아래(negative)로
-                        foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
-                        {
-                            if (ax != longestAxis)
-                                mfgAxisPosOff[ax] = isLShape;  // isLShape=true → positive(위)
-                        }
-                    }
-
-                    var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
-
-                    // 모델의 가시 축 최소 크기 계산 → 작은 모델이면 보조선 오프셋 50% 축소
-                    float visExt1 = 0f, visExt2 = 0f;
-                    switch (viewDirection)
-                    {
-                        case "X": visExt1 = bom.MaxY - bom.MinY; visExt2 = bom.MaxZ - bom.MinZ; break;
-                        case "Y": visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxZ - bom.MinZ; break;
-                        default:  visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxY - bom.MinY; break;
-                    }
-                    float minVisExtent = Math.Min(visExt1, visExt2);
-                    float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
-
-                    // T-064 (2026-05-14): 제작도와 동일하게 짧게 — 50% 축소 (메인 흐름과 동일 패턴)
-                    float mfgChainOff1 = 50.0f * offFactor;   // 1단 (옛 100)
-                    float mfgChainOff2 = 100.0f * offFactor;  // 2단 (옛 200)
-                    mfgTotalOff *= offFactor;
-
-                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
-                    {
-                        // EA 앵글 L자: 기존뷰가 위 → 길이축 체인치수는 아래(신규뷰)에만 표시
-                        if (isEA && isLShape && dim.Axis == longestAxis) continue;
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff1,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
-                    }
-                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
-                    {
-                        if (isEA && isLShape && dim.Axis == longestAxis) continue;
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff2,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
-                    }
-                    foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
-                    {
-                        // Max(전체) 치수는 항상 표시
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
-                    }
-                    if (mfgExtLines.Count > 0)
-                    {
-                        int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Cyan, 0.3f, true);
-                        if (shapeId >= 0) shapeDrawingIds.Add(shapeId);
-                    }
-
-                    vizcore3d.EndUpdate();
-                }
-            }
-
-            // 8. 풍선 배치 — 4분면 가상선 방식 + 체인치수 겹침 방지
-
-            // 뷰 방향별 축 매핑 (hAxis=화면 수평, vAxis=화면 수직, dAxis=깊이)
-            int bHAxis_m, bVAxis_m, bDAxis_m;
-            switch (viewDirection)
-            {
-                case "X": bHAxis_m = 1; bVAxis_m = 2; bDAxis_m = 0; break; // H=Y, V=Z, D=X
-                case "Y": bHAxis_m = 0; bVAxis_m = 2; bDAxis_m = 1; break; // H=X, V=Z, D=Y
-                default:  bHAxis_m = 0; bVAxis_m = 1; bDAxis_m = 2; break; // H=X, V=Y, D=Z
-            }
-
-            float[] mfgMinArr = { bom.MinX, bom.MinY, bom.MinZ };
-            float[] mfgMaxArr = { bom.MaxX, bom.MaxY, bom.MaxZ };
-            float modelMinH_m = mfgMinArr[bHAxis_m];
-            float modelMaxH_m = mfgMaxArr[bHAxis_m];
-            float modelMinV_m = mfgMinArr[bVAxis_m];
-            float modelMaxV_m = mfgMaxArr[bVAxis_m];
-
-            // ── 체인치수 실제 끝단 좌표 계산 ──
-            float dimExtMinH_m = modelMinH_m;
-            float dimExtMaxH_m = modelMaxH_m;
-            float dimExtMinV_m = modelMinV_m;
-            float dimExtMaxV_m = modelMaxV_m;
-
-            if (hasDimensions)
-            {
-                // Osnap에서 추출된 치수 데이터가 있으면 실제 치수선 끝단 추적
-                float tolerance_m = 0.5f;
-                var mergedPts_m = MergeCoordinates(mfgOsnapWithNames, tolerance_m);
-                List<string> visAxes_m = new List<string>();
-                switch (viewDirection)
-                {
-                    case "X": visAxes_m.Add("Y"); visAxes_m.Add("Z"); break;
-                    case "Y": visAxes_m.Add("X"); visAxes_m.Add("Z"); break;
-                    default:  visAxes_m.Add("X"); visAxes_m.Add("Y"); break;
-                }
-                var allMfgDims = new List<ChainDimensionData>();
-                foreach (var ax in visAxes_m)
-                    allMfgDims.AddRange(AddChainDimensionByAxis(mergedPts_m, ax, tolerance_m, viewDirection));
-
-                // 축별 오프셋 방향 (이미 계산된 mfgAxisPosOff 활용 가능하지만, 안전을 위해 재참조)
-                float mfgCX = (bom.MinX + bom.MaxX) / 2f;
-                float mfgCY = (bom.MinY + bom.MaxY) / 2f;
-                float mfgCZ = (bom.MinZ + bom.MaxZ) / 2f;
-
-                // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
-                var mfgAxisPosOff_m = new Dictionary<string, bool>();
-                foreach (var grp in allMfgDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
-                {
-                    string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                    float cv2 = offAxis == "X" ? mfgCX : offAxis == "Y" ? mfgCY : mfgCZ;
-                    var values = grp.SelectMany(d => new[]
-                    {
-                        GetAxisValue(d.StartPoint, offAxis),
-                        GetAxisValue(d.EndPoint, offAxis)
-                    });
-                    mfgAxisPosOff_m[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv2);
-                }
-
-                // EA 앵글: 체인치수 방향 오버라이드 (풍선 위치 계산용)
-                if (isEA)
-                {
-                    if (mfgAxisPosOff_m.ContainsKey(longestAxis))
-                        mfgAxisPosOff_m[longestAxis] = !isAboveWider;
-                    foreach (string ax in new List<string>(mfgAxisPosOff_m.Keys))
-                    {
-                        if (ax != longestAxis)
-                            mfgAxisPosOff_m[ax] = isLShape;
-                    }
-                }
-
-                // 모델 가시 축 최소 크기 → 작은 모델이면 보조선 오프셋 50% 축소
-                float visExt1_m = 0f, visExt2_m = 0f;
-                switch (viewDirection)
-                {
-                    case "X": visExt1_m = bom.MaxY - bom.MinY; visExt2_m = bom.MaxZ - bom.MinZ; break;
-                    case "Y": visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxZ - bom.MinZ; break;
-                    default:  visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxY - bom.MinY; break;
-                }
-                float minVisExt_m = Math.Min(visExt1_m, visExt2_m);
-                float offFactor_m = (minVisExt_m < 100f) ? 0.5f : 1.0f;
-
-                float mfgOff1 = 100.0f * offFactor_m, mfgOff2 = 200.0f * offFactor_m;
-                float maxTotalDist_m = 0f;
-                foreach (var td in allMfgDims.Where(d => d.IsTotal && d.IsVisible))
-                {
-                    float dist2 = 0f;
-                    switch (td.Axis)
-                    {
-                        case "X": dist2 = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
-                        case "Y": dist2 = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
-                        case "Z": dist2 = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
-                    }
-                    if (dist2 > maxTotalDist_m) maxTotalDist_m = dist2;
-                }
-                float mfgTotalOff_m = (maxTotalDist_m > 1000.0f ? 300.0f : 250.0f) * offFactor_m;
-
-                foreach (var dim in allMfgDims.Where(d => d.IsVisible))
-                {
-                    float dimOff;
-                    if (dim.IsTotal)
-                        dimOff = mfgTotalOff_m;
-                    else if (dim.DisplayLevel > 0)
-                        dimOff = mfgOff2;
-                    else
-                        dimOff = mfgOff1;
-
-                    string offAxis = GetRemainingAxis(viewDirection, dim.Axis);
-                    bool posOff = mfgAxisPosOff_m.ContainsKey(dim.Axis) && mfgAxisPosOff_m[dim.Axis];
-                    float baseline2 = 0;
-                    switch (offAxis)
-                    {
-                        case "X": baseline2 = posOff ? bom.MaxX : bom.MinX; break;
-                        case "Y": baseline2 = posOff ? bom.MaxY : bom.MinY; break;
-                        case "Z": baseline2 = posOff ? bom.MaxZ : bom.MinZ; break;
-                    }
-                    float dimLinePos = posOff ? (baseline2 + dimOff) : (baseline2 - dimOff);
-
-                    int offAxisIdx = offAxis == "X" ? 0 : (offAxis == "Y" ? 1 : 2);
-                    if (offAxisIdx == bHAxis_m)
-                    {
-                        dimExtMinH_m = Math.Min(dimExtMinH_m, dimLinePos);
-                        dimExtMaxH_m = Math.Max(dimExtMaxH_m, dimLinePos);
-                    }
-                    else if (offAxisIdx == bVAxis_m)
-                    {
-                        dimExtMinV_m = Math.Min(dimExtMinV_m, dimLinePos);
-                        dimExtMaxV_m = Math.Max(dimExtMaxV_m, dimLinePos);
-                    }
-
-                    // 치수선 자체의 H/V 범위
-                    float[] dimStartArr = { dim.StartPoint.X, dim.StartPoint.Y, dim.StartPoint.Z };
-                    float[] dimEndArr = { dim.EndPoint.X, dim.EndPoint.Y, dim.EndPoint.Z };
-                    dimExtMinH_m = Math.Min(dimExtMinH_m, Math.Min(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
-                    dimExtMaxH_m = Math.Max(dimExtMaxH_m, Math.Max(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
-                    dimExtMinV_m = Math.Min(dimExtMinV_m, Math.Min(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
-                    dimExtMaxV_m = Math.Max(dimExtMaxV_m, Math.Max(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
-                }
-            }
-
-            // ── 가상 사각형 경계선: 체인치수 끝단 바깥에 풍선 배치 ──
-            float dimMargin_m = 30f;
-            float rectLeft_m  = dimExtMinH_m - dimMargin_m;
-            float rectRight_m = dimExtMaxH_m + dimMargin_m;
-
-            float modelSpan_m = Math.Max(modelMaxH_m - modelMinH_m, modelMaxV_m - modelMinV_m);
-            float balloonSpacing_m = Math.Max(20f, modelSpan_m * 0.04f);
-
-            float textGap_m = Math.Max(4f, modelSpan_m * 0.006f);
-            Func<string, (float w, float h)> mfgEstTextSize = (text) =>
-            {
-                float charWidth = Math.Max(3f, modelSpan_m * 0.005f);
-                float lineHeight = Math.Max(7f, modelSpan_m * 0.009f);
-                return (text.Length * charWidth + textGap_m, lineHeight + textGap_m);
-            };
-
-            // --- 풍선 항목 수집 ---
-            List<(float originH, float originV, float depthVal, string text, Color color,
-                  float arrowX, float arrowY, float arrowZ)> mfgBalloonEntries =
-                new List<(float, float, float, string, Color, float, float, float)>();
-
-            // 반지름 풍선 수집
-            bool isTrueCylinder = false;
-            if (bom.CircleRadius > 0)
-            {
-                float diam = bom.CircleRadius * 2f;
-                float bsX = Math.Abs(bom.MaxX - bom.MinX);
-                float bsY = Math.Abs(bom.MaxY - bom.MinY);
-                float bsZ = Math.Abs(bom.MaxZ - bom.MinZ);
-                float ct = Math.Max(2f, diam * 0.2f);
-                int mCnt = 0;
-                if (Math.Abs(bsX - diam) < ct) mCnt++;
-                if (Math.Abs(bsY - diam) < ct) mCnt++;
-                if (Math.Abs(bsZ - diam) < ct) mCnt++;
-                isTrueCylinder = mCnt >= 2;
-            }
-            if (isTrueCylinder)
-            {
-                float oH_c = mfgMaxArr[bHAxis_m] / 2f + mfgMinArr[bHAxis_m] / 2f; // center H
-                float oV_c = mfgMaxArr[bVAxis_m] / 2f + mfgMinArr[bVAxis_m] / 2f; // center V
-                float depthVal = viewDirection == "X" ? bom.CenterX : viewDirection == "Y" ? bom.CenterY : bom.CenterZ;
-                mfgBalloonEntries.Add((oH_c, oV_c, depthVal,
-                    $"R{bom.CircleRadius:F1}", Color.Red,
-                    bom.CenterX, bom.CenterY, bom.CenterZ));
-            }
-
-            // 홀 풍선 수집
-            if (bom.Holes != null && bom.Holes.Count > 0)
-            {
-                try
-                {
-                    var mfgHoleGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
-                    foreach (var grp in mfgHoleGroups)
-                    {
-                        int hCount = grp.Count();
-                        string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
-                        var hole = grp.First();
-                        float[] holeArr = { hole.CenterX, hole.CenterY, hole.CenterZ };
-                        float oH = holeArr[bHAxis_m];
-                        float oV = holeArr[bVAxis_m];
-                        float depthVal = holeArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, holeText, Color.FromArgb(0, 160, 0),
-                            hole.CenterX, hole.CenterY, hole.CenterZ));
-                    }
-                }
-                catch { }
-            }
-
-            // 슬롯홀 풍선 수집
-            if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
-            {
-                try
-                {
-                    var slotGroups = bom.SlotHoles.GroupBy(s =>
-                        $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
-                    foreach (var grp in slotGroups)
-                    {
-                        var slot = grp.First();
-                        int sCount = grp.Count();
-                        float slotWidth = slot.Radius * 2f;
-                        string slotText = sCount > 1
-                            ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
-                            : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
-                        float[] slotArr = { slot.CenterX, slot.CenterY, slot.CenterZ };
-                        float oH = slotArr[bHAxis_m];
-                        float oV = slotArr[bVAxis_m];
-                        float depthVal = slotArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, slotText, Color.FromArgb(180, 0, 180),
-                            slot.CenterX, slot.CenterY, slot.CenterZ));
-                    }
-                }
-                catch { }
-            }
-
-            // --- 풍선 일괄 배치 (4분면 가상선 방식 + 체인치수 겹침 방지) ---
-            float modelCenterH_m = (modelMinH_m + modelMaxH_m) / 2f;
-            float modelCenterV_m = (modelMinV_m + modelMaxV_m) / 2f;
-
-            // 0=왼쪽위, 1=왼쪽아래, 2=오른쪽위, 3=오른쪽아래
-            var mfgSortedBalloons = new List<(int quadrant, float originH, float originV, float depthVal,
-                string text, Color color, float arrowX, float arrowY, float arrowZ, float sortKey)>();
-
-            foreach (var entry in mfgBalloonEntries)
-            {
-                bool isLeft = entry.originH <= modelCenterH_m;
-                bool isTop  = entry.originV >= modelCenterV_m;
-
-                int quadrant;
-                float sortKey;
-                if (isLeft && isTop)       { quadrant = 0; sortKey = -entry.originV; }
-                else if (isLeft && !isTop)  { quadrant = 1; sortKey = entry.originV; }
-                else if (!isLeft && isTop)  { quadrant = 2; sortKey = -entry.originV; }
-                else                        { quadrant = 3; sortKey = entry.originV; }
-
-                mfgSortedBalloons.Add((quadrant, entry.originH, entry.originV, entry.depthVal,
-                    entry.text, entry.color, entry.arrowX, entry.arrowY, entry.arrowZ, sortKey));
-            }
-
-            mfgSortedBalloons.Sort((a, b) =>
-            {
-                int sc = a.quadrant.CompareTo(b.quadrant);
-                return sc != 0 ? sc : a.sortKey.CompareTo(b.sortKey);
-            });
-
-            // 각 분면별 V 시작점 (체인치수 끝단 바깥)
-            float leftTopNextV_m  = dimExtMaxV_m;
-            float leftBotNextV_m  = dimExtMinV_m;
-            float rightTopNextV_m = dimExtMaxV_m;
-            float rightBotNextV_m = dimExtMinV_m;
-
-            foreach (var balloon in mfgSortedBalloons)
-            {
-                try
-                {
-                    var textSz = mfgEstTextSize(balloon.text);
-                    float textW = textSz.w;
-                    float textH = textSz.h;
-
-                    float textPosH, textPosV;
-                    switch (balloon.quadrant)
-                    {
-                        case 0: // 왼쪽위
-                            textPosH = rectLeft_m;
-                            textPosV = leftTopNextV_m;
-                            leftTopNextV_m -= (textH + balloonSpacing_m);
-                            break;
-                        case 1: // 왼쪽아래
-                            textPosH = rectLeft_m;
-                            textPosV = leftBotNextV_m;
-                            leftBotNextV_m += (textH + balloonSpacing_m);
-                            break;
-                        case 2: // 오른쪽위
-                            textPosH = rectRight_m;
-                            textPosV = rightTopNextV_m;
-                            rightTopNextV_m -= (textH + balloonSpacing_m);
-                            break;
-                        case 3: // 오른쪽아래
-                            textPosH = rectRight_m;
-                            textPosV = rightBotNextV_m;
-                            rightBotNextV_m += (textH + balloonSpacing_m);
-                            break;
-                        default:
-                            textPosH = rectRight_m;
-                            textPosV = balloon.originV;
-                            break;
-                    }
-
-                    // 3D 좌표 복원
-                    float[] xyz = new float[3];
-                    xyz[bHAxis_m] = textPosH;
-                    xyz[bVAxis_m] = textPosV;
-                    xyz[bDAxis_m] = balloon.depthVal;
-
-                    VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(xyz[0], xyz[1], xyz[2]);
-                    VIZCore3D.NET.Data.Vertex3D arrowPos = new VIZCore3D.NET.Data.Vertex3D(
-                        balloon.arrowX, balloon.arrowY, balloon.arrowZ);
-
-                    VIZCore3D.NET.Data.NoteStyle mfgNoteStyle = vizcore3d.Review.Note.GetStyle();
-                    mfgNoteStyle.UseSymbol = false;
-                    mfgNoteStyle.BackgroudTransparent = true;
-                    mfgNoteStyle.FontBold = true;
-                    mfgNoteStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                    mfgNoteStyle.FontColor = balloon.color;
-                    mfgNoteStyle.LineColor = balloon.color;
-                    mfgNoteStyle.LineWidth = 1;
-                    mfgNoteStyle.ArrowColor = balloon.color;
-                    mfgNoteStyle.ArrowWidth = 2;
-
-                    vizcore3d.Review.Note.AddNoteSurface(balloon.text, textPos, arrowPos, mfgNoteStyle);
-                }
-                catch { }
-            }
-
-            // 9. Z가 최장축이면 90° 회전하여 Z를 수평으로 표시
-            if (longestAxis == "Z")
+            // pose.ApplyZ90 / pose.ApplyR180 적용
+            if (pose.ApplyZ90)
             {
                 vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                 vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
+            }
+            if (pose.ApplyR180)
+            {
+                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
             }
 
-            // 10. 2D 투영: 은선 포함 2D 변환 (모델 실선 = 굵게)
+            // ── 2D 변환: 은선 포함 ──
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
 
-            // 11. 그리드 셀에 맞추기
+            // ── 그리드 셀 fit (30% target + 20mm min) ──
             vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
                 VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
                 VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
@@ -1744,8 +1096,6 @@ namespace A2Z
 
                 if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
                 {
-                    // T-064 (2026-05-14 3차): 사용자 사양 — 가공도 모델 크기 키움 (4% → 30%)
-                    // 옛 0.04 (너무 작음) → 0.30 (셀 컨텐츠 30% 차지). 셀 면적 늘어난 그리드(4행)와 함께 모델 가독성 보강.
                     float targetW = contentW * 0.30f;
                     float targetH = contentH * 0.30f;
                     float scaleW = targetW / objW;
@@ -1753,11 +1103,8 @@ namespace A2Z
                     float fitScale = Math.Min(scaleW, scaleH);
 
                     if (fitScale > 0 && Math.Abs(fitScale - 1.0f) > 0.01f)
-                    {
                         vizcore3d.Drawing2D.Object2D.RescaleObject(objId, fitScale);
-                    }
 
-                    // 가로 최소 크기 체크: 20mm 미만이면 20mm로 스케일 조정
                     float scaledW = 0f, scaledH = 0f;
                     vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref scaledW, ref scaledH);
                     if (scaledW > 0 && scaledW < 20f)
@@ -1769,32 +1116,29 @@ namespace A2Z
                 }
             }
 
-            // 12. 3D→2D 변환: ShapeDrawing(보조선) → 2D (0.5 굵기 + 가는 실선)
-            // T-046: 가공도 보조선을 DASHED_DOUBLEDOTTED → SOLID 로 통일 (전 경로 일관성)
-            if (shapeDrawingIds.Count > 0)
+            // ── ShapeDrawing(보조선) → 2D ──
+            //   pose.ShapeDrawingIds: 코어가 채운 보조선 ID 목록
+            if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
             {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);  // T-040 v6: 0.5→0.1 (극가는 보조선 통일)
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
-                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(shapeDrawingIds);
+                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(pose.ShapeDrawingIds);
             }
 
-            // Note(풍선) → 2D (텍스트 높이 50% 축소)
+            // ── Note(풍선) → 2D ──
+            //   ⚠️ noteIds.Clear() 제거 (사용자 사양 2026-05-19): PDF에 풍선 표시.
+            //   옛 T-064 사양 폐기 (memory/feedback_mfg_balloon_2026-05-19.md).
             List<int> noteIds = new List<int>();
             List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
             foreach (var note in notes)
-            {
                 noteIds.Add(note.ID);
-            }
-            // T-064 (2026-05-14): 사용자 사양 — 가공도 PDF 풍선 비활성화 (수집된 noteIds 무효화)
-            // 풍선 복귀 시 아래 Clear() 한 줄 주석 처리하면 됨
-            noteIds.Clear();
+
             if (noteIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
                 vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
-                // 2D 노트 라벨을 원형 넘버링으로 변경
                 foreach (int idx in noteIds)
                 {
                     try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(idx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
@@ -1802,410 +1146,30 @@ namespace A2Z
                 }
             }
 
-            // Measure(치수선) → 2D (보조선과 동일 0.5 굵기)
+            // ── Measure(치수선) → 2D + ApplyParallelTextShift ──
             List<int> measureIds = new List<int>();
             List<VIZCore3D.NET.Data.MeasureItem> measures = vizcore3d.Review.Measure.Items;
             foreach (var measure in measures)
             {
-                if (measure.Visible)
-                    measureIds.Add(measure.ID);
+                if (measure.Visible) measureIds.Add(measure.ID);
             }
             if (measureIds.Count > 0)
             {
                 vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
-
-                // T-040 v11 (2026-05-13): v6 시점 직각 시프트로 복귀 — 가공도에도 적용
-                // 헬퍼는 SDK measureItem 직접 순회라 chainDimensionList 무관
-                ApplyParallelTextShift(viewDirection,
-                    vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
-                    measures);
-
+                ApplyParallelTextShift(pose.ViewDirection,
+                    vizcore3d.Drawing2D.Object2D.GetObjectScale(objId), measures);
                 vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
             }
 
-            // 다음 셀의 모델 실선을 위해 두께 복원
+            // ── 두께 복원 (다음 셀용) ──
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
 
-            // === EA 앵글: 길이방향 90° 회전 뷰 (L자를 펼쳐서 보는 뷰) ===
-            if (isEA)
-            {
-                try
-                {
-                    List<int> eaShapeIds = new List<int>();
-
-                    // 3D 어노테이션 초기화 (정면뷰 어노테이션은 이미 2D로 변환 완료)
-                    vizcore3d.Review.Note.Clear();
-                    vizcore3d.Review.Measure.Clear();
-                    vizcore3d.ShapeDrawing.Clear();
-
-                    // 기존뷰의 모든 스크린 회전 복원 후 신규뷰 카메라 방향 설정
-                    // ScreenAxisRotation은 MoveCamera로 리셋되지 않으므로 역순으로 모두 해제
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-
-                    // 1) Z 최장축 90° 회전 복원
-                    if (longestAxis == "Z")
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, -90);
-
-                    // 2) EA use180 회전 복원
-                    if (isEAUse180)
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-
-                    // 3) ORIENTATION 회전 복원
-                    if (orientAngle_saved != 0f)
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, -orientAngle_saved);
-
-                    // 신규뷰 카메라 방향: 항상 위에서 아래로 (Z_MINUS)
-                    // Z 최장축일 경우 X_MINUS 사용
-                    VIZCore3D.NET.Data.CameraDirection newCamDir;
-                    string newViewDir;
-                    bool needZRotation = false;
-                    // 기존뷰 수평 뒤집힘 여부: useMinus는 카메라 방향으로 수평 뒤집기,
-                    // use180은 스크린 회전으로 수평+수직 뒤집기 → XOR로 순수 수평 뒤집힘 판정
-                    bool flipNewView = isMinusCameraSelected != isEAUse180;
-                    switch (longestAxis)
-                    {
-                        case "Y":
-                            newCamDir = VIZCore3D.NET.Data.CameraDirection.Z_MINUS;
-                            newViewDir = "Z";
-                            break;
-                        case "Z":
-                            newCamDir = VIZCore3D.NET.Data.CameraDirection.X_MINUS;
-                            newViewDir = "X";
-                            needZRotation = true;
-                            break;
-                        default: // X
-                            newCamDir = VIZCore3D.NET.Data.CameraDirection.Z_MINUS;
-                            newViewDir = "Z";
-                            break;
-                    }
-
-                    vizcore3d.View.MoveCamera(newCamDir);
-                    vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-                    if (needZRotation)
-                    {
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    }
-
-                    // 기존뷰와 수평 방향 정렬: 기존뷰가 수평 뒤집힌 경우 신규뷰도 180° 회전
-                    if (flipNewView)
-                    {
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                        vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-                    }
-
-                    // 신규뷰 체인치수 계산 및 그리기
-                    // Hole/SlotHole 중심 Osnap 추가 (체인치수에 포함)
-                    var eaOsnapWithHoles = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(mfgOsnapWithNames);
-                    if (bom.Holes != null)
-                        foreach (var hole in bom.Holes)
-                            eaOsnapWithHoles.Add((new VIZCore3D.NET.Data.Vertex3D(hole.CenterX, hole.CenterY, hole.CenterZ), bom.Name));
-                    if (bom.SlotHoles != null)
-                        foreach (var slot in bom.SlotHoles)
-                            eaOsnapWithHoles.Add((new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ), bom.Name));
-
-                    if (eaOsnapWithHoles.Count > 0)
-                    {
-                        float tol = 0.5f;
-                        var newMerged = MergeCoordinates(eaOsnapWithHoles, tol);
-
-                        List<string> newVisAxes = new List<string>();
-                        switch (newViewDir)
-                        {
-                            case "X": newVisAxes.Add("Y"); newVisAxes.Add("Z"); break;
-                            case "Y": newVisAxes.Add("X"); newVisAxes.Add("Z"); break;
-                            default:  newVisAxes.Add("X"); newVisAxes.Add("Y"); break;
-                        }
-
-                        var newDims = new List<ChainDimensionData>();
-                        foreach (var ax in newVisAxes)
-                            newDims.AddRange(AddChainDimensionByAxis(newMerged, ax, tol, newViewDir));
-
-                        if (newDims.Count > 0)
-                        {
-                            vizcore3d.BeginUpdate();
-
-                            // 치수 스타일 (기존뷰와 동일)
-                            VIZCore3D.NET.Data.MeasureStyle eaStyle = vizcore3d.Review.Measure.GetStyle();
-                            eaStyle.Prefix = false;
-                            eaStyle.Unit = false;
-                            eaStyle.NumberOfDecimalPlaces = 0;
-                            eaStyle.DX_DY_DZ = false;
-                            eaStyle.Frame = false;
-                            eaStyle.ContinuousDistance = false;
-                            eaStyle.BackgroundTransparent = true;
-                            eaStyle.FontColor = System.Drawing.Color.Cyan;
-                            eaStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                            eaStyle.FontBold = true;
-                            eaStyle.LineColor = System.Drawing.Color.Cyan;
-                            eaStyle.LineWidth = 1;
-                            eaStyle.ArrowColor = System.Drawing.Color.Cyan;
-                            eaStyle.ArrowSize = 5;
-                            eaStyle.AssistantLine = false;
-                            eaStyle.AlignDistanceText = true;
-                            eaStyle.AlignDistanceTextMargine = 3;
-                            vizcore3d.Review.Measure.SetStyle(eaStyle);
-
-                            // 신규뷰 체인치수 방향: 길이축은 기존뷰와 반대
-                            var eaAxisPosOff = new Dictionary<string, bool>();
-                            eaAxisPosOff[longestAxis] = !isLShape;  // 기존뷰 반대
-                            // 비길이축: 자동 계산
-                            float eaCX = (bom.MinX + bom.MaxX) / 2f;
-                            float eaCY = (bom.MinY + bom.MaxY) / 2f;
-                            float eaCZ = (bom.MinZ + bom.MaxZ) / 2f;
-                            // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽 (비길이축 자동)
-                            foreach (var grp in newDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
-                            {
-                                if (eaAxisPosOff.ContainsKey(grp.Key)) continue;
-                                string offAx = GetRemainingAxis(newViewDir, grp.Key);
-                                float cv = offAx == "X" ? eaCX : offAx == "Y" ? eaCY : eaCZ;
-                                var values = grp.SelectMany(d => new[]
-                                {
-                                    GetAxisValue(d.StartPoint, offAx),
-                                    GetAxisValue(d.EndPoint, offAx)
-                                });
-                                eaAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv);
-                            }
-
-                            float eaMinX = bom.MinX, eaMinY = bom.MinY, eaMinZ = bom.MinZ;
-                            float eaMaxX = bom.MaxX, eaMaxY = bom.MaxY, eaMaxZ = bom.MaxZ;
-
-                            // 전체길이 오프셋
-                            float eaMaxTotalDist = 0f;
-                            foreach (var td in newDims.Where(d => d.IsTotal && d.IsVisible))
-                            {
-                                float dist = 0f;
-                                switch (td.Axis)
-                                {
-                                    case "X": dist = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
-                                    case "Y": dist = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
-                                    case "Z": dist = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
-                                }
-                                if (dist > eaMaxTotalDist) eaMaxTotalDist = dist;
-                            }
-                            // EA 신규뷰 가시 축 최소 크기 → 작은 모델이면 보조선 오프셋 50% 축소
-                            float eaVisExt1 = 0f, eaVisExt2 = 0f;
-                            switch (newViewDir)
-                            {
-                                case "X": eaVisExt1 = bom.MaxY - bom.MinY; eaVisExt2 = bom.MaxZ - bom.MinZ; break;
-                                case "Y": eaVisExt1 = bom.MaxX - bom.MinX; eaVisExt2 = bom.MaxZ - bom.MinZ; break;
-                                default:  eaVisExt1 = bom.MaxX - bom.MinX; eaVisExt2 = bom.MaxY - bom.MinY; break;
-                            }
-                            float eaMinVisExt = Math.Min(eaVisExt1, eaVisExt2);
-                            float eaOffFactor = (eaMinVisExt < 100f) ? 0.5f : 1.0f;
-
-                            // T-064 (2026-05-14): 제작도와 동일 — EA 신규뷰 보조선도 50% 축소
-                            float eaTotalOff = (eaMaxTotalDist > 1000.0f ? 150.0f : 125.0f) * eaOffFactor;
-
-                            var eaExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
-                            float eaChainOff1 = 50.0f * eaOffFactor;   // 1단 (옛 100)
-                            float eaChainOff2 = 100.0f * eaOffFactor;  // 2단 (옛 200)
-
-                            foreach (var dim in newDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
-                            {
-                                // EA: 측면(비길이축) 치수는 정면뷰에만 표시 → 신규뷰에서 중복 방지
-                                if (dim.Axis != longestAxis) continue;
-                                // EA 앵글 ㄱ자: 신규뷰가 위 → 길이축 체인치수는 아래(기존뷰)에만 표시
-                                if (!isLShape && dim.Axis == longestAxis) continue;
-                                bool posOff = eaAxisPosOff.ContainsKey(dim.Axis) && eaAxisPosOff[dim.Axis];
-                                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, eaChainOff1,
-                                    eaMinX, eaMinY, eaMinZ, newViewDir, eaExtLines,
-                                    eaMaxX, eaMaxY, eaMaxZ, posOff);
-                            }
-                            foreach (var dim in newDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
-                            {
-                                if (dim.Axis != longestAxis) continue;
-                                if (!isLShape && dim.Axis == longestAxis) continue;
-                                bool posOff = eaAxisPosOff.ContainsKey(dim.Axis) && eaAxisPosOff[dim.Axis];
-                                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, eaChainOff2,
-                                    eaMinX, eaMinY, eaMinZ, newViewDir, eaExtLines,
-                                    eaMaxX, eaMaxY, eaMaxZ, posOff);
-                            }
-                            foreach (var dim in newDims.Where(d => d.IsTotal && d.IsVisible))
-                            {
-                                if (dim.Axis != longestAxis) continue;
-                                if (!isLShape && dim.Axis == longestAxis) continue;
-                                bool posOff = eaAxisPosOff.ContainsKey(dim.Axis) && eaAxisPosOff[dim.Axis];
-                                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, eaTotalOff,
-                                    eaMinX, eaMinY, eaMinZ, newViewDir, eaExtLines,
-                                    eaMaxX, eaMaxY, eaMaxZ, posOff);
-                            }
-                            if (eaExtLines.Count > 0)
-                            {
-                                int sid = vizcore3d.ShapeDrawing.AddLine(eaExtLines, -1, System.Drawing.Color.Cyan, 0.3f, true);
-                                if (sid >= 0) eaShapeIds.Add(sid);
-                            }
-
-                            vizcore3d.EndUpdate();
-                        }
-                    }
-
-                    // EA 신규뷰 홀 풍선 배치
-                    if (bom.Holes != null && bom.Holes.Count > 0)
-                    {
-                        try
-                        {
-                            var eaHoleGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
-                            float hBalloonOff = Math.Max(Math.Max(sizeX, Math.Max(sizeY, sizeZ)) * 0.3f, 50f);
-                            int eaHoleBalloonIdx = 0;
-                            foreach (var grp in eaHoleGroups)
-                            {
-                                int hCount = grp.Count();
-                                string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
-                                var hole = grp.First();
-                                VIZCore3D.NET.Data.Vertex3D holeCenter = new VIZCore3D.NET.Data.Vertex3D(hole.CenterX, hole.CenterY, hole.CenterZ);
-                                float hOff = hBalloonOff + eaHoleBalloonIdx * 30f;
-                                VIZCore3D.NET.Data.Vertex3D holeTextPos;
-                                switch (newViewDir)
-                                {
-                                    case "X": holeTextPos = new VIZCore3D.NET.Data.Vertex3D(hole.CenterX, bom.MinY - hBalloonOff, bom.MaxZ + hOff); break;
-                                    case "Y": holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - hBalloonOff, hole.CenterY, bom.MaxZ + hOff); break;
-                                    default:  holeTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MinX - hBalloonOff, bom.MaxY + hOff, hole.CenterZ); break;
-                                }
-                                VIZCore3D.NET.Data.NoteStyle holeStyle = vizcore3d.Review.Note.GetStyle();
-                                holeStyle.UseSymbol = false;
-                                holeStyle.BackgroudTransparent = true;
-                                holeStyle.FontBold = true;
-                                holeStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
-                                holeStyle.FontColor = Color.FromArgb(0, 160, 0);
-                                holeStyle.LineColor = Color.FromArgb(0, 160, 0);
-                                holeStyle.LineWidth = 1;
-                                holeStyle.ArrowColor = Color.FromArgb(0, 160, 0);
-                                holeStyle.ArrowWidth = 3;
-                                vizcore3d.Review.Note.AddNoteSurface(holeText, holeTextPos, holeCenter, holeStyle);
-                                eaHoleBalloonIdx++;
-                            }
-                        }
-                        catch { }
-                    }
-
-                    // EA 신규뷰 슬롯홀 풍선 배치
-                    if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
-                    {
-                        try
-                        {
-                            var slotGroups = bom.SlotHoles.GroupBy(s =>
-                                $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
-                            float sBalloonOff = Math.Max(Math.Max(sizeX, Math.Max(sizeY, sizeZ)) * 0.3f, 50f);
-                            int eaSlotBalloonIdx = 0;
-                            foreach (var grp in slotGroups)
-                            {
-                                var slot = grp.First();
-                                int sCount = grp.Count();
-                                float slotWidth = slot.Radius * 2f;
-                                string slotText = sCount > 1
-                                    ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
-                                    : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
-                                VIZCore3D.NET.Data.Vertex3D slotCenter = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ);
-                                float sOff = sBalloonOff + eaSlotBalloonIdx * 30f;
-                                VIZCore3D.NET.Data.Vertex3D slotTextPos;
-                                switch (newViewDir)
-                                {
-                                    case "X": slotTextPos = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, bom.MaxY + sBalloonOff, bom.MaxZ + sOff); break;
-                                    case "Y": slotTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MaxX + sBalloonOff, slot.CenterY, bom.MaxZ + sOff); break;
-                                    default:  slotTextPos = new VIZCore3D.NET.Data.Vertex3D(bom.MaxX + sBalloonOff, bom.MaxY + sOff, slot.CenterZ); break;
-                                }
-                                VIZCore3D.NET.Data.NoteStyle slotStyle = vizcore3d.Review.Note.GetStyle();
-                                slotStyle.UseSymbol = false;
-                                slotStyle.BackgroudTransparent = true;
-                                slotStyle.FontBold = true;
-                                slotStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE12;
-                                slotStyle.FontColor = Color.FromArgb(180, 0, 180);
-                                slotStyle.LineColor = Color.FromArgb(180, 0, 180);
-                                slotStyle.LineWidth = 1;
-                                slotStyle.ArrowColor = Color.FromArgb(180, 0, 180);
-                                slotStyle.ArrowWidth = 3;
-                                vizcore3d.Review.Note.AddNoteSurface(slotText, slotTextPos, slotCenter, slotStyle);
-                                eaSlotBalloonIdx++;
-                            }
-                        }
-                        catch { }
-                    }
-
-                    // 신규뷰 2D 투영
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-                    int topObjId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
-                        VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-
-                    // 같은 셀에 맞추기 + 기존 뷰와 동일 스케일
-                    vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, topObjId,
-                        VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
-                        VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
-                    float frontScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                    vizcore3d.Drawing2D.Object2D.RescaleObject(topObjId, frontScale);
-
-                    // ShapeDrawing(보조선) → 2D (0.5 굵기 + 가는 실선)
-                    // T-046: EA 두 번째 뷰 보조선도 가공도 메인과 동일 SOLID
-                    if (eaShapeIds.Count > 0)
-                    {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);  // T-040 v6: 0.5→0.1 (극가는 보조선 통일)
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
-                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(eaShapeIds);
-                    }
-
-                    // Measure(치수선) → 2D (0.5 굵기)
-                    List<int> eaMeasureIds = new List<int>();
-                    foreach (var m in vizcore3d.Review.Measure.Items)
-                    {
-                        if (m.Visible) eaMeasureIds.Add(m.ID);
-                    }
-                    if (eaMeasureIds.Count > 0)
-                    {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
-                        vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(eaMeasureIds.ToArray());
-                    }
-
-                    // EA 신규뷰 Note(풍선) → 2D
-                    List<int> eaNoteIds = new List<int>();
-                    foreach (var note in vizcore3d.Review.Note.Items)
-                        eaNoteIds.Add(note.ID);
-                    // T-064 (2026-05-14): 사용자 사양 — 가공도 EA 신규뷰 PDF 풍선 비활성화 (위와 동일 패턴)
-                    eaNoteIds.Clear();
-                    if (eaNoteIds.Count > 0)
-                    {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
-                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(eaNoteIds.ToArray());
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-
-                        // 2D 노트 라벨을 원형 넘버링으로 변경
-                        foreach (int idx in eaNoteIds)
-                        {
-                            try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(idx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
-                            catch { }
-                        }
-                    }
-
-                    // 두 뷰 크기 확인
-                    float fW = 0, fH = 0, tW = 0, tH = 0;
-                    vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref fW, ref fH);
-                    vizcore3d.Drawing2D.Object2D.GetObjectSize(topObjId, ref tW, ref tH);
-
-                    // 배치: 위쪽 넓으면(isAboveWider) → 신규뷰 위, 아래쪽 넓으면 → 신규뷰 아래
-                    // flipNewView로 180° 회전시 수직도 뒤집히므로 배치 방향도 반전
-                    float moveAmount = (fH / 2f) + (tH / 2f);
-                    bool placeAbove = isAboveWider;
-                    if (flipNewView) placeAbove = !placeAbove;
-                    if (placeAbove)
-                        vizcore3d.Drawing2D.Object2D.MoveObject(topObjId, 0, -moveAmount);  // 위로
-                    else
-                        vizcore3d.Drawing2D.Object2D.MoveObject(topObjId, 0, moveAmount);   // 아래로
-
-                    // 두께 복원
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
-                }
-                catch { }
-            }
-
-            // 13. 부재 표시 복원
-            vizcore3d.BeginUpdate();
-            vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
-            vizcore3d.View.XRay.Enable = true;
-            vizcore3d.View.XRay.ColorType = VIZCore3D.NET.Data.XRayColorTypes.OBJECT_COLOR;
-            vizcore3d.View.XRay.SelectionObject3DType = VIZCore3D.NET.Data.SelectionObject3DTypes.OPAQUE_OBJECT3D;
-            vizcore3d.View.XRay.Clear();
-            vizcore3d.EndUpdate();
+            DiagLog($"B3 RenderMfgViewForDrawing row={row} col={col} bom={bom.Index} " +
+                $"viewDir={pose.ViewDirection} longestAxis={pose.LongestAxis} " +
+                $"ApplyZ90={pose.ApplyZ90} ApplyR180={pose.ApplyR180} " +
+                $"shapeIds={(pose.ShapeDrawingIds?.Count ?? 0)} noteIds={noteIds.Count} measureIds={measureIds.Count} " +
+                $"objId={objId}");
 
             return objId;
         }
