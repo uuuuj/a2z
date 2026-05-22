@@ -1,0 +1,42 @@
+너는 VIZCore3D.NET SDK 기반 C# WinForms 3D→2D 도면 자동화 앱을 검토하는 시니어 리뷰어다.
+사용자 HYI(99년생 ESTJ 개발자, 자율 실행 선호)가 가공도 출력을 완전히 재설계하는 계획서를 작성했고, Claude의 단독 결정을 견제할 두 번째 의견이 필요하다.
+계획서 본문은 작업 디렉토리 `C:/Users/duddl/Desktop/Project/a2z/docs/리팩토링/가공도-템플릿-설계.md` 에 있다. 직접 읽고 검토하라.
+
+## 배경 요약
+- Step B (가공도 통합) 16 commit 완료, 브랜치 `refactor/dead-code`, 최신 `78d2887`
+- 사용자 실 검증: "가공도가 의도와 다르다" — 부재 너무 큼, 풍선 너무 김, 보조선 규칙 없음, 템플릿 미적용
+- 가공도 본질: 5행/페이지, BOM이름:모델 = 1:3, 부재별 전체+세부 치수 + 홀/슬롯 표시
+- EA 부재 두 뷰 (위 + 꺾인 방향) 필요 — T-064 EA 비활성화 사양 폐기
+- Osnap 홀 둘레 LINE 다수 → 체인 치수 폭증
+
+## 계획서 핵심 결정
+- 새 폴더 `A2Z/Drawing/` + `MfgPageLayout.cs` + `MfgRowRenderer.cs`
+- 새 함수 `GenerateMfgDrawing2DAll_v2` (자동·수동 양쪽 호출)
+- 엑셀 슬롯 정수 명명 (#1~#3 도면정보, #4 페이지번호, #5~#9 행별 BOM이름, #10~#29 행별 메타, {View_1}~{View_5})
+- 8 commit 분할 (C-Mfg-1~C-Mfg-8) + G2-v2 검증
+
+## 참고 코드 위치 (필요 시 직접 읽어 검증)
+- 제작도 템플릿 사용 예: `A2Z/Form1.DrawingSheets.cs` 함수 `GenerateSheetDrawing2D_WithExcelTemplate` (L1659 부근)
+- `ImportExcelWithData` 호출: 같은 파일 L1741 부근
+- `GetViewAreasFromExcel` 호출: 같은 파일 L1754 부근 (추정)
+- BOMData.Holes/SlotHoles: `A2Z/Models.cs`
+- `IsAngleFromSpref`: `A2Z/Form1.MfgDrawing.cs` L2069 (현재 코어 안에서 isEA=false 고정)
+- 옛 EA 신규뷰 코드: 현 브랜치에서 제거됨 (`refactor/dead-code` 분기 이전 commit `9329c3f` 부근 git history)
+- 메모리 노트: `C:/Users/duddl/.claude/projects/C--Users-duddl-Desktop-Project-a2z/memory/feedback_isea_preservation.md` (재활성화 예정 명시)
+
+## 검토 핵심 질문 (각 항목에 명확한 답)
+
+1. **엑셀 슬롯 명명 (정수 #4~#29)** — 제작도가 `Dictionary<int, string> data` 패턴 사용. 슬롯 번호 충돌·중복 위험? `ImportExcelWithData` API와 정합?
+2. **GetViewAreasFromExcel** — `{View_1}~{View_5}` 5개 영역 + 페이지 분할 시 매번 같은 xlsx 재호출 가능? 페이지마다 별도 xlsx 필요한가?
+3. **EA 두 뷰 (C-Mfg-7, 최고 위험)** — `isEA=false` 고정을 `IsAngleFromSpref(bom.Index)` 호출로 변경, 두 번째 `Create2DViewObjectWithModelHiddenLineAtCanvasOrigin` 호출, `MoveObject`로 옆 배치. `feedback_isea_preservation.md` 사양과 정합?
+4. **Osnap 홀 둘레 필터링 (C-Mfg-6)** — 옵션 A: bom.Holes 위치 ± 반지름 안 LINE Osnap 제외. 옵션 B: 짧은 (<50mm) LINE Osnap 제외. 어느 게 안전? 정상 치수 제거 위험?
+5. **수동·자동 동일 결과 보장** — `GenerateMfgDrawing2DAll_v2` 양쪽 호출. 정말 동일 결과? 수동 경로(`btnMfgDrawingSheet_Click`)와 자동 경로(`ProcessSingleStruFull`)의 사전 상태 차이 우려?
+6. **페이지 분할 PDF** — 페이지마다 `Export2PDFBy2DView` 호출. 페이지 간 캔버스 잔재(이전 모델·치수·풍선) 어떻게 초기화? 파일명 패턴 `{STRU명}_가공도_p{N}of{M}_{HHmmss}.pdf` 적정?
+7. **계획서 누락** — 안 적힌 위험·고려사항? 사용자가 곧 후회할 결정? 더 작게 쪼개야 할 단계?
+8. **commit 순서** — C-Mfg-1~C-Mfg-8 순서 안전? 의존성 누락?
+
+## 응답 형식 (한국어 1000~1500자)
+- **첫 줄**: 계획에 동의 / 조건부 동의 / 반대 명확히
+- 우려사항 🔴/🟡/🟢 분류 (각 항목 구체 근거 + 대안)
+- **결론**: "C-Mfg-2부터 바로 시작해도 안전" 또는 "계획서 수정 후 시작" 명확한 권고
+- 코드 수정 절대 금지, 검토 의견만
