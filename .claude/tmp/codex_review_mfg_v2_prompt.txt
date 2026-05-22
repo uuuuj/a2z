@@ -1,0 +1,163 @@
+## 프로젝트
+A2Z-HYI — VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱 (C# / .NET Framework 4.8)
+사용자(허영인): 99년생 ESTJ 개발자, 자율 실행 선호. 다중 PC 검증 환경 → push 필수.
+
+## 검토 대상
+`docs/리팩토링/가공도-수동우선-재배선.md` (v2). v1 검토 후 Codex 1차 10건 반영한 버전. 사용자 컨펌 전 2차 견제.
+
+## v2 핵심 결정
+- 사용자 명시: "자동 가공도 로직 폐기 → 수동 먼저 → 수동 함수 그대로 자동에서 호출"
+- 진입점: btnMfgDrawingSheet_Click (도면정보 탭 큰 가공도 출력)
+- 자동 가공도 호출은 P1에서 임시 hard skip + DiagLog (자동 PDF에 가공도 누락 OK)
+- 작업/데이터 탭 btnMfgDrawing 버튼·핸들러 폐기
+- ExecuteMfgDrawing + _lastMfgViewPose는 LvDrawingSheet 시트 더블클릭 미리보기로 유지
+- 옛 dead 코드는 P4에서 일괄 삭제
+- P1 (UI 폐기 + hard skip) → P2a~P2d (helper 4 commit) → P3 (사내검증) → P4a~P4b (자동 재배선 + dead 삭제) → P5 (EA 별 commit)
+- 총 ~7 commit, 예상 7~11시간 + 사내 검증
+
+## Claude의 사전 검토 발견 (Codex가 검증해야 할 핵심)
+
+**[A1 - 빌드 차단 위험 - 즉시 v3 패치 필요]**
+v2 §3 P2b의 `EnsureViewAreasCache` 시그니처는 `Dictionary<string, TemplateViewArea>` (key="View_1" 등)를 명시하지만, VIZCore3D.NET.xml과 실제 코드(Form1.DrawingSheets.cs:1809, Form1.ExcelTemplate.cs:124)에서 확인한 결과:
+- `TemplateViewArea.Index` 타입은 **int** (xml 명시: "{View_n}의 n")
+- 코드에서 이미 `Dictionary<int, CameraDirection>` + `cameraMap.TryGetValue(p.Index, ...)` 패턴 사용 중
+- v2 계획서대로 `cache.ToDictionary(a => a.Index, a => a)` + `cache[$"View_{i+1}"]` 작성 시 **컴파일 에러** (string → int 키 변환 불가)
+→ 권고: v3에서 `Dictionary<int, TemplateViewArea>` + `cache[i + 1]` 로 정정
+
+**[A2 - 정책 모순]**
+v2 §3 P2d btnMfgDrawingSheet_Click 재배선: `string saveDir = Path.Combine(GetSolutionPath(), "Drawings")` 명시.
+하지만 자동 STRU 일괄 (Form1.Stru.cs:362)은 `Path.Combine(Application.StartupPath, "Drawings")` 사용 — 두 경로가 다름:
+- GetSolutionPath() = `C:\...\a2z\` (.sln 위치)
+- Application.StartupPath = `C:\...\a2z\A2Z\bin\Debug\` 또는 `Release\`
+v2가 "§3 P2d T-064 정책 일치"라고 진술했으나 실제로는 불일치.
+→ 권고: 자동과 동일하게 Application.StartupPath 사용하거나, 양쪽 모두 GetSolutionPath()로 통일 (사용자 결정 필요)
+
+**[A3 - 함수 중복 vs helper 분리 트레이드오프]**
+v2 P2a의 ParseSprefForMfgRow는 CollectBOMInfo (Form1.Clash.cs:86~) SPREF/MATREF/POSSTART/POSEND/GWEI 부모 10단계 탐색 로직을 추출하는데:
+- 현재 CollectBOMInfo는 udaKeyList를 외부 한 번 캐시 후 partNodes 루프 안에서 사용
+- helper로 추출하면 BOM 1개당 udaKeyList 한 번씩 새로 가져오게 됨 (성능 저하 N×UDA.Keys 호출)
+- 가공도 행 5개 × STRU 다수 → 명시적 캐싱 누락 시 측정 가능한 지연
+→ 권고: helper 시그니처에 `List<string> udaKeyList = null` 옵션 추가, 호출자가 한 번 가져온 키 목록 전달 가능하게
+
+**[B1 - commit 분할 입도]**
+v2 §3 P2a~P2d 4개 commit이 모두 "호출자 0건 → 빌드 green" 으로 끝나는데, P2d 진입 전까지 사용자가 사내 검증을 할 수 없음. P2a~P2c는 정말 합쳐도 무방한지, 아니면 분할이 코드 리뷰·롤백 단위로 가치 있는지 의문.
+→ 의견 요청: 사용자 1인 개발 + 작은 팀 환경에서 4 commit 분할이 과한지
+
+**[C1 - 명확성 - 사용자 시점]**
+§6 작업 순서 다이어그램이 명확하지만, 사용자가 P3 사내 검증 진입 시 "P2d 직후 어디서 어떤 PDF를 검증하면 되는가" 가 §3 P3에 일부 설명 있으나 흐름이 작업/데이터 탭 buttons 폐기 + 도면정보 탭 가공도 버튼이라는 점이 다른 부분과 분리돼 있어 사용자 혼동 가능
+→ 권고: §6 다이어그램 옆에 "수동 진입점: 도면정보 탭 > '가공도 출력' 큰 버튼" 한 줄 추가
+
+**[D1 - RenderMfgRowToViewArea 반환값 처리]**
+v2 §3 P2c가 bool 반환을 명시했으나 §3 P2d의 GenerateMfgDrawingManual 호출부에서 그 반환값을 무시 (`RenderMfgRowToViewArea(i + 1, bom, area);`)
+- 일부 row 실패 시 페이지 전체 export 진행? 빈 영역 그대로 PDF 저장됨
+- 사용자가 "5부재 중 3개만 그려진 PDF"를 받아도 알 방법 없음
+→ 권고: 실패 row 카운트 누적 + DiagLog + export 직전 if (실패 row > 0) MessageBox warning, 또는 page-skip 정책 명시
+
+**[D2 - v2.1 (parent) 충돌 가능성]**
+v2.1 parent 문서가 EA 두 뷰 분기를 §4.6에 가지고 있고 G2-b/G2-c baseline 게이트 요구. v2가 EA를 P5로 미루면서 baseline 게이트 명시 없음 — parent 의도 vs v2 진행 안 충돌?
+→ 의견 요청
+
+## 견제 요청 항목 (A/B/C/D 영역)
+
+A. **안전성 (build/runtime)**
+- A1 (TemplateViewArea.Index int vs string key) 정확성 확인
+- A2 (saveDir 정책 자동·수동 차이) 정확성 확인
+- v2 P2c try/finally cleanup이 BuildMfgSceneCore와 충돌 가능성?
+- MakeUniquePdfPath가 Windows 260자 한계 risk? (struName sanitize도 부족 여부)
+- P1 P1a 단일 commit으로 Designer.cs + 4개 .cs 파일 동시 변경이 너무 큰가?
+
+B. **진행 가능성**
+- P1 commit 1개로 묶는 게 적절한가, P1a/P1b로 분할 필요? (Designer.cs UI 폐기 vs 코드 hard skip)
+- B1 (4 commit P2 분할 입도)
+- 각 commit 끝의 "build green 확인" 명시 필요?
+- 사내 검증 §3 P3 8개 체크리스트가 충분한가?
+
+C. **명확성**
+- C1 (사용자 시점 수동 진입점)
+- §4 위험 표가 사용자 작업 흐름 영향 부분을 다 담았는가?
+- v2 패치 표(§0)와 본문(§3) 사이 모순?
+- EA P5의 G2-b/G2-c baseline 게이트 명시 필요?
+
+D. **추가 자유 검토**
+- D1 (RenderMfgRowToViewArea 반환값 무시)
+- D2 (v2.1 parent와 충돌)
+- ParseSprefForMfgRow 추출이 CollectBOMInfo와 중복·동기화 위험?
+- 다른 보지 못한 함정?
+
+## 최종 보고 형식
+- 영역별 평가 (A/B/C/D)
+- 위치(파일·라인 또는 §) + 위험 등급(🔴🟡🟢) + 권고
+- 최종 권고: v2 그대로 컨펌 OK / v3 패치 후 컨펌 / 차단 사항
+
+검토 시간 2~5분 적당. 한국어로 보고.
+
+---
+
+## v2 본문 (검토 대상 — 길어서 일부 발췌)
+
+# 가공도 수동 우선 재배선 (Step C-Mfg-Rewire)
+
+## 0. v1 → v2 변경 (Codex 1차 10건 모두 반영)
+
+| # | 영역 | v1 | v2 |
+|---|---|---|---|
+| 1 | P1 no-op 범위 | GenerateMfgDrawing2DAll 호출만 막음 | Export2PDFBy2DView까지 hard skip + pdfCount 증가 X |
+| 2 | ExportAllSheetsToPdfCore group=false | 가공도 skip 위치 미명시 | lvi.Selected=true 이전 skip |
+| 3 | btnMfgDrawingSheet_Click P1 처리 | 모호 | P1 no-op + MessageBox 안내, P2d 활성화 |
+| 4 | row 단위 부수효과 | 진입 8단계만 | RenderMfgRowToViewArea try/finally + _lastMfgViewPose write X |
+| 5 | ViewArea 매칭 | viewAreasCache[i] list | Index 기준 dictionary, View_1~View_5 누락 시 throw |
+| 6 | SPREF UDA helper | 빈 문자열 fallback | P2a ParseSprefForMfgRow helper 신설 |
+| 7 | saveDir 정책 | 사용자 폴더 선택 또는 default | 기존 T-064 정책 일치 (Drawings/) |
+| 8 | PDF 파일명 충돌 | HHmmss 초 단위 | yyyyMMdd_HHmmss_fff + STRU index |
+| 9 | RescaleObject guard | 미언급 | GetObjectScale <= 0, NaN guard |
+| 10 | 반환값 의미 | "페이지 수" | "성공 저장 PDF 수" |
+
+## 3. Phase별 commit 계획
+
+### P1. 폐기 + 자동 임시 hard skip (1 commit)
+- Designer.cs: btnMfgDrawing 컨트롤 4곳 제거, btnBalloonAdjust만 남음
+- Form1.MfgDrawing.cs: btnMfgDrawing_Click 핸들러 제거, btnMfgDrawingSheet_Click no-op + MessageBox
+- Form1.Stru.cs §8 (line 740-790): GenerateMfgDrawing2DAll + Export2PDFBy2DView 호출 제거 → mfgSkipCount + DiagLog
+- Form1.DrawingSheets.cs group=false (1149-1218): lvi.Selected=true 이전에 startsWith("가공도") skip
+- Form1.DrawingSheets.cs group=true (1220-1273): 전체 블록 → mfgSkipCount + DiagLog
+
+### P2. 수동 새 함수 작성 (4 commit)
+**P2a — Helper 5행 갱신 + SPREF helper**: SplitMfgIntoPages rowsPerPage 4→5, BuildMfgPageData PoC→v2.1 사양 슬롯 (Input_5~29), ParseSprefForMfgRow helper 신설 (CollectBOMInfo 추출)
+**P2b — EnsureViewAreasCache + ResetCanvasForMfgPage + MakeUniquePdfPath**:
+- EnsureViewAreasCache(ref Dictionary<string,TemplateViewArea> cache, string xlsxPath) — list.ToDictionary(a => a.Index, a => a) (키: "View_1") — ★ A1 빌드 차단 위험 지점 ★
+- ResetCanvasForMfgPage(): Clear2DView + SetCanvasSize(297,210) + SetSelectCanvas(1)
+- MakeUniquePdfPath(saveDir, struName, pageIdx, totalPages, struIndex): yyyyMMdd_HHmmss_fff + S{struIndex} suffix + while File.Exists 충돌 회피
+**P2c — RenderMfgRowToViewArea (try/finally row clear)**: 진입·종료 Note/Measure/ShapeDrawing.Clear. BuildMfgSceneCore(pose 지역변수만). FlyToObject3d → Z90/R180 → Create2DViewObjectWithModelHiddenLineAtCanvasOrigin → RescaleObject(curScale × fitRatio) + MoveObjectTo(cx,cy) → ShapeDrawing/Note/Measure 2D 변환 → bool 반환 (true=성공, false=실패)
+**P2d — GenerateMfgDrawingManual 통합 + btnMfgDrawingSheet_Click 재배선**:
+- 진입부 강제 초기화 8단계 (Note/Measure/ShapeDrawing.Clear, Clear2DView, XRay false, Object3D.Show ALL, Deselect, RenderMode DASH)
+- SplitMfgIntoPages(mfgSheets, 5)
+- foreach page: ResetCanvasForMfgPage → BuildMfgPageData → ImportExcelWithData → EnsureViewAreasCache → for rows: RenderMfgRowToViewArea(i+1, bom, viewAreasCache[$"View_{i+1}"]) ← ★ A1 ★ → Drawing2D.Render → Export2PDFBy2DView(MakeUniquePdfPath)
+- 반환: successPdfs (성공만 카운트)
+- btnMfgDrawingSheet_Click: 가공도 시트 수집 → GenerateMfgDrawingManual(mfgSheets, Path.Combine(GetSolutionPath(),"Drawings"), "manual", 0) ← ★ A2 saveDir 정책 모순 ★
+
+### P3. 사내 검증
+8개 합격 기준:
+- 5행/페이지 (BOM이름 25% : 모델 75%)
+- 우측 BOM 표 + 도면정보 + 페이지 N/M (ITEM/MATERIAL/SIZE 채워짐)
+- 가로·세로 치수 + 홀/슬롯 풍선
+- 5부재 초과 시 페이지 분할
+- 페이지 잔재 없음
+- row 간 잔재 없음
+- PDF 파일명 충돌 없음
+- 예외 0건
+
+### P4. 자동 재배선 + dead 일괄 삭제
+- ProcessSingleStruFull §8: hard skip 제거 → GenerateMfgDrawingManual(mfgSheets, struSubDir, struNode.NodeName, struIndex); pdfCount += mfgPdfs
+- ExportAllSheetsToPdfCore: 같은 패턴
+- GenerateMfgDrawing2DAll + RenderMfgViewForDrawing 본체 일괄 제거
+
+### P5. EA 두 뷰 (별 commit)
+v2.1 §4.6 패턴 (TemplateViewArea 좌/우 분할). 위험 매우 높음. feedback_isea_preservation.md 갱신.
+
+## 6. 작업 순서
+[현재] → P1 → P2a → P2b → P2c → P2d → push → P3 사내 검증 → P4a → P4b → push → [G2-final] → P5a → P5b(YAGNI)
+총 ~7 commit, 7~11시간 + 사내 검증.
+
+---
+
+(전체 본문은 docs/리팩토링/가공도-수동우선-재배선.md 참조. 본 프롬프트에는 핵심만 발췌.)
