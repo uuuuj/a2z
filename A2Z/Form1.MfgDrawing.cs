@@ -45,6 +45,92 @@ namespace A2Z
                 vizcore3d.Object3D.Show(allIndices, true);
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // Step C-Mfg-2 (2026-05-19): 가공도 페이지 분할 helper.
+        // PoC: 페이지당 4부재 (제작도 템플릿 View_1~View_4 슬롯 그대로 활용).
+        // v2.1 사양 5행은 View_5 추가 후 별 commit (현재 보류).
+        // codex 3차 권고: viewAreasCache.Count >= page.Rows.Count 방어 (C-Mfg-3 적용).
+        // codex 2차 #7: helper는 Form1 partial 내부 private helper로 시작.
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 가공도 페이지 1개 데이터 — PoC: 4 부재까지 (View_1~View_4).
+        /// </summary>
+        private sealed class MfgPage
+        {
+            public int PageIdx;                                     // 1-based
+            public List<DrawingSheetData> Rows = new List<DrawingSheetData>();
+        }
+
+        /// <summary>
+        /// 가공도 시트 목록을 페이지당 N개로 분할.
+        /// PoC: rowsPerPage = 4 (제작도 카피 4뷰).
+        /// </summary>
+        private List<MfgPage> SplitMfgIntoPages(List<DrawingSheetData> mfgSheets, int rowsPerPage = 4)
+        {
+            var pages = new List<MfgPage>();
+            if (mfgSheets == null || mfgSheets.Count == 0) return pages;
+
+            int total = mfgSheets.Count;
+            int pageCount = (total + rowsPerPage - 1) / rowsPerPage;
+            for (int p = 0; p < pageCount; p++)
+            {
+                var page = new MfgPage { PageIdx = p + 1 };
+                int start = p * rowsPerPage;
+                int end = Math.Min(start + rowsPerPage, total);
+                for (int i = start; i < end; i++)
+                    page.Rows.Add(mfgSheets[i]);
+                pages.Add(page);
+            }
+            return pages;
+        }
+
+        /// <summary>
+        /// 가공도 페이지 1개의 ImportExcelWithData용 Dictionary 구성.
+        /// 제작도 슬롯 명명 그대로 (Input_1~Input_3 도면정보, Input_4~Input_18 No, Input_19~Input_33 ITEM, ...).
+        /// PoC: 4행만 채움 (Input_4~Input_7 등), 나머지 슬롯은 빈 문자열 또는 미매핑.
+        /// BOM 데이터 소스: bomList 직접 매핑 (codex 1차 #2 — lvDrawingBOMInfo 의존 X, T-064 회귀 방지).
+        /// </summary>
+        private Dictionary<int, string> BuildMfgPageData(MfgPage page, int totalPages, string struName)
+        {
+            var data = new Dictionary<int, string>();
+
+            // 도면정보
+            data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)
+            data[2] = "SN2688";       // TODO: 선박번호
+            data[3] = "가공도";
+
+            // PoC: page 번호는 Input_3 라벨에 합쳐 표시 (별도 슬롯 미사용)
+            // 사용자 검증 후 페이지번호 슬롯 추가 결정
+            if (totalPages > 1)
+                data[3] = $"가공도 ({page.PageIdx}/{totalPages})";
+
+            // 행별 BOM 데이터 (제작도 슬롯 그대로, PoC 4행)
+            //   Input_4~Input_7   = Row1~4 BOM 이름 (제작도 No 슬롯 자리)
+            //   Input_19~Input_22 = Row1~4 ITEM (제작도 ITEM 슬롯)
+            //   Input_34~Input_37 = Row1~4 MATERIAL
+            //   Input_49~Input_52 = Row1~4 SIZE
+            //   Input_64~Input_67 = Row1~4 Q'TY (가공도는 1)
+            for (int i = 0; i < page.Rows.Count && i < 4; i++)
+            {
+                var sheet = page.Rows[i];
+                if (sheet.MemberIndices.Count == 0) continue;
+                int bomIdx = sheet.MemberIndices[0];
+                var bom = bomList.FirstOrDefault(b => b.Index == bomIdx);
+                if (bom == null) continue;
+
+                data[4 + i]  = bom.Name ?? "";   // BOM 이름 (No 자리)
+                // ITEM / MATERIAL / SIZE는 SPREF UDA 파서 helper 필요 — C-Mfg-3 또는 별 commit
+                // PoC: 빈 문자열 (사용자 검증 후 우선순위 결정)
+                data[19 + i] = "";
+                data[34 + i] = "";
+                data[49 + i] = "";
+                data[64 + i] = "1";                // Q'TY (가공도는 1 고정)
+            }
+
+            return data;
+        }
+
         /// <summary>
         /// Step B (2026-05-19): 가공도 공통 3D 장면 생성 코어.
         /// 수동(ExecuteMfgDrawing)·자동(RenderMfgViewForDrawing) 두 함수의 공통 3D 로직을 분리.
