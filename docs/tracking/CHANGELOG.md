@@ -6,10 +6,51 @@
 
 ---
 
+## 2026-05-23 — P2-helpers: 가공도 수동 새 함수용 헬퍼 일괄 추가
+
+**유형**: refactor (가공도 흐름 재배선 2단계 1/3)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7 (Codex 1~7차 검토 통과)
+
+**배경**:
+P1(`d8682b4`)에서 자동·수동 진입점 hard skip 후, P2에서 수동 새 함수 `GenerateMfgDrawingManual` 작성. P2를 3 commit으로 분할:
+- **P2-helpers (본 commit)**: 헬퍼 함수 일괄 + 결과 객체 클래스
+- P2-row: `RenderMfgRowToViewArea` 행 1개 렌더
+- P2-integrate: `GenerateMfgDrawingManual` 통합 + `btnMfgDrawingSheet_Click` 재배선
+
+**변경** (`A2Z/Form1.MfgDrawing.cs`):
+- `MfgPage` 클래스 주석 갱신 (PoC 4행 → v7 5행)
+- `SplitMfgIntoPages`: `rowsPerPage` 기본값 4 → **5**
+- `BuildMfgPageData` 시그니처 + 본문 전면 갱신:
+  - 사용자 사양 반영: BOM 표·도면정보 = 제작도 방식 (`CollectBOMInfo` + `lvDrawingBOMInfo`)
+  - 매개변수에 `List<string[]> bomSnapshot` 추가
+  - 빈 슬롯 선초기화 `data[1..129] = ""` (미치환 `{Input_N}` 노출 방지)
+  - 좌측 5행 BOM 이름: `Input_5~9`
+  - 우측 BOM 표 8컬럼 × 15행: `Input_10~129` (NO/ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA × 15)
+- 신규 helper 6개:
+  - `MfgDrawingResult` private sealed class (Codex 6차 권고: 결과 객체 패턴) — SuccessPdfs / InsufficientBomPdfs / TemplateMissing / BomRows / ExpectedBomRows / Warnings / HasIssues
+  - `SnapshotBomRows()`: `lvDrawingBOMInfo`에서 BOM 행 1회 복사 (UI race 차단)
+  - `EnsureViewAreasCache(ref dict, xlsxPath)`: SDK `GetViewAreasFromExcel` 결과를 int 키 dict로 1회 캐시, View_1~5 검증 후 대입 (invalid cache 잔존 차단)
+  - `ResetCanvasForMfgPage()`: 페이지 진입 시 Clear2DView + SetCanvasSize(297, 210) + SetSelectCanvas(1)
+  - `GetDefaultDrawingSaveDir()`: 자동·수동 공통 `Application.StartupPath/Drawings`
+  - `MakeUniquePdfPath(...)`: `SanitizeFileName` + 40자 clamp + `yyyyMMdd_HHmmss_fff` + struIndex + 충돌 시 `_N` suffix + MAX_PATH 240 임박 경고
+
+**효과**:
+- 호출자 0건 (P2-row, P2-integrate에서 활성화 예정)
+- 빌드 green (Debug, warning 5건 — `MfgDrawingResult` 필드 미할당, P2-integrate에서 해소)
+- 옛 `GenerateMfgDrawing2DAll` + `RenderMfgViewForDrawing` 본체는 여전히 dead 격리 (P4b 삭제)
+
+**다음 단계**:
+- **P2-row**: `RenderMfgRowToViewArea` — `BuildMfgSceneCore` 호출 + DASH_LINE + FlyTo + Z90/R180 + 2D 캡처 + fit guard (NaN·Infinity·newScale 포함) + Shape/Note/Measure 각각 try/catch + finally `DeleteObjectBy2DView` cleanup
+- P2-integrate: 통합 본체 + 버튼 재배선
+- Codex 7차 검토 통과 (차단급 0건, MED 1건 BOM surplus는 일반 사용에서 발생 X — 사용자 결정으로 v7 유지)
+
+---
+
 ## 2026-05-23 — P1: btnMfgDrawing 폐기 + 자동·수동 가공도 진입점 임시 hard skip
 
 **유형**: refactor (가공도 흐름 재배선 1단계)
-**커밋**: `pending`
+**커밋**: `d8682b4`
 **관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v3 (Codex 1~3차 견제 통과)
 **관련 TASK**: T-064 (도면리스트 뽑기 후속), feedback_mfg_balloon_2026-05-19
 

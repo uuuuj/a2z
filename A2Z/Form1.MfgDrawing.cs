@@ -32,15 +32,14 @@ namespace A2Z
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // Step C-Mfg-2 (2026-05-19): 가공도 페이지 분할 helper.
-        // PoC: 페이지당 4부재 (제작도 템플릿 View_1~View_4 슬롯 그대로 활용).
-        // v2.1 사양 5행은 View_5 추가 후 별 commit (현재 보류).
-        // codex 3차 권고: viewAreasCache.Count >= page.Rows.Count 방어 (C-Mfg-3 적용).
-        // codex 2차 #7: helper는 Form1 partial 내부 private helper로 시작.
+        // P2-helpers (2026-05-23): 가공도 수동 통합 함수용 헬퍼 일괄.
+        // 계획서: docs/리팩토링/가공도-수동우선-재배선.md v7
+        // 사용자 사양: BOM 표·도면정보 = 제작도 방식 그대로 (CollectBOMInfo + lvDrawingBOMInfo 재사용)
+        // Codex 1~6차 검토 누적 반영 (B/N/M cleanup, snapshot, dict 검증, MakeUniquePdfPath 등)
         // ═══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// 가공도 페이지 1개 데이터 — PoC: 4 부재까지 (View_1~View_4).
+        /// 가공도 페이지 1개 데이터 — v7: 페이지당 5부재 (View_1~View_5).
         /// </summary>
         private sealed class MfgPage
         {
@@ -49,10 +48,25 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 가공도 시트 목록을 페이지당 N개로 분할.
-        /// PoC: rowsPerPage = 4 (제작도 카피 4뷰).
+        /// 가공도 출력 결과 객체 (v7, Codex 6차 권고).
+        /// 호출부가 받아 단일 MessageBox 또는 자동 일괄 요약 생성.
         /// </summary>
-        private List<MfgPage> SplitMfgIntoPages(List<DrawingSheetData> mfgSheets, int rowsPerPage = 4)
+        private sealed class MfgDrawingResult
+        {
+            public int SuccessPdfs;               // 성공 저장 PDF 수
+            public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 PDF 수 (성공 PDF 중 일부)
+            public bool TemplateMissing;          // 가공도 엑셀 템플릿 누락 → PDF 0개
+            public int BomRows;                   // 실제 snapshot BOM 행 수
+            public int ExpectedBomRows;           // 예상 BOM 행 수 = Min(allMfgBomIndices.Count, 15)
+            public List<string> Warnings = new List<string>();   // 사용자에게 보일 경고 텍스트
+
+            public bool HasIssues => Warnings.Count > 0 || InsufficientBomPdfs > 0 || TemplateMissing;
+        }
+
+        /// <summary>
+        /// 가공도 시트 목록을 페이지당 N개로 분할 (v7: rowsPerPage = 5).
+        /// </summary>
+        private List<MfgPage> SplitMfgIntoPages(List<DrawingSheetData> mfgSheets, int rowsPerPage = 5)
         {
             var pages = new List<MfgPage>();
             if (mfgSheets == null || mfgSheets.Count == 0) return pages;
@@ -72,49 +86,157 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 가공도 페이지 1개의 ImportExcelWithData용 Dictionary 구성.
-        /// 제작도 슬롯 명명 그대로 (Input_1~Input_3 도면정보, Input_4~Input_18 No, Input_19~Input_33 ITEM, ...).
-        /// PoC: 4행만 채움 (Input_4~Input_7 등), 나머지 슬롯은 빈 문자열 또는 미매핑.
-        /// BOM 데이터 소스: bomList 직접 매핑 (codex 1차 #2 — lvDrawingBOMInfo 의존 X, T-064 회귀 방지).
+        /// lvDrawingBOMInfo의 BOM 행 데이터를 메모리로 1회 복사 (v7 Codex 4차 권고).
+        /// 호출자: GenerateMfgDrawingManual 진입부 (CollectBOMInfo 직후 1회).
+        /// 목적: 페이지 루프에서 live ListView 의존 끊기 → UI race 차단.
         /// </summary>
-        private Dictionary<int, string> BuildMfgPageData(MfgPage page, int totalPages, string struName)
+        /// <returns>각 행의 8컬럼 문자열 배열 리스트. Row 0(요약행) 제외.</returns>
+        private List<string[]> SnapshotBomRows()
+        {
+            var rows = new List<string[]>();
+            if (lvDrawingBOMInfo.Items.Count <= 1) return rows;
+
+            for (int i = 1; i < lvDrawingBOMInfo.Items.Count; i++)
+            {
+                ListViewItem item = lvDrawingBOMInfo.Items[i];
+                rows.Add(new string[]
+                {
+                    item.Text,                      // [0] NO
+                    SafeSubItem(item, 1),           // [1] ITEM
+                    SafeSubItem(item, 2),           // [2] MATERIAL
+                    SafeSubItem(item, 3),           // [3] SIZE
+                    SafeSubItem(item, 4),           // [4] Q'TY
+                    SafeSubItem(item, 5),           // [5] T/W
+                    SafeSubItem(item, 6),           // [6] MA
+                    SafeSubItem(item, 7),           // [7] FA
+                });
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// 가공도 페이지 1개의 ImportExcelWithData용 Dictionary 구성 (v7).
+        /// 사용자 사양: BOM 표·도면정보 = 제작도 방식 그대로 (제작도 코드 패턴 차용).
+        /// BOM 데이터는 호출자가 SnapshotBomRows로 1회 복사한 bomSnapshot 사용.
+        /// </summary>
+        private Dictionary<int, string> BuildMfgPageData(
+            MfgPage page, int totalPages, string struName, List<string[]> bomSnapshot)
         {
             var data = new Dictionary<int, string>();
 
-            // 도면정보
+            // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
+            for (int k = 1; k <= 129; k++)
+                data[k] = "";
+
+            // ── 도면정보 ──
             data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)
             data[2] = "SN2688";       // TODO: 선박번호
-            data[3] = "가공도";
+            data[3] = totalPages > 1
+                ? $"가공도 ({page.PageIdx}/{totalPages})"
+                : "가공도";
 
-            // PoC: page 번호는 Input_3 라벨에 합쳐 표시 (별도 슬롯 미사용)
-            // 사용자 검증 후 페이지번호 슬롯 추가 결정
-            if (totalPages > 1)
-                data[3] = $"가공도 ({page.PageIdx}/{totalPages})";
-
-            // 행별 BOM 데이터 (제작도 슬롯 그대로, PoC 4행)
-            //   Input_4~Input_7   = Row1~4 BOM 이름 (제작도 No 슬롯 자리)
-            //   Input_19~Input_22 = Row1~4 ITEM (제작도 ITEM 슬롯)
-            //   Input_34~Input_37 = Row1~4 MATERIAL
-            //   Input_49~Input_52 = Row1~4 SIZE
-            //   Input_64~Input_67 = Row1~4 Q'TY (가공도는 1)
-            for (int i = 0; i < page.Rows.Count && i < 4; i++)
+            // ── 좌측 5행 BOM 이름 (Input_5~Input_9) ──
+            for (int i = 0; i < page.Rows.Count && i < 5; i++)
             {
                 var sheet = page.Rows[i];
                 if (sheet.MemberIndices.Count == 0) continue;
-                int bomIdx = sheet.MemberIndices[0];
-                var bom = bomList.FirstOrDefault(b => b.Index == bomIdx);
+                var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                 if (bom == null) continue;
-
-                data[4 + i]  = bom.Name ?? "";   // BOM 이름 (No 자리)
-                // ITEM / MATERIAL / SIZE는 SPREF UDA 파서 helper 필요 — C-Mfg-3 또는 별 commit
-                // PoC: 빈 문자열 (사용자 검증 후 우선순위 결정)
-                data[19 + i] = "";
-                data[34 + i] = "";
-                data[49 + i] = "";
-                data[64 + i] = "1";                // Q'TY (가공도는 1 고정)
+                data[5 + i] = bom.Name ?? "";
             }
 
+            // ── 우측 BOM 표 8컬럼 × 15행 (Input_10~Input_129, snapshot 사용) ──
+            // 제작도와 동일 매핑 패턴, 슬롯 번호만 +6 이동.
+            int bomMapped = 0;
+            if (bomSnapshot != null)
+            {
+                int n = Math.Min(bomSnapshot.Count, 15);
+                for (int i = 0; i < n; i++)
+                {
+                    string[] row = bomSnapshot[i];
+                    data[10 + i]  = row[0];   // NO
+                    data[25 + i]  = row[1];   // ITEM
+                    data[40 + i]  = row[2];   // MATERIAL
+                    data[55 + i]  = row[3];   // SIZE
+                    data[70 + i]  = row[4];   // Q'TY
+                    data[85 + i]  = row[5];   // T/W
+                    data[100 + i] = row[6];   // MA
+                    data[115 + i] = row[7];   // FA
+                }
+                bomMapped = n;
+            }
+            DiagLog($"[BuildMfgPageData] p{page.PageIdx}/{totalPages} BOM 매핑 {bomMapped}행 (snapshot)");
+
             return data;
+        }
+
+        /// <summary>
+        /// 엑셀 템플릿에서 View_1~View_5 영역을 1회 캐시 (v7 Codex 3차 B1).
+        /// SDK 정식: TemplateViewArea.Index = int (1..5).
+        /// local dict 검증 통과 후에만 cache 대입 — invalid cache 잔존 차단.
+        /// </summary>
+        private void EnsureViewAreasCache(
+            ref Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> cache,
+            string xlsxPath)
+        {
+            if (cache != null) return;
+
+            var list = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
+            if (list == null || list.Count == 0)
+                throw new InvalidOperationException($"가공도 템플릿 View 영역 없음: {xlsxPath}");
+
+            var dict = list.ToDictionary(a => a.Index, a => a);
+            for (int i = 1; i <= 5; i++)
+                if (!dict.ContainsKey(i))
+                    throw new InvalidOperationException($"가공도 템플릿 View_{i} 누락: {xlsxPath}");
+
+            cache = dict;
+            DiagLog($"[EnsureViewAreasCache] View_1~View_5 캐시 완료 (from {Path.GetFileName(xlsxPath)})");
+        }
+
+        /// <summary>
+        /// 가공도 페이지 진입 시 캔버스 초기화 (v7).
+        /// </summary>
+        private void ResetCanvasForMfgPage()
+        {
+            Clear2DView();
+            vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
+            vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+        }
+
+        /// <summary>
+        /// 자동·수동 공통 PDF 저장 폴더. T-064 정책: Application.StartupPath/Drawings.
+        /// </summary>
+        private string GetDefaultDrawingSaveDir()
+        {
+            string dir = Path.Combine(Application.StartupPath, "Drawings");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>
+        /// PDF 파일명 충돌 방지 + sanitize + 길이 clamp + MAX_PATH 진단 (v7 Codex 4차).
+        /// Form1.DrawingSheets.cs SanitizeFileName 재사용.
+        /// </summary>
+        private string MakeUniquePdfPath(string saveDir, string struName, int pageIdx, int totalPages, int struIndex)
+        {
+            string safeName = SanitizeFileName(struName ?? "manual");
+            if (safeName.Length > 40) safeName = safeName.Substring(0, 40);
+
+            string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            string baseName = $"{safeName}_가공도_p{pageIdx}of{totalPages}_S{struIndex}_{ts}.pdf";
+            string path = Path.Combine(saveDir, baseName);
+
+            int n = 1;
+            while (File.Exists(path) && n < 1000)
+            {
+                string alt = $"{Path.GetFileNameWithoutExtension(baseName)}_{n}.pdf";
+                path = Path.Combine(saveDir, alt);
+                n++;
+            }
+            if (path.Length > 240)
+                DiagLog($"[MakeUniquePdfPath] WARN path 길이 {path.Length} (Windows MAX_PATH 260 임박): {path}");
+            return path;
         }
 
         /// <summary>
