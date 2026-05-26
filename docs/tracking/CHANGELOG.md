@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-05-23 — P1: btnMfgDrawing 폐기 + 자동·수동 가공도 진입점 임시 hard skip
+
+**유형**: refactor (가공도 흐름 재배선 1단계)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v3 (Codex 1~3차 견제 통과)
+**관련 TASK**: T-064 (도면리스트 뽑기 후속), feedback_mfg_balloon_2026-05-19
+
+**배경** (사용자 사양, 2026-05-22):
+> "자동 가공도 로직은 일단 폐기하고 수동으로 가공도 그리고 수동이 잘 나오면 그 수동 로직 함수 그대로 자동에서 호출"
+> "작업/데이터 탭에서의 버튼들 다 없애줘"
+
+**변경**:
+- **UI 제거** (`A2Z/Form1.Designer.cs`):
+  - 작업/데이터 탭 `panelBOMButtons`의 `btnMfgDrawing` 컨트롤 4곳(필드·선언·Controls.Add·정의 블록) 제거
+  - 같은 패널에 남은 `btnBalloonAdjust` 위치를 (6,4)로 이동, TabIndex 0
+- **핸들러 제거** (`A2Z/Form1.MfgDrawing.cs:19-31`):
+  - `btnMfgDrawing_Click` 메서드 통째로 제거. `ExecuteMfgDrawing` 함수 본체는 `LvDrawingSheet_SelectedIndexChanged` 미리보기에서 그대로 유지
+- **큰 버튼 임시 no-op** (`A2Z/Form1.MfgDrawing.cs`):
+  - 도면정보 탭 `btnMfgDrawingSheet_Click` 본문을 `DiagLog + MessageBox("재설계 중")`으로 교체. 옛 `GenerateMfgDrawing2DAll(mfgSheets)` 호출 폐기
+- **자동 진입점 hard skip** (Codex 1차 #1 — Export2PDFBy2DView 잔존 방지):
+  - `A2Z/Form1.Stru.cs §8` (`ProcessSingleStruFull` 가공도 묶음): 옛 `GenerateMfgDrawing2DAll` + `Export2PDFBy2DView` 블록 전체 제거 → `mfgSkipCount` 집계 + DiagLog만. `pdfCount` 증가 X
+  - `A2Z/Form1.DrawingSheets.cs:1149-1218` (`ExportAllSheetsToPdfCore` group=false): 가공도 시트를 `lvi.Selected = true` 트리거 이전에 hard skip + 옛 if/else 가공도 분기 제거. selection 이벤트가 `ExecuteMfgDrawing`을 우발 호출하는 경로 차단 (Codex 1차 #2)
+  - `A2Z/Form1.DrawingSheets.cs:1220-1273` (group=true 가공도 묶음): 전체 블록을 `mfgSkipCount` DiagLog로 교체. `successCount` 증가 X
+- **docs 갱신**:
+  - `docs/기능/가공도/가공도 단일.md` — DEPRECATED 박스 + `last_updated`
+  - `docs/기능/가공도/가공도 시트.md` — P1 임시 비활성 박스 + `last_updated`
+
+**효과**:
+- 옛 가공도 함수 호출자 0건 확인 ✅
+  - `rg "GenerateMfgDrawing2DAll" A2Z/` → 정의 1곳 + 내부 호출 1곳 (모두 dead path)
+  - `rg "RenderMfgViewForDrawing" A2Z/` → 정의 1곳 + 내부 호출 1곳 (dead path)
+  - `rg "btnMfgDrawing_Click" A2Z/` → 0건
+- 빌드 green ✅ (Debug)
+- 자동 STRU 일괄 출력 + ALL PDF 출력에서 가공도 부분만 누락 (의도됨, 검증 사이클 동안)
+- 옛 `GenerateMfgDrawing2DAll` (174줄) + `RenderMfgViewForDrawing` (132줄) 본체는 dead로 격리. P4b에서 일괄 삭제 예정
+
+**영향 범위**:
+- 코드: 4개 파일, 6 hunks (167 deletions, 57 insertions, 순감 110줄)
+- UI: 작업/데이터 탭 가공도 버튼 사라짐. 도면정보 탭 큰 가공도 버튼은 "재설계 중" 메시지 표시
+- 검증 경로: 자동 PDF에 가공도 누락 OK (사용자 사전 결정)
+
+**다음 단계**:
+- P2-helpers / P2-row / P2-integrate: 수동 새 함수 `GenerateMfgDrawingManual` 작성 (엑셀 템플릿 5행/페이지 + PDF 직접 출력)
+- v4 마이크로 패치: Codex 3차 지적 5건(POSSTART/POSEND 실제 코드, EnsureViewAreasCache, BuildMfgPageData 빈 슬롯 초기화, RenderMfgRowToViewArea partial cleanup, curScale Infinity guard) 계획서 반영 — P2 진입 전 완료
+- Codex 4차 검토: v4 패치 후
+- P4 자동 재배선 시점에서 dead 코드 일괄 삭제
+
+---
+
 ## 2026-05-14 — T-064 4차: 가공도 엑셀 템플릿 롤백 (옛 외곽 + table2 복귀)
 
 **유형**: revert (가공도 엑셀 템플릿 적용 폐기)

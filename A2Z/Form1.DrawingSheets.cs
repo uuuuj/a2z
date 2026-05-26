@@ -1155,9 +1155,14 @@ namespace A2Z
 
                     string sheetLabel = lvi.Text; // "Sheet 1" 또는 "가공도_1"
 
-                    // ★ groupMfgSheets=true면 가공도 시트는 루프 끝난 후 한 번에 처리 — 여기선 건너뜀
-                    if (groupMfgSheets && sheetLabel.StartsWith("가공도"))
+                    // P1 hard skip (refactor/dead-code, 2026-05-23)
+                    //   가공도는 selection 트리거 + export 모두 우회.
+                    //   옛 GenerateMfgDrawing2DAll 호출 제거 — P4에서 GenerateMfgDrawingManual로 재배선.
+                    if (sheetLabel.StartsWith("가공도"))
+                    {
+                        DiagLog($"[P1 no-op] ALL PDF 가공도 시트 hard skip: {sheetLabel}");
                         continue;
+                    }
 
                     // ListView에서 해당 항목 선택 (UI 동기화)
                     foreach (ListViewItem sel in lvDrawingSheet.SelectedItems)
@@ -1174,17 +1179,8 @@ namespace A2Z
                     string pdfFileName = $"{safeBaseName}_{safeSheetLabel}_{timeStamp}.pdf";
                     string pdfPath = System.IO.Path.Combine(saveDir, pdfFileName);
 
-                    if (sheetLabel.StartsWith("가공도"))
-                    {
-                        // 가공도 출력 로직
-                        var mfgSheets = new List<DrawingSheetData> { sheet };
-                        GenerateMfgDrawing2DAll(mfgSheets);
-                    }
-                    else
-                    {
-                        // 2D 출력 로직
-                        GenerateSheetDrawing2D(sheet);
-                    }
+                    // 일반 시트 2D 출력 (가공도는 위에서 skip됨)
+                    GenerateSheetDrawing2D(sheet);
 
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(200);
@@ -1217,59 +1213,16 @@ namespace A2Z
                     System.Threading.Thread.Sleep(100);
                 }
 
-                // ★ groupMfgSheets=true: 가공도 시트들 *한 번에* 처리 (btnMfgDrawingSheet 패턴, 8×3 그리드 1 PDF)
-                // 사용자 지적: "가공도는 한 번에 뽑는 코드 기존에 있는데?"
+                // P1 hard skip (refactor/dead-code, 2026-05-23)
+                //   옛 가공도 묶음 GenerateMfgDrawing2DAll + Export2PDFBy2DView 호출 제거.
+                //   수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 P4에서 재배선. successCount 증가 X.
                 if (groupMfgSheets)
                 {
-                    var mfgSheets = new List<DrawingSheetData>();
+                    int mfgSkipCount = 0;
                     foreach (ListViewItem lvi in lvDrawingSheet.Items)
-                    {
-                        if (lvi.Text.StartsWith("가공도"))
-                        {
-                            var s = lvi.Tag as DrawingSheetData;
-                            if (s != null && s.MemberIndices.Count > 0)
-                                mfgSheets.Add(s);
-                        }
-                    }
-
-                    if (mfgSheets.Count > 0)
-                    {
-                        try
-                        {
-                            DiagLog($"[ALL PDF] 가공도 묶음 처리 시작 — 시트 {mfgSheets.Count}개");
-                            GenerateMfgDrawing2DAll(mfgSheets);
-                            Application.DoEvents();
-                            System.Threading.Thread.Sleep(300);
-
-                            string timeStamp = DateTime.Now.ToString("HHmmss");
-                            string pdfFileName = $"가공도_All_{timeStamp}.pdf";
-                            string pdfPath = System.IO.Path.Combine(saveDir, pdfFileName);
-
-                            vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                            vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                            vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                            successCount++;
-                            DiagLog($"[ALL PDF] 가공도 묶음 PDF 저장: {pdfPath}");
-
-                            // 메모리 정리
-                            try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                            try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                            try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
-                            GC.Collect();
-                            GC.WaitForPendingFinalizers();
-                            GC.Collect();
-                            Application.DoEvents();
-                            System.Threading.Thread.Sleep(100);
-                        }
-                        catch (Exception mfgEx)
-                        {
-                            DiagLog($"[ALL PDF] 가공도 묶음 처리 ERROR: {mfgEx.Message}");
-                        }
-                    }
-                    else
-                    {
-                        DiagLog($"[ALL PDF] groupMfgSheets=true이지만 가공도 시트 0건");
-                    }
+                        if (lvi.Text.StartsWith("가공도")) mfgSkipCount++;
+                    if (mfgSkipCount > 0)
+                        DiagLog($"[P1 no-op] ALL PDF 가공도 묶음 {mfgSkipCount}건 hard skip (P4에서 재활성)");
                 }
 
                 if (showSummary)

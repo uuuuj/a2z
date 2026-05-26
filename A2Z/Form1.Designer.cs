@@ -73,7 +73,6 @@ namespace A2Z
             this.columnHeader5 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader6 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panelBOMButtons = new System.Windows.Forms.Panel();
-            this.btnMfgDrawing = new System.Windows.Forms.Button();
             this.btnBalloonAdjust = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.btnExtractDimension = new System.Windows.Forms.Button();
@@ -591,32 +590,21 @@ namespace A2Z
             // panelBOMButtons
             //
             this.panelBOMButtons.Controls.Add(this.btnBalloonAdjust);
-            this.panelBOMButtons.Controls.Add(this.btnMfgDrawing);
             this.panelBOMButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelBOMButtons.Location = new System.Drawing.Point(3, 150);
             this.panelBOMButtons.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.panelBOMButtons.Name = "panelBOMButtons";
             this.panelBOMButtons.Size = new System.Drawing.Size(437, 34);
             this.panelBOMButtons.TabIndex = 1;
-            // 
-            // btnMfgDrawing
-            // 
-            this.btnMfgDrawing.Location = new System.Drawing.Point(6, 4);
-            this.btnMfgDrawing.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.btnMfgDrawing.Name = "btnMfgDrawing";
-            this.btnMfgDrawing.Size = new System.Drawing.Size(120, 26);
-            this.btnMfgDrawing.TabIndex = 0;
-            this.btnMfgDrawing.Text = "가공도 출력";
-            this.btnMfgDrawing.UseVisualStyleBackColor = true;
-            this.btnMfgDrawing.Click += new System.EventHandler(this.btnMfgDrawing_Click);
             //
             // btnBalloonAdjust
             //
-            this.btnBalloonAdjust.Location = new System.Drawing.Point(132, 4);
+            // P1 (2026-05-23): 옛 btnMfgDrawing 폐기로 (6,4) 위치 이동, TabIndex 0
+            this.btnBalloonAdjust.Location = new System.Drawing.Point(6, 4);
             this.btnBalloonAdjust.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnBalloonAdjust.Name = "btnBalloonAdjust";
             this.btnBalloonAdjust.Size = new System.Drawing.Size(120, 26);
-            this.btnBalloonAdjust.TabIndex = 1;
+            this.btnBalloonAdjust.TabIndex = 0;
             this.btnBalloonAdjust.Text = "풍선 위치 조정";
             this.btnBalloonAdjust.UseVisualStyleBackColor = true;
             this.btnBalloonAdjust.Click += new System.EventHandler(this.btnBalloonAdjust_Click);
@@ -1442,7 +1430,6 @@ namespace A2Z
         private System.Windows.Forms.Button btnUdaDelete;
         private System.Windows.Forms.Button btnUdaImportCSV;
         private System.Windows.Forms.Panel panelBOMButtons;
-        private System.Windows.Forms.Button btnMfgDrawing;
         private System.Windows.Forms.Button btnBalloonAdjust;
         private System.Windows.Forms.TabPage tabPageDrawing;
         private System.Windows.Forms.Panel panelDrawingHeader;
