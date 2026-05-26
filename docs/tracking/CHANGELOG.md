@@ -6,10 +6,39 @@
 
 ---
 
+## 2026-05-23 — P2-row: RenderMfgRowToViewArea 신설
+
+**유형**: refactor (가공도 흐름 재배선 2단계 2/3)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**변경** (`A2Z/Form1.MfgDrawing.cs`):
+- `RenderMfgRowToViewArea(int rowIdx, BOMData bom, TemplateViewArea area) → bool` 신설
+- 위치: `MakeUniquePdfPath` 끝 직후, `BuildMfgSceneCore` 정의 전
+- 패턴 (Codex 1~7차 누적 반영):
+  - 진입·종료 Note/Measure/ShapeDrawing.Clear (row 단위 cleanup)
+  - `BuildMfgSceneCore(bom.Index)` 호출 (지역 pose, `_lastMfgViewPose` write 금지)
+  - DASH_LINE + SilhouetteEdge + FlyToObject3d + Z90/R180 적용
+  - EA 부재 시 P5 전 single-view fallback 마커 DiagLog
+  - 2D 캡처 (`Create2DViewObjectWithModelHiddenLineAtCanvasOrigin`)
+  - fit guard 확장: area·objW/H·fitRatio·curScale·newScale 모두 NaN/Infinity 가드
+  - 절대 좌표 배치 (`MoveObjectTo(area.X+W/2, area.Y+H/2)`)
+  - Shape/Note/Measure 각각 try/catch WARN (사용자 사양: 일부 실패해도 row 성공)
+  - finally: partial 실패 시 `DeleteObjectBy2DView(objId)` + row 종료 cleanup
+
+**효과**:
+- 호출자 0건 (P2-integrate에서 활성화 예정)
+- 빌드 green (warning 5건 동일, P2-integrate에서 해소)
+
+**다음 단계**:
+- **P2-integrate**: `GenerateMfgDrawingManual` 통합 본체 + `btnMfgDrawingSheet_Click` 단일 메시지박스 재배선
+
+---
+
 ## 2026-05-23 — P2-helpers: 가공도 수동 새 함수용 헬퍼 일괄 추가
 
 **유형**: refactor (가공도 흐름 재배선 2단계 1/3)
-**커밋**: `pending`
+**커밋**: `efeb7de`
 **관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7 (Codex 1~7차 검토 통과)
 
 **배경**:
