@@ -1216,6 +1216,13 @@ namespace A2Z
             DrawingSheetData previousSelectedSheet = null;
             bool prevLvEnabled = lvDrawingSheet.Enabled;
 
+            // P3 #2 패치 (2026-05-23, 사용자 보고):
+            //   "가공도 출력 누르자 마자 다른 부재들이 보임" — 진입부 Show(ALL, true)가 BOM 채우기 위해
+            //   모든 부재를 표시한 후 row 격리 사이의 중간 상태가 화면에 노출됨.
+            //   해결: BeginUpdate/EndUpdate로 출력 전체를 감싸 화면 update 차단. finally의 격리 복원 후
+            //   EndUpdate가 호출되어 사용자에겐 최종 격리 상태만 보임.
+            vizcore3d.BeginUpdate();
+
             try
             {
                 // UI 잠금 (가장 먼저)
@@ -1374,6 +1381,9 @@ namespace A2Z
                 {
                     DiagLog($"[GenMfgManual] 가시성 복원 실패: {ex.Message}");
                 }
+
+                // P3 #2: EndUpdate (BeginUpdate 짝) — 최종 상태(격리 복원 후)를 한 번에 화면에 반영
+                try { vizcore3d.EndUpdate(); } catch { }
             }
 
             DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
