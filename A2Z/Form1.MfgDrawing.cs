@@ -1183,19 +1183,235 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 도면정보 탭 - 가공도 출력 버튼 클릭
-        /// P1 (2026-05-23): 임시 no-op — 수동 새 함수(GenerateMfgDrawingManual) 작성 중.
-        ///   P2-integrate 완료 후 새 함수 호출로 재배선.
-        ///   브랜치 refactor/dead-code, 사용자 결정: 자동·수동 통합을 위해 옛 GenerateMfgDrawing2DAll 호출 폐기.
+        /// 가공도 수동 통합 함수 v7. PDF 소유.
+        /// 호출자:
+        ///   - 수동: btnMfgDrawingSheet_Click → 결과 받아 단일 MessageBox로 표시
+        ///   - 자동(P4a): ProcessSingleStruFull §8, ExportAllSheetsToPdfCore → DiagLog만
+        /// 사용자 사양:
+        ///   - BOM 표·도면정보 = 제작도 방식 (CollectBOMInfo + lvDrawingBOMInfo 재사용)
+        ///   - BOM 표 데이터 = 가공도 전체 부재 (모든 페이지에 동일)
+        ///   - Shape/Note/Measure 일부 실패해도 PDF 만듬
+        ///   - 출력 중 시트 목록 비활성화 (race 차단)
+        /// 함수 내부 MessageBox 없음 (Codex 6차 권고 — 결과 객체로 정보 전달).
+        /// </summary>
+        private MfgDrawingResult GenerateMfgDrawingManual(
+            List<DrawingSheetData> mfgSheets,
+            string saveDir,
+            string struName,
+            int struIndex = 0)
+        {
+            var result = new MfgDrawingResult();
+            if (mfgSheets == null || mfgSheets.Count == 0) return result;
+
+            string xlsxPath = Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx");
+            if (!File.Exists(xlsxPath))
+            {
+                DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
+                result.TemplateMissing = true;
+                result.Warnings.Add($"가공도 엑셀 템플릿 누락: {xlsxPath}");
+                return result;
+            }
+
+            // v7 Codex 6차: try 진입 최상단 — 모든 mutable 작업 보호
+            DrawingSheetData previousSelectedSheet = null;
+            bool prevLvEnabled = lvDrawingSheet.Enabled;
+
+            try
+            {
+                // UI 잠금 (가장 먼저)
+                lvDrawingSheet.Enabled = false;
+
+                if (lvDrawingSheet.SelectedItems.Count > 0)
+                    previousSelectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+
+                // ── 진입부 강제 초기화 8단계 ──
+                vizcore3d.Review.Note.Clear();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+                Clear2DView();
+                if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
+                vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+
+                // ── BOM 표 1회 채우기 (가공도 전체 부재, 모든 페이지 동일) ──
+                var allMfgBomIndices = mfgSheets
+                    .Where(s => s.MemberIndices.Count > 0)
+                    .Select(s => s.MemberIndices[0])
+                    .Distinct()
+                    .ToList();
+
+                if (allMfgBomIndices.Count > 15)
+                {
+                    string msg = $"가공도 부재 {allMfgBomIndices.Count}개 — BOM 표 15행 초과, 16번째 이후 PDF 미표시";
+                    DiagLog($"[GenMfgManual] WARN {msg}");
+                    result.Warnings.Add(msg);
+                }
+
+                var syntheticSheet = new DrawingSheetData
+                {
+                    BaseMemberIndex = -3,
+                    BaseMemberName = "가공도_묶음",
+                    MemberIndices = allMfgBomIndices,
+                    MfgDrawingNo = 0
+                };
+                CollectBOMInfo(false, syntheticSheet);
+
+                var bomSnapshot = SnapshotBomRows();
+                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 15);
+                result.BomRows = bomSnapshot.Count;
+                result.ExpectedBomRows = expectedBomRows;
+
+                if (bomSnapshot.Count != expectedBomRows)
+                {
+                    DiagLog($"[GenMfgManual] WARN BOM snapshot mismatch: {bomSnapshot.Count} vs 예상 {expectedBomRows}");
+                    if (bomSnapshot.Count > expectedBomRows)
+                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 첫 15행만 사용");
+                }
+
+                bool bomSnapshotInsufficient = bomSnapshot.Count < expectedBomRows;
+                if (bomSnapshotInsufficient)
+                    DiagLog($"[GenMfgManual] WARN BOM 부족: {bomSnapshot.Count} < {expectedBomRows} (PDF 계속 생성)");
+
+                var pages = SplitMfgIntoPages(mfgSheets, 5);
+                Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
+
+                foreach (var page in pages)
+                {
+                    int failedRows = 0;
+                    int successRows = 0;
+                    try
+                    {
+                        ResetCanvasForMfgPage();
+                        var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
+                        vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                        EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
+
+                        for (int i = 0; i < page.Rows.Count; i++)
+                        {
+                            var sheet = page.Rows[i];
+                            if (sheet.MemberIndices.Count == 0) { failedRows++; continue; }
+                            var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
+                            if (bom == null) { failedRows++; continue; }
+
+                            var area = viewAreasCache[i + 1];
+                            if (RenderMfgRowToViewArea(i + 1, bom, area)) successRows++;
+                            else failedRows++;
+                        }
+
+                        if (failedRows > 0)
+                            DiagLog($"[GenMfgManual] p{page.PageIdx} WARN failed={failedRows} success={successRows}");
+
+                        if (successRows == 0)
+                        {
+                            DiagLog($"[GenMfgManual] p{page.PageIdx} SKIP — 모든 row 실패");
+                            result.Warnings.Add($"p{page.PageIdx} 페이지 모든 row 실패, PDF 미저장");
+                            continue;
+                        }
+
+                        vizcore3d.Drawing2D.Render();
+                        vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                        vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+
+                        string pdfPath = MakeUniquePdfPath(saveDir, struName, page.PageIdx, pages.Count, struIndex);
+                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                        result.SuccessPdfs++;
+                        if (bomSnapshotInsufficient) result.InsufficientBomPdfs++;
+
+                        DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 저장: {pdfPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagLog($"[GenMfgManual] p{page.PageIdx} ERROR: {ex.Message}");
+                        result.Warnings.Add($"p{page.PageIdx} 페이지 ERROR: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[GenMfgManual] FATAL: {ex.Message}");
+                result.Warnings.Add($"가공도 출력 FATAL: {ex.Message}");
+            }
+            finally
+            {
+                // BOM UI 복원
+                try
+                {
+                    if (previousSelectedSheet != null)
+                    {
+                        CollectBOMInfo(false, previousSelectedSheet);
+                        DiagLog($"[GenMfgManual] BOM UI 복원: '{previousSelectedSheet.BaseMemberName}'");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[GenMfgManual] BOM UI 복원 실패: {ex.Message}");
+                }
+                // UI 잠금 해제
+                lvDrawingSheet.Enabled = prevLvEnabled;
+                // 전체 부재 가시성 복원
+                try { RestoreAllPartsVisibility(); } catch { }
+            }
+
+            DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
+            return result;
+        }
+
+        /// <summary>
+        /// 도면정보 탭 - 가공도 출력 버튼 클릭 (v7 P2-integrate)
+        /// 가공도 시트 묶음 수집 → GenerateMfgDrawingManual 호출 → 결과 받아 단일 MessageBox.
         /// </summary>
         private void btnMfgDrawingSheet_Click(object sender, EventArgs e)
         {
-            DiagLog("[P1 no-op] btnMfgDrawingSheet_Click — 수동 새 함수 작성 중 (P2-integrate 완료 후 활성화)");
-            MessageBox.Show(
-                "가공도 출력 흐름은 재설계 중입니다.\n" +
-                "수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 활성화됩니다.\n" +
-                "(refactor/dead-code 브랜치 — 자동 STRU 일괄에서도 임시 누락)",
-                "임시 비활성", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var mfgSheets = new List<DrawingSheetData>();
+            foreach (ListViewItem lvi in lvDrawingSheet.Items)
+                if (lvi.Text.StartsWith("가공도"))
+                {
+                    var s = lvi.Tag as DrawingSheetData;
+                    if (s != null && s.MemberIndices.Count > 0) mfgSheets.Add(s);
+                }
+
+            if (mfgSheets.Count == 0)
+            {
+                MessageBox.Show("가공도 시트가 없습니다.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string saveDir = GetDefaultDrawingSaveDir();
+            var result = GenerateMfgDrawingManual(mfgSheets, saveDir, "manual", struIndex: 0);
+
+            // v7 Codex 6차 권고: 단일 MessageBox 통합
+            if (result.TemplateMissing)
+            {
+                MessageBox.Show(
+                    $"가공도 엑셀 템플릿 누락:\n{Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx")}\n\nPDF 생성 안 됨.",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"가공도 PDF {result.SuccessPdfs}개 저장:");
+            sb.AppendLine(saveDir);
+
+            if (result.InsufficientBomPdfs > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"⚠️ BOM 부족 PDF: {result.InsufficientBomPdfs}개");
+                sb.AppendLine($"  (snapshot {result.BomRows}행 < 예상 {result.ExpectedBomRows}행)");
+            }
+
+            if (result.Warnings.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("⚠️ 경고:");
+                foreach (var w in result.Warnings)
+                    sb.AppendLine($"  · {w}");
+            }
+
+            var icon = result.HasIssues ? MessageBoxIcon.Warning : MessageBoxIcon.Information;
+            MessageBox.Show(sb.ToString(), "가공도 출력 완료",
+                MessageBoxButtons.OK, icon);
         }
 
         /// <summary>
