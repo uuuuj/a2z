@@ -240,6 +240,178 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 가공도 페이지의 한 행(BOM 1개) 렌더링 (v7 P2-row).
+        /// row 진입·종료마다 Note/Measure/ShapeDrawing.Clear로 누적 방지.
+        /// _lastMfgViewPose write X (지역변수 pose만, LvDrawingSheet 미리보기와 충돌 차단).
+        /// Codex 1차 #4: row 단위 cleanup, Codex 3차 B3: partial 실패 시 2D 객체 cleanup,
+        /// Codex 4차: DeleteObjectBy2DView SDK 메서드명, Codex 4차 A4: newScale Infinity guard,
+        /// Codex 사용자 결정: Shape/Note/Measure 각각 try/catch WARN (일부 실패해도 row 성공).
+        /// </summary>
+        /// <returns>row 렌더링 성공 여부 (모델 캡처 + fit 단계까지 성공이면 true. Shape/Note/Measure 실패는 WARN으로 성공 유지).</returns>
+        private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
+            VIZCore3D.NET.Data.TemplateViewArea area)
+        {
+            // ── row 진입 cleanup ──
+            vizcore3d.Review.Note.Clear();
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+
+            int objId = -1;
+            bool success = false;
+            try
+            {
+                // area 가드
+                if (area.Width <= 0 || area.Height <= 0
+                    || float.IsNaN(area.Width) || float.IsNaN(area.Height)
+                    || float.IsInfinity(area.Width) || float.IsInfinity(area.Height))
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} area 비정상 W={area.Width} H={area.Height}");
+                    return false;
+                }
+
+                // ── 공통 코어 호출 (pose 지역변수, _lastMfgViewPose write X) ──
+                var pose = BuildMfgSceneCore(bom.Index);
+
+                // ── 카메라 fit + Z90/R180 (자동 어댑터 패턴, RenderMfgViewForDrawing 참조) ──
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                vizcore3d.View.SilhouetteEdge = true;
+                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+                vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
+                if (pose.ApplyZ90)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
+                }
+                if (pose.ApplyR180)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
+                }
+
+                // EA 마커 (P5까지 single-view fallback — isEA 비활성 상태)
+                if (IsAngleFromSpref(bom.Index))
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} EA 부재 — P5 전 single-view fallback");
+
+                // ── 2D 캡처: Hidden Line ──
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
+                objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+                if (objId < 0)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} 2D 캡처 실패 (objId<0)");
+                    return false;
+                }
+
+                // ── ViewArea fit (RescaleObject 절대 스케일 + guard 확장) ──
+                float objW = 0f, objH = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+                if (objW <= 0 || objH <= 0 || float.IsNaN(objW) || float.IsNaN(objH))
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} objSize 비정상 W={objW} H={objH}");
+                    return false;
+                }
+                float fitRatio = Math.Min(area.Width / objW, area.Height / objH);
+                if (fitRatio <= 0 || float.IsNaN(fitRatio) || float.IsInfinity(fitRatio))
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} fitRatio 비정상={fitRatio}");
+                    return false;
+                }
+                float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                if (curScale <= 0 || float.IsNaN(curScale) || float.IsInfinity(curScale))
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} curScale 비정상={curScale}");
+                    return false;
+                }
+
+                // Codex 4차 신규: newScale = curScale * fitRatio 결과값 가드
+                float newScale = curScale * fitRatio;
+                if (newScale <= 0 || float.IsNaN(newScale) || float.IsInfinity(newScale))
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} newScale 비정상={newScale} (cur={curScale} ratio={fitRatio})");
+                    return false;
+                }
+                vizcore3d.Drawing2D.Object2D.RescaleObject(objId, newScale);
+
+                // ── 절대 좌표로 영역 중앙에 배치 ──
+                float cx = area.X + area.Width / 2f;
+                float cy = area.Y + area.Height / 2f;
+                vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx, cy);
+
+                // ── Shape/Note/Measure → 2D (사용자 사양: 각각 try/catch, 일부 실패해도 row 성공) ──
+                try
+                {
+                    if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
+                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(pose.ShapeDrawingIds);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN ShapeDrawing 실패: {ex.Message}");
+                }
+
+                try
+                {
+                    var noteIds = vizcore3d.Review.Note.Items.Select(n => n.ID).ToList();
+                    if (noteIds.Count > 0)
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
+                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN Note 실패: {ex.Message}");
+                }
+
+                try
+                {
+                    var measureIds = vizcore3d.Review.Measure.Items
+                        .Where(m => m.Visible).Select(m => m.ID).ToList();
+                    if (measureIds.Count > 0)
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
+                        ApplyParallelTextShift(pose.ViewDirection,
+                            vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
+                            vizcore3d.Review.Measure.Items);
+                        vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN Measure 실패: {ex.Message}");
+                }
+
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} OK objId={objId} newScale={newScale:F3}");
+                success = true;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} ERROR: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                // Codex 3차 B3: partial 실패 시 2D 객체 cleanup — 다음 row/페이지 오염 방지
+                if (!success && objId >= 0)
+                {
+                    try { vizcore3d.Drawing2D.Object2D.DeleteObjectBy2DView(objId); } catch { }
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} 실패 objId={objId} cleanup");
+                }
+                // row 종료 cleanup (성공·실패 무관)
+                vizcore3d.Review.Note.Clear();
+                vizcore3d.Review.Measure.Clear();
+                vizcore3d.ShapeDrawing.Clear();
+            }
+        }
+
+        /// <summary>
         /// Step B (2026-05-19): 가공도 공통 3D 장면 생성 코어.
         /// 수동(ExecuteMfgDrawing)·자동(RenderMfgViewForDrawing) 두 함수의 공통 3D 로직을 분리.
         /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(홀/슬롯) 생성. ISO 없음(가공도 사양).
