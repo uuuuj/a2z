@@ -9,7 +9,7 @@
 ## 2026-05-23 — P2-integrate: GenerateMfgDrawingManual + btnMfgDrawingSheet_Click 재배선
 
 **유형**: refactor (가공도 흐름 재배선 2단계 3/3 — P2 완료)
-**커밋**: `pending`
+**커밋**: `cac4454`
 **관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
 
 **변경** (`A2Z/Form1.MfgDrawing.cs`):
