@@ -737,54 +737,15 @@ namespace A2Z
                 }
             }
 
-            // ─── 8) 가공도 묶음 처리 ("가공도 출력" 버튼 → "PDF 출력" 버튼) ───
-            // 사용자 평소 흐름: btnMfgDrawingSheet → btnExportSheet2DPDF
-            //   = GenerateMfgDrawing2DAll(가공도 시트 List) → Export2PDFBy2DView(file)
-            var mfgSheets = new List<DrawingSheetData>();
+            // ─── 8) 가공도 묶음 처리 — P1 hard skip (refactor/dead-code, 2026-05-23) ───
+            // 옛 GenerateMfgDrawing2DAll + Export2PDFBy2DView 호출 제거.
+            // 수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 P4에서 재배선.
+            // pdfCount 증가 X (success로 집계 안 함).
+            int mfgSkipCount = 0;
             foreach (ListViewItem lvi in lvDrawingSheet.Items)
-            {
-                if (lvi.Text.StartsWith("가공도"))
-                {
-                    var s = lvi.Tag as DrawingSheetData;
-                    if (s != null && s.MemberIndices.Count > 0) mfgSheets.Add(s);
-                }
-            }
-
-            if (mfgSheets.Count > 0)
-            {
-                try
-                {
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 묶음 처리 — 시트 {mfgSheets.Count}개");
-
-                    // = btnMfgDrawingSheet_Click 흐름 ("가공도 출력" 버튼, 8×3 그리드 한 번에)
-                    GenerateMfgDrawing2DAll(mfgSheets);
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(300);
-
-                    // = btnExportSheet2DPDF_Click 흐름 ("PDF 출력" 버튼)
-                    string pdfFile = $"가공도_All_{timeStamp}.pdf";
-                    string pdfPath = Path.Combine(struSubDir, pdfFile);
-                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                    vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                    DiagLog($"T-064 가공도 PDF saved: {pdfPath}");
-                    pdfCount++;
-
-                    // 메모리 정리
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(100);
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 묶음 ERROR: {ex.Message}");
-                }
-            }
+                if (lvi.Text.StartsWith("가공도")) mfgSkipCount++;
+            if (mfgSkipCount > 0)
+                DiagLog($"[P1 no-op] STRU '{struNode.NodeName}' 가공도 묶음 {mfgSkipCount}건 hard skip (P4에서 재활성)");
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
             return pdfCount;

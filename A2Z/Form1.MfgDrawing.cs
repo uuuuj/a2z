@@ -12,23 +12,9 @@ namespace A2Z
     {
         #region 가공도 출력 - 단일 부재 치수 표시
 
-        /// <summary>
-        /// 가공도 출력 버튼 클릭
-        /// 선택된 부재만 표시하고, 가장 긴 축이 좌우가 되는 시점에서 치수 표시
-        /// </summary>
-        private void btnMfgDrawing_Click(object sender, EventArgs e)
-        {
-            if (lvBOM.SelectedItems.Count == 0)
-            {
-                MessageBox.Show("BOM 리스트에서 부재를 선택하세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            BOMData bom = lvBOM.SelectedItems[0].Tag as BOMData;
-            if (bom == null) return;
-
-            ExecuteMfgDrawing(bom.Index);
-        }
+        // P1 (2026-05-23): btnMfgDrawing_Click 폐기 — 작업/데이터 탭 작은 "가공도 출력" 버튼.
+        //   사용자 결정: 가공도는 도면정보 탭의 큰 "가공도 출력" 버튼으로 통합.
+        //   ExecuteMfgDrawing 함수 본체는 LvDrawingSheet 시트 선택 미리보기로 유지.
 
         /// <summary>
         /// 가공도 모드 해제 - 전체 부재 다시 보이기
@@ -904,28 +890,18 @@ namespace A2Z
 
         /// <summary>
         /// 도면정보 탭 - 가공도 출력 버튼 클릭
-        /// lvDrawingSheet에서 "가공도"로 시작하는 모든 시트를 수집하여 2D 일괄 출력
+        /// P1 (2026-05-23): 임시 no-op — 수동 새 함수(GenerateMfgDrawingManual) 작성 중.
+        ///   P2-integrate 완료 후 새 함수 호출로 재배선.
+        ///   브랜치 refactor/dead-code, 사용자 결정: 자동·수동 통합을 위해 옛 GenerateMfgDrawing2DAll 호출 폐기.
         /// </summary>
         private void btnMfgDrawingSheet_Click(object sender, EventArgs e)
         {
-            var mfgSheets = new List<DrawingSheetData>();
-            foreach (ListViewItem lvi in lvDrawingSheet.Items)
-            {
-                if (lvi.Text.StartsWith("가공도"))
-                {
-                    var s = lvi.Tag as DrawingSheetData;
-                    if (s != null && s.MemberIndices.Count > 0)
-                        mfgSheets.Add(s);
-                }
-            }
-
-            if (mfgSheets.Count == 0)
-            {
-                MessageBox.Show("가공도 시트가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            GenerateMfgDrawing2DAll(mfgSheets);
+            DiagLog("[P1 no-op] btnMfgDrawingSheet_Click — 수동 새 함수 작성 중 (P2-integrate 완료 후 활성화)");
+            MessageBox.Show(
+                "가공도 출력 흐름은 재설계 중입니다.\n" +
+                "수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 활성화됩니다.\n" +
+                "(refactor/dead-code 브랜치 — 자동 STRU 일괄에서도 임시 누락)",
+                "임시 비활성", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
