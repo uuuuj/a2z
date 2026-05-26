@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-05-23 — P3 사용자 보고 #2: 출력 누르자마자 다른 부재 보임 → BeginUpdate/EndUpdate 잠금
+
+**유형**: fix (가공도 흐름 재배선 P3 검증 2차 피드백)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**사용자 보고** (2026-05-23):
+> "지금보니까 가공도 출력 누르자 마자 다른 부재들이 보이네"
+
+**원인**:
+`GenerateMfgDrawingManual` 진입부 8단계의 `vizcore3d.Object3D.Show(Object3DKind.ALL, true)`가 BOM 정보 수집을 위해 모든 부재를 표시. 그 후 row마다 `BuildMfgSceneCore`가 `Show(ALL, false)` + `Show(target, true)`로 격리하지만, 화면 update가 안 막혀 있어 중간 상태(모든 부재 표시·격리 깜빡임)가 사용자에게 노출.
+
+**변경** (`A2Z/Form1.MfgDrawing.cs` `GenerateMfgDrawingManual`):
+- 진입부 try 직전에 `vizcore3d.BeginUpdate()` 추가
+- finally 마지막(가시성 복원 후)에 `vizcore3d.EndUpdate()` 추가
+- 효과: 화면 update가 EndUpdate까지 차단 → 사용자에겐 출력 끝나고 격리 복원된 최종 상태만 한 번에 보임
+- PDF export(Export2PDFBy2DView)는 BeginUpdate 영향 없음 (화면 update와 별개, 파일 저장 직접)
+- MessageBox도 별 윈도우라 영향 없음
+
+**효과**:
+- 빌드 green
+- 출력 버튼 누름 → 화면 그대로 유지 → 완료 메시지박스 뜸 → 닫으면 선택 시트 격리 상태 (P3 #1 패치 결합)
+
+**docs**:
+- `docs/기능/가공도/가공도 시트.md` last_updated 갱신
+
+**다음 (P3 잔여)**:
+- 사용자 사내 빌드 + 재검증 (출력 누르자마자 화면 안 바뀌는지)
+- 부재 크기 기준 결정 (사용자 보류 — 80% / 70% / margin / 엑셀 수정 중 택1)
+
+---
+
 ## 2026-05-23 — P3 사용자 보고 #1: 출력 후 모든 부재 표시 → 선택 시트 격리 복원
 
 **유형**: fix (가공도 흐름 재배선 P3 검증 1차 피드백)
