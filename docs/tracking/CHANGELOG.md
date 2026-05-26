@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-05-23 — P3 사용자 보고 #1: 출력 후 모든 부재 표시 → 선택 시트 격리 복원
+
+**유형**: fix (가공도 흐름 재배선 P3 검증 1차 피드백)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**사용자 보고** (2026-05-23):
+> "가공도 출력 누르면 다른 부재들이 X-Ray인지 뭔지 모르겠는데 3D View에 표시되는데 이거 확인좀 해줄래?"
+> 시점: 출력이 끝난 후 (완료 메시지박스 닫은 다음)
+
+**원인**:
+`GenerateMfgDrawingManual` finally의 `RestoreAllPartsVisibility()`가 출력 끝나면 **모든 부재를 다시 표시**. 사용자가 출력 전 가공도 시트 미리보기로 그 부재만 격리해서 보던 상태였는데, 출력 후 격리가 깨지고 다른 부재들도 보임 → "X-Ray 같은 효과"로 느낌.
+
+**변경** (`A2Z/Form1.MfgDrawing.cs` `GenerateMfgDrawingManual` finally):
+- 옛: `try { RestoreAllPartsVisibility(); } catch { }` 무조건 호출
+- 새: 선택 시트 있으면 그 부재만 격리 복원(`Show(ALL, false)` + `Show(previousSelected.MemberIndices, true)`), 없으면 `RestoreAll` 폴백
+- 사용자가 출력 전 보던 미리보기 격리 상태가 출력 후에도 유지됨
+
+**효과**:
+- 빌드 green
+- 출력 전 가공도 시트 미리보기 → 출력 → **출력 후에도 그 부재만 격리되어 보임** (사용자 의도)
+- 출력 전 시트 선택 없었으면 RestoreAll (옛 동작 유지 — 폴백)
+
+**docs**:
+- `docs/기능/가공도/가공도 시트.md` last_updated 갱신
+
+**다음**:
+- 사용자 사내 빌드 + 재검증 (가공도 출력 → 완료 확인 → 다른 부재 안 보이는지)
+- 사용자가 보고한 2번 항목 (메시지 잘림) 처리 예정
+
+---
+
 ## 2026-05-23 — P2-integrate: GenerateMfgDrawingManual + btnMfgDrawingSheet_Click 재배선
 
 **유형**: refactor (가공도 흐름 재배선 2단계 3/3 — P2 완료)

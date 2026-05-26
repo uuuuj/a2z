@@ -1349,8 +1349,31 @@ namespace A2Z
                 }
                 // UI 잠금 해제
                 lvDrawingSheet.Enabled = prevLvEnabled;
-                // 전체 부재 가시성 복원
-                try { RestoreAllPartsVisibility(); } catch { }
+
+                // 가시성 복원 (사용자 보고 P3 #1, 2026-05-23):
+                //   v7 옛 동작: RestoreAllPartsVisibility() → 출력 후 모든 부재 보임 (사용자가 보던 격리 깨짐)
+                //   v7.1 새 동작: 선택 시트 있으면 그 시트의 부재만 격리 복원, 없으면 RestoreAll (폴백)
+                try
+                {
+                    if (previousSelectedSheet != null && previousSelectedSheet.MemberIndices != null
+                        && previousSelectedSheet.MemberIndices.Count > 0)
+                    {
+                        // 선택 시트의 부재만 격리 복원 (출력 전 사용자가 보던 미리보기 상태)
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(previousSelectedSheet.MemberIndices, true);
+                        DiagLog($"[GenMfgManual] 가시성 복원: '{previousSelectedSheet.BaseMemberName}' 부재 {previousSelectedSheet.MemberIndices.Count}개만 격리");
+                    }
+                    else
+                    {
+                        // 선택 시트 없으면 모든 부재 보이게 (폴백)
+                        RestoreAllPartsVisibility();
+                        DiagLog("[GenMfgManual] 가시성 복원: RestoreAll (선택 시트 없음)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[GenMfgManual] 가시성 복원 실패: {ex.Message}");
+                }
             }
 
             DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
