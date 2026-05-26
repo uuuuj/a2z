@@ -6,10 +6,49 @@
 
 ---
 
+## 2026-05-23 — P2-integrate: GenerateMfgDrawingManual + btnMfgDrawingSheet_Click 재배선
+
+**유형**: refactor (가공도 흐름 재배선 2단계 3/3 — P2 완료)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**변경** (`A2Z/Form1.MfgDrawing.cs`):
+- **`GenerateMfgDrawingManual` 통합 본체** 신설 (~180줄):
+  - 시그니처: `(List<DrawingSheetData> mfgSheets, string saveDir, string struName, int struIndex = 0) → MfgDrawingResult`
+  - try/finally 범위: 진입부 8단계 + UI 잠금 + BOM 채움 + snapshot + 페이지 루프 모두 보호 (Codex 6차 #1)
+  - 진입부 강제 초기화 8단계: Note/Measure/ShapeDrawing.Clear + Clear2DView + XRay off + Show ALL + DESELECT + DASH_LINE
+  - BOM 표 1회 채움: 가공도 전체 부재로 합성 sheet → `CollectBOMInfo(false, syntheticSheet)` → `SnapshotBomRows()` (사용자 사양: 모든 페이지 동일 BOM)
+  - 15행 초과 / BOM snapshot mismatch / surplus → `result.Warnings`에 누적 (함수 내부 MessageBox 없음)
+  - 페이지 루프: `ResetCanvasForMfgPage` + `BuildMfgPageData(snapshot)` + `ImportExcelWithData` + `EnsureViewAreasCache` + `RenderMfgRowToViewArea` × 5 + `Export2PDFBy2DView`
+  - 모든 row 실패 시 export skip
+  - finally: BOM UI 복원 (선택 시트 재호출) + UI 잠금 해제 + `RestoreAllPartsVisibility`
+- **`btnMfgDrawingSheet_Click` 재배선**:
+  - P1 임시 no-op 본문 제거
+  - 가공도 시트 수집 → `GenerateDefaultDrawingSaveDir()` → `GenerateMfgDrawingManual` 호출
+  - 결과 받아 단일 MessageBox 통합 (Codex 6차 권고):
+    - 템플릿 누락 → 오류 메시지박스 + return
+    - 정상: PDF 개수 + BOM 부족 카운트 (조건부) + Warnings 목록 (조건부) 합산해서 1회 표시
+
+**효과**:
+- 호출자 grep: `GenerateMfgDrawingManual` → 1건 (btnMfgDrawingSheet_Click) ✅
+- 빌드 green (Debug, warning 5건 사라짐)
+- **수동 가공도 출력 활성화** — 사내 검증(P3) 진입 가능
+- 옛 `GenerateMfgDrawing2DAll` + `RenderMfgViewForDrawing` 본체 여전히 dead (P4b 삭제 예정)
+- 자동(`ProcessSingleStruFull` §8, `ExportAllSheetsToPdfCore`)은 P1 hard skip 상태 유지 (P4a에서 같은 함수 호출로 재배선)
+
+**docs**:
+- `docs/기능/가공도/가공도 시트.md` — P1 임시 비활성 박스 → P2-integrate 완료 박스 (last_updated 갱신)
+
+**다음 단계 (P3)**:
+- 사용자 사내 검증: 14개 합격 기준 (5행/페이지·BOM 표·치수·풍선·페이지 분할·잔재 없음·파일명 충돌 없음·EA fallback·BOM 부족 알림·UI 잠금 등)
+- 합격 시 P4a (자동 재배선) → P4b (dead 코드 삭제)
+
+---
+
 ## 2026-05-23 — P2-row: RenderMfgRowToViewArea 신설
 
 **유형**: refactor (가공도 흐름 재배선 2단계 2/3)
-**커밋**: `pending`
+**커밋**: `4762e2e`
 **관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
 
 **변경** (`A2Z/Form1.MfgDrawing.cs`):
