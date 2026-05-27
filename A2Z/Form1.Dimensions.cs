@@ -2100,28 +2100,44 @@ namespace A2Z
             float modelShift = 3f / canvasScale;
             int shiftedCount = 0;
 
+            // P3 #3 진단 (2026-05-23, 사용자 사내 검증):
+            //   같은 축 chain dimension에서 작은 측정(6mm)이 잘못된 방향으로 시프트되어
+            //   다른 측정(59mm)과 겹치는 문제. dimAxis·dimCenter·shiftDir 정확히 추적.
+            DiagLog($"[TextShift] BEGIN view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F2}mm threshold={threshold:F2}mm maxEstDist={maxEstDist:F2}mm infoCount={infos.Count}");
+            foreach (var info in infos)
+                DiagLog($"[TextShift]   info dimAxis={info.dimAxis} dimCenter={info.dimCenter:F2} estDist={info.estDist:F2} textPos=({info.textPos.Position.X:F2},{info.textPos.Position.Y:F2},{info.textPos.Position.Z:F2})");
+
             // 측정축별 그룹 → 측정축 중심 좌표 순 정렬 → 인접 식별
             foreach (var axisGrp in infos.GroupBy(x => x.dimAxis))
             {
                 var sorted = axisGrp.OrderBy(x => x.dimCenter).ToList();
+                DiagLog($"[TextShift] axis={axisGrp.Key} sorted({sorted.Count}): [{string.Join(", ", sorted.Select(s => $"{s.estDist:F1}@{s.dimCenter:F1}"))}]");
+
                 for (int i = 0; i < sorted.Count; i++)
                 {
                     var info = sorted[i];
-                    if (info.estDist > threshold) continue;
+                    if (info.estDist > threshold)
+                    {
+                        DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} > threshold={threshold:F2} → skip");
+                        continue;
+                    }
 
                     float? leftDist = (i > 0) ? sorted[i - 1].estDist : (float?)null;
                     float? rightDist = (i < sorted.Count - 1) ? sorted[i + 1].estDist : (float?)null;
 
                     int shiftDir;
+                    string reason;
                     if (leftDist.HasValue && rightDist.HasValue)
                     {
-                        if (leftDist.Value > rightDist.Value) shiftDir = -1;
-                        else if (rightDist.Value > leftDist.Value) shiftDir = +1;
-                        else shiftDir = +1;  // 같음 → +
+                        if (leftDist.Value > rightDist.Value) { shiftDir = -1; reason = $"both L={leftDist:F1} > R={rightDist:F1} → -1 (left, 큰 쪽)"; }
+                        else if (rightDist.Value > leftDist.Value) { shiftDir = +1; reason = $"both R={rightDist:F1} > L={leftDist:F1} → +1 (right, 큰 쪽)"; }
+                        else { shiftDir = +1; reason = $"both equal → +1"; }
                     }
-                    else if (leftDist.HasValue) shiftDir = +1;   // 왼쪽만 → 반대(+)
-                    else if (rightDist.HasValue) shiftDir = -1;  // 오른쪽만 → 반대(-)
-                    else continue;
+                    else if (leftDist.HasValue) { shiftDir = +1; reason = $"L={leftDist:F1} only → +1 (right, 빈 쪽)"; }
+                    else if (rightDist.HasValue) { shiftDir = -1; reason = $"R={rightDist:F1} only → -1 (left, 빈 쪽)"; }
+                    else { DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} both null → skip"); continue; }
+
+                    DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} dimAxis={info.dimAxis} dimCenter={info.dimCenter:F2} shiftDir={shiftDir} reason={reason}");
 
                     var p = info.textPos.Position;
                     VIZCore3D.NET.Data.Vector3D shifted;
@@ -2150,12 +2166,14 @@ namespace A2Z
                             shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
                             break;
                     }
+                    DiagLog($"[TextShift]   → shifted to ({shifted.X:F2},{shifted.Y:F2},{shifted.Z:F2}) (was {p.X:F2},{p.Y:F2},{p.Z:F2})");
                     vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(info.m.ID, shifted);
                     shiftedCount++;
                 }
             }
 
             DiagLog($"T-040 TextShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm threshold={threshold:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
+            DiagLog($"[TextShift] END view={viewDirection} shifted={shiftedCount}/{infos.Count}");
         }
 
         private List<ChainDimensionData> AddChainDimensionByAxis(

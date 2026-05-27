@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-05-23 — P3 사용자 보고 #3 진단: ApplyParallelTextShift DiagLog 추가
+
+**유형**: debug (가공도 흐름 재배선 P3 검증 3차 — 진단용 로그)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**사용자 보고** (2026-05-23):
+> 사진 1번에서 부재 두께 6mm와 부분 길이 59mm가 같은 좌표에 겹쳐 그려짐 (chain dimension 65 = 6 + 59).
+> "6이 원래 치수가 없는 쪽으로 이동해야 하는데 59 쪽으로 이동한 이유를 못 찾는 거지?"
+
+**진단 분석 (코드 정적)**:
+- threshold = maxEstDist/26 ≈ 40mm
+- 6mm는 시프트 대상, 59mm는 threshold 초과로 skip
+- 6의 인접 측정이 한쪽만 있으면 코드 로직대로 반대 방향(빈 쪽)으로 가야 정상
+- 사용자가 본 결과는 반대 → 후보:
+  - D. dimCenter 계산 실제와 다름 (mp0/mp1 좌표 순서·부재 좌표계)
+  - E. shiftDir → 화면 방향 매핑 오류 (viewDirection × dimAxis switch)
+  - F. modelShift 거리 너무 작아 시각적으로 안 보임
+  - G. SDK 디폴트 텍스트 위치 자체가 잘못
+
+**변경** (`A2Z/Form1.Dimensions.cs` `ApplyParallelTextShift`):
+- 함수 진입부에 BEGIN 로그 (view, canvasScale, modelShift, threshold, maxEstDist, infoCount)
+- 각 측정의 dimAxis·dimCenter·estDist·textPos 로그
+- axisGrp별 sorted 순서 로그
+- 각 측정의 시프트 결정 로그 (leftDist, rightDist, shiftDir, reason)
+- 시프트 후 좌표 로그 (shifted vs original)
+- END 로그
+
+**효과**:
+- 핸들러 흐름 변경 없음 — 진단용 로그만 추가
+- 사내 빌드 + 가공도 출력 → 로그에서 어떤 측정이 어디로 시프트되었는지 정확히 추적 가능
+- 진단 끝나면 로그 제거 또는 축약 예정
+
+**다음 (사용자)**:
+- A2Z 프로세스 종료 후 사내 재빌드
+- 가공도 출력 (사진 1번 케이스)
+- DiagLog 결과 보고 — 어떤 측정의 shiftDir·reason·shifted 좌표
+- 그 결과로 4가지 후보(D/E/F/G) 좁힘 → 정확한 패치
+
+---
+
 ## 2026-05-23 — P3 사용자 보고 #2: 출력 누르자마자 다른 부재 보임 → BeginUpdate/EndUpdate 잠금
 
 **유형**: fix (가공도 흐름 재배선 P3 검증 2차 피드백)
