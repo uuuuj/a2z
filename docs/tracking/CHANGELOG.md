@@ -6,6 +6,43 @@
 
 ---
 
+## 2026-05-23 — P3 사용자 보고 #3 진단 2차: Osnap·DrawDimension DiagLog 추가
+
+**유형**: debug (가공도 흐름 재배선 P3 검증 3차 — 진단용 로그 2차)
+**커밋**: `pending`
+**관련 계획서**: `docs/리팩토링/가공도-수동우선-재배선.md` v7
+
+**진단 컨텍스트** (2026-05-23):
+사용자 사진 1번 부재 BBox 확인 결과:
+- Size X = 65 mm, Size Y = 65 mm, Size Z = 1050.09 mm
+- **모델 좌표는 mm 단위 맞음** ("× 0.5 가설" 틀림)
+
+그런데 로그상 measure 추출:
+- Z축 measure estDist = 525 (부재 가로 1050의 **절반**)
+- X축 measure 합 = 32.5 (= 29.5 + 3, 부재 X 65의 **절반**)
+
+→ **measure가 부재 양쪽 외곽을 못 잡고 한쪽~중간 부분만 측정**.
+→ 사용자 보고 #2 ("전체 치수 안 나옴")와 같은 뿌리 — Osnap 외곽 부족.
+
+**변경**:
+- `A2Z/Form1.MfgDrawing.cs` `BuildMfgSceneCore` Osnap 수집 직후:
+  - 부재 BBox·rawOsnap 종류별 카운트 (LINE/POINT/CIRCLE) 로그
+  - 수집된 Osnap 점 좌표 범위(min/max) vs 부재 BBox 비교 로그
+- `A2Z/Form1.Dimensions.cs` `DrawDimension`:
+  - axis·dist·startPoint·endPoint·startVertex·endVertex 좌표 로그
+  - measure가 부재 어느 점에서 어느 점까지 측정하는지 추적
+
+**효과**:
+- 핸들러 흐름 변경 없음 — 로그만 추가
+- 사내 빌드 + 가공도 출력 → Osnap이 부재 외곽 어디까지 잡혔는지, measure 좌표가 어디인지 정확히 추적 가능
+
+**다음 (사용자)**:
+- A2Z 종료 + git pull + 빌드
+- 가공도 출력 (사진 1번 부재)
+- 로그 `[Osnap]`, `[DrawDimension]` 키워드 검색해서 보고
+
+---
+
 ## 2026-05-23 — P3 사용자 보고 #3 진단: ApplyParallelTextShift DiagLog 추가
 
 **유형**: debug (가공도 흐름 재배선 P3 검증 3차 — 진단용 로그)
