@@ -501,6 +501,25 @@ namespace A2Z
             //   B1b1b 추가 (2026-05-19): 자동 함수 본체 L1004~L1027 추출.
             var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
             var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+
+            // P3 #3 진단 (2026-05-23): Osnap 수집 결과 추적 — 외곽 끝점이 잡혔는지 확인
+            int rawLineCount = 0, rawPointCount = 0, rawCircleCount = 0;
+            if (osnapListMfg != null)
+            {
+                foreach (var o in osnapListMfg)
+                {
+                    switch (o.Kind)
+                    {
+                        case VIZCore3D.NET.Data.OsnapKind.LINE: rawLineCount++; break;
+                        case VIZCore3D.NET.Data.OsnapKind.POINT: rawPointCount++; break;
+                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE: rawCircleCount++; break;
+                    }
+                }
+            }
+            DiagLog($"[Osnap] bom={bom.Index} name='{bom.Name}' BBox X[{bom.MinX:F2}~{bom.MaxX:F2}] Y[{bom.MinY:F2}~{bom.MaxY:F2}] Z[{bom.MinZ:F2}~{bom.MaxZ:F2}] " +
+                $"sizeX={bom.MaxX - bom.MinX:F2} sizeY={bom.MaxY - bom.MinY:F2} sizeZ={bom.MaxZ - bom.MinZ:F2} " +
+                $"rawOsnap LINE={rawLineCount} POINT={rawPointCount} CIRCLE={rawCircleCount}");
+
             if (osnapListMfg != null)
             {
                 foreach (var osnap in osnapListMfg)
@@ -522,6 +541,26 @@ namespace A2Z
                             break;
                     }
                 }
+            }
+
+            // 수집된 Osnap 점 좌표 로그 (X/Y/Z 별로 min/max 추적)
+            if (mfgOsnapWithNames.Count > 0)
+            {
+                float minOX = float.MaxValue, maxOX = float.MinValue;
+                float minOY = float.MaxValue, maxOY = float.MinValue;
+                float minOZ = float.MaxValue, maxOZ = float.MinValue;
+                foreach (var (pt, _) in mfgOsnapWithNames)
+                {
+                    if (pt.X < minOX) minOX = pt.X; if (pt.X > maxOX) maxOX = pt.X;
+                    if (pt.Y < minOY) minOY = pt.Y; if (pt.Y > maxOY) maxOY = pt.Y;
+                    if (pt.Z < minOZ) minOZ = pt.Z; if (pt.Z > maxOZ) maxOZ = pt.Z;
+                }
+                DiagLog($"[Osnap] bom={bom.Index} 수집 {mfgOsnapWithNames.Count}점 range X[{minOX:F2}~{maxOX:F2}] Y[{minOY:F2}~{maxOY:F2}] Z[{minOZ:F2}~{maxOZ:F2}] " +
+                    $"BBox와 비교: X span {maxOX - minOX:F2}/{bom.MaxX - bom.MinX:F2} Y span {maxOY - minOY:F2}/{bom.MaxY - bom.MinY:F2} Z span {maxOZ - minOZ:F2}/{bom.MaxZ - bom.MinZ:F2}");
+            }
+            else
+            {
+                DiagLog($"[Osnap] bom={bom.Index} 수집 0점 (외곽 치수 불가)");
             }
 
             // ── 5-1. EA 앵글 카메라 보정 (isEA=false 비활성, 사용자 사양 보존) ──

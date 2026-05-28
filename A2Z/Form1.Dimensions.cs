@@ -1160,6 +1160,13 @@ namespace A2Z
                 case "Z": distance = Math.Abs(endPoint.Z - startPoint.Z); break;
             }
 
+            // P3 #3 진단 (2026-05-23): measure 좌표가 부재 BBox와 어떻게 매칭되는지 추적
+            DiagLog($"[DrawDimension] axis={axis} dist={distance:F2} view={viewDirection} " +
+                $"start=({startPoint.X:F2},{startPoint.Y:F2},{startPoint.Z:F2}) " +
+                $"end=({endPoint.X:F2},{endPoint.Y:F2},{endPoint.Z:F2}) " +
+                $"sv=({startVertex.X:F2},{startVertex.Y:F2},{startVertex.Z:F2}) " +
+                $"ev=({endVertex.X:F2},{endVertex.Y:F2},{endVertex.Z:F2})");
+
             // T-040 v8: AddCustomAxisDistance 반환값(측정 ID) 받아 호출자에 전달
             int measureId = -1;
             if (distance > 0.1f)
