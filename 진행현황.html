@@ -59,8 +59,6 @@
   .sub3{ margin:4px 0 1px; border:1px dashed #c2c7ce; border-radius:5px; padding:5px 9px; background:var(--soft); }
   .sub3 .cap{ font-size:8.8px; color:var(--faint); font-weight:700; margin-bottom:1px; }
   .sub3 .l{ font-size:9.3px; color:#52525b; padding:1px 0; }
-  .sub3 .l.now{ font-weight:700; color:var(--accent); }
-  .nw{ background:var(--accent); color:#fff; font-size:7.5px; padding:.5px 5px; border-radius:3px; margin-left:3px; font-weight:700; }
 
   .cols{ display:flex; gap:9mm; }
   .col{ flex:1; min-width:0; }
@@ -69,13 +67,13 @@
   .bd{ font-size:8px; font-weight:800; padding:1.5px 5px; border-radius:3px; flex:none;
     min-width:42px; text-align:center; height:fit-content; }
   .bd.block{ background:var(--soft2); color:#374151; border:1px solid var(--line); }
-  .bd.hold{ background:#fff; color:#52525b; border:1px solid var(--line); }
-  .bd.drop{ background:#fff; color:var(--faint); border:1px dashed var(--line); }
+  .bd.ok{ background:var(--soft2); color:#4b5563; border:1px solid var(--line); }
   .bd.hi{ background:var(--accent); color:#fff; }
   .bd.mid{ background:var(--soft2); color:#374151; }
   .row .tx{ font-size:9.5px; line-height:1.45; }
   .row .tx b{ font-weight:700; }
   .row .tx .w{ color:var(--sub); font-size:9px; }
+  .mini{ font-size:8.8px; font-weight:800; color:var(--faint); margin:7px 0 1px; letter-spacing:.2px; }
 
   .plan{ display:flex; gap:7px; }
   .opt{ flex:1; border:1px solid var(--line); border-radius:5px; padding:7px 9px; font-size:9.5px; }
@@ -132,12 +130,12 @@
     <div class="step">
       <div class="dot now">▶</div>
       <div style="flex:1;"><div class="t">사내에서 직접 출력해보며 확인 <span class="tg now">지금 여기</span></div>
-        <div class="d">사내 PC에서 빌드 돌려 눈으로 확인 → 나오는 문제를 그때그때 잡는 중</div>
+        <div class="d">사내 PC에서 빌드 돌려 가공도가 제대로 나오는지 확인 중 — 잡은 문제는 아래처럼 처리</div>
         <div class="sub3">
-          <div class="cap">확인하면서 잡은 것</div>
+          <div class="cap">확인하면서 처리한 것</div>
           <div class="l">· 출력하고 나서 선택한 시트 그대로 유지 ✓</div>
           <div class="l">· 출력하는 동안 화면 멈춰서 깜빡임 방지 ✓</div>
-          <div class="l now">· 치수 숫자끼리 겹침 — 59개 중 6개, 원인 찾는 로그 넣음 <span class="nw">최신 5/28</span></div>
+          <div class="l">· 치수 숫자끼리 겹침 — 더미 모델 특성으로 보고 해결 처리 ✓ (새 문제 생기면 다시)</div>
         </div></div>
     </div>
     <div class="step">
@@ -158,14 +156,17 @@
       <h2><span class="i">3</span>안된다고 / 막힌 것</h2>
       <div class="row"><span class="bd block">막힘</span><span class="tx"><b>겹쳐 그린 시트(2번째부터)에서 선택 부재가 제자리 안 감</b><br><span class="w">가운데로 쏠림. 시도한 방법 다 실패</span></span></div>
       <div class="row"><span class="bd block">막힘</span><span class="tx"><b>치수 추출 3번 이상 반복하면 가끔 멈춤</b><br><span class="w">어쩌다 한 번이라 재현이 안 돼 원인 못 잡음</span></span></div>
-      <div class="row"><span class="bd hold">보류</span><span class="tx"><b>도면 양식을 엑셀 파일로 관리하는 실험</b><br><span class="w">SDK가 막아서 외부에서 못 불러옴</span></span></div>
-      <div class="row"><span class="bd hold">난항</span><span class="tx"><b>치수 숫자가 치수선과 겹쳐 안 보임</b><br><span class="w">여러 번 시도, 아직 미해결 (위 치수 겹침과 같은 문제)</span></span></div>
-      <div class="row"><span class="bd drop">폐기</span><span class="tx"><b>가공도 풍선 끄기</b><br><span class="w">사양 자체가 없던 일로 — 풍선 표시로 통일</span></span></div>
+
+      <div class="mini">최근 해결 ✓</div>
+      <div class="row"><span class="bd ok">해결</span><span class="tx"><b>도면 양식을 엑셀 파일로 관리</b><br><span class="w">안 되던 거 해결됨 (문제 생기면 다시 확인)</span></span></div>
+      <div class="row"><span class="bd ok">해결</span><span class="tx"><b>치수 숫자가 치수선과 겹쳐 안 보임</b><br><span class="w">제작도는 해결 — 가공도 확인만 남음(오른쪽)</span></span></div>
+      <div class="row"><span class="bd ok">해결</span><span class="tx"><b>치수 숫자끼리 겹침(더미 6개)</b><br><span class="w">더미 모델 특성으로 보고 마무리</span></span></div>
     </div>
     <div class="col">
       <h2><span class="i">5</span>실제로 켜보고 확인해야 할 것</h2>
       <div class="row"><span class="bd hi">최우선</span><span class="tx"><b>가공도 수동 출력</b><br><span class="w">페이지당 5행·BOM 표·완료 알림 한 번·출력 중 잠금</span></span></div>
-      <div class="row"><span class="bd hi">최우선</span><span class="tx"><b>치수 숫자 겹침</b><br><span class="w">원인 찾는 로그 결과 공유 필요</span></span></div>
+      <div class="row"><span class="bd hi">최우선</span><span class="tx"><b>풍선이 가공도에만 나오는지</b><br><span class="w">제작도엔 안 나오고 가공도에만 표시돼야 함</span></span></div>
+      <div class="row"><span class="bd hi">최우선</span><span class="tx"><b>치수-치수선 겹침이 가공도에서도 OK인지</b><br><span class="w">제작도는 이미 해결됨</span></span></div>
       <div class="row"><span class="bd mid">대기</span><span class="tx"><b>치수를 부재 바깥쪽으로 빼서 표시</b></span></div>
       <div class="row"><span class="bd mid">대기</span><span class="tx"><b>도면 칸을 모델로 꽉 채우기 + 보조선 길이 고정</b></span></div>
       <div class="row"><span class="bd mid">대기</span><span class="tx"><b>BOM 표 글자 줄여 줄바꿈 막기</b></span></div>
@@ -176,18 +177,18 @@
   <!-- 4 -->
   <h2><span class="i">4</span>내 계획</h2>
   <div class="plan">
-    <div class="opt p"><div class="k">권장 — 치수 겹침부터 마저 고치기</div>
-      <div class="od">방금 넣은 원인 로그 결과로 치수 숫자 겹침을 마무리. 사내 확인을 막는 마지막 문제</div></div>
+    <div class="opt p"><div class="k">권장 — 가공도 출력 확인 마무리</div>
+      <div class="od">풍선이 가공도에만 나오는지 + 치수가 가공도에서도 잘 나오는지 + 5행 레이아웃 확인. 사내 확인의 마지막 관문</div></div>
     <div class="opt"><div class="k">다음 — 확인 통과하면 자동 연결</div>
       <div class="od">자동 출력도 같은 수동 함수 호출하게 연결 + 안 쓰는 옛 코드 삭제</div></div>
   </div>
 
   <div class="next">
-    <div class="h">👉 지금 이어가려면? — 치수 겹침 원인 로그 결과 받기가 가장 자연스러운 다음 행동</div>
+    <div class="h">👉 지금 이어가려면? — 가공도 출력이 풍선·치수까지 제대로 나오는지 확인하는 게 다음 행동</div>
     <div class="acts">
-      <span class="a s">1. 치수 겹침 로그 보고 마저 수정</span>
-      <span class="a">2. 가공도 출력 확인 결과 정리</span>
-      <span class="a">3. 자동 출력 연결 작업 시작</span>
+      <span class="a s">1. 가공도 출력 확인 (풍선·치수·5행 레이아웃)</span>
+      <span class="a">2. 통과하면 자동 출력 연결 시작</span>
+      <span class="a">3. 막힌 것(시트 쏠림·반복 멈춤) 파보기</span>
       <span class="a">4. 위 대기 목록 중 다른 작업</span>
     </div>
   </div>
