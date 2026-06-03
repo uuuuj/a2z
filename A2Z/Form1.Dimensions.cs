@@ -360,6 +360,22 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 보조선 길이 정책 단일 출처 (2026-06-03 가공도 통일).
+        /// 캔버스 절대 mm(1단 5 / 2단 10)를 모델좌표 offset으로 역산.
+        /// 제작도(ShowAllDimensions)·가공도(RenderMfgRowToViewArea) 공용 — 길이를 한 곳에서 관리.
+        /// canvasScale은 호출자가 0 초과를 보장.
+        /// </summary>
+        private void ComputeCanvasAbsoluteOffsets(
+            float canvasScale, out float baseOffset, out float levelSpacing, out float canvasMaxOff)
+        {
+            const float canvasBase = 5f;   // 1단 캔버스 mm
+            const float canvasLvl  = 5f;   // 차분 → 2단 = 10mm
+            canvasMaxOff = canvasBase + canvasLvl;
+            baseOffset   = canvasBase / canvasScale;
+            levelSpacing = canvasLvl  / canvasScale;
+        }
+
+        /// <summary>
         /// 치수 표시 - Smart Dimension Filtering Algorithm 적용
         ///
         /// 적용된 알고리즘:
@@ -504,17 +520,12 @@ namespace A2Z
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
-                    // T-038+039 v10 (2026-05-12 사용자 사양): 모든 보조선 5/10mm 고정 (전체 최소값)
-                    // 이전 분기(max>1000 / axisShortHalf) 모두 폐기 — 단순화. 모든 dim 동일 길이.
-                    const float canvasBase = 5f;   // 1단 캔버스 mm 고정
-                    const float canvasLvl  = 5f;   // 차분 → 2단 = 10mm
-                    canvasMaxOff = canvasBase + canvasLvl;
-                    baseOffset = canvasBase / canvasScaleOverride;
-                    levelSpacing = canvasLvl / canvasScaleOverride;
+                    // 보조선 길이 = 캔버스 절대 5/10mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
+                    ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing, out canvasMaxOff);
                     // axisShortHalf 비어있음 — foreach 분기에서 모두 동일 offset
 
                     float maxDist = filteredDims.Max(d => d.Distance);
-                    DiagLog($"T-038+039 v10 view={viewDirection} maxDist={maxDist:F1} canvasBase={canvasBase}(fixed) canvasLvl={canvasLvl}(fixed) scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
+                    DiagLog($"보조선 헬퍼 view={viewDirection} maxDist={maxDist:F1} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
                 }
                 else
                 {
