@@ -1991,7 +1991,7 @@ namespace A2Z
         /// 사용자 사양: Z=0.65 / X·Y=0.70 (모델 차지 비율). ShowAllDimensions 보조선 위치 계산 기준.
         /// 모델 RescaleObject 시점의 shrinkFactor와 동일 값을 유지해야 보조선이 모델 fit 결과와 일치.
         /// </summary>
-        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices)
+        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices, float fitFactorOverride = -1f)
         {
             float minX = float.MaxValue, maxX = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
@@ -2022,7 +2022,7 @@ namespace A2Z
             if (modelW < 1e-3f || modelH < 1e-3f) return 1f;
 
             // 사용자 사양 (2026-05-14): Z=0.65 / X·Y=0.70 — RescaleObject shrinkFactor와 동일 유지
-            float fitFactor = (viewDirection == "Z") ? 0.65f : 0.70f;
+            float fitFactor = fitFactorOverride > 0f ? fitFactorOverride : ((viewDirection == "Z") ? 0.65f : 0.70f);
             float scaleW = (availW * fitFactor) / modelW;
             float scaleH = (availH * fitFactor) / modelH;
             float scale = Math.Min(scaleW, scaleH);

@@ -270,7 +270,7 @@ namespace A2Z
                 }
 
                 // ── 공통 코어 호출 (pose 지역변수, _lastMfgViewPose write X) ──
-                var pose = BuildMfgSceneCore(bom.Index);
+                var pose = BuildMfgSceneCore(bom.Index, area.Width, area.Height);
 
                 // ── 카메라 fit + Z90/R180 (자동 어댑터 패턴, RenderMfgViewForDrawing 참조) ──
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
@@ -429,7 +429,7 @@ namespace A2Z
         /// B1b1c (예정): 풍선 4분면 배치.
         /// B2/B3 (예정): ExecuteMfgDrawing / RenderMfgViewForDrawing 어댑터 변환.
         /// </summary>
-        private MfgViewPose BuildMfgSceneCore(int bomIndex)
+        private MfgViewPose BuildMfgSceneCore(int bomIndex, float availW = -1f, float availH = -1f)
         {
             var pose = new MfgViewPose();
 
@@ -741,20 +741,40 @@ namespace A2Z
 
                     var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
-                    // 작은 모델 보조선 축소 (offFactor)
-                    float visExt1 = 0f, visExt2 = 0f;
-                    switch (viewDirection)
-                    {
-                        case "X": visExt1 = bom.MaxY - bom.MinY; visExt2 = bom.MaxZ - bom.MinZ; break;
-                        case "Y": visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxZ - bom.MinZ; break;
-                        default:  visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxY - bom.MinY; break;
-                    }
-                    float minVisExtent = Math.Min(visExt1, visExt2);
-                    float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
+                    // 보조선 길이 결정.
+                    // 2D 출력(availW>0): 제작도와 동일 원리 — 캔버스 절대 5/10mm를 추정 fit scale로 역산 (공용 헬퍼).
+                    //   가공도 칸은 모델 100% 채움 → fitFactor=1.0 (제작도는 0.65/0.70).
+                    // 3D 미리보기(availW<=0): 기존 모델좌표 offFactor 유지.
+                    float mfgChainOff1, mfgChainOff2;
+                    float mfgCanvasScale = -1f;
+                    if (availW > 0f && availH > 0f)
+                        mfgCanvasScale = EstimateFitScaleForViewArea(availW, availH, viewDirection, new List<int> { bom.Index }, 1.0f);
 
-                    float mfgChainOff1 = 50.0f * offFactor;
-                    float mfgChainOff2 = 100.0f * offFactor;
-                    mfgTotalOff *= offFactor;
+                    if (mfgCanvasScale > 0f)
+                    {
+                        ComputeCanvasAbsoluteOffsets(mfgCanvasScale, out float mfgBaseOff, out float mfgLvlSp, out _);
+                        int mfgMaxLevel = mfgDimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
+                        mfgChainOff1 = mfgBaseOff;                          // DisplayLevel==0 (제작도 level1)
+                        mfgChainOff2 = mfgBaseOff + mfgLvlSp;               // DisplayLevel>0  (제작도 level2)
+                        mfgTotalOff  = mfgBaseOff + mfgLvlSp * mfgMaxLevel; // IsTotal         (제작도 level0)
+                        DiagLog($"가공도 보조선 절대 bom={bom.Index} view={viewDirection} estScale={mfgCanvasScale:F4} off1={mfgChainOff1:F2} off2={mfgChainOff2:F2} total={mfgTotalOff:F2}");
+                    }
+                    else
+                    {
+                        // 기존 모델좌표 offFactor (3D 미리보기 경로)
+                        float visExt1 = 0f, visExt2 = 0f;
+                        switch (viewDirection)
+                        {
+                            case "X": visExt1 = bom.MaxY - bom.MinY; visExt2 = bom.MaxZ - bom.MinZ; break;
+                            case "Y": visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxZ - bom.MinZ; break;
+                            default:  visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxY - bom.MinY; break;
+                        }
+                        float minVisExtent = Math.Min(visExt1, visExt2);
+                        float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
+                        mfgChainOff1 = 50.0f * offFactor;
+                        mfgChainOff2 = 100.0f * offFactor;
+                        mfgTotalOff *= offFactor;
+                    }
 
                     // 3 패스: level=0 / level>0 / IsTotal
                     foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))

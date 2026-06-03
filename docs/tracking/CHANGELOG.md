@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-06-03 — 가공도 보조선 길이 제작도와 통일 (공용 헬퍼, 추정 1차)
+
+**유형**: refactor (가공도 보조선 길이 정책 통일)
+**커밋**: `pending`
+**관련 TASK**: T-039 (가공도 적용 잔여)
+**관련 계획서**: `docs/리팩토링/가공도-보조선-제작도통일.md` v2 (Codex 1차 검토 반영)
+
+**문제**: 제작도는 보조선 화면 길이가 일정(캔버스 절대 5/10mm ÷ 추정배율)한데, 가공도는 모델좌표 고정값(50/100/250 × offFactor)이라 부재마다 들쭉날쭉. 세로 전체 길이 치수도 안 맞음.
+
+**변경 사항**:
+- 보조선 길이 계산을 공용 헬퍼 `ComputeCanvasAbsoluteOffsets(scale)`로 추출 — 제작도·가공도 단일 정책 (`Form1.Dimensions.cs`, `1aba8c7`)
+- 제작도 `ShowAllDimensions` 인라인 5/10mm 계산을 헬퍼 호출로 교체 (동작 100% 보존)
+- 가공도 `BuildMfgSceneCore(bomIndex, availW, availH)` — 2D 출력 경로(availW>0)는 캔버스 절대 5/10mm를 추정 fit scale로 역산. `mfgChainOff1/2/total`을 제작도 level1/2/0 구조와 1:1 매핑
+- `EstimateFitScaleForViewArea`에 `fitFactorOverride` 인자 — 가공도는 1.0 (칸 100% 채움), 제작도는 기존 0.65/0.70
+- 3D 미리보기 경로(`ExecuteMfgDrawing` 등 availW<=0)는 기존 offFactor 유지 — 회귀 없음
+
+**방식**: Codex 1차 검토 후 "추정 1차". 회전(Z90) 부재는 추정 오차 가능 — 사내 검증으로 충분성 판정, 부족 시 실측 newScale 2차.
+
+**영향 범위**: `A2Z/Form1.Dimensions.cs`(헬퍼), `Form1.MfgDrawing.cs`(보조선 분기), `Form1.DrawingSheets.cs`(fitFactor 인자). 풍선·EA·MULTI·`:1693` 범위 외.
+
 ## 2026-05-23 — P3 사용자 보고 #3 진단 2차: Osnap·DrawDimension DiagLog 추가
 
 **유형**: debug (가공도 흐름 재배선 P3 검증 3차 — 진단용 로그 2차)
