@@ -248,10 +248,11 @@
   - [x] `EstimateFitScaleForCell` 헬퍼 그대로 사용 (Form1.DrawingSheets.cs:1498)
   - [x] `RenderSheetViewForDrawing` L1603 호출 — `estScale`만 전달 (분기 로직 호출자 제거)
   - [ ] **빌드 통과 후 사용자 사내 PC 실기 — 큰 치수 시트(>1000) 보조선 10/20mm, 작은 시트(≤1000) 20/40mm 도달 확인. DiagLog `T-038+039 v2 maxDist=N` 값 비교**
-- **잔여 (2차 — 가공도 적용)**:
-  - [ ] Form1.MfgDrawing.cs L365 `mfgChainOff1 = 100.0f * offFactor_3d` 식 동일 패턴 적용
-  - [ ] EA 신규 뷰(L1746), MULTI 가공도(L1229) 동일
-  - [ ] 별도 셀 fit scale 추정 (가공도는 4% 타겟 + 20mm 최소)
+- **잔여 (2차 — 가공도 적용)** → 별도 계획서로 분리 진행: `docs/리팩토링/가공도-보조선-제작도통일.md` v2 (2026-06-03, Codex 1차 반영):
+  - [x] 공용 헬퍼 `ComputeCanvasAbsoluteOffsets` 추출 + 제작도 교체 (동작 보존, `1aba8c7`)
+  - [x] 가공도 `BuildMfgSceneCore(availW, availH)` + 캔버스 절대 5/10mm 분기 (`EstimateFitScaleForViewArea` fitFactor=1.0 추정). 빌드 통과
+  - [ ] **사내 검증 — 가공도 보조선 부재 크기 무관 일정 + 모델 정합. 회전(Z90) 부재 추정 오차 확인. 부족 시 실측 newScale 2차**
+  - [ ] EA 두 뷰·MULTI·`:1693`(FitObjectToGridCellAspect) 경로는 범위 외 (별도)
 - **잔여 (3차 — 정확도 향상)**:
   - [ ] 사전 추정 vs 실제 RescaleObject scale 차이 측정 → 오차 분석
   - [ ] 큰 경우 2단계 렌더 (모델 먼저 → 실제 scale → 치수) 재설계
