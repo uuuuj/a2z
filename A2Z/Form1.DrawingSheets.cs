@@ -1729,6 +1729,34 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 ImportExcelWithData OK — {Path.GetFileName(xlsxPath)}");
 
+                // ─── [진단·임시] ImportExcelWithData 결과물이 2D 객체로 열거되는지 관찰 ───
+                //   목적: 빈 행 테두리 선 / "Note:" 텍스트가 GetObjectAllinfoBy2DView에 잡히는지 +
+                //         각 객체의 Kind/Text/Show 확인 → 후처리(삭제/숨김) 가능 여부 판정용.
+                //   ※ 로그만 남김. 출력 결과물 불변. 판정 후 제거 예정.
+                try
+                {
+                    var diagObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
+                    DiagLog($"[진단] === 2D 객체 열거 {(diagObjs?.Count ?? 0)}개 (캔버스1, ImportExcel 직후) ===");
+                    if (diagObjs != null)
+                    {
+                        int diagMax = Math.Min(diagObjs.Count, 400);
+                        for (int oi = 0; oi < diagMax; oi++)
+                        {
+                            var o = diagObjs[oi];
+                            string txt = Convert.ToString(o.Text) ?? "";
+                            txt = txt.Replace("\r", "").Replace("\n", "\\n");
+                            if (txt.Length > 50) txt = txt.Substring(0, 50) + "…";
+                            DiagLog($"[진단] #{oi} ID={o.ID} Index={o.Index} Kind={o.Kind} Show={o.Show} Text='{txt}'");
+                        }
+                        if (diagObjs.Count > diagMax)
+                            DiagLog($"[진단] …(+{diagObjs.Count - diagMax}개 더 있음, 생략)");
+                    }
+                }
+                catch (Exception diagEx)
+                {
+                    DiagLog($"[진단] GetObjectAllinfoBy2DView ERROR: {diagEx.Message}");
+                }
+
                 // ── 5. GetViewAreasFromExcel — {View_n} 영역 좌표 파싱 ──
                 var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
                 if (viewAreas == null || viewAreas.Count == 0)
