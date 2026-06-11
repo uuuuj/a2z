@@ -510,19 +510,13 @@ namespace A2Z
                 // 모델좌표 변환: canvasOffsetMm / canvasScale
                 float baseOffset, levelSpacing;
 
-                // T-038+039 v3 (2026-05-12 사용자 사양): 짧은 축 치수의 보조선만 절반
-                //   "한쪽 전체 치수가 다른쪽보다 1/3 이하면 보조선 길이를 또 절반"
-                //   예: 높이 max=500 / 너비 max=60 → 60 < 500/3 → 너비(짧은 축)의 보조선 절반
-                // axisShortHalf Dict — true면 해당 축 치수의 보조선 0.5배
-                var axisShortHalf = new HashSet<string>();
-                // T-038+039 v4: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
+                // canvasMaxOff: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
                 float canvasMaxOff = 0f;  // 2D 캔버스 mm. 1단 + 차분 = 2단
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
                     // 보조선 길이 = 캔버스 절대 5/10mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
                     ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing, out canvasMaxOff);
-                    // axisShortHalf 비어있음 — foreach 분기에서 모두 동일 offset
 
                     float maxDist = filteredDims.Max(d => d.Distance);
                     DiagLog($"보조선 헬퍼 view={viewDirection} maxDist={maxDist:F1} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
@@ -568,7 +562,7 @@ namespace A2Z
 
                 // T-038+039 v4 (2026-05-12 사용자 사양): 보조선이 나간 방향 *반대*로 모델 이동
                 // "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동"
-                // axisPositiveOffset + canvasMaxOff + axisShortHalf 사용해 화면 H/V 외곽 방향·거리 계산
+                // axisPositiveOffset + canvasMaxOff 사용해 화면 H/V 외곽 방향·거리 계산
                 if (canvasScaleOverride > 0f && viewDirection != null && canvasMaxOff > 0f)
                 {
                     string hAxis_3d, vAxis_3d;
@@ -588,12 +582,12 @@ namespace A2Z
                     if (axisPositiveOffset.ContainsKey(vAxis_3d))
                     {
                         hPositive = axisPositiveOffset[vAxis_3d];
-                        canvasHOff = axisShortHalf.Contains(vAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
+                        canvasHOff = canvasMaxOff;
                     }
                     if (axisPositiveOffset.ContainsKey(hAxis_3d))
                     {
                         vPositive = axisPositiveOffset[hAxis_3d];
-                        canvasVOff = axisShortHalf.Contains(hAxis_3d) ? canvasMaxOff * 0.5f : canvasMaxOff;
+                        canvasVOff = canvasMaxOff;
                     }
 
                     // T-038+039 v8 (2026-05-12 사용자 사양 — 뷰별 차등 공식):
@@ -628,13 +622,11 @@ namespace A2Z
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
-                // T-038+039 v3 (2026-05-12): axisShortHalf 축의 dim은 offset 절반
                 foreach (var dim in level1Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
-                    float lv1 = axisShortHalf.Contains(dim.Axis) ? level1Offset * 0.5f : level1Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        lv1, globalMinX, globalMinY, globalMinZ,
+                        level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
@@ -643,22 +635,20 @@ namespace A2Z
                 foreach (var dim in level2Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
-                    float lv2 = axisShortHalf.Contains(dim.Axis) ? level2Offset * 0.5f : level2Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        lv2, globalMinX, globalMinY, globalMinZ,
+                        level2Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
 
-                // Level 0 전체 치수 (가장 바깥 - 전체 길이) — 통상 >13mm지만 일관성 위해 동일 토글
+                // Level 0 전체 치수 (가장 바깥 - 전체 길이)
                 int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
                 float level0Offset = baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
-                    float lv0 = axisShortHalf.Contains(dim.Axis) ? level0Offset * 0.5f : level0Offset;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        lv0, globalMinX, globalMinY, globalMinZ,
+                        level0Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff);
                 }
