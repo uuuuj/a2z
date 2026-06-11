@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-11 — 도면 2D 객체 열거 진단 로그 추가 (BOM 빈 행·Note 후처리 조사)
+
+**유형**: chore (진단 로그, 임시)
+**커밋**: `pending`
+**관련 TASK**: — (BOM 빈 행 테두리 제거 + Note 조건부 표시, 사용자 제기 / 진단 단계)
+
+**배경**: 엑셀 템플릿 도면 출력에서 (1) BOM 데이터가 표 15행보다 적어도 빈 행 테두리가 남고, (2) 내용 없는 `Note:` 라벨이 항상 표시됨. 원인은 `ImportExcelWithData`가 엑셀 고정 격자/라벨을 그대로 그리기 때문(제작도 템플릿 엑셀 분석으로 확인: BOM 표 = 엑셀 3~17행 고정 격자, Note = `AN24` 정적 셀, 입력 슬롯 없음). 후처리(2D 객체 삭제/숨김)로 해결 가능한지 판정하려면 그려진 결과물이 개별 2D 객체로 열거되는지 실측 필요.
+
+**변경 사항**:
+- `GenerateSheetDrawing2D_WithExcelTemplate`의 `ImportExcelWithData` 직후, `GetObjectAllinfoBy2DView()`로 캔버스 2D 객체를 열거해 각 객체의 ID/Index/Kind/Show/Text를 진단 로그로 출력
+- 최대 400개 + 초과 생략, 예외 안전 처리
+- 로그 전용 — 출력 결과물 불변, 판정 후 제거 예정
+
+**영향 범위**: `A2Z/Form1.DrawingSheets.cs` `ImportExcelWithData` 직후 로깅만. 도면 출력 결과 동일.
+
+**검증**: 사내에서 제작도 1장 출력 → `logs/diag-{날짜}.log`의 `[진단]` 라인 확인 (빈 행 선·`Note:` 텍스트 포착 여부 + Kind/Text 값).
+
 ## 2026-06-11 — 치수 보조선 죽은 코드 제거 (짧은 축 절반 로직)
 
 **유형**: refactor
