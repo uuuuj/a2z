@@ -6,7 +6,7 @@
 
 ## 마지막 작업 (PC: He0in-PC / 2026-05-22 17:20)
 
-**Phase A 죽은 코드 청소 → Step B 가공도 통합 → C-Mfg 가공도 재설계 (브랜치 `refactor/dead-code`)**
+**Phase A 죽은 코드 청소 → Step B 가공도 통합 → C-Mfg 가공도 재설계** (당시 브랜치 `refactor/dead-code` → 2026-06-11 `main`·`HYI`에 통합 후 삭제)
 
 이번 세션 — 사용자가 시작한 "리팩토링 4 이슈"(자동/수동 출력 차이 + 죽은 코드 + 버벅임 + 최적화)에서 출발해 가공도 엑셀 슬롯 명명까지 도달. 매우 길고 큰 세션.
 
@@ -49,7 +49,7 @@
 
 ## 메모
 
-- **브랜치**: `refactor/dead-code` (HYI 기준 분기, ~25 commit 누적). 검증 후 HYI에 merge 또는 PR 계획
+- **브랜치**: 작업 브랜치 = `HYI` (2026-06-11 정리). 기존 `refactor/dead-code`는 `main`에 통합 후 삭제 → `main` = `HYI` = `db12114` 동기화. 백업·실험 브랜치(`main-backup-2026-05-29`·`X_HYI`·`HYI-backup-T038`·`HYI-STRU`) 삭제. **앞으로 push는 HYI에만.** 원격 유지: `main`·`CJH`·`KSH`·`HYI`
 - **계획서 위치**: `docs/리팩토링/도면-출력-통합.md` (v3.1), `docs/리팩토링/가공도-템플릿-설계.md` (v2.1)
 - **백업 파일**: `사용자템플릿_엑셀_가공도_백업_2026-05-19.xlsx` (원본 제작도 카피), `_백업2_5행이전.xlsx` (View_1~4만 추가) — `.gitignore` 안 처리, 로컬 유지
 - **남은 위험 commit** (C-Mfg-7 EA 두 뷰): codex 3차에서 "최고 위험"으로 분류, isEA 재활성 필요. C-Mfg-4·5 후 별 commit으로 격리
