@@ -50,9 +50,13 @@
 - **라인**: L1612+
 - **단계**: 엑셀 `{Input_N}` 치환 → `{View_1~7}` 영역 파싱 → `View_5`·`View_7` 고정 이미지 배치 (`View_6` 예약) → 모델 4면도·치수·풍선 렌더
 
+### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
+- **라인**: L2002+
+- **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
+
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2000+
-- **역할**: 새 2D 이미지 객체를 찾아 영역 크기에 종횡비 유지 fit 후 중앙 배치. 실패 시 로그 후 도면 출력 계속
+- **라인**: L2018+
+- **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
 - **라인**: L944

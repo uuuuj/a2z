@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-15 — 제작도 고정 이미지 미표시 수정
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: — (제작도 North Arrow 이미지 미표시, 사용자 직접 요청)
+
+**변경 사항**:
+- `North_Arrow.png`, `ISO_North_Arrow.png`, `Logo.png`를 빌드 출력 폴더에 자동 복사
+- 실행 폴더 우선 절대경로와 솔루션 루트 fallback을 제공하는 이미지 경로 해석 추가
+- 클릭 입력을 기다리는 `Set2DViewCreateObjectWithImage` 경로 제거
+- `TemplateTableData + RenderTemplate`로 이미지 영역 중앙에 직접 렌더링
+- 원본 이미지 종횡비와 View 영역 크기를 기준으로 출력 높이 계산
+
+**영향 범위**: 제작도 엑셀 템플릿의 North Arrow 및 ISO North Arrow 렌더링. 모델 4면도·치수·풍선 로직은 변경 없음.
+
+**검증**: Debug 빌드 오류 0건, 이미지 3종의 `A2Z\bin\Debug` 자동 복사 확인. 실제 VIZ 2D 출력 확인 필요.
+
 ## 2026-06-15 — ISO North Arrow 배치 위치 정정
 
 **유형**: fix

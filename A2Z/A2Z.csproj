@@ -131,6 +131,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <!-- 제작도 고정 이미지: 실행 폴더 기준 절대경로로 사용할 수 있도록 자동 복사 -->
+    <Content Include="..\North_Arrow.png">
+      <Link>North_Arrow.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\ISO_North_Arrow.png">
+      <Link>ISO_North_Arrow.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Logo.png">
+      <Link>Logo.png</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- VIZCore3D 네이티브 Interop DLL: 프로젝트 루트에서 빌드 출력 폴더로 자동 복사 -->
     <!-- (csproj Reference로는 관리 DLL만 참조하지만, Interop은 런타임에 동적 로드되므로 별도 복사 필요) -->
     <None Include="..\VIZCore3D.NET.Interop.dll">
