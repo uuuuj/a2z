@@ -904,6 +904,12 @@ namespace A2Z
                 foreach (var ax in mfgVisibleAxes)
                     mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
 
+                // 제작도와 동일한 점 선별 — ApplySmartFiltering (축당 최대 8개 + 겹침 25mm 회피 + 우선순위, 2단 분배).
+                //   내부에서 AssignDimensionPriorities로 Priority 할당 + IsVisible/DisplayLevel 세팅.
+                //   아래 3패스 그리기(level0/level>0/IsTotal)가 IsVisible+DisplayLevel을 이미 소비하므로 선별 결과 자동 반영.
+                //   ※ 가공도에서 추가로 살릴 점은 후속 작업 — 이 단계는 제작도와 동일 기준.
+                mfgDimensions = ApplySmartFiltering(mfgDimensions, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
+
                 // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
                 float maxTotalDist = 0f;
                 foreach (var td in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
