@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-06-11 — 이미지 배치 동작 실측 코드 (도면 다중 이미지 구현 준비)
+
+**유형**: chore (실측 로그, 임시)
+**커밋**: `pending`
+**관련 TASK**: — (도면에 서로 다른 고정 이미지 여러 장 배치, 사용자 제기)
+
+**배경**: 도면에 회사 로고·선급 마크 등 서로 다른 고정 이미지 여러 장을 넣어야 함. `{Image}` 태그는 1개·단일 로고용(`Set2DViewTemplateMark`은 일반/반전 두 버전일 뿐)이라 부적합. 엑셀 직접 삽입은 ImportExcel이 안 가져옴(사용자 확인). → `Set2DViewCreateObjectWithImage` 코드 배치가 답이나, 위치/크기/생성동작 등 6항목이 SDK 문서에 없어 실측 필요.
+
+**변경 사항**:
+- 이전 BOM 객체 열거 진단(`897b19d`) → 이미지 배치 실측으로 교체
+- `ImportExcelWithData` 직후 `Logo.png` 1장을 `Set2DViewCreateObjectWithImage`로 생성 → `GetObjectAllinfoBy2DView`/`GetObjectCenter`/`GetObjectSize`로 ID·Kind·위치·크기 로그 + `MoveObjectTo(100,100)`·`RescaleObject(0.5)` 동작 확인
+- 실측 항목: ①자동생성 여부 ②초기 위치/크기 ③Index/ID ④MoveObjectTo 앵커 ⑤Rescale 의미 ⑥크기 단위
+- sdk-verifier 좌표계 확정: **mm, 원점 좌하단, Y-up** (엑셀 `{View}` 영역과 동일 계)
+
+**영향 범위**: `A2Z/Form1.DrawingSheets.cs` 실측 로그 + 출력물에 테스트 로고 1장(임시). 확정 후 제거.
+
+**검증**: 사내 출력 → `logs/diag-*.log`의 `[이미지실측]` 라인 확인.
+
 ## 2026-06-11 — 도면 2D 객체 열거 진단 로그 추가 (BOM 빈 행·Note 후처리 조사)
 
 **유형**: chore (진단 로그, 임시)
