@@ -28,7 +28,7 @@
 |---|---|
 | `AddChainDimensionByAxis` | 축별 체인 치수 생성 |
 | `MergeCoordinates` | tolerance 내 Osnap 좌표 병합 |
-| `ShowAllDimensions(axis?)` | `chainDimensionList` 전체를 SDK Measure에 추가 (axis로 필터 가능) |
+| `ShowAllDimensions(axis?)` | `chainDimensionList` 전체를 SDK Measure에 추가한다. Hole/SlotHole/EarthBoss 형상 풍선은 생성하지 않는다. |
 | `SelectRelatedOsnapItems` | Clash 기반 관련 Osnap ListView 자동 선택 |
 | `SelectRelatedDimensionItems` | Clash BBox 기반 관련 치수 ListView 자동 선택 |
 | `ShowMemberNameOverlay` | 부재명 TextBox 오버레이 (panelViewer 위) |

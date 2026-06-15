@@ -4,7 +4,7 @@ feature_name: X축 뷰 + 치수 표시
 category: Dimensions
 trigger_type: User Action
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-05-11
+last_updated: 2026-06-15
 code_reference: /docs/code-reference/form1-dimensions.md#btnShowAxisX_Click
 ---
 
@@ -49,6 +49,8 @@ X축 방향 뷰로 카메라를 전환하고, X축 치수만 표시한다. 내�
 | `vizcore3d.View.RenderMode` | 이전 | DASH_LINE |
 | `Review.Measure / Note / ShapeDrawing` | 이전 | Clear 후 X축 치수 |
 
+Hole, SlotHole, EarthBoss 형상 풍선은 가공도 전용이므로 X축 뷰에는 표시하지 않는다.
+
 ## 8. 후행 기능 (Chained)
 - [Y축 뷰](./Y축 치수 표시.md), [Z축 뷰](./Z축 치수 표시.md), [ISO 뷰](./ISO 풍선 표시.md)
 
@@ -64,3 +66,4 @@ X축 방향 뷰로 카메라를 전환하고, X축 치수만 표시한다. 내�
 | 2026-05-11 | **T-040v 토글 취소** (사용자 결정: *"수치는 부재간의 연쇄치수가 첫번째, 전체 치수가 두번째로 2줄만 생성되어야 한다"*). Level 1 foreach를 원래 단순 형태로 복원 (모든 dim에 `level1Offset` 단일 적용). level2 적응형 충돌 회피(`ApplySmartFiltering`이 텍스트 폭 초과 시 자동 밀어내기)는 그대로 유지 — 별도 결정 시 폐기 가능 | Claude |
 | 2026-05-11 | **치수 텍스트 위치 13mm 임계 토글** (사용자 결정). `AlignDistanceTextPosition` 글로벌 옵션이라 측정 추가 직전에 `dim.Distance` 검사 후 SetStyle 동적 토글. `≤13mm → 2(보조선 바깥)`, `>13mm → 1(위)`. Level 1/2/0 세 그룹 모두 동일 적용. T-058에서 모든 치수 일괄 2(바깥) 였던 것을 거리 기반 분기로 변경 | Claude |
 | 2026-05-11 | `ApplySmartFiltering` 진단 DiagLog 추가 (axis별 level0/level1/total/hidden 카운트, `result.AddRange` 직전). 실제 분리 발생 여부 검증용 | Claude |
+| 2026-06-15 | 관련: T-044, T-047 — Hole, SlotHole, EarthBoss 형상 풍선을 가공도 전용으로 변경 | Codex |
