@@ -661,7 +661,8 @@ namespace A2Z
         /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
-        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(홀/슬롯) 생성. ISO 없음(가공도 사양).
+        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(Hole/SlotHole/EarthBoss) 생성.
+        /// ISO 부재번호 풍선과 원형 부재 반지름 풍선은 생성하지 않는다.
         /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
         ///
         /// 호출자별 후속 처리:
@@ -1214,28 +1215,14 @@ namespace A2Z
                   float arrowX, float arrowY, float arrowZ)> mfgBalloonEntries =
                 new List<(float, float, float, string, Color, float, float, float)>();
 
-            // 반지름 풍선 수집
-            bool isTrueCylinder = false;
-            if (bom.CircleRadius > 0)
+            // EarthBoss 풍선 수집 (UDA PURPOSE=EBOS)
+            if (string.Equals((bom.Purpose ?? "").Trim(), "EBOS",
+                StringComparison.OrdinalIgnoreCase))
             {
-                float diam = bom.CircleRadius * 2f;
-                float bsX = Math.Abs(bom.MaxX - bom.MinX);
-                float bsY = Math.Abs(bom.MaxY - bom.MinY);
-                float bsZ = Math.Abs(bom.MaxZ - bom.MinZ);
-                float ct = Math.Max(2f, diam * 0.2f);
-                int mCnt = 0;
-                if (Math.Abs(bsX - diam) < ct) mCnt++;
-                if (Math.Abs(bsY - diam) < ct) mCnt++;
-                if (Math.Abs(bsZ - diam) < ct) mCnt++;
-                isTrueCylinder = mCnt >= 2;
-            }
-            if (isTrueCylinder)
-            {
-                float oH_c = mfgMaxArr[bHAxis_m] / 2f + mfgMinArr[bHAxis_m] / 2f; // center H
-                float oV_c = mfgMaxArr[bVAxis_m] / 2f + mfgMinArr[bVAxis_m] / 2f; // center V
-                float depthVal = viewDirection == "X" ? bom.CenterX : viewDirection == "Y" ? bom.CenterY : bom.CenterZ;
-                mfgBalloonEntries.Add((oH_c, oV_c, depthVal,
-                    $"R{bom.CircleRadius:F1}", Color.Red,
+                float[] earthBossArr = { bom.CenterX, bom.CenterY, bom.CenterZ };
+                mfgBalloonEntries.Add((
+                    earthBossArr[bHAxis_m], earthBossArr[bVAxis_m], earthBossArr[bDAxis_m],
+                    "EarthBoss", Color.Blue,
                     bom.CenterX, bom.CenterY, bom.CenterZ));
             }
 

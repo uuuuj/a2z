@@ -4,7 +4,7 @@ feature_name: Y축 뷰 + 치수 표시
 category: Dimensions
 trigger_type: User Action
 owner_module: Form1.Dimensions.cs
-last_updated: 2026-04-13
+last_updated: 2026-06-15
 code_reference: /docs/code-reference/form1-dimensions.md#btnShowAxisY_Click
 ---
 
@@ -45,6 +45,8 @@ Y축 방향 뷰로 전환. 공용 함수 `ApplyGlobalView("Y")` 호출.
 | RenderMode | 이전 | DASH_LINE |
 | Measure/Note/ShapeDrawing | 이전 | Clear 후 Y축 치수 |
 
+Hole, SlotHole, EarthBoss 형상 풍선은 가공도 전용이므로 Y축 뷰에는 표시하지 않는다.
+
 ## 8. 후행 기능 (Chained)
 - 다른 축/ISO 뷰
 
@@ -55,3 +57,4 @@ Y축 방향 뷰로 전환. 공용 함수 `ApplyGlobalView("Y")` 호출.
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
 | 2026-04-13 | 초안 작성 | — |
+| 2026-06-15 | 관련: T-044, T-047 — Hole, SlotHole, EarthBoss 형상 풍선을 가공도 전용으로 변경 | Codex |
