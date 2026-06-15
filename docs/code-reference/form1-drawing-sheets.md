@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 1,547 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,597 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, PDF 내보내기 (단일/배치), ISO 풍선 노트 생성.
 
@@ -43,8 +43,16 @@
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L957+
+- **라인**: L1262+
 - **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블
+
+### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
+- **라인**: L1612+
+- **단계**: 엑셀 `{Input_N}` 치환 → `{View_1~6}` 영역 파싱 → 고정 이미지 2종 배치 → 모델 4면도·치수·풍선 렌더
+
+### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
+- **라인**: L2000+
+- **역할**: 새 2D 이미지 객체를 찾아 영역 크기에 종횡비 유지 fit 후 중앙 배치. 실패 시 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
 - **라인**: L944
