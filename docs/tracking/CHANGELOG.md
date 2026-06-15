@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-15 — 가공도 치수 점 선별 (제작도 ApplySmartFiltering 적용)
+
+**유형**: feat (가공도 치수 선별)
+**커밋**: `pending`
+**관련 TASK**: — (가공도도 제작도처럼 점 선별, 사용자 지시 / 후속: 가공도 전용 추가 점 살리기 예정)
+
+**배경**: 가공도는 Osnap 노이즈 제거(CIRCLE 제외·은선 필터·0.5mm 좌표병합)만 하고, 제작도의 `ApplySmartFiltering`(겹침·우선순위 선별 + 축당 개수 제한)을 안 거쳐 사실상 "남은 Osnap 점을 다 뽑는" 상태였음. 형상이 복잡한 부재는 치수 과다·겹침 발생.
+
+**변경 사항**:
+- `BuildMfgSceneCore` 치수 생성(`AddChainDimensionByAxis`) 직후 `ApplySmartFiltering(mfgDimensions, maxDimensionsPerAxis: 8, minTextSpace: 25.0f)` 추가 — 제작도와 동일 파라미터
+- 가공도 그리기는 이미 3패스(`IsVisible` + `DisplayLevel==0` / `>0` / `IsTotal`) 구조라 필터 결과 자동 반영 — **그리기 로직 변경 없음**
+- `ApplySmartFiltering` 내부 `AssignDimensionPriorities`가 Priority 할당 → `mfgDimensions`에 별도 작업 불필요
+
+**영향 범위**: `A2Z/Form1.MfgDrawing.cs` 가공도 치수 선별만. 제작도·일반시트 무관. 풍선 끝단 계산(`allMfgDims`)은 별도 경로라 미변경(후속 검토 가능).
+
+**검증**: 사내 가공도 출력 → 치수가 축당 8개로 선별 + 겹침 회피되는지 확인.
+
 ## 2026-06-15 — 제작도 고정 이미지 미표시 수정
 
 **유형**: fix
