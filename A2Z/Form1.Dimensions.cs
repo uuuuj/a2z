@@ -503,11 +503,10 @@ namespace A2Z
                 float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
                 // 오프셋 (3D/2D 동일 — 2D 변환 시 좌표가 함께 변환되므로 동일 값 사용)
-                // T-038+039 v2 (2026-05-12): canvasScaleOverride 전달 시 *치수 max 기반 동적 분기*.
-                //   max > 1000mm : 보조선 캔버스 절대 1단=10mm / 2단=20mm
-                //   max ≤ 1000mm : 보조선 캔버스 절대 1단=20mm / 2단=40mm
-                //   (사용자 사양 — 큰 치수일수록 보조선 짧게, 시각 균형)
-                // 모델좌표 변환: canvasOffsetMm / canvasScale
+                // 2026-06-03 갱신: 보조선 길이 = 캔버스 절대 1단=5mm / 2단=10mm 고정.
+                //   ComputeCanvasAbsoluteOffsets(canvasBase=5, canvasLvl=5) 단일 출처 — 제작도·가공도 공용.
+                //   모델좌표 변환: 캔버스 mm ÷ canvasScale → 출력물(PDF)에서 항상 동일 길이.
+                //   (canvasScaleOverride ≤ 0인 3D 미리보기 경로만 모델좌표 fallback: baseOffset=100 / levelSpacing=80)
                 float baseOffset, levelSpacing;
 
                 // canvasMaxOff: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
@@ -1187,7 +1186,7 @@ namespace A2Z
             }
 
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
-            // T-046: 모델 표면에서 ExtensionLineGap(1mm)만큼 떨어져 시작 (시각적 가독성)
+            // T-046: 모델 표면에서 ExtensionLineGap(10mm)만큼 떨어져 시작 (시각적 가독성)
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
             extLine1.Add(OffsetTowardLineEnd(originalStart, startVertex, ExtensionLineGap));
