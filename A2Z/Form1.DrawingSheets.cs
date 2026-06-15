@@ -1729,65 +1729,6 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 ImportExcelWithData OK — {Path.GetFileName(xlsxPath)}");
 
-                // ─── [실측·임시] Set2DViewCreateObjectWithImage 이미지 배치 동작 확인 ───
-                //   목적: 도면에 고정 이미지 여러 장 배치 구현 전, SDK 미문서 동작 6가지 실측.
-                //     ① 클릭 없이 자동 생성되나  ② 초기 위치/크기  ③ Index vs ID
-                //     ④ MoveObjectTo 앵커(중심/모서리)  ⑤ RescaleObject scale 의미  ⑥ 크기 단위
-                //   ※ 테스트로 Logo.png 1장을 (100,100)으로 이동 + 0.5배 축소 시도 → 출력물에 임시 로고 1장 추가됨. 확정 후 제거.
-                try
-                {
-                    string imgTestPath = System.IO.Path.Combine(GetSolutionPath(), "Logo.png");
-                    if (!System.IO.File.Exists(imgTestPath))
-                    {
-                        DiagLog($"[이미지실측] 테스트 이미지 없음: {imgTestPath}");
-                    }
-                    else
-                    {
-                        var beforeObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
-                        var beforeIdx = new HashSet<int>();
-                        if (beforeObjs != null) foreach (var bo in beforeObjs) beforeIdx.Add(bo.Index);
-                        DiagLog($"[이미지실측] 생성 전 객체 {beforeIdx.Count}개 → Set2DViewCreateObjectWithImage 호출");
-
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectWithImage(imgTestPath);
-                        Application.DoEvents();
-
-                        var afterObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
-                        DiagLog($"[이미지실측] 생성 후 객체 {(afterObjs?.Count ?? 0)}개 (증가분 = 새 객체)");
-                        if (afterObjs != null)
-                        {
-                            foreach (var o in afterObjs)
-                            {
-                                if (beforeIdx.Contains(o.Index)) continue;  // 새로 생긴 것만
-                                DiagLog($"[이미지실측] ▶ 새 객체 ID={o.ID} Index={o.Index} Kind={o.Kind} Show={o.Show}");
-                                try
-                                {
-                                    float cx = 0f, cy = 0f, w = 0f, h = 0f;
-                                    vizcore3d.Drawing2D.Object2D.GetObjectCenter(o.Index, ref cx, ref cy);
-                                    vizcore3d.Drawing2D.Object2D.GetObjectSize(o.Index, ref w, ref h);
-                                    DiagLog($"[이미지실측]   초기 center=({cx:F1},{cy:F1}) size=({w:F1} x {h:F1})");
-
-                                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(o.Index, 100f, 100f);
-                                    Application.DoEvents();
-                                    float cx2 = 0f, cy2 = 0f;
-                                    vizcore3d.Drawing2D.Object2D.GetObjectCenter(o.Index, ref cx2, ref cy2);
-                                    DiagLog($"[이미지실측]   MoveObjectTo(100,100) 후 center=({cx2:F1},{cy2:F1})");
-
-                                    vizcore3d.Drawing2D.Object2D.RescaleObject(o.Index, 0.5f);
-                                    Application.DoEvents();
-                                    float w2 = 0f, h2 = 0f;
-                                    vizcore3d.Drawing2D.Object2D.GetObjectSize(o.Index, ref w2, ref h2);
-                                    DiagLog($"[이미지실측]   RescaleObject(0.5) 후 size=({w2:F1} x {h2:F1})");
-                                }
-                                catch (Exception posEx) { DiagLog($"[이미지실측]   위치/크기 API ERROR: {posEx.Message}"); }
-                            }
-                        }
-                    }
-                }
-                catch (Exception imgEx)
-                {
-                    DiagLog($"[이미지실측] ERROR: {imgEx.Message}");
-                }
-
                 // ── 5. GetViewAreasFromExcel — {View_n} 영역 좌표 파싱 ──
                 var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
                 if (viewAreas == null || viewAreas.Count == 0)
@@ -1796,6 +1737,14 @@ namespace A2Z
                     return;
                 }
                 DiagLog($"P2 GetViewAreasFromExcel: {viewAreas.Count}개 영역");
+
+                // View_5 = 일반 North Arrow, View_6 = ISO North Arrow.
+                PlaceImageInTemplateArea(
+                    System.IO.Path.Combine(solutionPath, "North_Arrow.png"),
+                    viewAreas.FirstOrDefault(v => v.Index == 5));
+                PlaceImageInTemplateArea(
+                    System.IO.Path.Combine(solutionPath, "ISO_North_Arrow.png"),
+                    viewAreas.FirstOrDefault(v => v.Index == 6));
 
                 // ── 6. View 인덱스 ↔ 카메라 매핑 (4면도 규약 — PoC와 동일) ──
                 Dictionary<int, VIZCore3D.NET.Data.CameraDirection> cameraMap = new Dictionary<int, VIZCore3D.NET.Data.CameraDirection>
@@ -1820,7 +1769,8 @@ namespace A2Z
                     var p = viewAreas[i];
                     if (!cameraMap.TryGetValue(p.Index, out VIZCore3D.NET.Data.CameraDirection camDir))
                     {
-                        DiagLog($"P2 View_{p.Index} 카메라 매핑 없음 — 스킵");
+                        if (p.Index <= 4)
+                            DiagLog($"P2 View_{p.Index} 카메라 매핑 없음 — 스킵");
                         continue;
                     }
 
@@ -1981,7 +1931,7 @@ namespace A2Z
                     viewsRendered++;
                 }
 
-                DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{viewAreas.Count}");
+                DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{cameraMap.Count}");
             }
             catch (Exception ex)
             {
@@ -2042,6 +1992,93 @@ namespace A2Z
             float scale = Math.Min(scaleW, scaleH);
             DiagLog($"T-038+039 EstimateFitScaleForCell row={row} col={col} view={viewDirection} cell=({cellW:F1},{cellH:F1}) model=({modelW:F1},{modelH:F1}) scale={scale:F4}");
             return scale > 0f ? scale : 1f;
+        }
+
+        /// <summary>
+        /// 엑셀의 이미지 전용 View 영역에 서로 다른 이미지를 비율 유지로 맞춰 배치한다.
+        /// 이미지 생성에 실패해도 도면 출력은 계속하고 로그만 남긴다.
+        /// </summary>
+        private bool PlaceImageInTemplateArea(
+            string imagePath,
+            VIZCore3D.NET.Data.TemplateViewArea area,
+            float margin = 1f)
+        {
+            if (area == null)
+            {
+                DiagLog($"P2 이미지 영역 없음: {Path.GetFileName(imagePath)}");
+                return false;
+            }
+            if (!System.IO.File.Exists(imagePath))
+            {
+                DiagLog($"P2 이미지 파일 없음: {imagePath}");
+                return false;
+            }
+
+            try
+            {
+                var beforeObjects = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
+                var beforeIndices = new HashSet<int>();
+                if (beforeObjects != null)
+                {
+                    foreach (var item in beforeObjects)
+                        beforeIndices.Add(item.Index);
+                }
+
+                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectWithImage(imagePath);
+                Application.DoEvents();
+
+                var afterObjects = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
+                var imageObject = afterObjects?
+                    .Where(item => !beforeIndices.Contains(item.Index))
+                    .OrderByDescending(item => item.Index)
+                    .FirstOrDefault();
+                if (imageObject == null)
+                {
+                    DiagLog($"P2 이미지 자동 생성 실패: {Path.GetFileName(imagePath)} area=View_{area.Index}");
+                    return false;
+                }
+
+                float width = 0f, height = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(
+                    imageObject.Index, ref width, ref height);
+                if (width <= 0f || height <= 0f)
+                {
+                    DiagLog($"P2 이미지 크기 오류: {Path.GetFileName(imagePath)} size=({width:F2},{height:F2})");
+                    return false;
+                }
+
+                float availableWidth = Math.Max(1f, area.Width - (margin * 2f));
+                float availableHeight = Math.Max(1f, area.Height - (margin * 2f));
+                float fitRatio = Math.Min(
+                    availableWidth / width,
+                    availableHeight / height);
+                float currentScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(imageObject.Index);
+
+                if (fitRatio > 0f && !float.IsNaN(fitRatio) && !float.IsInfinity(fitRatio))
+                {
+                    vizcore3d.Drawing2D.Object2D.RescaleObject(
+                        imageObject.Index, currentScale * fitRatio);
+                }
+
+                float centerX = area.X + (area.Width / 2f);
+                float centerY = area.Y + (area.Height / 2f);
+                vizcore3d.Drawing2D.Object2D.MoveObjectTo(
+                    imageObject.Index, centerX, centerY);
+
+                float finalWidth = 0f, finalHeight = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(
+                    imageObject.Index, ref finalWidth, ref finalHeight);
+                DiagLog(
+                    $"P2 이미지 배치 완료: {Path.GetFileName(imagePath)} " +
+                    $"area=View_{area.Index} center=({centerX:F1},{centerY:F1}) " +
+                    $"size=({finalWidth:F1}x{finalHeight:F1})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"P2 이미지 배치 ERROR: {Path.GetFileName(imagePath)} — {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
