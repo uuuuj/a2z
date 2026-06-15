@@ -10,7 +10,7 @@
 //   - CameraDirection    : SDK enum (X_PLUS/X_MINUS/Y_PLUS/Y_MINUS/Z_PLUS/Z_MINUS)
 //   - UsedMinusCamera    : MINUS 방향 채택 여부 (EA 보정 시)
 //   - ApplyZ90           : Z 최장축 시 90° 회전 필요 (가로로 길게 표시)
-//   - ApplyR180          : EA L자 펼침용 180° 회전 (현재 isEA=false로 dead 분기)
+//   - ApplyR180          : EA L자 열린 방향 정렬용 180° 회전
 //   - OrientationAngle   : ApplyOrientationRotation 보존값 (UDA ORIENTATION 기반)
 
 namespace A2Z
