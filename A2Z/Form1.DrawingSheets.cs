@@ -1741,11 +1741,12 @@ namespace A2Z
                 // View_5 = 일반 North Arrow, View_6 = 향후 이미지 예약,
                 // View_7 = ISO North Arrow.
                 PlaceImageInTemplateArea(
-                    System.IO.Path.Combine(solutionPath, "North_Arrow.png"),
+                    ResolveDrawingAssetPath("North_Arrow.png"),
                     viewAreas.FirstOrDefault(v => v.Index == 5));
                 PlaceImageInTemplateArea(
-                    System.IO.Path.Combine(solutionPath, "ISO_North_Arrow.png"),
+                    ResolveDrawingAssetPath("ISO_North_Arrow.png"),
                     viewAreas.FirstOrDefault(v => v.Index == 7));
+                vizcore3d.Drawing2D.Render();
 
                 // ── 6. View 인덱스 ↔ 카메라 매핑 (4면도 규약 — PoC와 동일) ──
                 Dictionary<int, VIZCore3D.NET.Data.CameraDirection> cameraMap = new Dictionary<int, VIZCore3D.NET.Data.CameraDirection>
@@ -1996,8 +1997,23 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 엑셀의 이미지 전용 View 영역에 서로 다른 이미지를 비율 유지로 맞춰 배치한다.
-        /// 이미지 생성에 실패해도 도면 출력은 계속하고 로그만 남긴다.
+        /// 빌드 출력 폴더의 도면 리소스를 우선 사용하고, 개발 환경에서는 솔루션 루트를 fallback으로 사용한다.
+        /// </summary>
+        private string ResolveDrawingAssetPath(string fileName)
+        {
+            string outputPath = Path.GetFullPath(
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName));
+            if (File.Exists(outputPath))
+                return outputPath;
+
+            string solutionPath = Path.GetFullPath(
+                Path.Combine(GetSolutionPath(), fileName));
+            return File.Exists(solutionPath) ? solutionPath : outputPath;
+        }
+
+        /// <summary>
+        /// 엑셀의 이미지 전용 View 영역에 TemplateTableData 이미지 셀을 직접 렌더링한다.
+        /// 이미지 렌더링에 실패해도 도면 출력은 계속하고 로그만 남긴다.
         /// </summary>
         private bool PlaceImageInTemplateArea(
             string imagePath,
@@ -2017,62 +2033,44 @@ namespace A2Z
 
             try
             {
-                var beforeObjects = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
-                var beforeIndices = new HashSet<int>();
-                if (beforeObjects != null)
-                {
-                    foreach (var item in beforeObjects)
-                        beforeIndices.Add(item.Index);
-                }
-
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectWithImage(imagePath);
-                Application.DoEvents();
-
-                var afterObjects = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
-                var imageObject = afterObjects?
-                    .Where(item => !beforeIndices.Contains(item.Index))
-                    .OrderByDescending(item => item.Index)
-                    .FirstOrDefault();
-                if (imageObject == null)
-                {
-                    DiagLog($"P2 이미지 자동 생성 실패: {Path.GetFileName(imagePath)} area=View_{area.Index}");
-                    return false;
-                }
-
-                float width = 0f, height = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(
-                    imageObject.Index, ref width, ref height);
-                if (width <= 0f || height <= 0f)
-                {
-                    DiagLog($"P2 이미지 크기 오류: {Path.GetFileName(imagePath)} size=({width:F2},{height:F2})");
-                    return false;
-                }
-
                 float availableWidth = Math.Max(1f, area.Width - (margin * 2f));
                 float availableHeight = Math.Max(1f, area.Height - (margin * 2f));
-                float fitRatio = Math.Min(
-                    availableWidth / width,
-                    availableHeight / height);
-                float currentScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(imageObject.Index);
-
-                if (fitRatio > 0f && !float.IsNaN(fitRatio) && !float.IsInfinity(fitRatio))
+                float targetHeight;
+                using (System.Drawing.Image image = System.Drawing.Image.FromFile(imagePath))
                 {
-                    vizcore3d.Drawing2D.Object2D.RescaleObject(
-                        imageObject.Index, currentScale * fitRatio);
+                    if (image.Width <= 0 || image.Height <= 0)
+                    {
+                        DiagLog($"P2 이미지 크기 오류: {imagePath}");
+                        return false;
+                    }
+
+                    float heightForAvailableWidth =
+                        availableWidth * image.Height / image.Width;
+                    targetHeight = Math.Min(availableHeight, heightForAvailableWidth);
                 }
 
                 float centerX = area.X + (area.Width / 2f);
                 float centerY = area.Y + (area.Height / 2f);
-                vizcore3d.Drawing2D.Object2D.MoveObjectTo(
-                    imageObject.Index, centerX, centerY);
+                var imageTable = new VIZCore3D.NET.Data.TemplateTableData(
+                    1,
+                    1,
+                    VIZCore3D.NET.Data.TableHorizontalAnchor.Center,
+                    VIZCore3D.NET.Data.TableVerticalAnchor.Middle);
+                imageTable.X = centerX;
+                imageTable.Y = centerY;
+                imageTable.ImageHeight = Math.Max(1, (int)Math.Floor(targetHeight));
+                imageTable.ColumnWidths = new Dictionary<int, int>
+                {
+                    { 0, Math.Max(1, (int)Math.Floor(availableWidth)) }
+                };
+                imageTable.SetText(0, 0, imagePath);
 
-                float finalWidth = 0f, finalHeight = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(
-                    imageObject.Index, ref finalWidth, ref finalHeight);
+                vizcore3d.Drawing2D.Template.RenderTemplate(imageTable);
                 DiagLog(
                     $"P2 이미지 배치 완료: {Path.GetFileName(imagePath)} " +
+                    $"path='{imagePath}' " +
                     $"area=View_{area.Index} center=({centerX:F1},{centerY:F1}) " +
-                    $"size=({finalWidth:F1}x{finalHeight:F1})");
+                    $"box=({availableWidth:F1}x{availableHeight:F1}) imageH={imageTable.ImageHeight}");
                 return true;
             }
             catch (Exception ex)
