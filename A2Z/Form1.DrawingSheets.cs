@@ -1729,32 +1729,63 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 ImportExcelWithData OK — {Path.GetFileName(xlsxPath)}");
 
-                // ─── [진단·임시] ImportExcelWithData 결과물이 2D 객체로 열거되는지 관찰 ───
-                //   목적: 빈 행 테두리 선 / "Note:" 텍스트가 GetObjectAllinfoBy2DView에 잡히는지 +
-                //         각 객체의 Kind/Text/Show 확인 → 후처리(삭제/숨김) 가능 여부 판정용.
-                //   ※ 로그만 남김. 출력 결과물 불변. 판정 후 제거 예정.
+                // ─── [실측·임시] Set2DViewCreateObjectWithImage 이미지 배치 동작 확인 ───
+                //   목적: 도면에 고정 이미지 여러 장 배치 구현 전, SDK 미문서 동작 6가지 실측.
+                //     ① 클릭 없이 자동 생성되나  ② 초기 위치/크기  ③ Index vs ID
+                //     ④ MoveObjectTo 앵커(중심/모서리)  ⑤ RescaleObject scale 의미  ⑥ 크기 단위
+                //   ※ 테스트로 Logo.png 1장을 (100,100)으로 이동 + 0.5배 축소 시도 → 출력물에 임시 로고 1장 추가됨. 확정 후 제거.
                 try
                 {
-                    var diagObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
-                    DiagLog($"[진단] === 2D 객체 열거 {(diagObjs?.Count ?? 0)}개 (캔버스1, ImportExcel 직후) ===");
-                    if (diagObjs != null)
+                    string imgTestPath = System.IO.Path.Combine(GetSolutionPath(), "Logo.png");
+                    if (!System.IO.File.Exists(imgTestPath))
                     {
-                        int diagMax = Math.Min(diagObjs.Count, 400);
-                        for (int oi = 0; oi < diagMax; oi++)
+                        DiagLog($"[이미지실측] 테스트 이미지 없음: {imgTestPath}");
+                    }
+                    else
+                    {
+                        var beforeObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
+                        var beforeIdx = new HashSet<int>();
+                        if (beforeObjs != null) foreach (var bo in beforeObjs) beforeIdx.Add(bo.Index);
+                        DiagLog($"[이미지실측] 생성 전 객체 {beforeIdx.Count}개 → Set2DViewCreateObjectWithImage 호출");
+
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectWithImage(imgTestPath);
+                        Application.DoEvents();
+
+                        var afterObjs = vizcore3d.Drawing2D.Object2D.GetObjectAllinfoBy2DView();
+                        DiagLog($"[이미지실측] 생성 후 객체 {(afterObjs?.Count ?? 0)}개 (증가분 = 새 객체)");
+                        if (afterObjs != null)
                         {
-                            var o = diagObjs[oi];
-                            string txt = Convert.ToString(o.Text) ?? "";
-                            txt = txt.Replace("\r", "").Replace("\n", "\\n");
-                            if (txt.Length > 50) txt = txt.Substring(0, 50) + "…";
-                            DiagLog($"[진단] #{oi} ID={o.ID} Index={o.Index} Kind={o.Kind} Show={o.Show} Text='{txt}'");
+                            foreach (var o in afterObjs)
+                            {
+                                if (beforeIdx.Contains(o.Index)) continue;  // 새로 생긴 것만
+                                DiagLog($"[이미지실측] ▶ 새 객체 ID={o.ID} Index={o.Index} Kind={o.Kind} Show={o.Show}");
+                                try
+                                {
+                                    float cx = 0f, cy = 0f, w = 0f, h = 0f;
+                                    vizcore3d.Drawing2D.Object2D.GetObjectCenter(o.Index, ref cx, ref cy);
+                                    vizcore3d.Drawing2D.Object2D.GetObjectSize(o.Index, ref w, ref h);
+                                    DiagLog($"[이미지실측]   초기 center=({cx:F1},{cy:F1}) size=({w:F1} x {h:F1})");
+
+                                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(o.Index, 100f, 100f);
+                                    Application.DoEvents();
+                                    float cx2 = 0f, cy2 = 0f;
+                                    vizcore3d.Drawing2D.Object2D.GetObjectCenter(o.Index, ref cx2, ref cy2);
+                                    DiagLog($"[이미지실측]   MoveObjectTo(100,100) 후 center=({cx2:F1},{cy2:F1})");
+
+                                    vizcore3d.Drawing2D.Object2D.RescaleObject(o.Index, 0.5f);
+                                    Application.DoEvents();
+                                    float w2 = 0f, h2 = 0f;
+                                    vizcore3d.Drawing2D.Object2D.GetObjectSize(o.Index, ref w2, ref h2);
+                                    DiagLog($"[이미지실측]   RescaleObject(0.5) 후 size=({w2:F1} x {h2:F1})");
+                                }
+                                catch (Exception posEx) { DiagLog($"[이미지실측]   위치/크기 API ERROR: {posEx.Message}"); }
+                            }
                         }
-                        if (diagObjs.Count > diagMax)
-                            DiagLog($"[진단] …(+{diagObjs.Count - diagMax}개 더 있음, 생략)");
                     }
                 }
-                catch (Exception diagEx)
+                catch (Exception imgEx)
                 {
-                    DiagLog($"[진단] GetObjectAllinfoBy2DView ERROR: {diagEx.Message}");
+                    DiagLog($"[이미지실측] ERROR: {imgEx.Message}");
                 }
 
                 // ── 5. GetViewAreasFromExcel — {View_n} 영역 좌표 파싱 ──
