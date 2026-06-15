@@ -1738,13 +1738,14 @@ namespace A2Z
                 }
                 DiagLog($"P2 GetViewAreasFromExcel: {viewAreas.Count}개 영역");
 
-                // View_5 = 일반 North Arrow, View_6 = ISO North Arrow.
+                // View_5 = 일반 North Arrow, View_6 = 향후 이미지 예약,
+                // View_7 = ISO North Arrow.
                 PlaceImageInTemplateArea(
                     System.IO.Path.Combine(solutionPath, "North_Arrow.png"),
                     viewAreas.FirstOrDefault(v => v.Index == 5));
                 PlaceImageInTemplateArea(
                     System.IO.Path.Combine(solutionPath, "ISO_North_Arrow.png"),
-                    viewAreas.FirstOrDefault(v => v.Index == 6));
+                    viewAreas.FirstOrDefault(v => v.Index == 7));
 
                 // ── 6. View 인덱스 ↔ 카메라 매핑 (4면도 규약 — PoC와 동일) ──
                 Dictionary<int, VIZCore3D.NET.Data.CameraDirection> cameraMap = new Dictionary<int, VIZCore3D.NET.Data.CameraDirection>

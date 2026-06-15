@@ -48,7 +48,7 @@
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
 - **라인**: L1612+
-- **단계**: 엑셀 `{Input_N}` 치환 → `{View_1~6}` 영역 파싱 → 고정 이미지 2종 배치 → 모델 4면도·치수·풍선 렌더
+- **단계**: 엑셀 `{Input_N}` 치환 → `{View_1~7}` 영역 파싱 → `View_5`·`View_7` 고정 이미지 배치 (`View_6` 예약) → 모델 4면도·치수·풍선 렌더
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
 - **라인**: L2000+
