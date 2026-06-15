@@ -239,28 +239,317 @@ namespace A2Z
             return path;
         }
 
-        /// <summary>
-        /// 가공도 페이지의 한 행(BOM 1개) 렌더링 (v7 P2-row).
-        /// row 진입·종료마다 Note/Measure/ShapeDrawing.Clear로 누적 방지.
-        /// _lastMfgViewPose write X (지역변수 pose만, LvDrawingSheet 미리보기와 충돌 차단).
-        /// Codex 1차 #4: row 단위 cleanup, Codex 3차 B3: partial 실패 시 2D 객체 cleanup,
-        /// Codex 4차: DeleteObjectBy2DView SDK 메서드명, Codex 4차 A4: newScale Infinity guard,
-        /// Codex 사용자 결정: Shape/Note/Measure 각각 try/catch WARN (일부 실패해도 row 성공).
-        /// </summary>
-        /// <returns>row 렌더링 성공 여부 (모델 캡처 + fit 단계까지 성공이면 true. Shape/Note/Measure 실패는 WARN으로 성공 유지).</returns>
-        private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
-            VIZCore3D.NET.Data.TemplateViewArea area)
+        private bool CaptureMfgSceneToViewArea(
+            int rowIdx,
+            BOMData bom,
+            MfgViewPose pose,
+            float areaX,
+            float areaY,
+            float areaWidth,
+            float areaHeight,
+            string viewLabel,
+            out int objId)
         {
-            // ── row 진입 cleanup ──
+            objId = -1;
+
+            if (areaWidth <= 0 || areaHeight <= 0
+                || float.IsNaN(areaWidth) || float.IsNaN(areaHeight)
+                || float.IsInfinity(areaWidth) || float.IsInfinity(areaHeight))
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} {viewLabel} area 비정상 W={areaWidth} H={areaHeight}");
+                return false;
+            }
+
+            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
+            objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+            if (objId < 0)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} 2D 캡처 실패");
+                return false;
+            }
+
+            float objW = 0f, objH = 0f;
+            vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
+            if (objW <= 0 || objH <= 0 || float.IsNaN(objW) || float.IsNaN(objH))
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} objSize 비정상 W={objW} H={objH}");
+                return false;
+            }
+
+            float fitRatio = Math.Min(areaWidth / objW, areaHeight / objH);
+            float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+            float newScale = curScale * fitRatio;
+            if (fitRatio <= 0 || curScale <= 0 || newScale <= 0
+                || float.IsNaN(fitRatio) || float.IsNaN(curScale) || float.IsNaN(newScale)
+                || float.IsInfinity(fitRatio) || float.IsInfinity(curScale) || float.IsInfinity(newScale))
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} scale 비정상 fit={fitRatio} cur={curScale} new={newScale}");
+                return false;
+            }
+
+            vizcore3d.Drawing2D.Object2D.RescaleObject(objId, newScale);
+            vizcore3d.Drawing2D.Object2D.MoveObjectTo(
+                objId,
+                areaX + areaWidth / 2f,
+                areaY + areaHeight / 2f);
+
+            try
+            {
+                if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
+                {
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(
+                        VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
+                    vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(pose.ShapeDrawingIds);
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN ShapeDrawing 실패: {ex.Message}");
+            }
+
+            try
+            {
+                var noteIds = vizcore3d.Review.Note.Items.Select(n => n.ID).ToList();
+                if (noteIds.Count > 0)
+                {
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
+                    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN Note 실패: {ex.Message}");
+            }
+
+            try
+            {
+                var measures = vizcore3d.Review.Measure.Items;
+                var measureIds = measures.Where(m => m.Visible).Select(m => m.ID).ToList();
+                if (measureIds.Count > 0)
+                {
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
+                    ApplyParallelTextShift(
+                        pose.ViewDirection,
+                        vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
+                        measures);
+                    vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN Measure 실패: {ex.Message}");
+            }
+
+            DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} OK objId={objId} newScale={newScale:F3}");
+            return true;
+        }
+
+        private MfgViewPose BuildEaSecondaryScene(
+            BOMData bom,
+            MfgViewPose primaryPose,
+            float availW,
+            float availH)
+        {
+            var pose = new MfgViewPose { LongestAxis = primaryPose.LongestAxis };
+
             vizcore3d.Review.Note.Clear();
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
 
-            int objId = -1;
+            // MoveCamera는 화면축 회전을 초기화하지 않으므로 primary 회전을 먼저 원복한다.
+            vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+            if (primaryPose.ApplyR180)
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -180);
+            if (primaryPose.ApplyZ90)
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -90);
+            if (primaryPose.OrientationAngle != 0f)
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -primaryPose.OrientationAngle);
+
+            // 두 번째 뷰는 독립 카메라에서 다시 만든다. 이전 방식의 추가 정렬 회전은 적용하지 않는다.
+            if (primaryPose.LongestAxis == "Z")
+            {
+                pose.ViewDirection = "X";
+                pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.X_MINUS;
+                pose.ApplyZ90 = true;
+            }
+            else
+            {
+                pose.ViewDirection = "Z";
+                pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.Z_MINUS;
+            }
+
+            pose.UsedMinusCamera = true;
+            vizcore3d.View.MoveCamera(pose.CameraDirection);
+            vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
+            if (pose.ApplyZ90)
+            {
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
+            }
+
+            var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+            var osnapList = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+            if (osnapList != null)
+            {
+                foreach (var osnap in osnapList)
+                {
+                    switch (osnap.Kind)
+                    {
+                        case VIZCore3D.NET.Data.OsnapKind.LINE:
+                            if (osnap.Start != null)
+                                osnapPoints.Add((new VIZCore3D.NET.Data.Vertex3D(
+                                    osnap.Start.X, osnap.Start.Y, osnap.Start.Z), bom.Name));
+                            if (osnap.End != null)
+                                osnapPoints.Add((new VIZCore3D.NET.Data.Vertex3D(
+                                    osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
+                            break;
+                        case VIZCore3D.NET.Data.OsnapKind.POINT:
+                            if (osnap.Center != null)
+                                osnapPoints.Add((new VIZCore3D.NET.Data.Vertex3D(
+                                    osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
+                            break;
+                    }
+                }
+            }
+
+            if (bom.Holes != null)
+            {
+                foreach (var hole in bom.Holes)
+                    osnapPoints.Add((new VIZCore3D.NET.Data.Vertex3D(
+                        hole.CenterX, hole.CenterY, hole.CenterZ), bom.Name));
+            }
+            if (bom.SlotHoles != null)
+            {
+                foreach (var slot in bom.SlotHoles)
+                    osnapPoints.Add((new VIZCore3D.NET.Data.Vertex3D(
+                        slot.CenterX, slot.CenterY, slot.CenterZ), bom.Name));
+            }
+
+            osnapPoints = FilterHiddenLineOsnap(
+                osnapPoints,
+                pose.ViewDirection,
+                bom.MinX, bom.MaxX,
+                bom.MinY, bom.MaxY,
+                bom.MinZ, bom.MaxZ,
+                true);
+            if (osnapPoints.Count < 2)
+                return pose;
+
+            const float tolerance = 0.5f;
+            var mergedPoints = MergeCoordinates(osnapPoints, tolerance);
+            var dimensions = AddChainDimensionByAxis(
+                mergedPoints,
+                pose.LongestAxis,
+                tolerance,
+                pose.ViewDirection);
+            if (dimensions.Count == 0)
+                return pose;
+
+            VIZCore3D.NET.Data.MeasureStyle style = vizcore3d.Review.Measure.GetStyle();
+            style.Prefix = false;
+            style.Unit = false;
+            style.NumberOfDecimalPlaces = 0;
+            style.DX_DY_DZ = false;
+            style.Frame = false;
+            style.ContinuousDistance = false;
+            style.BackgroundTransparent = true;
+            style.FontColor = Color.Blue;
+            style.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+            style.FontBold = true;
+            style.LineColor = Color.Blue;
+            style.LineWidth = 1;
+            style.ArrowColor = Color.Blue;
+            style.ArrowSize = 5;
+            style.AssistantLine = false;
+            style.AlignDistanceText = true;
+            style.AlignDistanceTextMargine = 3;
+            vizcore3d.Review.Measure.SetStyle(style);
+
+            string offsetAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);
+            float modelCenter = offsetAxis == "X"
+                ? (bom.MinX + bom.MaxX) / 2f
+                : offsetAxis == "Y"
+                    ? (bom.MinY + bom.MaxY) / 2f
+                    : (bom.MinZ + bom.MaxZ) / 2f;
+            var offsetValues = dimensions
+                .Where(d => !d.IsTotal)
+                .SelectMany(d => new[]
+                {
+                    GetAxisValue(d.StartPoint, offsetAxis),
+                    GetAxisValue(d.EndPoint, offsetAxis)
+                });
+            bool positiveOffset = ComputePositiveOffsetByOsnapExtreme(offsetValues, modelCenter);
+
+            float chainOff1 = 50f;
+            float chainOff2 = 100f;
+            float maxTotalDistance = dimensions
+                .Where(d => d.IsTotal && d.IsVisible)
+                .Select(d => Math.Abs(
+                    GetAxisValue(d.EndPoint, d.Axis) - GetAxisValue(d.StartPoint, d.Axis)))
+                .DefaultIfEmpty(0f)
+                .Max();
+            float totalOff = maxTotalDistance > 1000f ? 300f : 250f;
+
+            float canvasScale = EstimateFitScaleForViewArea(
+                availW,
+                availH,
+                pose.ViewDirection,
+                new List<int> { bom.Index },
+                1.0f);
+            if (canvasScale > 0f)
+            {
+                ComputeCanvasAbsoluteOffsets(canvasScale, out float baseOff, out float levelSpacing, out _);
+                int maxLevel = dimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
+                chainOff1 = baseOff;
+                chainOff2 = baseOff + levelSpacing;
+                totalOff = baseOff + levelSpacing * maxLevel;
+            }
+
+            var extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
+            foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
+                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
+                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+            foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
+                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
+                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+            foreach (var dim in dimensions.Where(d => d.IsTotal && d.IsVisible))
+                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
+                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+
+            if (extensionLines.Count > 0)
+            {
+                int shapeId = vizcore3d.ShapeDrawing.AddLine(
+                    extensionLines, -1, Color.Blue, 0.3f, true);
+                if (shapeId >= 0)
+                    pose.ShapeDrawingIds.Add(shapeId);
+            }
+
+            DiagLog($"[EA Secondary] bom={bom.Index} view={pose.ViewDirection} " +
+                $"longest={pose.LongestAxis} dims={dimensions.Count} Z90={pose.ApplyZ90}");
+            return pose;
+        }
+
+        /// <summary>
+        /// 가공도 페이지의 한 행(BOM 1개) 렌더링.
+        /// 일반 부재는 한 뷰, EA 부재는 같은 ViewArea를 위·아래 두 뷰로 분할한다.
+        /// </summary>
+        private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
+            VIZCore3D.NET.Data.TemplateViewArea area)
+        {
+            vizcore3d.Review.Note.Clear();
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+
+            var createdObjectIds = new List<int>();
             bool success = false;
             try
             {
-                // area 가드
                 if (area.Width <= 0 || area.Height <= 0
                     || float.IsNaN(area.Width) || float.IsNaN(area.Height)
                     || float.IsInfinity(area.Width) || float.IsInfinity(area.Height))
@@ -269,10 +558,16 @@ namespace A2Z
                     return false;
                 }
 
-                // ── 공통 코어 호출 (pose 지역변수, _lastMfgViewPose write X) ──
-                var pose = BuildMfgSceneCore(bom.Index, area.Width, area.Height);
+                bool isEA = IsAngleFromSpref(bom.Index);
+                float viewGap = isEA ? Math.Min(4f, area.Height * 0.04f) : 0f;
+                float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
-                // ── 카메라 fit + Z90/R180 (자동 어댑터 패턴, RenderMfgViewForDrawing 참조) ──
+                var pose = BuildMfgSceneCore(
+                    bom.Index,
+                    area.Width,
+                    viewHeight,
+                    isEA);
+
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
@@ -290,104 +585,54 @@ namespace A2Z
                     vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
                 }
 
-                // EA 마커 (P5까지 single-view fallback — isEA 비활성 상태)
-                if (IsAngleFromSpref(bom.Index))
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} EA 부재 — P5 전 single-view fallback");
-
-                // ── 2D 캡처: Hidden Line ──
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-                objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
-                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-                if (objId < 0)
+                int primaryObjId;
+                if (!CaptureMfgSceneToViewArea(
+                    rowIdx, bom, pose,
+                    area.X, area.Y, area.Width, viewHeight,
+                    isEA ? "EA primary" : "primary",
+                    out primaryObjId))
                 {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} 2D 캡처 실패 (objId<0)");
+                    if (primaryObjId >= 0)
+                        createdObjectIds.Add(primaryObjId);
                     return false;
                 }
+                createdObjectIds.Add(primaryObjId);
 
-                // ── ViewArea fit (RescaleObject 절대 스케일 + guard 확장) ──
-                float objW = 0f, objH = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
-                if (objW <= 0 || objH <= 0 || float.IsNaN(objW) || float.IsNaN(objH))
+                if (isEA)
                 {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} objSize 비정상 W={objW} H={objH}");
-                    return false;
-                }
-                float fitRatio = Math.Min(area.Width / objW, area.Height / objH);
-                if (fitRatio <= 0 || float.IsNaN(fitRatio) || float.IsInfinity(fitRatio))
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} fitRatio 비정상={fitRatio}");
-                    return false;
-                }
-                float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                if (curScale <= 0 || float.IsNaN(curScale) || float.IsInfinity(curScale))
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} curScale 비정상={curScale}");
-                    return false;
-                }
-
-                // Codex 4차 신규: newScale = curScale * fitRatio 결과값 가드
-                float newScale = curScale * fitRatio;
-                if (newScale <= 0 || float.IsNaN(newScale) || float.IsInfinity(newScale))
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} newScale 비정상={newScale} (cur={curScale} ratio={fitRatio})");
-                    return false;
-                }
-                vizcore3d.Drawing2D.Object2D.RescaleObject(objId, newScale);
-
-                // ── 절대 좌표로 영역 중앙에 배치 ──
-                float cx = area.X + area.Width / 2f;
-                float cy = area.Y + area.Height / 2f;
-                vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx, cy);
-
-                // ── Shape/Note/Measure → 2D (사용자 사양: 각각 try/catch, 일부 실패해도 row 성공) ──
-                try
-                {
-                    if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
+                    try
                     {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
-                        vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(pose.ShapeDrawingIds);
+                        var secondaryPose = BuildEaSecondaryScene(
+                            bom, pose, area.Width, viewHeight);
+
+                        int secondaryObjId;
+                        bool secondaryOk = CaptureMfgSceneToViewArea(
+                            rowIdx, bom, secondaryPose,
+                            area.X, area.Y + viewHeight + viewGap,
+                            area.Width, viewHeight,
+                            "EA secondary",
+                            out secondaryObjId);
+                        if (secondaryOk && secondaryObjId >= 0)
+                            createdObjectIds.Add(secondaryObjId);
+                        if (!secondaryOk)
+                        {
+                            if (secondaryObjId >= 0)
+                            {
+                                try
+                                {
+                                    vizcore3d.Drawing2D.Object2D.DeleteObjectBy2DView(secondaryObjId);
+                                }
+                                catch { }
+                            }
+                            DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN EA secondary 캡처 실패 — primary 유지");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN EA secondary 실패 — primary 유지: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN ShapeDrawing 실패: {ex.Message}");
-                }
 
-                try
-                {
-                    var noteIds = vizcore3d.Review.Note.Items.Select(n => n.ID).ToList();
-                    if (noteIds.Count > 0)
-                    {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
-                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN Note 실패: {ex.Message}");
-                }
-
-                try
-                {
-                    var measureIds = vizcore3d.Review.Measure.Items
-                        .Where(m => m.Visible).Select(m => m.ID).ToList();
-                    if (measureIds.Count > 0)
-                    {
-                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
-                        ApplyParallelTextShift(pose.ViewDirection,
-                            vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
-                            vizcore3d.Review.Measure.Items);
-                        vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN Measure 실패: {ex.Message}");
-                }
-
-                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} OK objId={objId} newScale={newScale:F3}");
                 success = true;
                 return true;
             }
@@ -398,13 +643,15 @@ namespace A2Z
             }
             finally
             {
-                // Codex 3차 B3: partial 실패 시 2D 객체 cleanup — 다음 row/페이지 오염 방지
-                if (!success && objId >= 0)
+                if (!success)
                 {
-                    try { vizcore3d.Drawing2D.Object2D.DeleteObjectBy2DView(objId); } catch { }
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} 실패 objId={objId} cleanup");
+                    foreach (int objId in createdObjectIds)
+                    {
+                        try { vizcore3d.Drawing2D.Object2D.DeleteObjectBy2DView(objId); } catch { }
+                    }
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} 실패 objects={createdObjectIds.Count} cleanup");
                 }
-                // row 종료 cleanup (성공·실패 무관)
+
                 vizcore3d.Review.Note.Clear();
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
@@ -412,24 +659,22 @@ namespace A2Z
         }
 
         /// <summary>
-        /// Step B (2026-05-19): 가공도 공통 3D 장면 생성 코어.
-        /// 수동(ExecuteMfgDrawing)·자동(RenderMfgViewForDrawing) 두 함수의 공통 3D 로직을 분리.
+        /// 가공도 공통 3D 장면 생성 코어.
+        /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
         /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(홀/슬롯) 생성. ISO 없음(가공도 사양).
         /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
         ///
         /// 호출자별 후속 처리:
         ///   - ExecuteMfgDrawing (수동, 3D 뷰 유지): pose를 _lastMfgViewPose에 저장.
         ///     LvDrawingSheet_SelectedIndexChanged 후처리 회전이 참조.
-        ///   - RenderMfgViewForDrawing (자동, 2D 캡처): pose는 지역변수만 사용 (write scope X).
-        ///     2D 변환 후 noteIds.Clear() — 사용자 사양(T-064) 그대로 보존 (가공도 PDF 풍선 비활성).
-        ///
-        /// B1a (2026-05-19): skeleton + Models/MfgViewPose.cs.
-        /// B1b1a (2026-05-19): 격리·BBox·축·카메라·ORIENTATION 추출 (호출자 0건).
-        /// B1b1b (예정): Osnap·치수.
-        /// B1b1c (예정): 풍선 4분면 배치.
-        /// B2/B3 (예정): ExecuteMfgDrawing / RenderMfgViewForDrawing 어댑터 변환.
+        ///   - RenderMfgRowToViewArea (PDF): EA면 최장축 치수를 두 번째 뷰에 예약한다.
+        ///   - RenderMfgViewForDrawing (구형 미사용 경로): pose를 지역변수로만 사용한다.
         /// </summary>
-        private MfgViewPose BuildMfgSceneCore(int bomIndex, float availW = -1f, float availH = -1f)
+        private MfgViewPose BuildMfgSceneCore(
+            int bomIndex,
+            float availW = -1f,
+            float availH = -1f,
+            bool reserveLongestAxisForSecondary = false)
         {
             var pose = new MfgViewPose();
 
@@ -484,7 +729,7 @@ namespace A2Z
             vizcore3d.View.MoveCamera(cameraDir);
             pose.ViewDirection = viewDirection;
             pose.CameraDirection = cameraDir;
-            pose.UsedMinusCamera = false;  // B1b2에서 EA/MINUS 분기 시 갱신
+            pose.UsedMinusCamera = false;
 
             // ── 4. ORIENTATION UDA 기반 카메라 회전 ──
             var (orientAxis_saved, orientAngle_saved) = ParseOrientation(bom.Index);
@@ -563,10 +808,8 @@ namespace A2Z
                 DiagLog($"[Osnap] bom={bom.Index} 수집 0점 (외곽 치수 불가)");
             }
 
-            // ── 5-1. EA 앵글 카메라 보정 (isEA=false 비활성, 사용자 사양 보존) ──
-            //   메모리 feedback_isea_preservation.md — isEA false 고정은 사용자 의도된 비활성화, 제거 금지.
-            //   B1b1b 추가 (2026-05-19): 자동 함수 본체 L1029~L1105 추출 (분기 그대로).
-            bool isEA = false;  // 옛: IsAngleFromSpref(bom.Index)
+            // ── 5-1. EA 앵글 카메라 보정 ──
+            bool isEA = IsAngleFromSpref(bom.Index);
             bool isAboveWider = false;
             bool isLShape = false;
             bool isMinusCameraSelected = false;
@@ -623,12 +866,6 @@ namespace A2Z
                     ApplyOrientationRotation(bom.Index, viewDirection);
                 }
 
-                if (use180)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                }
-
                 isEAUse180 = use180;
                 isAboveWider = false;
                 isLShape = true;
@@ -638,7 +875,7 @@ namespace A2Z
             mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
                 bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
 
-            // pose 갱신 — EA 분기 결과 반영 (isEA=false면 모두 false 유지)
+            // pose 갱신 — EA 분기 결과 반영
             pose.UsedMinusCamera = isMinusCameraSelected;
             pose.ApplyR180 = isEAUse180;
 
@@ -727,7 +964,7 @@ namespace A2Z
                         mfgAxisPosOff[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, centerVal);
                     }
 
-                    // EA 앵글: 체인치수 방향 강제 오버라이드 (isEA=false 비활)
+                    // EA 앵글: 체인치수 방향 강제 오버라이드
                     if (isEA)
                     {
                         if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
@@ -779,7 +1016,7 @@ namespace A2Z
                     // 3 패스: level=0 / level>0 / IsTotal
                     foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                     {
-                        if (isEA && isLShape && dim.Axis == pose.LongestAxis) continue;
+                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff1,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
@@ -787,7 +1024,7 @@ namespace A2Z
                     }
                     foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
                     {
-                        if (isEA && isLShape && dim.Axis == pose.LongestAxis) continue;
+                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff2,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
@@ -795,6 +1032,7 @@ namespace A2Z
                     }
                     foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
                     {
+                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
@@ -911,6 +1149,9 @@ namespace A2Z
 
                 foreach (var dim in allMfgDims.Where(d => d.IsVisible))
                 {
+                    if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis)
+                        continue;
+
                     float dimOff;
                     if (dim.IsTotal)
                         dimOff = mfgTotalOff_m;
@@ -1203,7 +1444,7 @@ namespace A2Z
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
                 }
 
-                // pose.ApplyR180 적용 (EA 분기, 현재 dead)
+                // pose.ApplyR180 적용 (EA L자 열린 방향 정렬)
                 if (pose.ApplyR180)
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
@@ -1702,7 +1943,7 @@ namespace A2Z
         /// 
         /// Codex P3 제약 (2026-05-18): _lastMfgViewPose write X (지역변수만).
         /// 사용자 사양 (2026-05-19): noteIds.Clear() 제거 — PDF에 풍선 표시.
-        /// EA 신규뷰 dead 분기(자동 본체 L2128~L2211)는 isEA 재활성 시 별도 작업으로 복원 예정.
+        /// 현재 수동 PDF 출력은 RenderMfgRowToViewArea를 사용하며, EA 상하 2뷰도 그 경로에서 처리한다.
         /// </summary>
         private int RenderMfgViewForDrawing(int row, int col, int bomIndex)
         {
