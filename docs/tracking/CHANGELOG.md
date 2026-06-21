@@ -9,7 +9,7 @@
 ## 2026-06-15 — 가공도 홀/슬롯홀 풍선 GetNodeHoleInfo API 전환 (가공도 한정, 실측 중)
 
 **유형**: feat (진행 중 — 슬롯 매핑 실측 대기)
-**커밋**: `pending`
+**커밋**: `b2f23c6`
 **관련 TASK**: — (가공도 홀/슬롯홀을 API로 골라내 풍선 표현, 사용자 지시)
 
 **배경**: 현재 홀 추출(`DetectHoles`, 휴리스틱 565줄)이 부정확. 사용자 지시로 가공도 풍선을 SDK `GetNodeHoleInfo` API로 전환. `bom.Holes`/`SlotHoles`는 제작도·BOM표가 써서 통째 비활성화 불가 → **가공도 한정**으로만 API 사용(제작도·BOM 보호).
