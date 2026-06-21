@@ -675,6 +675,70 @@ namespace A2Z
             return ApplySmartFiltering(dims, MfgMaxDimensionsPerAxis, MfgMinTextSpace);
         }
 
+        // ── 가공도 전용 홀/슬롯홀 추출 (GetNodeHoleInfo API) ──
+        //   현재 bom.Holes/SlotHoles는 휴리스틱(원기둥·Osnap 파싱)이라 부정확.
+        //   가공도는 SDK GetNodeHoleInfo로 직접 추출해 풍선에 사용. bom.Holes는 제작도·BOM표용으로 그대로 둠.
+        /// <summary>
+        /// 가공도 전용 — GetNodeHoleInfo로 홀(CIRCLE)·슬롯홀(SLOT_HOLE)을 추출.
+        /// ⚠ 슬롯 길이(SlotLength)·Size 의미는 SDK가 직접 안 줘 잠정 매핑 + 진단 로그로 실측 중.
+        /// </summary>
+        private void GetMfgHolesFromApi(int nodeIndex, out List<HoleInfo> holes, out List<SlotHoleInfo> slots)
+        {
+            holes = new List<HoleInfo>();
+            slots = new List<SlotHoleInfo>();
+            try
+            {
+                var nodeHoles = vizcore3d.GeometryUtility.GetNodeHoleInfo(nodeIndex);
+                if (nodeHoles == null) return;
+                foreach (var nh in nodeHoles)
+                {
+                    // NodeHoleItem 실제 타입 (빌드 역추론): Center=Vector3D, CircleCenter=List<Vector3D>, Size=Vector3D, Radius=float
+                    var ccPts = nh.CircleCenter;
+                    int ccN = ccPts?.Count ?? 0;
+
+                    // [실측 로그] 실제 구조 확인용 — 슬롯 매핑은 이 로그를 보고 보정 예정
+                    string ccStr = (ccN > 0) ? string.Join(" ", ccPts.Select(p => $"({p.X:F1},{p.Y:F1},{p.Z:F1})")) : "-";
+                    DiagLog($"[홀API] node={nodeIndex} type={nh.HoleType} Radius={nh.Radius:F2} " +
+                        $"Center=({nh.Center.X:F1},{nh.Center.Y:F1},{nh.Center.Z:F1}) " +
+                        $"Size=({nh.Size.X:F1},{nh.Size.Y:F1},{nh.Size.Z:F1}) " +
+                        $"CircleCenterN={ccN}[{ccStr}]");
+
+                    if (nh.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.CIRCLE)
+                    {
+                        holes.Add(new HoleInfo
+                        {
+                            Diameter = nh.Radius * 2f,
+                            CenterX = nh.Center.X,
+                            CenterY = nh.Center.Y,
+                            CenterZ = nh.Center.Z,
+                            CylinderBodyIndex = nh.NodeIndex
+                        });
+                    }
+                    else if (nh.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.SLOT_HOLE)
+                    {
+                        // 잠정 매핑(실측 후 보정): 중심=Center, 길이=Size 최대축, 폭=Size 최소축
+                        float ax = Math.Abs(nh.Size.X), ay = Math.Abs(nh.Size.Y), az = Math.Abs(nh.Size.Z);
+                        float slotLen = Math.Max(ax, Math.Max(ay, az));
+                        float slotWidth = Math.Min(ax, Math.Min(ay, az));
+                        slots.Add(new SlotHoleInfo
+                        {
+                            Radius = slotWidth / 2f,
+                            SlotLength = slotLen,
+                            Depth = 0f,           // 실측 후 ThicknessCenter*로 보정
+                            CenterX = nh.Center.X,
+                            CenterY = nh.Center.Y,
+                            CenterZ = nh.Center.Z
+                        });
+                    }
+                }
+                DiagLog($"[홀API] node={nodeIndex} 결과 holes={holes.Count} slots={slots.Count}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[홀API] ERROR node={nodeIndex}: {ex.Message}");
+            }
+        }
+
         /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
@@ -1248,12 +1312,16 @@ namespace A2Z
                     bom.CenterX, bom.CenterY, bom.CenterZ));
             }
 
-            // 홀 풍선 수집
-            if (bom.Holes != null && bom.Holes.Count > 0)
+            // 가공도 전용: GetNodeHoleInfo API로 홀/슬롯홀 추출 (bom.Holes 휴리스틱 부정확 → API).
+            //   bom.Holes/SlotHoles는 제작도·BOM표가 쓰므로 건드리지 않고, 가공도 풍선만 API 결과 사용.
+            GetMfgHolesFromApi(bom.Index, out var mfgApiHoles, out var mfgApiSlots);
+
+            // 홀 풍선 수집 (API 추출)
+            if (mfgApiHoles.Count > 0)
             {
                 try
                 {
-                    var mfgHoleGroups = bom.Holes.GroupBy(h => Math.Round(h.Diameter, 1));
+                    var mfgHoleGroups = mfgApiHoles.GroupBy(h => Math.Round(h.Diameter, 1));
                     foreach (var grp in mfgHoleGroups)
                     {
                         int hCount = grp.Count();
@@ -1270,12 +1338,12 @@ namespace A2Z
                 catch { }
             }
 
-            // 슬롯홀 풍선 수집
-            if (bom.SlotHoles != null && bom.SlotHoles.Count > 0)
+            // 슬롯홀 풍선 수집 (API 추출)
+            if (mfgApiSlots.Count > 0)
             {
                 try
                 {
-                    var slotGroups = bom.SlotHoles.GroupBy(s =>
+                    var slotGroups = mfgApiSlots.GroupBy(s =>
                         $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
                     foreach (var grp in slotGroups)
                     {
