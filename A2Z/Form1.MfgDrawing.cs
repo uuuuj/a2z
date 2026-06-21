@@ -658,6 +658,23 @@ namespace A2Z
             }
         }
 
+        // ── 가공도 전용 치수 선별 규칙 (제작도와 독립) ──
+        //   제작도는 ApplySmartFiltering을 직접 쓰지만, 가공도는 이 진입점을 통해
+        //   파라미터·규칙을 독립적으로 조정·확장한다. 가공도는 단일 부재·단일 뷰라
+        //   제작도식 "축당" 개념과 달라, 여기서 가공도 고유 규칙을 키울 수 있다.
+        private const int MfgMaxDimensionsPerAxis = 8;   // 가공도 축당 최대 (제작도와 별도 값)
+        private const float MfgMinTextSpace = 25.0f;     // 가공도 치수 텍스트 겹침 간격 (제작도와 별도 값)
+
+        /// <summary>
+        /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
+        /// 현재는 제작도 알고리즘(ApplySmartFiltering)을 가공도 전용 파라미터로 차용.
+        /// 향후 가공도 고유 규칙(외곽 우선·특정 Osnap 보존·화면 전체 개수 등)은 여기서 분기·확장.
+        /// </summary>
+        private List<ChainDimensionData> FilterMfgDimensions(List<ChainDimensionData> dims)
+        {
+            return ApplySmartFiltering(dims, MfgMaxDimensionsPerAxis, MfgMinTextSpace);
+        }
+
         /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
@@ -904,11 +921,10 @@ namespace A2Z
                 foreach (var ax in mfgVisibleAxes)
                     mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
 
-                // 제작도와 동일한 점 선별 — ApplySmartFiltering (축당 최대 8개 + 겹침 25mm 회피 + 우선순위, 2단 분배).
-                //   내부에서 AssignDimensionPriorities로 Priority 할당 + IsVisible/DisplayLevel 세팅.
-                //   아래 3패스 그리기(level0/level>0/IsTotal)가 IsVisible+DisplayLevel을 이미 소비하므로 선별 결과 자동 반영.
-                //   ※ 가공도에서 추가로 살릴 점은 후속 작업 — 이 단계는 제작도와 동일 기준.
-                mfgDimensions = ApplySmartFiltering(mfgDimensions, maxDimensionsPerAxis: 8, minTextSpace: 25.0f);
+                // 가공도 전용 점 선별 — 제작도와 독립 규칙 (FilterMfgDimensions).
+                //   카메라가 보는 평면의 2축 치수를 규칙 기반으로 추림. 그리기 3패스가
+                //   IsVisible+DisplayLevel을 소비하므로 선별 결과 자동 반영.
+                mfgDimensions = FilterMfgDimensions(mfgDimensions);
 
                 // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
                 float maxTotalDist = 0f;
