@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-06-15 — 가공도 홀/슬롯홀 풍선 GetNodeHoleInfo API 전환 (가공도 한정, 실측 중)
+
+**유형**: feat (진행 중 — 슬롯 매핑 실측 대기)
+**커밋**: `pending`
+**관련 TASK**: — (가공도 홀/슬롯홀을 API로 골라내 풍선 표현, 사용자 지시)
+
+**배경**: 현재 홀 추출(`DetectHoles`, 휴리스틱 565줄)이 부정확. 사용자 지시로 가공도 풍선을 SDK `GetNodeHoleInfo` API로 전환. `bom.Holes`/`SlotHoles`는 제작도·BOM표가 써서 통째 비활성화 불가 → **가공도 한정**으로만 API 사용(제작도·BOM 보호).
+
+**변경 사항**:
+- 가공도 전용 `GetMfgHolesFromApi(nodeIndex)` 신설 — `vizcore3d.GeometryUtility.GetNodeHoleInfo` → `NodeHoleItem` 매핑
+- 가공도 메인 풍선(`BuildMfgSceneCore`)이 `bom.Holes` 대신 API 결과 사용
+- NodeHoleItem 실제 타입 빌드 역추론 확정: **Center=Vector3D, CircleCenter=List<Vector3D>, Size=Vector3D, Radius=float**
+- CIRCLE 홀: Center·Radius 정확 매핑. SLOT_HOLE: 잠정 매핑(중심=Center, 길이/폭=Size 최대/최소축, Depth=0) + **실측 로그**(`[홀API]` NodeHoleItem 원본 값)
+
+**영향 범위**: `A2Z/Form1.MfgDrawing.cs` 가공도 메인 풍선만. 제작도·BOM표·가공도 osnap(EA 보조뷰)은 `bom.Holes` 유지.
+
+**검증**: 사내 가공도 출력 → `[홀API]` 로그로 NodeHoleItem 실제 값 확인 → 슬롯 매핑(Size 의미·Depth) 보정.
+
+**미해결**: ① 슬롯 SlotLength/Depth 정확 매핑(실측 후) ② Center가 홀 중심인지 확인 ③ 가공도 osnap·거리계산은 아직 `bom.Holes`.
+
 ## 2026-06-15 — 가공도 치수 선별을 전용 진입점으로 분리
 
 **유형**: refactor (가공도 선별 규칙 독립화)
