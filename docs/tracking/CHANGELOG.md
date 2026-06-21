@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-06-15 — 가공도 치수 선별을 전용 진입점으로 분리
+
+**유형**: refactor (가공도 선별 규칙 독립화)
+**커밋**: `pending`
+**관련 TASK**: — (가공도는 규칙을 따로 만들 수 있어야, 사용자 지시)
+
+**배경**: 직전(`200c81e`)은 가공도가 제작도 `ApplySmartFiltering`을 같은 파라미터로 직접 호출 → 제작도 규칙과 묶여 가공도만 따로 조정 불가.
+
+**변경 사항**:
+- 가공도 전용 진입점 `FilterMfgDimensions` + 전용 파라미터(`MfgMaxDimensionsPerAxis=8`, `MfgMinTextSpace=25`) 신설
+- `BuildMfgSceneCore`가 `ApplySmartFiltering` 직접 호출 → `FilterMfgDimensions` 호출로 교체
+- 동작·파라미터는 현재 동일(제작도 알고리즘 차용). 향후 가공도 고유 규칙(외곽 우선·특정 Osnap 보존 등)은 이 진입점에서 독립 발전
+- 제작도 `ApplySmartFiltering` 미변경 (규칙 독립)
+
+**영향 범위**: `A2Z/Form1.MfgDrawing.cs` 구조만. 동작 불변. `가공도 단일.md` 갱신.
+
 ## 2026-06-15 — 가공도 치수 점 선별 (제작도 ApplySmartFiltering 적용)
 
 **유형**: feat (가공도 치수 선별)
