@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-06-15 — 제작도 방향 이미지 {Input_N} 경로 주입 방식 (테스트)
+
+**유형**: feat (이미지 배치 방식 전환, 실측 테스트)
+**커밋**: `pending`
+**관련 TASK**: — (템플릿에 여러 이미지 넣기, 사용자 지시)
+
+**배경**: North_Arrow/ISO_North_Arrow를 `{View_5/7}` 영역 + `PlaceImageInTemplateArea`로 배치하던 것을, 사용자가 엑셀에서 `{View_5/6/7}` → `{Input_124/125/126}`으로 전환. `{Input_N}` 슬롯에 이미지 경로를 주입하면 SDK가 이미지로 렌더하는지(`WriteCellData` remarks: "값이 이미지 경로면 {Image}로 처리") 검증.
+
+**변경 사항**:
+- `GenerateSheetDrawing2D_WithExcelTemplate`의 `data`에 `data[124]=North_Arrow.png`, `data[126]=ISO_North_Arrow.png` 경로 주입 (`ResolveDrawingAssetPath`, 다중 PC 호환)
+- `ImportExcelWithData`가 처리 → Input 슬롯에 이미지 렌더 기대
+- 기존 `PlaceImageInTemplateArea(View_5/7)`는 View 태그 사라져 `area==null`로 자동 무력화(null 안전 확인)
+- 엑셀 템플릿(`사용자템플릿_엑셀_제작도.xlsx`)도 사용자가 View→Input 전환 (코드와 짝)
+
+**검증**: 사내 제작도 출력 → North_Arrow/ISO_North_Arrow가 `{Input_124/126}` 칸에 나오는지. 나오면 `{Input_N}` 이미지 방식 확정 → 추가 이미지도 이 방식으로.
+
 ## 2026-06-15 — 가공도 홀/슬롯홀 풍선 GetNodeHoleInfo API 전환 (가공도 한정, 실측 중)
 
 **유형**: feat (진행 중 — 슬롯 매핑 실측 대기)
