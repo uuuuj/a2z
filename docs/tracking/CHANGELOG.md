@@ -9,7 +9,7 @@
 ## 2026-06-15 — 제작도 방향 이미지 {Input_N} 경로 주입 방식 (테스트)
 
 **유형**: feat (이미지 배치 방식 전환, 실측 테스트)
-**커밋**: `pending`
+**커밋**: `87f5965`
 **관련 TASK**: — (템플릿에 여러 이미지 넣기, 사용자 지시)
 
 **배경**: North_Arrow/ISO_North_Arrow를 `{View_5/7}` 영역 + `PlaceImageInTemplateArea`로 배치하던 것을, 사용자가 엑셀에서 `{View_5/6/7}` → `{Input_124/125/126}`으로 전환. `{Input_N}` 슬롯에 이미지 경로를 주입하면 SDK가 이미지로 렌더하는지(`WriteCellData` remarks: "값이 이미지 경로면 {Image}로 처리") 검증.
