@@ -1724,13 +1724,6 @@ namespace A2Z
                 }
                 DiagLog($"P2 data 구성: kind='{data[3]}' BOM {bomMapped}행 (Input 총 {data.Count}개)");
 
-                // ── 방향 이미지: Input 슬롯에 이미지 경로 주입 (WriteCellData가 경로를 인식해 이미지로 렌더) ──
-                //   사용자가 엑셀에서 {View_5/7} → {Input_124/126}으로 전환. {Input_124}=North_Arrow, {Input_126}=ISO_North_Arrow.
-                //   기존 PlaceImageInTemplateArea(View_5/7)는 View 태그가 사라져 자동 무력화됨.
-                data[124] = ResolveDrawingAssetPath("North_Arrow.png");
-                data[126] = ResolveDrawingAssetPath("ISO_North_Arrow.png");
-                DiagLog($"P2 방향이미지 Input 주입: 124={data[124]} / 126={data[126]}");
-
                 // ── 4. ImportExcelWithData — 엑셀 자동 그리기 + 데이터 치환 ──
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
