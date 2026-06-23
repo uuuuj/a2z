@@ -2063,6 +2063,9 @@ namespace A2Z
             foreach (var measure in measures)
             {
                 if (!measure.Visible) continue;
+                // 각도 측정은 두 점 간 거리 개념이 없어 시프트 대상에서 제외 (비-90° 각도 표시, 2026-06-23)
+                if (measure.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_ANGLE ||
+                    measure.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_SURFACE_ANGLE) continue;
                 VIZCore3D.NET.Data.Vertex3D mp0 = null, mp1 = null;
                 foreach (var pos in measure.Position)
                 {
@@ -2628,6 +2631,113 @@ namespace A2Z
                 case "Z": return p => p.Z;
                 default: return p => 0f;
             }
+        }
+
+        // ── 비-90° 각도 표시 (제작도 X/Y/Z 뷰, 사용자 사양 2026-06-23) ──
+        //   화면 평면(뷰 2축)에 투영한 사잇각이 90°의 배수(90/180/270/360)가 아니면 각도를 표시한다.
+        //   판정은 2D 투영각으로, AddCustom3PointAngle에는 원본 3D 점을 넘긴다(SDK가 현재 카메라로 투영).
+        //   ShowAllDimensions 직후 호출 → 같은 Review.Measure→2D 파이프라인을 그대로 탄다.
+        private const float MarkAngleTol = 1.0f;        // 90° 배수 판정 공차(도) — 화면축 매핑·반올림 흡수
+        private const int   MarkAngleMaxPerVertex = 3;  // 꼭짓점당 최대 마킹 (과다 방지)
+
+        private void MarkNonRightAngles(List<int> memberIndices, string viewDirection)
+        {
+            if (memberIndices == null || memberIndices.Count == 0) return;
+            if (string.IsNullOrEmpty(viewDirection) || viewDirection == "ISO") return;
+
+            // 화면 평면 2축 (깊이축 버림) — ShowAllDimensions·FilterOsnapForDimAxis와 동일 매핑
+            Func<VIZCore3D.NET.Data.Vertex3D, float> getH, getV;
+            switch (viewDirection)
+            {
+                case "X": getH = p => p.Y; getV = p => p.Z; break;
+                case "Y": getH = p => p.X; getV = p => p.Z; break;
+                default:  getH = p => p.X; getV = p => p.Y; break;   // Z
+            }
+
+            const float segTol = 0.5f;
+
+            // ── 1. LINE 세그먼트 수집 (원본 3D Start/End 보존, 화면 투영길이 0이면 제외) ──
+            //   nodeOsnapMap은 Start/End를 평탄화해 쌍 정보가 소실되므로 GetOsnapPoint 직접 호출.
+            var segs = new List<(VIZCore3D.NET.Data.Vertex3D a, VIZCore3D.NET.Data.Vertex3D b)>();
+            foreach (int idx in memberIndices)
+            {
+                var osnaps = vizcore3d.Object3D.GetOsnapPoint(idx);
+                if (osnaps == null) continue;
+                foreach (var o in osnaps)
+                {
+                    if (o.Kind != VIZCore3D.NET.Data.OsnapKind.LINE) continue;
+                    if (o.Start == null || o.End == null) continue;
+                    var a = new VIZCore3D.NET.Data.Vertex3D(o.Start.X, o.Start.Y, o.Start.Z);
+                    var b = new VIZCore3D.NET.Data.Vertex3D(o.End.X, o.End.Y, o.End.Z);
+                    float dh = getH(a) - getH(b), dv = getV(a) - getV(b);
+                    if ((float)Math.Sqrt(dh * dh + dv * dv) <= segTol) continue;   // 깊이방향 모서리 → 투영상 점
+                    segs.Add((a, b));
+                }
+            }
+            if (segs.Count < 2) return;
+
+            // ── 2. 공유 꼭짓점별 ray 목록: vertexKey → [(단위2D방향, 꼭짓점3D, 반대끝3D)] ──
+            var vmap = new Dictionary<string, List<(float dh, float dv, VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)>>();
+            string Key2D(VIZCore3D.NET.Data.Vertex3D p) =>
+                RoundToTolerance(getH(p), segTol).ToString("F1") + "," + RoundToTolerance(getV(p), segTol).ToString("F1");
+            void Reg(VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)
+            {
+                float dh = getH(end) - getH(vtx), dv = getV(end) - getV(vtx);
+                float len = (float)Math.Sqrt(dh * dh + dv * dv);
+                if (len <= segTol) return;
+                string key = Key2D(vtx);
+                if (!vmap.TryGetValue(key, out var lst))
+                {
+                    lst = new List<(float, float, VIZCore3D.NET.Data.Vertex3D, VIZCore3D.NET.Data.Vertex3D)>();
+                    vmap[key] = lst;
+                }
+                lst.Add((dh / len, dv / len, vtx, end));
+            }
+            foreach (var s in segs) { Reg(s.a, s.b); Reg(s.b, s.a); }
+
+            // ── 3. 꼭짓점별 페어 → 2D 사잇각 → 90배수 제외 → AddCustom3PointAngle ──
+            //   각도 스타일: 정수 도(度) + 파랑 통일 (치수와 일관)
+            VIZCore3D.NET.Data.MeasureStyle angStyle = vizcore3d.Review.Measure.GetStyle();
+            angStyle.NumberOfDecimalPlaces = 0;
+            angStyle.FontColor = System.Drawing.Color.Blue;
+            angStyle.LineColor = System.Drawing.Color.Blue;
+            angStyle.ArrowColor = System.Drawing.Color.Blue;
+            vizcore3d.Review.Measure.SetStyle(angStyle);
+
+            var addedKeys = new HashSet<string>();
+            int marked = 0;
+            foreach (var kv in vmap)
+            {
+                var rays = kv.Value;
+                if (rays.Count < 2) continue;
+                int addedHere = 0;
+                var dirSeen = new HashSet<string>();
+                for (int i = 0; i < rays.Count && addedHere < MarkAngleMaxPerVertex; i++)
+                {
+                    for (int j = i + 1; j < rays.Count && addedHere < MarkAngleMaxPerVertex; j++)
+                    {
+                        var r1 = rays[i]; var r2 = rays[j];
+                        float dot = Math.Max(-1f, Math.Min(1f, r1.dh * r2.dh + r1.dv * r2.dv));
+                        float theta = (float)(Math.Acos(dot) * 180.0 / Math.PI);   // 0~180
+                        float m = theta % 90f;
+                        if (m < MarkAngleTol || (90f - m) < MarkAngleTol) continue; // 90 배수 제외
+
+                        // 같은 꼭짓점 동일 방향쌍 중복 억제 (반올림 방향, 순서무관)
+                        string d1 = $"{r1.dh:F2},{r1.dv:F2}", d2 = $"{r2.dh:F2},{r2.dv:F2}";
+                        string dk = string.CompareOrdinal(d1, d2) <= 0 ? d1 + "|" + d2 : d2 + "|" + d1;
+                        if (!dirSeen.Add(dk)) continue;
+
+                        // 전역 중복 억제 (꼭짓점+양끝, 순서무관)
+                        string e1 = Key2D(r1.end), e2 = Key2D(r2.end);
+                        string ak = Key2D(r1.vtx) + "|" + (string.CompareOrdinal(e1, e2) <= 0 ? e1 + "|" + e2 : e2 + "|" + e1);
+                        if (!addedKeys.Add(ak)) continue;
+
+                        vizcore3d.Review.Measure.AddCustom3PointAngle(r1.vtx, r1.end, r2.end);
+                        addedHere++; marked++;
+                    }
+                }
+            }
+            DiagLog($"[각도] view={viewDirection} 세그먼트={segs.Count} 꼭짓점={vmap.Count} 마킹={marked}");
         }
 
     }
