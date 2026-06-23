@@ -501,7 +501,8 @@ namespace A2Z
                 1.0f);
             if (canvasScale > 0f)
             {
-                ComputeCanvasAbsoluteOffsets(canvasScale, out float baseOff, out float levelSpacing, out _);
+                ComputeCanvasAbsoluteOffsets(canvasScale, out float baseOff, out float levelSpacing, out _,
+                    MfgCanvasBaseOff, MfgCanvasLvlSp);   // 가공도 전용 축소 (1단 2·전체 4mm)
                 int maxLevel = dimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
                 chainOff1 = baseOff;
                 chainOff2 = baseOff + levelSpacing;
@@ -664,6 +665,10 @@ namespace A2Z
         //   제작도식 "축당" 개념과 달라, 여기서 가공도 고유 규칙을 키울 수 있다.
         private const int MfgMaxDimensionsPerAxis = 8;   // 가공도 축당 최대 (제작도와 별도 값)
         private const float MfgMinTextSpace = 25.0f;     // 가공도 치수 텍스트 겹침 간격 (제작도와 별도 값)
+        // 가공도 보조선 오프셋 — 종이(캔버스) 절대 mm. 제작도 5/5(1단 5·전체 10)와 별도로 줄임.
+        //   사용자 사양 2026-06-23: "많이" → 1단 2·전체 4mm. ComputeCanvasAbsoluteOffsets에 인자로 전달.
+        private const float MfgCanvasBaseOff = 2.0f;     // 1단 종이 mm
+        private const float MfgCanvasLvlSp   = 2.0f;     // 단 간격 → 전체 = 2+2 = 4mm
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
@@ -1133,7 +1138,8 @@ namespace A2Z
 
                     if (mfgCanvasScale > 0f)
                     {
-                        ComputeCanvasAbsoluteOffsets(mfgCanvasScale, out float mfgBaseOff, out float mfgLvlSp, out _);
+                        ComputeCanvasAbsoluteOffsets(mfgCanvasScale, out float mfgBaseOff, out float mfgLvlSp, out _,
+                            MfgCanvasBaseOff, MfgCanvasLvlSp);   // 가공도 전용 축소 (1단 2·전체 4mm)
                         int mfgMaxLevel = mfgDimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
                         mfgChainOff1 = mfgBaseOff;                          // DisplayLevel==0 (제작도 level1)
                         mfgChainOff2 = mfgBaseOff + mfgLvlSp;               // DisplayLevel>0  (제작도 level2)
