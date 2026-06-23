@@ -1855,10 +1855,8 @@ namespace A2Z
                         float availH = p.Height - 2f * margin;
                         float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, sheet.MemberIndices);
                         shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
-                        // 각도 표시 — 비활성화 (2026-06-23 재설계 중).
-                        //   기존 MarkNonRightAngles는 '한 부재 내부' 모서리 각(ㄱ자 꺾임)을 표시했으나,
-                        //   사용자 요구는 '부재-부재 접합부가 수직·수평이 아닐 때'의 각도. 접합 각도 로직으로 교체 예정.
-                        // MarkNonRightAngles(sheet.MemberIndices, viewDir);
+                        // 부재-부재 접합 각도 표시 — 수직·수평이 아닌 접합부 각도를 같은 측정→2D 파이프라인에 누적 (2026-06-23)
+                        MarkNonRightAngles(sheet.MemberIndices, viewDir);
                     }
 
                     // ── 모델 4면도 캡처 ──
