@@ -2633,119 +2633,151 @@ namespace A2Z
             }
         }
 
-        // ── 비-90° 각도 표시 (제작도 X/Y/Z 뷰, 사용자 사양 2026-06-23) ──
-        //   화면 평면(뷰 2축)에 투영한 사잇각이 90°의 배수(90/180/270/360)가 아니면 각도를 표시한다.
-        //   판정은 2D 투영각으로, AddCustom3PointAngle에는 원본 3D 점을 넘긴다(SDK가 현재 카메라로 투영).
+        // ── 부재-부재 접합 각도 표시 (제작도 X/Y/Z 뷰, 사용자 사양 2026-06-23) ──
+        //   서로 다른 두 부재가 접합하는 곳에서, 두 부재의 길이축이 수직(90°)·수평/평행(0/180°)이
+        //   아니면(= 틀어져 만나면) 그 사잇각을 표시한다. 한 부재 '내부' 모서리 각(ㄱ자 꺾임)은 표시 안 함.
+        //   · 연결성·접합점: osnap 끝점 근접으로 자체 판정(간섭검사 clashList 상태에 의존 X).
+        //   · 길이축: 부재 osnap 최원점쌍 방향(축정렬 BBox와 달리 대각 부재도 정확).
+        //   · 각도: 두 길이축의 실제 3D 사잇각(부재가 진짜 직각으로 만나는지 검증 목적). 그릴 수 없는
+        //     (깊이축에 평행해 화면상 점이 되는) 뷰에서는 생략.
         //   ShowAllDimensions 직후 호출 → 같은 Review.Measure→2D 파이프라인을 그대로 탄다.
-        private const float MarkAngleTol = 1.0f;        // 90° 배수 판정 공차(도) — 화면축 매핑·반올림 흡수
-        private const int   MarkAngleMaxPerVertex = 3;  // 꼭짓점당 최대 마킹 (과다 방지)
+        private const float MarkAngleTol = 1.0f;        // 90° 배수 판정 공차(도)
+        private const float MarkJunctionTol = 3.0f;     // 부재 접합 판정 — osnap 끝점 간 3D 거리 임계(mm)
 
         private void MarkNonRightAngles(List<int> memberIndices, string viewDirection)
         {
-            if (memberIndices == null || memberIndices.Count == 0) return;
+            if (memberIndices == null || memberIndices.Count < 2) return;
             if (string.IsNullOrEmpty(viewDirection) || viewDirection == "ISO") return;
 
-            // 화면 평면 2축 (깊이축 버림) — ShowAllDimensions·FilterOsnapForDimAxis와 동일 매핑
-            Func<VIZCore3D.NET.Data.Vertex3D, float> getH, getV;
-            switch (viewDirection)
+            // 방향벡터를 뷰 평면 2축으로 투영 (깊이축 버림)
+            (float h, float v) ProjDir(VIZCore3D.NET.Data.Vertex3D d)
             {
-                case "X": getH = p => p.Y; getV = p => p.Z; break;
-                case "Y": getH = p => p.X; getV = p => p.Z; break;
-                default:  getH = p => p.X; getV = p => p.Y; break;   // Z
+                switch (viewDirection)
+                {
+                    case "X": return (d.Y, d.Z);
+                    case "Y": return (d.X, d.Z);
+                    default:  return (d.X, d.Y);   // Z
+                }
+            }
+            float Dist(VIZCore3D.NET.Data.Vertex3D p, VIZCore3D.NET.Data.Vertex3D q)
+            {
+                float dx = p.X - q.X, dy = p.Y - q.Y, dz = p.Z - q.Z;
+                return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
             }
 
-            const float segTol = 0.5f;
-
-            // ── 1. LINE 세그먼트 수집 (원본 3D Start/End 보존, 화면 투영길이 0이면 제외) ──
-            //   nodeOsnapMap은 Start/End를 평탄화해 쌍 정보가 소실되므로 GetOsnapPoint 직접 호출.
-            var segs = new List<(VIZCore3D.NET.Data.Vertex3D a, VIZCore3D.NET.Data.Vertex3D b)>();
+            // ── 1. 부재별 점군·중심·길이축 사전계산 (판형 부재는 길이방향 모호 → 제외) ──
+            var members = new List<(int idx, List<VIZCore3D.NET.Data.Vertex3D> pts,
+                VIZCore3D.NET.Data.Vertex3D centroid, VIZCore3D.NET.Data.Vertex3D dir)>();
             foreach (int idx in memberIndices)
             {
+                if (IsPadOrPlateFromSpref(idx)) continue;
                 var osnaps = vizcore3d.Object3D.GetOsnapPoint(idx);
                 if (osnaps == null) continue;
+                var pts = new List<VIZCore3D.NET.Data.Vertex3D>();
                 foreach (var o in osnaps)
                 {
-                    if (o.Kind != VIZCore3D.NET.Data.OsnapKind.LINE) continue;
-                    if (o.Start == null || o.End == null) continue;
-                    var a = new VIZCore3D.NET.Data.Vertex3D(o.Start.X, o.Start.Y, o.Start.Z);
-                    var b = new VIZCore3D.NET.Data.Vertex3D(o.End.X, o.End.Y, o.End.Z);
-                    float dh = getH(a) - getH(b), dv = getV(a) - getV(b);
-                    if ((float)Math.Sqrt(dh * dh + dv * dv) <= segTol) continue;   // 깊이방향 모서리 → 투영상 점
-                    segs.Add((a, b));
+                    if (o.Kind == VIZCore3D.NET.Data.OsnapKind.LINE)
+                    {
+                        if (o.Start != null) pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.Start.X, o.Start.Y, o.Start.Z));
+                        if (o.End != null)   pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.End.X, o.End.Y, o.End.Z));
+                    }
+                    else if (o.Kind == VIZCore3D.NET.Data.OsnapKind.POINT && o.Center != null)
+                        pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.Center.X, o.Center.Y, o.Center.Z));
                 }
-            }
-            if (segs.Count < 2) return;
+                if (pts.Count < 2) continue;
 
-            // ── 2. 공유 꼭짓점별 ray 목록: 3D 꼭짓점키 → [(단위2D방향, 꼭짓점3D, 반대끝3D)] ──
-            //   ※ 3D 좌표로 묶는다(2D 투영키 X) — 화면상 겹치지만 깊이가 달라 실제로는 안 만나는
-            //     두 모서리를 같은 꼭짓점으로 오인해 허상 각을 그리는 것을 방지.
-            var vmap = new Dictionary<string, List<(float dh, float dv, VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)>>();
-            string Key3D(VIZCore3D.NET.Data.Vertex3D p) =>
-                RoundToTolerance(p.X, segTol).ToString("F1") + "," +
-                RoundToTolerance(p.Y, segTol).ToString("F1") + "," +
-                RoundToTolerance(p.Z, segTol).ToString("F1");
-            void Reg(VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)
+                // 최원점쌍 = 길이축
+                int fi = 0, fj = 1; float best = -1f;
+                for (int i = 0; i < pts.Count; i++)
+                    for (int j = i + 1; j < pts.Count; j++)
+                    {
+                        float d = Dist(pts[i], pts[j]);
+                        if (d > best) { best = d; fi = i; fj = j; }
+                    }
+                if (best <= MarkJunctionTol) continue;   // 너무 짧아 방향 불안정
+                float dx = pts[fj].X - pts[fi].X, dy = pts[fj].Y - pts[fi].Y, dz = pts[fj].Z - pts[fi].Z;
+                float dl = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                if (dl < 1e-3f) continue;
+                var dir = new VIZCore3D.NET.Data.Vertex3D(dx / dl, dy / dl, dz / dl);
+
+                float cx = 0, cy = 0, cz = 0;
+                foreach (var p in pts) { cx += p.X; cy += p.Y; cz += p.Z; }
+                var centroid = new VIZCore3D.NET.Data.Vertex3D(cx / pts.Count, cy / pts.Count, cz / pts.Count);
+
+                members.Add((idx, pts, centroid, dir));
+            }
+            if (members.Count < 2) return;
+
+            // 접합점 기준 길이축을 '부재 본체(중심)' 쪽으로 정렬
+            VIZCore3D.NET.Data.Vertex3D Orient(VIZCore3D.NET.Data.Vertex3D dir,
+                VIZCore3D.NET.Data.Vertex3D centroid, VIZCore3D.NET.Data.Vertex3D j)
             {
-                float dh = getH(end) - getH(vtx), dv = getV(end) - getV(vtx);
-                float len = (float)Math.Sqrt(dh * dh + dv * dv);
-                if (len <= segTol) return;                       // 화면 투영상 점(깊이방향 모서리) → 각 판정 불가
-                string key = Key3D(vtx);
-                if (!vmap.TryGetValue(key, out var lst))
-                {
-                    lst = new List<(float, float, VIZCore3D.NET.Data.Vertex3D, VIZCore3D.NET.Data.Vertex3D)>();
-                    vmap[key] = lst;
-                }
-                lst.Add((dh / len, dv / len, vtx, end));
+                float dot = dir.X * (centroid.X - j.X) + dir.Y * (centroid.Y - j.Y) + dir.Z * (centroid.Z - j.Z);
+                return dot < 0 ? new VIZCore3D.NET.Data.Vertex3D(-dir.X, -dir.Y, -dir.Z) : dir;
             }
-            foreach (var s in segs) { Reg(s.a, s.b); Reg(s.b, s.a); }
 
-            // ── 3. 꼭짓점별 페어 → 2D 사잇각 → 90배수 제외 → AddCustom3PointAngle ──
-            //   각도 스타일: 정수 도(度) + 파랑 통일 (치수와 일관). 전역 default를 흔들지 않게
-            //   생성한 각도 ID에만 SetStyle(id, style)로 적용.
+            // ── 2. 부재쌍 → 접합 판정 → 실제 3D 사잇각 → 90배수 제외 → 마킹 ──
             VIZCore3D.NET.Data.MeasureStyle angStyle = vizcore3d.Review.Measure.GetStyle();
             angStyle.NumberOfDecimalPlaces = 0;
             angStyle.FontColor = System.Drawing.Color.Blue;
             angStyle.LineColor = System.Drawing.Color.Blue;
             angStyle.ArrowColor = System.Drawing.Color.Blue;
 
-            var addedKeys = new HashSet<string>();
-            int marked = 0;
-            foreach (var kv in vmap)
+            int marked = 0, pairsConnected = 0;
+            for (int a = 0; a < members.Count; a++)
             {
-                var rays = kv.Value;
-                if (rays.Count < 2) continue;
-                int addedHere = 0;
-                var dirSeen = new HashSet<string>();
-                for (int i = 0; i < rays.Count && addedHere < MarkAngleMaxPerVertex; i++)
+                for (int b = a + 1; b < members.Count; b++)
                 {
-                    for (int j = i + 1; j < rays.Count && addedHere < MarkAngleMaxPerVertex; j++)
-                    {
-                        var r1 = rays[i]; var r2 = rays[j];
-                        float dot = Math.Max(-1f, Math.Min(1f, r1.dh * r2.dh + r1.dv * r2.dv));
-                        float theta = (float)(Math.Acos(dot) * 180.0 / Math.PI);   // 0~180
-                        float m = theta % 90f;
-                        if (m < MarkAngleTol || (90f - m) < MarkAngleTol) continue; // 90 배수 제외
+                    var A = members[a]; var B = members[b];
 
-                        // 같은 꼭짓점 동일 방향쌍 중복 억제 (반올림 방향, 순서무관)
-                        string d1 = $"{r1.dh:F2},{r1.dv:F2}", d2 = $"{r2.dh:F2},{r2.dv:F2}";
-                        string dk = string.CompareOrdinal(d1, d2) <= 0 ? d1 + "|" + d2 : d2 + "|" + d1;
-                        if (!dirSeen.Add(dk)) continue;
+                    // 접합점: 두 부재 osnap 점 최근접쌍 (≤ MarkJunctionTol)
+                    float bestD = float.MaxValue;
+                    VIZCore3D.NET.Data.Vertex3D pA = null, pB = null;
+                    foreach (var p in A.pts)
+                        foreach (var q in B.pts)
+                        {
+                            float d = Dist(p, q);
+                            if (d < bestD) { bestD = d; pA = p; pB = q; }
+                        }
+                    if (bestD > MarkJunctionTol) continue;   // 두 부재 안 만남
+                    pairsConnected++;
+                    var junction = new VIZCore3D.NET.Data.Vertex3D(
+                        (pA.X + pB.X) / 2f, (pA.Y + pB.Y) / 2f, (pA.Z + pB.Z) / 2f);
 
-                        // 전역 중복 억제 (꼭짓점+양끝 3D, 순서무관)
-                        string e1 = Key3D(r1.end), e2 = Key3D(r2.end);
-                        string ak = Key3D(r1.vtx) + "|" + (string.CompareOrdinal(e1, e2) <= 0 ? e1 + "|" + e2 : e2 + "|" + e1);
-                        if (!addedKeys.Add(ak)) continue;
+                    var dirA = Orient(A.dir, A.centroid, junction);
+                    var dirB = Orient(B.dir, B.centroid, junction);
 
-                        // 꼭짓점 3D: 같은 키의 두 ray 정점 평균 (3D 묶음이라 0.5mm 이내, 방어적 통일)
-                        var vtx = new VIZCore3D.NET.Data.Vertex3D(
-                            (r1.vtx.X + r2.vtx.X) / 2f, (r1.vtx.Y + r2.vtx.Y) / 2f, (r1.vtx.Z + r2.vtx.Z) / 2f);
-                        int angId = vizcore3d.Review.Measure.AddCustom3PointAngle(vtx, r1.end, r2.end);
-                        if (angId >= 0) vizcore3d.Review.Measure.SetStyle(angId, angStyle);
-                        addedHere++; marked++;
-                    }
+                    // 실제 3D 사잇각 (단위벡터 내적) — '진짜 직각으로 만나는지' 판정 기준
+                    float dot3 = Math.Max(-1f, Math.Min(1f, dirA.X * dirB.X + dirA.Y * dirB.Y + dirA.Z * dirB.Z));
+                    float theta = (float)(Math.Acos(dot3) * 180.0 / Math.PI);
+                    float mm = theta % 90f;
+                    if (mm < MarkAngleTol || (90f - mm) < MarkAngleTol) continue;   // 수직·수평(90배수) 제외
+
+                    // 이 뷰에서 그릴 수 있나 — 두 축 모두 화면 평면에 충분히 투영돼야 (깊이축 평행 생략)
+                    var (ah, av) = ProjDir(dirA);
+                    var (bh, bv) = ProjDir(dirB);
+                    if ((float)Math.Sqrt(ah * ah + av * av) < 0.05f) continue;
+                    if ((float)Math.Sqrt(bh * bh + bv * bv) < 0.05f) continue;
+
+                    // 마킹: 접합점 + 각 부재 본체 쪽으로 뻗은 가상점 (원본 3D, SDK가 카메라 투영)
+                    float reachA = Math.Max(MarkJunctionTol * 3f, Dist(A.centroid, junction));
+                    float reachB = Math.Max(MarkJunctionTol * 3f, Dist(B.centroid, junction));
+                    var p1 = new VIZCore3D.NET.Data.Vertex3D(
+                        junction.X + dirA.X * reachA, junction.Y + dirA.Y * reachA, junction.Z + dirA.Z * reachA);
+                    var p2 = new VIZCore3D.NET.Data.Vertex3D(
+                        junction.X + dirB.X * reachB, junction.Y + dirB.Y * reachB, junction.Z + dirB.Z * reachB);
+                    int angId = vizcore3d.Review.Measure.AddCustom3PointAngle(junction, p1, p2);
+                    if (angId >= 0) vizcore3d.Review.Measure.SetStyle(angId, angStyle);
+
+                    // 실측 비교용: 3D각 vs 화면 투영각
+                    float la = (float)Math.Sqrt(ah * ah + av * av), lb = (float)Math.Sqrt(bh * bh + bv * bv);
+                    float dotp = Math.Max(-1f, Math.Min(1f, (ah * bh + av * bv) / (la * lb)));
+                    float projTheta = (float)(Math.Acos(dotp) * 180.0 / Math.PI);
+                    DiagLog($"[각도] view={viewDirection} 부재 {A.idx}×{B.idx} 접합거리={bestD:F2} 3D각={theta:F1} 투영각={projTheta:F1}");
+                    marked++;
                 }
             }
-            DiagLog($"[각도] view={viewDirection} 세그먼트={segs.Count} 꼭짓점={vmap.Count} 마킹={marked}");
+            DiagLog($"[각도] view={viewDirection} 부재={members.Count} 접합쌍={pairsConnected} 마킹={marked}");
         }
 
     }
