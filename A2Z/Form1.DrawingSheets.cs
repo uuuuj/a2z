@@ -1855,6 +1855,8 @@ namespace A2Z
                         float availH = p.Height - 2f * margin;
                         float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, sheet.MemberIndices);
                         shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
+                        // 비-90° 각도 표시 — 치수와 같은 Review.Measure→2D 파이프라인에 누적 (사용자 사양 2026-06-23)
+                        MarkNonRightAngles(sheet.MemberIndices, viewDir);
                     }
 
                     // ── 모델 4면도 캡처 ──
