@@ -2667,11 +2667,12 @@ namespace A2Z
             }
 
             // ── 1. 부재별 점군·중심·길이축 사전계산 (판형 부재는 길이방향 모호 → 제외) ──
-            var members = new List<(int idx, List<VIZCore3D.NET.Data.Vertex3D> pts,
+            var members = new List<(int idx, int partIdx, List<VIZCore3D.NET.Data.Vertex3D> pts,
                 VIZCore3D.NET.Data.Vertex3D centroid, VIZCore3D.NET.Data.Vertex3D dir)>();
             foreach (int idx in memberIndices)
             {
                 if (IsPadOrPlateFromSpref(idx)) continue;
+                int partIdx = bodyToPartIndexMap.ContainsKey(idx) ? bodyToPartIndexMap[idx] : -1;
                 var osnaps = vizcore3d.Object3D.GetOsnapPoint(idx);
                 if (osnaps == null) continue;
                 var pts = new List<VIZCore3D.NET.Data.Vertex3D>();
@@ -2725,10 +2726,27 @@ namespace A2Z
                 }
                 var dir = new VIZCore3D.NET.Data.Vertex3D((float)vx, (float)vy, (float)vz);
 
-                members.Add((idx, pts, centroid, dir));
-                DiagLog($"[각도축] 부재 {idx} 점{pts.Count} PCA길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 최원거리={best:F1}");
+                members.Add((idx, partIdx, pts, centroid, dir));
+                DiagLog($"[각도축] 부재 {idx} part{partIdx} 점{pts.Count} PCA길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 최원거리={best:F1}");
             }
             if (members.Count < 2) return;
+
+            // Clash(간섭검사) 인접 — 실제 형상 표면이 닿는 부재쌍(면접합 포함). osnap 끝점 거리와 무관.
+            //   구조 부재는 중심선이 아닌 면끼리 붙어 끝점 osnap이 부재 폭만큼 벌어지므로, 표면 접촉 판정이 필요.
+            var clashPairs = new HashSet<long>();
+            foreach (var c in clashList)
+            {
+                int p1 = Math.Min(c.Index1, c.Index2), p2 = Math.Max(c.Index1, c.Index2);
+                clashPairs.Add(((long)p1 << 32) | (uint)p2);
+            }
+            bool ClashAdj(int pa, int pb)
+            {
+                if (pa < 0 || pb < 0) return false;
+                if (pa == pb) return true;                 // 같은 part의 다른 body → 연결
+                int lo = Math.Min(pa, pb), hi = Math.Max(pa, pb);
+                return clashPairs.Contains(((long)lo << 32) | (uint)hi);
+            }
+            if (clashList.Count == 0) DiagLog("[각도] WARN clashList 비어있음 — osnap 근접(3mm)만으로 접합 판정");
 
             // 접합점 기준 길이축을 '부재 본체(중심)' 쪽으로 정렬
             VIZCore3D.NET.Data.Vertex3D Orient(VIZCore3D.NET.Data.Vertex3D dir,
@@ -2761,7 +2779,10 @@ namespace A2Z
                             float d = Dist(p, q);
                             if (d < bestD) { bestD = d; pA = p; pB = q; }
                         }
-                    if (bestD > MarkJunctionTol) continue;   // 두 부재 안 만남
+                    // 연결 판정: Clash 표면접촉(면접합) 또는 osnap 끝점 근접(노드 일치)
+                    bool isClash = ClashAdj(A.partIdx, B.partIdx);
+                    bool connected = isClash || bestD <= MarkJunctionTol;
+                    if (!connected) continue;                // 형상도 안 닿고 끝점도 멀면 접합 아님
                     pairsConnected++;
                     var junction = new VIZCore3D.NET.Data.Vertex3D(
                         (pA.X + pB.X) / 2f, (pA.Y + pB.Y) / 2f, (pA.Z + pB.Z) / 2f);
@@ -2773,7 +2794,9 @@ namespace A2Z
                     float dot3 = Math.Max(-1f, Math.Min(1f, dirA.X * dirB.X + dirA.Y * dirB.Y + dirA.Z * dirB.Z));
                     float theta = (float)(Math.Acos(dot3) * 180.0 / Math.PI);
                     float mm = theta % 90f;
-                    if (mm < MarkAngleTol || (90f - mm) < MarkAngleTol) continue;   // 수직·수평(90배수) 제외
+                    bool isRight = (mm < MarkAngleTol || (90f - mm) < MarkAngleTol);
+                    DiagLog($"[각도] view={viewDirection} {A.idx}×{B.idx} clash={isClash} 접합거리={bestD:F1} 3D각={theta:F1} 직각배수={isRight}");
+                    if (isRight) continue;                    // 수직·수평(90배수) 제외
 
                     // 이 뷰에서 그릴 수 있나 — 두 축 모두 화면 평면에 충분히 투영돼야 (깊이축 평행 생략)
                     var (ah, av) = ProjDir(dirA);
