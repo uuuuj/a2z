@@ -2637,7 +2637,8 @@ namespace A2Z
         //   서로 다른 두 부재가 접합하는 곳에서, 두 부재의 길이축이 수직(90°)·수평/평행(0/180°)이
         //   아니면(= 틀어져 만나면) 그 사잇각을 표시한다. 한 부재 '내부' 모서리 각(ㄱ자 꺾임)은 표시 안 함.
         //   · 연결성·접합점: osnap 끝점 근접으로 자체 판정(간섭검사 clashList 상태에 의존 X).
-        //   · 길이축: 부재 osnap 최원점쌍 방향(축정렬 BBox와 달리 대각 부재도 정확).
+        //   · 길이축: 부재 osnap 점군의 PCA 주성분(분산 최대 방향). 최원점쌍은 박스형 부재에서
+        //     대각선이 잡혀 틀리므로 쓰지 않는다(멱승법으로 공분산 최대 고유벡터 계산).
         //   · 각도: 두 길이축의 실제 3D 사잇각(부재가 진짜 직각으로 만나는지 검증 목적). 그릴 수 없는
         //     (깊이축에 평행해 화면상 점이 되는) 뷰에서는 생략.
         //   ShowAllDimensions 직후 호출 → 같은 Review.Measure→2D 파이프라인을 그대로 탄다.
@@ -2686,7 +2687,7 @@ namespace A2Z
                 }
                 if (pts.Count < 2) continue;
 
-                // 최원점쌍 = 길이축
+                // 길이 체크 + PCA 멱승법 초기값용: 최원점쌍 (이 자체는 길이축이 아님 — 박스형은 대각선)
                 int fi = 0, fj = 1; float best = -1f;
                 for (int i = 0; i < pts.Count; i++)
                     for (int j = i + 1; j < pts.Count; j++)
@@ -2695,16 +2696,37 @@ namespace A2Z
                         if (d > best) { best = d; fi = i; fj = j; }
                     }
                 if (best <= MarkJunctionTol) continue;   // 너무 짧아 방향 불안정
-                float dx = pts[fj].X - pts[fi].X, dy = pts[fj].Y - pts[fi].Y, dz = pts[fj].Z - pts[fi].Z;
-                float dl = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
-                if (dl < 1e-3f) continue;
-                var dir = new VIZCore3D.NET.Data.Vertex3D(dx / dl, dy / dl, dz / dl);
+                float gx = pts[fj].X - pts[fi].X, gy = pts[fj].Y - pts[fi].Y, gz = pts[fj].Z - pts[fi].Z;
+                float gl = (float)Math.Sqrt(gx * gx + gy * gy + gz * gz);
+                if (gl < 1e-3f) continue;
 
                 float cx = 0, cy = 0, cz = 0;
                 foreach (var p in pts) { cx += p.X; cy += p.Y; cz += p.Z; }
                 var centroid = new VIZCore3D.NET.Data.Vertex3D(cx / pts.Count, cy / pts.Count, cz / pts.Count);
 
+                // 길이축 = 점군 공분산행렬의 최대 고유벡터 (PCA 주성분) — 분산이 가장 큰 방향.
+                //   박스형 부재의 최원점쌍은 대각선이라 길이방향이 아니므로, 멱승법으로 PC1을 구한다.
+                double cxx = 0, cyy = 0, czz = 0, cxy = 0, cxz = 0, cyz = 0;
+                foreach (var p in pts)
+                {
+                    double ax = p.X - centroid.X, ay = p.Y - centroid.Y, az = p.Z - centroid.Z;
+                    cxx += ax * ax; cyy += ay * ay; czz += az * az;
+                    cxy += ax * ay; cxz += ax * az; cyz += ay * az;
+                }
+                double vx = gx / gl, vy = gy / gl, vz = gz / gl;   // 초기값 = 최원점쌍 방향(PC1 성분 보유)
+                for (int it = 0; it < 32; it++)
+                {
+                    double nx = cxx * vx + cxy * vy + cxz * vz;
+                    double ny = cxy * vx + cyy * vy + cyz * vz;
+                    double nz = cxz * vx + cyz * vy + czz * vz;
+                    double nn = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                    if (nn < 1e-12) break;
+                    vx = nx / nn; vy = ny / nn; vz = nz / nn;
+                }
+                var dir = new VIZCore3D.NET.Data.Vertex3D((float)vx, (float)vy, (float)vz);
+
                 members.Add((idx, pts, centroid, dir));
+                DiagLog($"[각도축] 부재 {idx} 점{pts.Count} PCA길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 최원거리={best:F1}");
             }
             if (members.Count < 2) return;
 
