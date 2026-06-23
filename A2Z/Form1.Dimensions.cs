@@ -361,15 +361,15 @@ namespace A2Z
 
         /// <summary>
         /// 보조선 길이 정책 단일 출처 (2026-06-03 가공도 통일).
-        /// 캔버스 절대 mm(1단 5 / 2단 10)를 모델좌표 offset으로 역산.
-        /// 제작도(ShowAllDimensions)·가공도(RenderMfgRowToViewArea) 공용 — 길이를 한 곳에서 관리.
+        /// 캔버스 절대 mm를 모델좌표 offset으로 역산. 기본 제작도 5/5(1단 5·전체 10mm).
+        /// 가공도는 전용 상수(canvasBase/canvasLvl 인자)로 따로 줄인다 (2026-06-23: 1단 2·전체 4mm).
+        /// 제작도(ShowAllDimensions)·가공도(BuildMfgSceneCore·EA 두번째 뷰) 공용 — 식은 한 곳, 값만 분기.
         /// canvasScale은 호출자가 0 초과를 보장.
         /// </summary>
         private void ComputeCanvasAbsoluteOffsets(
-            float canvasScale, out float baseOffset, out float levelSpacing, out float canvasMaxOff)
+            float canvasScale, out float baseOffset, out float levelSpacing, out float canvasMaxOff,
+            float canvasBase = 5f, float canvasLvl = 5f)
         {
-            const float canvasBase = 5f;   // 1단 캔버스 mm
-            const float canvasLvl  = 5f;   // 차분 → 2단 = 10mm
             canvasMaxOff = canvasBase + canvasLvl;
             baseOffset   = canvasBase / canvasScale;
             levelSpacing = canvasLvl  / canvasScale;
