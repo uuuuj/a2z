@@ -2676,16 +2676,20 @@ namespace A2Z
             }
             if (segs.Count < 2) return;
 
-            // ── 2. 공유 꼭짓점별 ray 목록: vertexKey → [(단위2D방향, 꼭짓점3D, 반대끝3D)] ──
+            // ── 2. 공유 꼭짓점별 ray 목록: 3D 꼭짓점키 → [(단위2D방향, 꼭짓점3D, 반대끝3D)] ──
+            //   ※ 3D 좌표로 묶는다(2D 투영키 X) — 화면상 겹치지만 깊이가 달라 실제로는 안 만나는
+            //     두 모서리를 같은 꼭짓점으로 오인해 허상 각을 그리는 것을 방지.
             var vmap = new Dictionary<string, List<(float dh, float dv, VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)>>();
-            string Key2D(VIZCore3D.NET.Data.Vertex3D p) =>
-                RoundToTolerance(getH(p), segTol).ToString("F1") + "," + RoundToTolerance(getV(p), segTol).ToString("F1");
+            string Key3D(VIZCore3D.NET.Data.Vertex3D p) =>
+                RoundToTolerance(p.X, segTol).ToString("F1") + "," +
+                RoundToTolerance(p.Y, segTol).ToString("F1") + "," +
+                RoundToTolerance(p.Z, segTol).ToString("F1");
             void Reg(VIZCore3D.NET.Data.Vertex3D vtx, VIZCore3D.NET.Data.Vertex3D end)
             {
                 float dh = getH(end) - getH(vtx), dv = getV(end) - getV(vtx);
                 float len = (float)Math.Sqrt(dh * dh + dv * dv);
-                if (len <= segTol) return;
-                string key = Key2D(vtx);
+                if (len <= segTol) return;                       // 화면 투영상 점(깊이방향 모서리) → 각 판정 불가
+                string key = Key3D(vtx);
                 if (!vmap.TryGetValue(key, out var lst))
                 {
                     lst = new List<(float, float, VIZCore3D.NET.Data.Vertex3D, VIZCore3D.NET.Data.Vertex3D)>();
@@ -2696,13 +2700,13 @@ namespace A2Z
             foreach (var s in segs) { Reg(s.a, s.b); Reg(s.b, s.a); }
 
             // ── 3. 꼭짓점별 페어 → 2D 사잇각 → 90배수 제외 → AddCustom3PointAngle ──
-            //   각도 스타일: 정수 도(度) + 파랑 통일 (치수와 일관)
+            //   각도 스타일: 정수 도(度) + 파랑 통일 (치수와 일관). 전역 default를 흔들지 않게
+            //   생성한 각도 ID에만 SetStyle(id, style)로 적용.
             VIZCore3D.NET.Data.MeasureStyle angStyle = vizcore3d.Review.Measure.GetStyle();
             angStyle.NumberOfDecimalPlaces = 0;
             angStyle.FontColor = System.Drawing.Color.Blue;
             angStyle.LineColor = System.Drawing.Color.Blue;
             angStyle.ArrowColor = System.Drawing.Color.Blue;
-            vizcore3d.Review.Measure.SetStyle(angStyle);
 
             var addedKeys = new HashSet<string>();
             int marked = 0;
@@ -2727,12 +2731,16 @@ namespace A2Z
                         string dk = string.CompareOrdinal(d1, d2) <= 0 ? d1 + "|" + d2 : d2 + "|" + d1;
                         if (!dirSeen.Add(dk)) continue;
 
-                        // 전역 중복 억제 (꼭짓점+양끝, 순서무관)
-                        string e1 = Key2D(r1.end), e2 = Key2D(r2.end);
-                        string ak = Key2D(r1.vtx) + "|" + (string.CompareOrdinal(e1, e2) <= 0 ? e1 + "|" + e2 : e2 + "|" + e1);
+                        // 전역 중복 억제 (꼭짓점+양끝 3D, 순서무관)
+                        string e1 = Key3D(r1.end), e2 = Key3D(r2.end);
+                        string ak = Key3D(r1.vtx) + "|" + (string.CompareOrdinal(e1, e2) <= 0 ? e1 + "|" + e2 : e2 + "|" + e1);
                         if (!addedKeys.Add(ak)) continue;
 
-                        vizcore3d.Review.Measure.AddCustom3PointAngle(r1.vtx, r1.end, r2.end);
+                        // 꼭짓점 3D: 같은 키의 두 ray 정점 평균 (3D 묶음이라 0.5mm 이내, 방어적 통일)
+                        var vtx = new VIZCore3D.NET.Data.Vertex3D(
+                            (r1.vtx.X + r2.vtx.X) / 2f, (r1.vtx.Y + r2.vtx.Y) / 2f, (r1.vtx.Z + r2.vtx.Z) / 2f);
+                        int angId = vizcore3d.Review.Measure.AddCustom3PointAngle(vtx, r1.end, r2.end);
+                        if (angId >= 0) vizcore3d.Review.Measure.SetStyle(angId, angStyle);
                         addedHere++; marked++;
                     }
                 }
