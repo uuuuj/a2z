@@ -732,9 +732,9 @@ namespace A2Z
             return result.Count >= 2 ? result : osnaps;
         }
 
-        // ── 가공도 전용 홀/슬롯홀 추출 (GetNodeHoleInfo API) ──
-        //   현재 bom.Holes/SlotHoles는 휴리스틱(원기둥·Osnap 파싱)이라 부정확.
-        //   가공도는 SDK GetNodeHoleInfo로 직접 추출해 풍선에 사용. bom.Holes는 제작도·BOM표용으로 그대로 둠.
+        // ── 홀/슬롯홀 추출 (GetNodeHoleInfo API) — 가공도 풍선 + BOM/제작도(DetectHoles) 공용 단일 출처 ──
+        //   2026-06-23: 원기둥·Osnap 추측 휴리스틱 전면 제거 → 이 API가 홀/슬롯 검출의 유일 출처.
+        //   DetectHoles(Form1.BOM.cs)가 bom.Holes/SlotHoles를 이걸로 채우고, 가공도 풍선은 부재별로 직접 호출.
         /// <summary>
         /// 가공도 전용 — GetNodeHoleInfo로 홀(CIRCLE)·슬롯홀(SLOT_HOLE)을 추출.
         /// ⚠ 슬롯 길이(SlotLength)·Size 의미는 SDK가 직접 안 줘 잠정 매핑 + 진단 로그로 실측 중.
@@ -1375,8 +1375,8 @@ namespace A2Z
                     bom.CenterX, bom.CenterY, bom.CenterZ));
             }
 
-            // 가공도 전용: GetNodeHoleInfo API로 홀/슬롯홀 추출 (bom.Holes 휴리스틱 부정확 → API).
-            //   bom.Holes/SlotHoles는 제작도·BOM표가 쓰므로 건드리지 않고, 가공도 풍선만 API 결과 사용.
+            // 가공도 풍선: 부재별로 GetNodeHoleInfo API 직접 호출 (최신 결과 보장).
+            //   bom.Holes/SlotHoles도 2026-06-23부터 같은 API로 채워짐(DetectHoles) — 휴리스틱 폐지.
             GetMfgHolesFromApi(bom.Index, out var mfgApiHoles, out var mfgApiSlots);
 
             // 홀 풍선 수집 (API 추출)
