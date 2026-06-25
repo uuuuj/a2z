@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-23 — 도면/가공도 출력 후 3D 뷰 부드러운 음영(SMOOTH) 복원
+
+**유형**: fix (UX)
+**커밋**: `pending`
+**관련 TASK**: T-069
+
+**배경**: 치수추출·2D 도면 생성·가공도 출력·PDF 내보내기 후 3D 뷰가 은선/X-Ray 모드로 남아 불편(사용자 보고).
+
+**변경 사항**: 액션 정상 종료 직후 `View.SetRenderMode(RenderModes.SMOOTH)` + `XRay.Enable=false` 복원 3곳 추가 —
+- `GenerateSheetDrawing2D_WithExcelTemplate`(DrawingSheets.cs, 뷰 루프 종료 후)
+- `GenerateMfgDrawingManual` finally(MfgDrawing.cs, EndUpdate 앞 — 격리+SMOOTH 한 번에 commit)
+- `btnExportPDF_Click`(Drawing2D.cs, Export 직후). `ExecuteMfgDrawing`은 이미 SMOOTH라 변경 없음.
+
+**영향 범위**: 3D 뷰 렌더 모드만(2D 도면 객체 무관). 출력 결과 불변.
+
+**검증**: 각 출력 후 모델이 부드러운 음영으로 돌아오는지.
+
 ## 2026-06-23 — 홀/슬롯홀 검출 휴리스틱 전면 제거 → API 단일화
 
 **유형**: refactor (정확도·코드 정리)

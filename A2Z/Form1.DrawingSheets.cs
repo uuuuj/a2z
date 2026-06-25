@@ -1935,6 +1935,10 @@ namespace A2Z
                     viewsRendered++;
                 }
 
+                // 3D 뷰 기본(부드러운 음영) 복원 — 도면 생성 후 은선/X-Ray 잔존 방지 (2026-06-23)
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
+                if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
+
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{cameraMap.Count}");
             }
             catch (Exception ex)
