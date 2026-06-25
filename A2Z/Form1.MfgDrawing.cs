@@ -680,58 +680,6 @@ namespace A2Z
             return ApplySmartFiltering(dims, MfgMaxDimensionsPerAxis, MfgMinTextSpace);
         }
 
-        // ── 가공도 전용 osnap 뷰 선별 (제작도와 독립) ──
-        //   "그 뷰의 외곽 osnap만" (사용자 사양 2026-06-23) — 체인 치수 생성 전에 적용.
-        //   제작도는 FilterOsnapForDimAxis로 뷰별 외곽·기준점을 먼저 추리지만, 가공도엔
-        //   이 단계가 빠져 모든 osnap을 체인한 뒤 결과 치수만 솎았다. 그 결과 깊이·뒷면으로
-        //   투영되는 점까지 치수 기준점이 됐다. 여기서 화면 평면 외곽선 위의 점만 남긴다.
-        //   (단일 부재·단일 뷰라 제작도 함수를 그대로 못 써 가공도 규칙으로 따로 둠.)
-        /// <summary>
-        /// 가공도 전용 — osnap을 카메라 뷰 화면 평면(h·v)으로 투영해 외곽선 위의 점만 추린다.
-        /// 각 화면축 station(열·행)의 극점(상·하·좌·우)을 모아 실루엣 외곽을 구성하고,
-        /// 내부·깊이로 투영되는 점(뒷면 모서리·내부 구조)은 제외 → "그 뷰의 외곽 osnap만" 남는다.
-        /// 오목한 모서리(ㄱ자 앵글 안쪽·노치)도 해당 station의 극점이라 보존된다.
-        /// </summary>
-        private List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> FilterMfgOsnapForView(
-            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> osnaps, string viewDirection,
-            float bucketTol = 1.0f)
-        {
-            if (osnaps == null || osnaps.Count < 4) return osnaps;
-
-            // 화면 평면 (h: 가로, v: 세로) — viewDirection별 보이는 두 축
-            Func<VIZCore3D.NET.Data.Vertex3D, float> getH, getV;
-            switch (viewDirection)
-            {
-                case "X": getH = p => p.Y; getV = p => p.Z; break;
-                case "Y": getH = p => p.X; getV = p => p.Z; break;
-                default:  getH = p => p.X; getV = p => p.Y; break;
-            }
-
-            var keep = new Dictionary<string, (VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-            void Add((VIZCore3D.NET.Data.Vertex3D point, string nodeName) c)
-            {
-                string k = $"{getH(c.point):F1},{getV(c.point):F1}";
-                if (!keep.ContainsKey(k)) keep[k] = c;
-            }
-
-            // 1. 세로 외곽: 같은 h(열)에서 v 최소·최대 (상·하 실루엣)
-            foreach (var grp in osnaps.GroupBy(c => RoundToTolerance(getH(c.point), bucketTol)))
-            {
-                Add(grp.Aggregate((a, b) => getV(a.point) <= getV(b.point) ? a : b));
-                Add(grp.Aggregate((a, b) => getV(a.point) >= getV(b.point) ? a : b));
-            }
-            // 2. 가로 외곽: 같은 v(행)에서 h 최소·최대 (좌·우 실루엣)
-            foreach (var grp in osnaps.GroupBy(c => RoundToTolerance(getV(c.point), bucketTol)))
-            {
-                Add(grp.Aggregate((a, b) => getH(a.point) <= getH(b.point) ? a : b));
-                Add(grp.Aggregate((a, b) => getH(a.point) >= getH(b.point) ? a : b));
-            }
-
-            var result = keep.Values.ToList();
-            DiagLog($"[MfgOsnapView] view={viewDirection} 외곽 선별 {osnaps.Count} → {result.Count}점");
-            return result.Count >= 2 ? result : osnaps;
-        }
-
         // ── 홀/슬롯홀 추출 (GetNodeHoleInfo API) — 가공도 풍선 + BOM/제작도(DetectHoles) 공용 단일 출처 ──
         //   2026-06-23: 원기둥·Osnap 추측 휴리스틱 전면 제거 → 이 API가 홀/슬롯 검출의 유일 출처.
         //   DetectHoles(Form1.BOM.cs)가 bom.Holes/SlotHoles를 이걸로 채우고, 가공도 풍선은 부재별로 직접 호출.
@@ -1014,9 +962,25 @@ namespace A2Z
             mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
                 bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
 
-            // ── 5-3. 가공도 뷰 외곽 osnap 선별 (사용자 사양 2026-06-23: "그 뷰의 외곽 osnap만") ──
-            //   화면 평면 외곽선 위의 점만 남겨 내부·깊이 투영점 제거 → 체인 치수 기준점이 외곽 코너가 됨.
-            mfgOsnapWithNames = FilterMfgOsnapForView(mfgOsnapWithNames, viewDirection);
+            // ── 5-3. 가공도 osnap 4점 선별 — 제작도와 동일 알고리즘(FilterOsnapForDimAxis) ──
+            //   (사용자 사양 2026-06-23) 보는 뷰에서 가로축 max/min + 세로축 max/min 4 극점만 남기고
+            //   중복·깊이 겹침 제거. 제작도와 통일 → EA 중간 station 폭주·치수 겹침 원천 제거.
+            //   (홀 중앙점 등은 추후 이 집합에 더하기만 하면 됨)
+            {
+                var mfgOsnapMap = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>>
+                    { { bom.Index, mfgOsnapWithNames } };
+                var visAxes4 = new List<string>();
+                switch (viewDirection)
+                {
+                    case "X": visAxes4.Add("Y"); visAxes4.Add("Z"); break;
+                    case "Y": visAxes4.Add("X"); visAxes4.Add("Z"); break;
+                    default:  visAxes4.Add("X"); visAxes4.Add("Y"); break;
+                }
+                var fourPt = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                foreach (var ax in visAxes4)
+                    fourPt.AddRange(FilterOsnapForDimAxis(mfgOsnapMap, ax, viewDirection, 0.5f));
+                mfgOsnapWithNames = fourPt;
+            }
 
             // pose 갱신 — EA 분기 결과 반영
             pose.UsedMinusCamera = isMinusCameraSelected;
@@ -1046,10 +1010,8 @@ namespace A2Z
                 foreach (var ax in mfgVisibleAxes)
                     mfgDimensions.AddRange(AddChainDimensionByAxis(mergedPoints, ax, tolerance, viewDirection));
 
-                // 가공도 전용 점 선별 — 제작도와 독립 규칙 (FilterMfgDimensions).
-                //   2단계: ① osnap 외곽 선별(FilterMfgOsnapForView, 위 5-3)로 그 뷰 외곽점만 체인,
-                //   ② 결과 치수를 규칙 기반(축당 8개·겹침 회피)으로 추림. 그리기 3패스가
-                //   IsVisible+DisplayLevel을 소비하므로 선별 결과 자동 반영.
+                // 치수 후처리 — osnap은 위 5-3에서 이미 4점으로 선별되어 치수가 최소(전체 폭·높이 수준).
+                //   FilterMfgDimensions(축당 8개·겹침 회피)는 안전망(총치수 표시·중복 정리)으로 유지.
                 mfgDimensions = FilterMfgDimensions(mfgDimensions);
 
                 // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
