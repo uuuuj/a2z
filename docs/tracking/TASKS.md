@@ -671,6 +671,11 @@
 
 ## DONE (최근 20개)
 
+### T-068 — 홀/슬롯홀 검출 휴리스틱 제거 → API 단일화
+- **완료일**: 2026-06-23 (커밋 `pending`)
+- **관련**: 사용자 직접 지시 ("휴리스틱 다 지우고 API로 대체")
+- **요약**: `DetectHoles`(BOM.cs)의 원기둥·Osnap 추측 휴리스틱을 `GetNodeHoleInfo` API(`GetMfgHolesFromApi`)로 전면 교체. 휴리스틱 헬퍼(`IsCompleteCircle`·`HasSlotConnectingLines`)와 죽은 `GetHoleOrSlotForPoint` 삭제(약 790줄). `bom.Holes`/`SlotHoles`·BOM 표 홀사이즈가 API 기반. `Purpose`(EBOS)·`CircleRadius` 필드 유지. 제작도 죽은 풍선 정리는 후속.
+
 ### T-067 — 제작도 각도 표시 (부재-부재 접합 각도)
 - **완료일**: 2026-06-23 (커밋 `pending` — 재설계분)
 - **관련**: 사용자 직접 지시 (3개 요청 중 2번째). 사용자 정정: "한 부재 내부 각 말고, 부재끼리 수직·수평으로 안 만나면 표시"

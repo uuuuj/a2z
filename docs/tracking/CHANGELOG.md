@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-06-23 — 홀/슬롯홀 검출 휴리스틱 전면 제거 → API 단일화
+
+**유형**: refactor (정확도·코드 정리)
+**커밋**: `pending`
+**관련 TASK**: T-068
+
+**배경**: 기존 홀 검출은 "원기둥 body를 찾아 판재에 매칭 + Osnap 파싱"하는 추측 휴리스틱이라 부정확(홀이 별도 원기둥으로 모델링 안 되면 누락). 가공도는 이미 `GetNodeHoleInfo` API로 전환했고, 사용자 지시로 BOM·제작도까지 API로 단일화.
+
+**변경 사항**:
+- `DetectHoles`(Form1.BOM.cs) 본문을 휴리스틱 → **`GetNodeHoleInfo` API**로 전면 교체. 부재별로 `GetMfgHolesFromApi` 호출해 `bom.Holes`/`SlotHoles`를 채우고, BOM 표 홀사이즈/슬롯사이즈 문자열도 API 결과로 생성.
+- 휴리스틱 전용 헬퍼 `IsCompleteCircle`·`HasSlotConnectingLines` + 죽은 `GetHoleOrSlotForPoint` 제거 (Form1.BOM.cs **약 790줄 삭제**, 1593→857줄).
+- `GetMfgHolesFromApi`가 가공도 풍선 + BOM/제작도 공용 단일 출처가 됨.
+
+**영향 범위**: BOM 표 홀사이즈·가공도 EA 홀 치수점이 API 기반으로 전환. `Purpose`(EBOS 판정)·`CircleRadius`(원형) 필드는 유지.
+
+**검증**: BOM 표 홀사이즈가 API 값으로 채워지는지. (API 일부 홀 누락은 별도 벤더 추적.)
+
+**남은 정리**: 제작도 죽은 홀/슬롯/원형 풍선(Dimensions 740~824, 만들고 Clear됨)은 후속 삭제 예정.
+
 ## 2026-06-23 — 접합 각도 연결 판정을 Clash 표면접촉으로 (면접합 누락)
 
 **유형**: fix
