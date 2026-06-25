@@ -1822,6 +1822,15 @@ namespace A2Z
                     DiagLog($"[GenMfgManual] 가시성 복원 실패: {ex.Message}");
                 }
 
+                // 3D 뷰 기본(부드러운 음영) 복원 — 가공도 출력 후 은선/X-Ray 잔존 방지 (2026-06-23).
+                //   EndUpdate(1826) 앞에 두어 격리+SMOOTH를 한 번에 commit.
+                try
+                {
+                    vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
+                    if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
+                }
+                catch { }
+
                 // P3 #2: EndUpdate (BeginUpdate 짝) — 최종 상태(격리 복원 후)를 한 번에 화면에 반영
                 try { vizcore3d.EndUpdate(); } catch { }
             }

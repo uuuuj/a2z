@@ -109,6 +109,10 @@ namespace A2Z
 
                 vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(dlg.FileName);
 
+                // 3D 뷰 기본(부드러운 음영) 복원 — 출력 후 은선/X-Ray 잔존 방지 (2026-06-23)
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
+                if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
+
                 MessageBox.Show($"PDF 파일로 저장되었습니다.\n\n{dlg.FileName}", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
