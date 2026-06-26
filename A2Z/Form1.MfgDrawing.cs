@@ -439,6 +439,13 @@ namespace A2Z
                 return pose;
 
             const float tolerance = 0.5f;
+            // 2차 뷰도 제작도 4점 규칙 적용 (사용자 사양 2026-06-23) — 1차 뷰와 동일하게 극점만 남김.
+            {
+                var eaMap = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>>
+                    { { bom.Index, osnapPoints } };
+                var filtered = FilterOsnapForDimAxis(eaMap, pose.LongestAxis, pose.ViewDirection, tolerance);
+                if (filtered.Count >= 2) osnapPoints = filtered;
+            }
             var mergedPoints = MergeCoordinates(osnapPoints, tolerance);
             var dimensions = AddChainDimensionByAxis(
                 mergedPoints,
@@ -560,7 +567,7 @@ namespace A2Z
                 }
 
                 bool isEA = IsAngleFromSpref(bom.Index);
-                float viewGap = isEA ? Math.Min(4f, area.Height * 0.04f) : 0f;
+                float viewGap = 0f;   // 완전 밀착 (사용자 사양 2026-06-23) — EA 평면도·정면도 사이 간격 제거
                 float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
                 var pose = BuildMfgSceneCore(
@@ -586,6 +593,11 @@ namespace A2Z
                     vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
                 }
 
+                // 회전(ScreenAxisRotation) commit 강제 — BeginUpdate 안이라 캡처 전에 반영 안 될 수 있음
+                //   (Z 최장축이 세로로 박히는 버그). ExecuteMfgDrawing 미리보기가 쓰는 검증 패턴. (2026-06-23)
+                System.Windows.Forms.Application.DoEvents();
+                vizcore3d.View.GetCameraData();
+
                 int primaryObjId;
                 if (!CaptureMfgSceneToViewArea(
                     rowIdx, bom, pose,
@@ -605,6 +617,10 @@ namespace A2Z
                     {
                         var secondaryPose = BuildEaSecondaryScene(
                             bom, pose, area.Width, viewHeight);
+
+                        // 2차 뷰 회전 commit 강제 (1차와 동일 — Z 세로 버그 방지)
+                        System.Windows.Forms.Application.DoEvents();
+                        vizcore3d.View.GetCameraData();
 
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
