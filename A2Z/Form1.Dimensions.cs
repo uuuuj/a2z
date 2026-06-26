@@ -1188,13 +1188,21 @@ namespace A2Z
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
             // T-046: 모델 표면에서 ExtensionLineGap(10mm)만큼 떨어져 시작 (시각적 가독성)
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
+            // 2026-06-23: gap을 보조선 길이의 절반 이하로 제한 — 오프셋이 짧으면(가공도 보조선 축소)
+            //   고정 10mm gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
+            float e1x = originalStart.X - startVertex.X, e1y = originalStart.Y - startVertex.Y, e1z = originalStart.Z - startVertex.Z;
+            float extLen1 = (float)Math.Sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
+            float gap1 = Math.Min(ExtensionLineGap, extLen1 * 0.5f);
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(OffsetTowardLineEnd(originalStart, startVertex, ExtensionLineGap));
+            extLine1.Add(OffsetTowardLineEnd(originalStart, startVertex, gap1));
             extLine1.Add(startVertex);
             extensionLines.Add(extLine1);
 
+            float e2x = originalEnd.X - endVertex.X, e2y = originalEnd.Y - endVertex.Y, e2z = originalEnd.Z - endVertex.Z;
+            float extLen2 = (float)Math.Sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
+            float gap2 = Math.Min(ExtensionLineGap, extLen2 * 0.5f);
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(OffsetTowardLineEnd(originalEnd, endVertex, ExtensionLineGap));
+            extLine2.Add(OffsetTowardLineEnd(originalEnd, endVertex, gap2));
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
 
