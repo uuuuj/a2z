@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-06-23 — 가공도 EA 두 뷰 완전 밀착 + 2차 뷰 4점 + Z 회전 commit 보강
+
+**유형**: fix (가공도 EA 레이아웃)
+**커밋**: `pending`
+**관련 TASK**: T-070 (후속)
+
+**배경**: 사용자 사진 피드백 — ① EA 평면도·정면도 완전 밀착 요청 ② 1·2차 뷰 둘 다 4점 규칙 ③ Z 최장축이 여전히 세로로 박힘(재현 확정).
+
+**변경 사항** (`RenderMfgRowToViewArea`·`BuildEaSecondaryScene`):
+- **완전 밀착**: `viewGap`을 `0f`로 (기존 EA 4mm 간격 제거).
+- **2차 뷰 4점**: `BuildEaSecondaryScene`에도 `FilterOsnapForDimAxis`(최장축 극점) 적용 — 1차 뷰와 동일 규칙.
+- **Z 회전 commit 보강**: 두 캡처(`CaptureMfgSceneToViewArea`) 직전에 `Application.DoEvents()` + `View.GetCameraData()` 삽입. `GenerateMfgDrawingManual`의 BeginUpdate 안이라 `RotateCameraByScreenAxis(0,0,90)`이 캡처 전 미반영되던 것으로 추정 — 미리보기(`ExecuteMfgDrawing`)가 쓰는 검증 패턴.
+
+**영향 범위**: 가공도 EA 부재 PDF/2D 출력.
+
+**검증**: ① 두 뷰 붙었는지 ② Z 최장축이 가로로 눕는지 ③ 2차 뷰 치수도 정리됐는지.
+
+**남은 작업(다음)**: 치수 방향(1차=위+우 / 2차=아래+우) + 1차 뷰 맨 아래 보조선 누락 — `DrawDimension` 오프셋 매핑 확인 후.
+
 ## 2026-06-23 — 가공도 osnap을 제작도 4점 알고리즘으로 통일 (치수 폭주·겹침 해소)
 
 **유형**: refactor/fix (가공도 치수 정확도·정리)
