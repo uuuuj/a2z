@@ -1171,10 +1171,14 @@ namespace A2Z
                     {
                         if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
                             mfgAxisPosOff[pose.LongestAxis] = !isAboveWider;
+                        // 폭(높이) 치수를 화면 오른쪽으로 통일. 폭은 길이축 방향으로 오프셋되는데,
+                        //   view=Y 비회전(X 최장)은 +X가 화면 왼쪽이라 false(min)=오른쪽, 그 외는 true(max)=오른쪽.
+                        //   (사내 검증: 1·2번 부재 오른쪽 정상, 3번만 왼쪽 → 이 규칙으로 통일) 2026-06-29
+                        bool widthRight = !(pose.ViewDirection == "Y" && pose.LongestAxis != "Z");
                         foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
                         {
                             if (ax != pose.LongestAxis)
-                                mfgAxisPosOff[ax] = isLShape;
+                                mfgAxisPosOff[ax] = widthRight;
                         }
                     }
 
