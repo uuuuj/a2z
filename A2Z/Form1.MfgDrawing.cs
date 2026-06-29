@@ -343,8 +343,64 @@ namespace A2Z
                 DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN Measure 실패: {ex.Message}");
             }
 
-            DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} OK objId={objId} newScale={newScale:F3}");
+            DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} OK objId={objId} " +
+                $"newScale={newScale:F3} objW={objW:F1} objH={objH:F1} {(objW >= objH ? "가로" : "세로")}");
             return true;
+        }
+
+        /// <summary>
+        /// 화면 roll 누적·미캡처 문제 해소용 절대 카메라 방향 설정.
+        /// 현재 카메라의 방향·로컬축(SDK GetCameraViewAxis/GetCameraAxis)을 읽어,
+        /// 시선축 기준으로 up-vector만 rollDeg 회전시켜 SetCameraPosAndDirection으로 박는다.
+        /// 화면축 회전(RotateCameraByScreenAxis)은 CameraData에 미포함이라 2D 캡처가
+        /// 불안정·누적되지만, 카메라 방향/up은 캡처에 반영된다(SDK 검증 2026-06-29).
+        /// rollDeg≈0이면 회전 없이 프레이밍만(기존 비회전 뷰와 동일 동작 → 정상 뷰 무영향).
+        /// 월드 벡터를 하드코딩하지 않고 SDK가 돌려준 직교 프레임만 치환하므로 규약 안전.
+        /// </summary>
+        private void ApplyAbsoluteCameraRoll(int bomIndex, float rollDeg, float zoomRatio)
+        {
+            var targets = new List<int> { bomIndex };
+
+            if (Math.Abs(rollDeg) < 0.01f)
+            {
+                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
+                return;
+            }
+
+            List<VIZCore3D.NET.Data.Vector3D> axes = null;
+            VIZCore3D.NET.Data.Vertex3D dirV = null;
+            try
+            {
+                axes = vizcore3d.View.GetCameraAxis();        // [0]=우, [1]=상, [2]=시선
+                dirV = vizcore3d.View.GetCameraViewAxis();    // 카메라 방향
+            }
+            catch { }
+
+            if (axes == null || axes.Count < 3 || dirV == null)
+            {
+                // 폴백: 기존 화면축 회전 (절대 방향 API 실패 시 최소 동작 보장)
+                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, rollDeg);
+                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
+                return;
+            }
+
+            var up0 = axes[1];
+            var right = axes[0];
+            double r = rollDeg * Math.PI / 180.0;
+            float c = (float)Math.Cos(r);
+            float s = (float)Math.Sin(r);
+            // 시선축 기준 up 회전: up' = up·cos + right·sin  (90°→right, 180°→-up)
+            var up = new VIZCore3D.NET.Data.Vector3D(
+                up0.X * c + right.X * s,
+                up0.Y * c + right.Y * s,
+                up0.Z * c + right.Z * s);
+            var dir = new VIZCore3D.NET.Data.Vector3D(dirV.X, dirV.Y, dirV.Z);
+
+            vizcore3d.View.SetCameraPosAndDirection(
+                true, dir, up, true, new int[] { bomIndex }, zoomRatio);
+            DiagLog($"[AbsRoll] bom={bomIndex} roll={rollDeg:F0} " +
+                $"dir=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) up=({up.X:F2},{up.Y:F2},{up.Z:F2})");
         }
 
         private MfgViewPose BuildEaSecondaryScene(
@@ -359,16 +415,9 @@ namespace A2Z
             vizcore3d.Review.Measure.Clear();
             vizcore3d.ShapeDrawing.Clear();
 
-            // MoveCamera는 화면축 회전을 초기화하지 않으므로 primary 회전을 먼저 원복한다.
-            vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-            if (primaryPose.ApplyR180)
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -180);
-            if (primaryPose.ApplyZ90)
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -90);
-            if (primaryPose.OrientationAngle != 0f)
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, -primaryPose.OrientationAngle);
-
-            // 두 번째 뷰는 독립 카메라에서 다시 만든다. 이전 방식의 추가 정렬 회전은 적용하지 않는다.
+            // 두 번째 뷰는 독립 카메라에서 절대 방향으로 만든다.
+            //   절대 방향(ApplyAbsoluteCameraRoll)이라 primary 회전을 되돌릴 필요가 없다 —
+            //   MoveCamera가 깨끗한 직교 프레임을 다시 잡고, 거기서 절대 roll만 박는다(누적 0).
             if (primaryPose.LongestAxis == "Z")
             {
                 pose.ViewDirection = "X";
@@ -383,12 +432,7 @@ namespace A2Z
 
             pose.UsedMinusCamera = true;
             vizcore3d.View.MoveCamera(pose.CameraDirection);
-            vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
-            if (pose.ApplyZ90)
-            {
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
-            }
+            ApplyAbsoluteCameraRoll(bom.Index, pose.ApplyZ90 ? 90f : 0f, 1.25f);
 
             var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
             var osnapList = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
@@ -579,24 +623,13 @@ namespace A2Z
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-                vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
-                if (pose.ApplyZ90)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
-                }
-                if (pose.ApplyR180)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
-                }
-
-                // 회전(ScreenAxisRotation) commit 강제 — BeginUpdate 안이라 캡처 전에 반영 안 될 수 있음
-                //   (Z 최장축이 세로로 박히는 버그). ExecuteMfgDrawing 미리보기가 쓰는 검증 패턴. (2026-06-23)
+                // 절대 카메라 방향 — 화면 roll 누적·미캡처 문제 해소 (2026-06-29).
+                //   기존: RotateCameraByScreenAxis(화면 roll) → CameraData 미포함 + 부재·뷰
+                //   거치며 누적 → 어떤 뷰는 맞고 어떤 뷰는 세로로 박힘. 이제 ApplyAbsoluteCameraRoll로
+                //   카메라 up-vector에 직접 박아 절대화(누적 0, 캡처 반영). 비회전 뷰는 Fly만 = 기존 동일.
+                float primRoll = (pose.ApplyZ90 ? 90f : 0f) + (pose.ApplyR180 ? 180f : 0f);
+                ApplyAbsoluteCameraRoll(bom.Index, primRoll, 1.25f);
                 System.Windows.Forms.Application.DoEvents();
-                vizcore3d.View.GetCameraData();
 
                 int primaryObjId;
                 if (!CaptureMfgSceneToViewArea(
