@@ -659,8 +659,9 @@ namespace A2Z
                     isEA);
 
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-                vizcore3d.View.SilhouetteEdge = true;
-                vizcore3d.View.SilhouetteEdgeColor = Color.Green;
+                // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이
+                //   치수선·보조선과 구분이 사라진다(제작도는 캡처 직전 실루엣 미사용). 2026-06-29
+                vizcore3d.View.SilhouetteEdge = false;
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
                 System.Windows.Forms.Application.DoEvents();
