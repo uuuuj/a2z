@@ -579,25 +579,22 @@ namespace A2Z
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-                // 프레이밍은 회전 전에 한 번만. 회전 뒤에는 카메라를 다시 만지지 않는다.
-                //   회전(ScreenAxisRotation)은 CameraData에 미포함 → FlyToObject3d처럼 카메라를
-                //   다시 읽는 동작이 회전을 리셋한다(SDK 검증 2026-06-29). 미리보기(정상)는 회전을
-                //   '마지막 동작'으로 두기에 화면에 남는다. 출력도 같은 패턴으로 통일한다.
-                //   2D 재맞춤은 CaptureMfgSceneToViewArea가 별도로 수행하므로 회전 후 재프레이밍 불필요.
                 vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
                 if (pose.ApplyZ90)
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
                 }
                 if (pose.ApplyR180)
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                    vizcore3d.View.FlyToObject3d(new List<int> { bom.Index }, 1.25f);
                 }
 
-                // 회전 commit 강제 — BeginUpdate 안이라 캡처 전에 반영 안 될 수 있음.
-                //   (이제 회전이 마지막 동작이라 리셋 없이 캡처까지 살아남는다)
+                // 회전(ScreenAxisRotation) commit 강제 — BeginUpdate 안이라 캡처 전에 반영 안 될 수 있음
+                //   (Z 최장축이 세로로 박히는 버그). ExecuteMfgDrawing 미리보기가 쓰는 검증 패턴. (2026-06-23)
                 System.Windows.Forms.Application.DoEvents();
                 vizcore3d.View.GetCameraData();
 
