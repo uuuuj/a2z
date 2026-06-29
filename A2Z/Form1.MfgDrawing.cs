@@ -529,6 +529,12 @@ namespace A2Z
                 });
             bool positiveOffset = ComputePositiveOffsetByOsnapExtreme(offsetValues, modelCenter);
 
+            // 회전(Z 최장) 2차 뷰: 길이 치수를 화면 위쪽으로 강제.
+            //   +90 화면 회전으로 3D '외곽(positive)' 기준이 화면 위/아래와 어긋나, 길이가 두 뷰 사이(중간)로
+            //   떨어진다(회전 안 하는 부재는 정상). 화면 기준 고정값 사용 — 부호는 사내 검증으로 확정.
+            if (pose.LongestAxis == "Z")
+                positiveOffset = false;   // 화면 위쪽 추정값 (위가 아니면 true로 뒤집기)
+
             float chainOff1 = 50f;
             float chainOff2 = 100f;
             float maxTotalDistance = dimensions
