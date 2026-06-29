@@ -508,6 +508,7 @@ namespace A2Z
             style.ArrowSize = 5;
             style.AssistantLine = false;
             style.AlignDistanceText = true;
+            style.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽 — 치수 숫자를 치수선 바깥(모델 반대편)으로
             style.AlignDistanceTextMargine = 3;
             vizcore3d.Review.Measure.SetStyle(style);
 
@@ -1095,6 +1096,7 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;
+                    mfgStyle.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽 — 치수 숫자를 치수선 바깥(모델 반대편)으로
                     mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
