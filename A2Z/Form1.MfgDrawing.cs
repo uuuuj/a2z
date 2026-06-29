@@ -349,54 +349,50 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 부재가 현재 카메라에서 세로(화면 높이 > 너비)로 잡히면 90° 절대 롤로 가로로 만든다.
-        /// ApplyZ90 등 휴리스틱(EA·축 오검출에 취약) 대신, BBox를 현재 카메라 우/상축에
-        /// 투영해 실제 가로/세로를 직접 판정 → 부재 종류와 무관하게 항상 가로.
-        /// 회전은 SetCameraPosAndDirection으로 카메라 up-vector에 박아 2D 캡처에 반영
-        /// (화면축 회전은 CameraData 미포함이라 불안정·누적 → 폐기. up-vector 캡처 반영은
-        /// 실기 검증됨 2026-06-29). 월드 벡터 하드코딩 없이 SDK 직교축만 치환하므로 규약 안전.
+        /// 부재가 현재 카메라에서 세로로 잡히면 화면축 90° 회전으로 가로로 만든다.
+        /// 판정은 추측(BBox·축 대응) 대신 **임시 캡처의 실제 크기(objW/objH)** = ground truth.
+        /// 회전은 화면축 회전(RotateCameraByScreenAxis) — 이 방식이 2D 캡처에 반영됨이
+        /// 확인됨(up-vector 방식은 미반영이라 폐기, 2026-06-29).
+        /// 반환: 적용한 회전각(0 또는 90). 호출자는 캡처 후 -각도로 원복해 누적을 막아야 한다.
+        /// 프레이밍(Fly)을 먼저 하고, 세로면 회전 후 다시 Fly(검증된 baseline 순서: roll→Fly→capture).
         /// 이미 가로면 회전 없이 프레이밍만(정상 뷰 무영향).
         /// </summary>
-        private void OrientMemberLandscape(int bomIndex, float sizeX, float sizeY, float sizeZ, float zoomRatio)
+        private float ProbeAndRollLandscape(int bomIndex, float zoomRatio)
         {
             var targets = new List<int> { bomIndex };
+            vizcore3d.View.FlyToObject3d(targets, zoomRatio);
 
-            List<VIZCore3D.NET.Data.Vector3D> axes = null;
-            VIZCore3D.NET.Data.Vertex3D dirV = null;
+            // 실제 투영 방향을 임시 캡처로 측정 (ground truth — 축 규약 추측 제거)
+            int probe = -1;
             try
             {
-                axes = vizcore3d.View.GetCameraAxis();        // [0]=우, [1]=상, [2]=시선
-                dirV = vizcore3d.View.GetCameraViewAxis();    // 카메라 방향
+                probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             }
             catch { }
 
-            if (axes == null || axes.Count < 3 || dirV == null)
+            if (probe < 0)
             {
-                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
-                return;
+                DiagLog($"[Orient] bom={bomIndex} probe 실패 → 회전 생략");
+                return 0f;
             }
 
-            var right = axes[0];
-            var up0 = axes[1];
-            // BBox를 화면 우/상축에 투영한 길이 (직교 카메라라 |성분|·size 합)
-            float extRight = Math.Abs(right.X) * sizeX + Math.Abs(right.Y) * sizeY + Math.Abs(right.Z) * sizeZ;
-            float extUp = Math.Abs(up0.X) * sizeX + Math.Abs(up0.Y) * sizeY + Math.Abs(up0.Z) * sizeZ;
+            float pw = 0f, ph = 0f;
+            vizcore3d.Drawing2D.Object2D.GetObjectSize(probe, ref pw, ref ph);
+            try { vizcore3d.Drawing2D.Object2D.DeleteObjectBy2DView(probe); } catch { }
 
-            if (extUp <= extRight + 0.001f)
+            if (ph > pw + 0.001f)
             {
-                // 이미 가로 → 롤 불필요 (정상 뷰 무영향)
-                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
-                DiagLog($"[Orient] bom={bomIndex} 가로유지 extR={extRight:F1} extU={extUp:F1}");
-                return;
+                // 세로 → 화면축 90° 회전으로 가로화
+                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                vizcore3d.View.FlyToObject3d(targets, zoomRatio);   // baseline 순서: roll 뒤 Fly
+                DiagLog($"[Orient] bom={bomIndex} 가로전환(90°) probeW={pw:F2} probeH={ph:F2}");
+                return 90f;
             }
 
-            // 세로 → 90° 롤: 새 up = 현재 우축 (높은 축이 가로로 전환)
-            var up = new VIZCore3D.NET.Data.Vector3D(right.X, right.Y, right.Z);
-            var dir = new VIZCore3D.NET.Data.Vector3D(dirV.X, dirV.Y, dirV.Z);
-            vizcore3d.View.SetCameraPosAndDirection(
-                true, dir, up, true, new int[] { bomIndex }, zoomRatio);
-            DiagLog($"[Orient] bom={bomIndex} 가로전환(90°) extR={extRight:F1} extU={extUp:F1} " +
-                $"up=({up.X:F2},{up.Y:F2},{up.Z:F2})");
+            DiagLog($"[Orient] bom={bomIndex} 가로유지 probeW={pw:F2} probeH={ph:F2}");
+            return 0f;
         }
 
         private MfgViewPose BuildEaSecondaryScene(
@@ -428,8 +424,7 @@ namespace A2Z
 
             pose.UsedMinusCamera = true;
             vizcore3d.View.MoveCamera(pose.CameraDirection);
-            OrientMemberLandscape(bom.Index,
-                bom.MaxX - bom.MinX, bom.MaxY - bom.MinY, bom.MaxZ - bom.MinZ, 1.25f);
+            // 가로화(세로면 회전)는 캡처 직전 호출자(RenderMfgRowToViewArea)에서 ProbeAndRollLandscape로 수행.
 
             var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
             var osnapList = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
@@ -620,18 +615,20 @@ namespace A2Z
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-                // 가로 배치 — 부재가 세로로 잡히면 90° 절대 롤로 가로화 (휴리스틱 X, 실측 판정).
-                //   화면 roll(누적·미캡처) 폐기 → 카메라 up-vector에 박아 캡처 반영.
-                OrientMemberLandscape(bom.Index,
-                    bom.MaxX - bom.MinX, bom.MaxY - bom.MinY, bom.MaxZ - bom.MinZ, 1.25f);
+                // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
+                float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
                 System.Windows.Forms.Application.DoEvents();
 
                 int primaryObjId;
-                if (!CaptureMfgSceneToViewArea(
+                bool primaryOk = CaptureMfgSceneToViewArea(
                     rowIdx, bom, pose,
                     area.X, area.Y, area.Width, viewHeight,
                     isEA ? "EA primary" : "primary",
-                    out primaryObjId))
+                    out primaryObjId);
+                // 회전 원복 (누적 방지) — 캡처 성공/실패와 무관하게
+                if (primRoll != 0f)
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, -primRoll);
+                if (!primaryOk)
                 {
                     if (primaryObjId >= 0)
                         createdObjectIds.Add(primaryObjId);
@@ -646,9 +643,9 @@ namespace A2Z
                         var secondaryPose = BuildEaSecondaryScene(
                             bom, pose, area.Width, viewHeight);
 
-                        // 2차 뷰 회전 commit 강제 (1차와 동일 — Z 세로 버그 방지)
+                        // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전
+                        float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
                         System.Windows.Forms.Application.DoEvents();
-                        vizcore3d.View.GetCameraData();
 
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
@@ -657,6 +654,8 @@ namespace A2Z
                             area.Width, viewHeight,
                             "EA secondary",
                             out secondaryObjId);
+                        if (secRoll != 0f)
+                            vizcore3d.View.RotateCameraByScreenAxis(0, 0, -secRoll);
                         if (secondaryOk && secondaryObjId >= 0)
                             createdObjectIds.Add(secondaryObjId);
                         if (!secondaryOk)
