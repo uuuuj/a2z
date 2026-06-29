@@ -575,6 +575,43 @@ namespace A2Z
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
                     bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
 
+            // 2차 뷰에 폭(높이) 치수 추가 — 기존엔 길이축만 그려 부재 높이(예: 50)가 어느 뷰에도
+            //   안 나오던 문제(#3·#5). 폭 = 보이는 축 중 길이축이 아닌 것. 회전 뷰는 +깊이축이 화면
+            //   오른쪽이므로 오른쪽 배치(posOffW=true), 비회전은 외곽 휴리스틱.
+            string widthAxisSec;
+            switch (pose.ViewDirection)
+            {
+                case "X": widthAxisSec = (pose.LongestAxis == "Y") ? "Z" : "Y"; break;
+                case "Y": widthAxisSec = (pose.LongestAxis == "X") ? "Z" : "X"; break;
+                default:  widthAxisSec = (pose.LongestAxis == "X") ? "Y" : "X"; break;
+            }
+            var widthDims = AddChainDimensionByAxis(mergedPoints, widthAxisSec, tolerance, pose.ViewDirection);
+            if (widthDims.Count > 0)
+            {
+                string offAxisW = GetRemainingAxis(pose.ViewDirection, widthAxisSec);
+                float centerW = offAxisW == "X" ? (bom.MinX + bom.MaxX) / 2f
+                              : offAxisW == "Y" ? (bom.MinY + bom.MaxY) / 2f
+                              : (bom.MinZ + bom.MaxZ) / 2f;
+                var offValW = widthDims.Where(d => !d.IsTotal)
+                    .SelectMany(d => new[] { GetAxisValue(d.StartPoint, offAxisW), GetAxisValue(d.EndPoint, offAxisW) });
+                bool posOffW = ComputePositiveOffsetByOsnapExtreme(offValW, centerW);
+                if (pose.LongestAxis == "Z") posOffW = true;   // 회전 매핑: +깊이축(Z) = 화면 오른쪽
+
+                foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
+                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
+                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                foreach (var dim in widthDims.Where(d => d.IsTotal && d.IsVisible))
+                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
+                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 추가 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
+            }
+
             if (extensionLines.Count > 0)
             {
                 int shapeId = vizcore3d.ShapeDrawing.AddLine(
