@@ -330,7 +330,7 @@ namespace A2Z
                 var measureIds = measures.Where(m => m.Visible).Select(m => m.ID).ToList();
                 if (measureIds.Count > 0)
                 {
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);   // 제작도와 동일 (0.5→0.3)
                     ApplyParallelTextShift(
                         pose.ViewDirection,
                         vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
@@ -578,7 +578,7 @@ namespace A2Z
             if (extensionLines.Count > 0)
             {
                 int shapeId = vizcore3d.ShapeDrawing.AddLine(
-                    extensionLines, -1, Color.Blue, 0.3f, true);
+                    extensionLines, -1, Color.Blue, 0.15f, true);   // 제작도와 동일 (0.3→0.15)
                 if (shapeId >= 0)
                     pose.ShapeDrawingIds.Add(shapeId);
             }
@@ -1206,7 +1206,7 @@ namespace A2Z
 
                     if (mfgExtLines.Count > 0)
                     {
-                        int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Blue, 0.3f, true);  // ← 통일 Blue
+                        int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Blue, 0.15f, true);  // 제작도와 동일 (0.3→0.15)
                         if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
                     }
                 }
