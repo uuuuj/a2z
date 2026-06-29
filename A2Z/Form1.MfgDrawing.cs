@@ -413,7 +413,9 @@ namespace A2Z
             if (primaryPose.LongestAxis == "Z")
             {
                 pose.ViewDirection = "X";
-                pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.X_MINUS;
+                // 2번 뷰를 반대쪽(오른쪽)에서 — 첫 부재 두 뷰가 실제 접합 방향대로 이어지도록
+                //   (X_MINUS는 '왼쪽에서 찍은 꼴'이 되어 1번 뷰와 정합 안 됨, 2026-06-29 검증 중)
+                pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.X_PLUS;
                 pose.ApplyZ90 = true;
             }
             else
