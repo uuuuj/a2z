@@ -314,7 +314,7 @@ namespace A2Z
                 var noteIds = vizcore3d.Review.Note.Items.Select(n => n.ID).ToList();
                 if (noteIds.Count > 0)
                 {
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(6.0f);   // 홀/슬롯 풍선 글자 키움 (3.5 → 6)
                     vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
                 }
