@@ -349,23 +349,17 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 화면 roll 누적·미캡처 문제 해소용 절대 카메라 방향 설정.
-        /// 현재 카메라의 방향·로컬축(SDK GetCameraViewAxis/GetCameraAxis)을 읽어,
-        /// 시선축 기준으로 up-vector만 rollDeg 회전시켜 SetCameraPosAndDirection으로 박는다.
-        /// 화면축 회전(RotateCameraByScreenAxis)은 CameraData에 미포함이라 2D 캡처가
-        /// 불안정·누적되지만, 카메라 방향/up은 캡처에 반영된다(SDK 검증 2026-06-29).
-        /// rollDeg≈0이면 회전 없이 프레이밍만(기존 비회전 뷰와 동일 동작 → 정상 뷰 무영향).
-        /// 월드 벡터를 하드코딩하지 않고 SDK가 돌려준 직교 프레임만 치환하므로 규약 안전.
+        /// 부재가 현재 카메라에서 세로(화면 높이 > 너비)로 잡히면 90° 절대 롤로 가로로 만든다.
+        /// ApplyZ90 등 휴리스틱(EA·축 오검출에 취약) 대신, BBox를 현재 카메라 우/상축에
+        /// 투영해 실제 가로/세로를 직접 판정 → 부재 종류와 무관하게 항상 가로.
+        /// 회전은 SetCameraPosAndDirection으로 카메라 up-vector에 박아 2D 캡처에 반영
+        /// (화면축 회전은 CameraData 미포함이라 불안정·누적 → 폐기. up-vector 캡처 반영은
+        /// 실기 검증됨 2026-06-29). 월드 벡터 하드코딩 없이 SDK 직교축만 치환하므로 규약 안전.
+        /// 이미 가로면 회전 없이 프레이밍만(정상 뷰 무영향).
         /// </summary>
-        private void ApplyAbsoluteCameraRoll(int bomIndex, float rollDeg, float zoomRatio)
+        private void OrientMemberLandscape(int bomIndex, float sizeX, float sizeY, float sizeZ, float zoomRatio)
         {
             var targets = new List<int> { bomIndex };
-
-            if (Math.Abs(rollDeg) < 0.01f)
-            {
-                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
-                return;
-            }
 
             List<VIZCore3D.NET.Data.Vector3D> axes = null;
             VIZCore3D.NET.Data.Vertex3D dirV = null;
@@ -378,29 +372,31 @@ namespace A2Z
 
             if (axes == null || axes.Count < 3 || dirV == null)
             {
-                // 폴백: 기존 화면축 회전 (절대 방향 API 실패 시 최소 동작 보장)
-                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, rollDeg);
                 vizcore3d.View.FlyToObject3d(targets, zoomRatio);
                 return;
             }
 
-            var up0 = axes[1];
             var right = axes[0];
-            double r = rollDeg * Math.PI / 180.0;
-            float c = (float)Math.Cos(r);
-            float s = (float)Math.Sin(r);
-            // 시선축 기준 up 회전: up' = up·cos + right·sin  (90°→right, 180°→-up)
-            var up = new VIZCore3D.NET.Data.Vector3D(
-                up0.X * c + right.X * s,
-                up0.Y * c + right.Y * s,
-                up0.Z * c + right.Z * s);
-            var dir = new VIZCore3D.NET.Data.Vector3D(dirV.X, dirV.Y, dirV.Z);
+            var up0 = axes[1];
+            // BBox를 화면 우/상축에 투영한 길이 (직교 카메라라 |성분|·size 합)
+            float extRight = Math.Abs(right.X) * sizeX + Math.Abs(right.Y) * sizeY + Math.Abs(right.Z) * sizeZ;
+            float extUp = Math.Abs(up0.X) * sizeX + Math.Abs(up0.Y) * sizeY + Math.Abs(up0.Z) * sizeZ;
 
+            if (extUp <= extRight + 0.001f)
+            {
+                // 이미 가로 → 롤 불필요 (정상 뷰 무영향)
+                vizcore3d.View.FlyToObject3d(targets, zoomRatio);
+                DiagLog($"[Orient] bom={bomIndex} 가로유지 extR={extRight:F1} extU={extUp:F1}");
+                return;
+            }
+
+            // 세로 → 90° 롤: 새 up = 현재 우축 (높은 축이 가로로 전환)
+            var up = new VIZCore3D.NET.Data.Vector3D(right.X, right.Y, right.Z);
+            var dir = new VIZCore3D.NET.Data.Vector3D(dirV.X, dirV.Y, dirV.Z);
             vizcore3d.View.SetCameraPosAndDirection(
                 true, dir, up, true, new int[] { bomIndex }, zoomRatio);
-            DiagLog($"[AbsRoll] bom={bomIndex} roll={rollDeg:F0} " +
-                $"dir=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) up=({up.X:F2},{up.Y:F2},{up.Z:F2})");
+            DiagLog($"[Orient] bom={bomIndex} 가로전환(90°) extR={extRight:F1} extU={extUp:F1} " +
+                $"up=({up.X:F2},{up.Y:F2},{up.Z:F2})");
         }
 
         private MfgViewPose BuildEaSecondaryScene(
@@ -432,7 +428,8 @@ namespace A2Z
 
             pose.UsedMinusCamera = true;
             vizcore3d.View.MoveCamera(pose.CameraDirection);
-            ApplyAbsoluteCameraRoll(bom.Index, pose.ApplyZ90 ? 90f : 0f, 1.25f);
+            OrientMemberLandscape(bom.Index,
+                bom.MaxX - bom.MinX, bom.MaxY - bom.MinY, bom.MaxZ - bom.MinZ, 1.25f);
 
             var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
             var osnapList = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
@@ -623,12 +620,10 @@ namespace A2Z
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-                // 절대 카메라 방향 — 화면 roll 누적·미캡처 문제 해소 (2026-06-29).
-                //   기존: RotateCameraByScreenAxis(화면 roll) → CameraData 미포함 + 부재·뷰
-                //   거치며 누적 → 어떤 뷰는 맞고 어떤 뷰는 세로로 박힘. 이제 ApplyAbsoluteCameraRoll로
-                //   카메라 up-vector에 직접 박아 절대화(누적 0, 캡처 반영). 비회전 뷰는 Fly만 = 기존 동일.
-                float primRoll = (pose.ApplyZ90 ? 90f : 0f) + (pose.ApplyR180 ? 180f : 0f);
-                ApplyAbsoluteCameraRoll(bom.Index, primRoll, 1.25f);
+                // 가로 배치 — 부재가 세로로 잡히면 90° 절대 롤로 가로화 (휴리스틱 X, 실측 판정).
+                //   화면 roll(누적·미캡처) 폐기 → 카메라 up-vector에 박아 캡처 반영.
+                OrientMemberLandscape(bom.Index,
+                    bom.MaxX - bom.MinX, bom.MaxY - bom.MinY, bom.MaxZ - bom.MinZ, 1.25f);
                 System.Windows.Forms.Application.DoEvents();
 
                 int primaryObjId;
