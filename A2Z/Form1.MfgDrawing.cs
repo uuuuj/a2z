@@ -2427,6 +2427,27 @@ namespace A2Z
                 }
             }
 
+            // 가시축(깊이축 제외) 극점은 실루엣 외곽이라 뒷면이어도 보존.
+            //   앵글의 먼쪽 세로 플랜지(높이 50)가 깊이 뒷면에 있으면 통째로 지워져 앞쪽 두께(8)만 남던 문제
+            //   → 2번 뷰 전체 세로 길이 누락. 가시축 max/min 점을 복원해 4점 필터가 전체 높이를 잡게 한다.
+            if (filtered.Count > 0)
+            {
+                Func<VIZCore3D.NET.Data.Vertex3D, string, float> axOf =
+                    (p, a) => a == "X" ? p.X : a == "Y" ? p.Y : p.Z;
+                string[] visAxesH = viewDirection == "X" ? new[] { "Y", "Z" }
+                                  : viewDirection == "Y" ? new[] { "X", "Z" }
+                                  : new[] { "X", "Y" };
+                foreach (var ax in visAxesH)
+                {
+                    var mx = osnapList.Aggregate((a, b) => axOf(a.point, ax) >= axOf(b.point, ax) ? a : b);
+                    var mn = osnapList.Aggregate((a, b) => axOf(a.point, ax) <= axOf(b.point, ax) ? a : b);
+                    if (!filtered.Any(p => p.point.X == mx.point.X && p.point.Y == mx.point.Y && p.point.Z == mx.point.Z))
+                        filtered.Add(mx);
+                    if (!filtered.Any(p => p.point.X == mn.point.X && p.point.Y == mn.point.Y && p.point.Z == mn.point.Z))
+                        filtered.Add(mn);
+                }
+            }
+
             // 필터 후 포인트가 없으면 원본 유지
             return filtered.Count > 0 ? filtered : osnapList;
         }
