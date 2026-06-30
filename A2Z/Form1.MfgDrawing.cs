@@ -435,9 +435,11 @@ namespace A2Z
                     }
                     if (q0 == null || q1 == null) continue;
 
-                    float dX = Math.Abs(q0.X - q1.X), dY = Math.Abs(q0.Y - q1.Y), dZ = Math.Abs(q0.Z - q1.Z);
-                    string measAxis = (dX >= dY && dX >= dZ) ? "X" : (dY >= dZ ? "Y" : "Z");
-                    string offAx = visAxes[0] == measAxis ? visAxes[1] : visAxes[0];
+                    // 오프셋축 = 끝점이 일정한(차이 ≈ 0) 가시축. (측정축을 "최대 차이"로 잡으면
+                    //   앵글의 깊이 차이가 측정값만큼 커서 오검출 → 텍스트가 치수선 따라 옆으로 밀림)
+                    float d0 = Math.Abs(axOf(q0, visAxes[0]) - axOf(q1, visAxes[0]));
+                    float d1 = Math.Abs(axOf(q0, visAxes[1]) - axOf(q1, visAxes[1]));
+                    string offAx = d0 <= d1 ? visAxes[0] : visAxes[1];
 
                     float offVal = axOf(q0, offAx);
                     float cen = offAx == "X" ? (bom.MinX + bom.MaxX) / 2f
