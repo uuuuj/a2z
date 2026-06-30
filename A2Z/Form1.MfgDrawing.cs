@@ -260,6 +260,9 @@ namespace A2Z
                 return false;
             }
 
+            // 모델 은선 두께 — 제작도(DrawingSheets.cs:1636)와 동일 API. Set2DViewCreateObjectItemLineWidth와
+            //   별개(이건 2D 개체 생성 라인폭). 라이브 가공도 캡처가 이걸 누락해 모델선이 가늘게 나오던 문제 교정 (전수조사 2026-07-01).
+            vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
@@ -331,6 +334,7 @@ namespace A2Z
                 if (measureIds.Count > 0)
                 {
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);   // 제작도와 동일 (0.5→0.3)
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);   // 제작도(DrawingSheets.cs:1638)와 동일 — 라이브 가공도 누락분
                     ApplyParallelTextShift(
                         pose.ViewDirection,
                         vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
@@ -653,7 +657,8 @@ namespace A2Z
                 availH,
                 pose.ViewDirection,
                 new List<int> { bom.Index },
-                1.0f);
+                1.0f,
+                true);   // 가로 정규화 — 캡처(landscape 회전)와 estScale 일치 (보조선 길이 통일)
             if (canvasScale > 0f)
             {
                 ComputeCanvasAbsoluteOffsets(canvasScale, out float baseOff, out float levelSpacing, out _,
@@ -1291,7 +1296,7 @@ namespace A2Z
                     float mfgChainOff1, mfgChainOff2;
                     float mfgCanvasScale = -1f;
                     if (availW > 0f && availH > 0f)
-                        mfgCanvasScale = EstimateFitScaleForViewArea(availW, availH, viewDirection, new List<int> { bom.Index }, 1.0f);
+                        mfgCanvasScale = EstimateFitScaleForViewArea(availW, availH, viewDirection, new List<int> { bom.Index }, 1.0f, true);
 
                     if (mfgCanvasScale > 0f)
                     {

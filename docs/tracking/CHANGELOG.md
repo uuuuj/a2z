@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-07-01 — 가공도 모델 굵기·보조선 통일·텍스트 거리 (제작도 전수 대조)
+
+**유형**: fix (가공도 출력 품질)
+**커밋**: `pending`
+**관련 TASK**: T-073 (가공도 EA 치수 배치)
+
+**배경**: 사용자 — "제작도는 모델 굵기·보조선 길이 통일·텍스트 바깥이 다 되는데 가공도만 안 된다. 전수조사해." 다중 에이전트 워크플로(제작도 작동 vs 가공도 미작동 3증상 대조 + 적대 검증)로 근본 원인 2개 확정.
+
+**근본 원인**:
+1. **모델 굵기**: 라이브 캡처(`CaptureMfgSceneToViewArea`)가 `ModelLineThickness` 미설정. 제작도(`DrawingSheets.cs:1636`)·죽은 가공도(2145)는 설정. `Set2DViewCreateObjectItemLineWidth(2.0)`는 모델 은선 두께와 별개 API라 무력. (실루엣 가설은 적대 검증으로 반증 — 제작도는 `SilhouetteEdge=true`로도 굵게 나옴)
+2. **보조선 길이·텍스트 거리**(같은 뿌리): 오프셋을 `EstimateFitScaleForViewArea`(회전 전 BBox)로 추정하나, 실제 캡처는 `ProbeAndRollLandscape`가 세로 부재를 90° 회전한 가로 투영(`newScale`)으로 그림 → 회전 부재만 W/H swap으로 `estScale≠newScale` → 보조선 길이·텍스트 밀기 거리 어긋남.
+
+**변경 사항**:
+- `CaptureMfgSceneToViewArea`: `ModelLineThickness=3.0f` + `Set2DViewCreateObjectItemMeasureTextHeight(10f)` 추가 (제작도와 동일).
+- `EstimateFitScaleForViewArea`: `normalizeLandscape` 옵션 추가(기본 false). true면 긴 변=W·짧은 변=H로 정규화 → 캡처(항상 landscape)와 estScale 일치. 가공도 두 호출(`BuildMfgSceneCore`·`BuildEaSecondaryScene`)만 true.
+
+**영향 범위**: 가공도 PDF/2D 출력만. 제작도는 mfg 전용 함수 미수정 + `normalizeLandscape` 기본 false라 무영향.
+
+**검증**: ① 모델선이 제작도처럼 굵은지 ② 부재·뷰 무관 보조선 길이 통일됐는지 ③ 치수 텍스트가 치수선 너머(바깥)로 나오는지.
+
 ## 2026-06-23 — 치수 보조선 gap 적응 (짧은 보조선 누락 해소)
 
 **유형**: fix (치수 보조선)
