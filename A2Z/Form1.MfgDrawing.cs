@@ -297,6 +297,11 @@ namespace A2Z
                 areaX + areaWidth / 2f,
                 areaY + areaHeight / 2f);
 
+            // 보조선·치수를 '확정된 실측 배율(newScale)'로 지금 그린다 — 캔버스 절대 오프셋이 부재·뷰 무관 일정.
+            //   (코어는 pose.PendingDims로 목록만 수집) 설계 §4.4 v2-c, 2026-07-01
+            try { DrawMfgDimsAtScale(pose, bom, newScale); }
+            catch (Exception ex) { DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN DimDraw 실패: {ex.Message}"); }
+
             try
             {
                 if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
@@ -405,6 +410,46 @@ namespace A2Z
         }
 
         /// <summary>
+        /// <summary>
+        /// 가공도 보조선·치수를 '모델 2D 캡처 + RescaleObject 후 확정된 실측 배율(newScale)'로 그린다.
+        /// 추정 스케일이 아닌 실측을 써야 보조선 길이 = 캔버스 절대값(2/4mm)으로 부재·뷰 무관 일정해짐 (설계 §4.4 v2-c).
+        /// pose.PendingDims = BuildMfgSceneCore/BuildEaSecondaryScene가 수집한 그릴 목록(offset 미적용).
+        /// 캡처 간 측정 격리: EA 1차/2차가 각자 캡처 직전에 호출되므로, 직전 뷰의 3D 측정·보조선을 먼저 비운다
+        /// (이미 2D로 변환됐으므로 3D 원본 제거는 무해).
+        /// </summary>
+        private void DrawMfgDimsAtScale(MfgViewPose pose, BOMData bom, float newScale)
+        {
+            if (pose == null || pose.PendingDims == null || pose.PendingDims.Count == 0) return;
+            if (newScale <= 0f || float.IsNaN(newScale) || float.IsInfinity(newScale)) return;
+
+            // 직전 뷰(EA 1차)의 3D 측정·보조선 제거 — 이 뷰 측정만 2D로 변환되게.
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+            pose.ShapeDrawingIds.Clear();
+
+            // 실측 배율로 캔버스 절대 오프셋(가공도 2/4mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
+            ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
+                MfgCanvasBaseOff, MfgCanvasLvlSp);
+            int maxLevel = pose.PendingDims.Any(d => d.Level == 1) ? 2 : 1;
+            float off0 = baseOff, off1 = baseOff + lvlSp, off2 = baseOff + lvlSp * maxLevel;
+
+            var extLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
+            foreach (var pd in pose.PendingDims)
+            {
+                float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
+                DrawDimension(pd.Start, pd.End, pd.Axis, off,
+                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
+            }
+            if (extLines.Count > 0)
+            {
+                int shapeId = vizcore3d.ShapeDrawing.AddLine(extLines, -1, System.Drawing.Color.Blue, 0.15f, true);
+                if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
+            }
+            DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
+                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} dims={pose.PendingDims.Count}");
+        }
+
         /// 가공도 치수 텍스트를 치수선 바깥(모델 반대편)으로 민다. 캡처 직전(Add2DMeasureFrom3DMeasure 앞)에서 호출해야 반영됨.
         /// SDK 기본은 안쪽 + AlignDistanceTextPosition 무효 + ApplyParallelTextShift는 작은 부재(maxEstDist≤100) skip → 직접 좌표 지정.
         /// 측정 기하에서 측정축/오프셋축을 구해, 모델 중심 반대쪽으로 치수선 너머로 텍스트를 이동.
@@ -642,50 +687,18 @@ namespace A2Z
             if (pose.LongestAxis == "Z")
                 positiveOffset = false;   // 화면 위쪽 추정값 (위가 아니면 true로 뒤집기)
 
-            float chainOff1 = 50f;
-            float chainOff2 = 100f;
-            float maxTotalDistance = dimensions
-                .Where(d => d.IsTotal && d.IsVisible)
-                .Select(d => Math.Abs(
-                    GetAxisValue(d.EndPoint, d.Axis) - GetAxisValue(d.StartPoint, d.Axis)))
-                .DefaultIfEmpty(0f)
-                .Max();
-            float totalOff = maxTotalDistance > 1000f ? 300f : 250f;
-
-            float canvasScale = EstimateFitScaleForViewArea(
-                availW,
-                availH,
-                pose.ViewDirection,
-                new List<int> { bom.Index },
-                1.0f,
-                true);   // 가로 정규화 — 캡처(landscape 회전)와 estScale 일치 (보조선 길이 통일)
-            if (canvasScale > 0f)
+            // 보조선·치수 '그리기'는 캡처 직후 실측 newScale로(DrawMfgDimsAtScale). 여기선 목록만 수집.
+            //   길이축(positiveOffset) 먼저. 2026-07-01
+            foreach (var dim in dimensions.Where(d => d.IsVisible))
             {
-                ComputeCanvasAbsoluteOffsets(canvasScale, out float baseOff, out float levelSpacing, out _,
-                    MfgCanvasBaseOff, MfgCanvasLvlSp);   // 가공도 전용 축소 (1단 2·전체 4mm)
-                int maxLevel = dimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
-                chainOff1 = baseOff;
-                chainOff2 = baseOff + levelSpacing;
-                totalOff = baseOff + levelSpacing * maxLevel;
+                int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                pose.PendingDims.Add(new MfgPendingDim
+                {
+                    Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = positiveOffset
+                });
             }
 
-            var extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
-            foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
-                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
-                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
-            foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
-                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
-                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
-            foreach (var dim in dimensions.Where(d => d.IsTotal && d.IsVisible))
-                DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
-                    bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
-
-            // 2차 뷰에 폭(높이) 치수 추가 — 기존엔 길이축만 그려 부재 높이(예: 50)가 어느 뷰에도
-            //   안 나오던 문제(#3·#5). 폭 = 보이는 축 중 길이축이 아닌 것. 회전 뷰는 +깊이축이 화면
-            //   오른쪽이므로 오른쪽 배치(posOffW=true), 비회전은 외곽 휴리스틱.
+            // 2차 뷰에 폭(높이) 치수 추가 — 폭 = 보이는 축 중 길이축이 아닌 것. 세로(폭)는 화면 오른쪽으로(MfgHeightToRight).
             string widthAxisSec;
             switch (pose.ViewDirection)
             {
@@ -696,36 +709,16 @@ namespace A2Z
             var widthDims = AddChainDimensionByAxis(mergedPoints, widthAxisSec, tolerance, pose.ViewDirection);
             if (widthDims.Count > 0)
             {
-                string offAxisW = GetRemainingAxis(pose.ViewDirection, widthAxisSec);
-                float centerW = offAxisW == "X" ? (bom.MinX + bom.MaxX) / 2f
-                              : offAxisW == "Y" ? (bom.MinY + bom.MaxY) / 2f
-                              : (bom.MinZ + bom.MaxZ) / 2f;
-                var offValW = widthDims.Where(d => !d.IsTotal)
-                    .SelectMany(d => new[] { GetAxisValue(d.StartPoint, offAxisW), GetAxisValue(d.EndPoint, offAxisW) });
-                // 세로(폭) 치수는 화면 오른쪽으로 — 실제 카메라 투영으로 계산(부재 일반화)
-                bool posOffW = MfgHeightToRight(offAxisW);
-
-                foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
-                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
-                foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
-                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
-                foreach (var dim in widthDims.Where(d => d.IsTotal && d.IsVisible))
-                    DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
-                        bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
-                DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 추가 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
-            }
-
-            if (extensionLines.Count > 0)
-            {
-                int shapeId = vizcore3d.ShapeDrawing.AddLine(
-                    extensionLines, -1, Color.Blue, 0.15f, true);   // 제작도와 동일 (0.3→0.15)
-                if (shapeId >= 0)
-                    pose.ShapeDrawingIds.Add(shapeId);
+                bool posOffW = MfgHeightToRight(GetRemainingAxis(pose.ViewDirection, widthAxisSec));
+                foreach (var dim in widthDims.Where(d => d.IsVisible))
+                {
+                    int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                    pose.PendingDims.Add(new MfgPendingDim
+                    {
+                        Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = posOffW
+                    });
+                }
+                DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 수집 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
             }
 
             DiagLog($"[EA Secondary] bom={bom.Index} view={pose.ViewDirection} " +
@@ -1287,74 +1280,18 @@ namespace A2Z
                         }
                     }
 
-                    var mfgExtLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
-
-                    // 보조선 길이 결정.
-                    // 2D 출력(availW>0): 제작도와 동일 원리 — 캔버스 절대 5/10mm를 추정 fit scale로 역산 (공용 헬퍼).
-                    //   가공도 칸은 모델 100% 채움 → fitFactor=1.0 (제작도는 0.65/0.70).
-                    // 3D 미리보기(availW<=0): 기존 모델좌표 offFactor 유지.
-                    float mfgChainOff1, mfgChainOff2;
-                    float mfgCanvasScale = -1f;
-                    if (availW > 0f && availH > 0f)
-                        mfgCanvasScale = EstimateFitScaleForViewArea(availW, availH, viewDirection, new List<int> { bom.Index }, 1.0f, true);
-
-                    if (mfgCanvasScale > 0f)
+                    // 보조선·치수 '그리기'는 캡처 직후 확정된 실측 newScale로 수행(DrawMfgDimsAtScale).
+                    //   추정 스케일(EstimateFitScaleForViewArea, BBox 기반)은 2D 은선 투영 실측과 달라
+                    //   보조선 길이가 부재·뷰마다 어긋났음(설계 §4.4 v2-c). 여기선 그릴 목록만 수집(offset 미적용). 2026-07-01
+                    foreach (var dim in mfgDimensions.Where(d => d.IsVisible))
                     {
-                        ComputeCanvasAbsoluteOffsets(mfgCanvasScale, out float mfgBaseOff, out float mfgLvlSp, out _,
-                            MfgCanvasBaseOff, MfgCanvasLvlSp);   // 가공도 전용 축소 (1단 2·전체 4mm)
-                        int mfgMaxLevel = mfgDimensions.Any(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0) ? 2 : 1;
-                        mfgChainOff1 = mfgBaseOff;                          // DisplayLevel==0 (제작도 level1)
-                        mfgChainOff2 = mfgBaseOff + mfgLvlSp;               // DisplayLevel>0  (제작도 level2)
-                        mfgTotalOff  = mfgBaseOff + mfgLvlSp * mfgMaxLevel; // IsTotal         (제작도 level0)
-                        DiagLog($"가공도 보조선 절대 bom={bom.Index} view={viewDirection} estScale={mfgCanvasScale:F4} off1={mfgChainOff1:F2} off2={mfgChainOff2:F2} total={mfgTotalOff:F2}");
-                    }
-                    else
-                    {
-                        // 기존 모델좌표 offFactor (3D 미리보기 경로)
-                        float visExt1 = 0f, visExt2 = 0f;
-                        switch (viewDirection)
+                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
+                        int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                        pose.PendingDims.Add(new MfgPendingDim
                         {
-                            case "X": visExt1 = bom.MaxY - bom.MinY; visExt2 = bom.MaxZ - bom.MinZ; break;
-                            case "Y": visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxZ - bom.MinZ; break;
-                            default:  visExt1 = bom.MaxX - bom.MinX; visExt2 = bom.MaxY - bom.MinY; break;
-                        }
-                        float minVisExtent = Math.Min(visExt1, visExt2);
-                        float offFactor = (minVisExtent < 100f) ? 0.5f : 1.0f;
-                        mfgChainOff1 = 50.0f * offFactor;
-                        mfgChainOff2 = 100.0f * offFactor;
-                        mfgTotalOff *= offFactor;
-                    }
-
-                    // 3 패스: level=0 / level>0 / IsTotal
-                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
-                    {
-                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff1,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
-                    }
-                    foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
-                    {
-                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff2,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
-                    }
-                    foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
-                    {
-                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
-                        bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
-                        DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
-                            mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
-                    }
-
-                    if (mfgExtLines.Count > 0)
-                    {
-                        int shapeId = vizcore3d.ShapeDrawing.AddLine(mfgExtLines, -1, System.Drawing.Color.Blue, 0.15f, true);  // 제작도와 동일 (0.3→0.15)
-                        if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
+                            Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = posOff
+                        });
                     }
                 }
             }
