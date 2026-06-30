@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-07-01 — 가공도 보조선·텍스트: 캡처 후 실측 newScale로 그리기 (구조 재설계)
+
+**유형**: fix (가공도 출력 품질) — 직전 추정-스케일 방식 폐기·대체
+**커밋**: `pending`
+**관련 TASK**: T-073 / 설계: `docs/리팩토링/가공도-보조선-제작도통일.md` §4.4 v2-c
+
+**배경**: 직전 커밋(`7c5c48f`)의 "가로 정규화"로도 보조선·텍스트가 **"그대로"**(사용자 사내 검증). 모델 굵기만 해결. 원인: 보조선 길이 = `offset × 0.75 × 실측배율`인데 `offset = 캔버스값 / 추정배율`. 추정(`EstimateFitScaleForViewArea`, BBox+fitFactor)은 **실제 2D 은선 투영 실측(`fitRatio=Min(area/objW,area/objH)`)과 원리상 달라**, W/H만 정규화해도 불일치 잔존(설계 §4.4 기술).
+
+**변경 사항** (구조 재설계 — 설계 문서 v2-c 구현):
+- 보조선·치수 **그리기**를 `BuildMfgSceneCore`·`BuildEaSecondaryScene`에서 **분리** → 데이터(그릴 목록)만 `pose.PendingDims`로 수집(offset 미적용).
+- 모델 2D 캡처 + `RescaleObject` **직후** 확정된 실측 `newScale`로 `DrawMfgDimsAtScale` 호출 → `ComputeCanvasAbsoluteOffsets(newScale, 2/4mm)`로 offset 산출 후 그림. 추정 오차 0.
+- 보조선 길이가 캔버스 절대 2/4mm로 **부재·뷰 무관 일정**. 텍스트 밀기(`PushMfgDimTextOutside`)도 offset 정상화로 함께 교정(같은 뿌리).
+- EA 1차/2차 캡처 간 3D 측정·보조선 격리(`DrawMfgDimsAtScale` 진입 시 Clear) — 1차 치수의 2차 뷰 누출 방지.
+- 직전 `normalizeLandscape`(추정 방식) 되돌림.
+
+**영향 범위**: 가공도 PDF 라이브 경로(`RenderMfgRowToViewArea`→`CaptureMfgSceneToViewArea`)만. 제작도 무영향(`ComputeCanvasAbsoluteOffsets` 기본 5/5·`DrawDimension` 기존 호출 불변).
+
+**검증**: ① 보조선 길이 부재·뷰 무관 일정 ② 치수 텍스트 치수선 너머(바깥) ③ 모델 굵기 유지.
+
 ## 2026-07-01 — 가공도 모델 굵기·보조선 통일·텍스트 거리 (제작도 전수 대조)
 
 **유형**: fix (가공도 출력 품질)

@@ -16,6 +16,18 @@
 namespace A2Z
 {
     /// <summary>
+    /// 가공도에서 캡처 후 실측 배율로 그릴 치수 한 건 (offset 미적용). Level: 0=체인1·1=체인2·2=전체.
+    /// </summary>
+    internal sealed class MfgPendingDim
+    {
+        public VIZCore3D.NET.Data.Vector3D Start;
+        public VIZCore3D.NET.Data.Vector3D End;
+        public string Axis;
+        public int Level;     // 0=chain1, 1=chain2, 2=total
+        public bool PosOff;
+    }
+
+    /// <summary>
     /// 가공도 3D 장면 생성 결과. BuildMfgSceneCore가 반환, 호출자가 후속 적용(회전·뷰 유지·2D 캡처)에 사용.
     /// </summary>
     internal sealed class MfgViewPose
@@ -36,6 +48,13 @@ namespace A2Z
         /// 수동 어댑터(ExecuteMfgDrawing)는 3D 시각화만 하므로 미사용.
         /// </summary>
         public System.Collections.Generic.List<int> ShapeDrawingIds { get; set; } = new System.Collections.Generic.List<int>();
+
+        /// <summary>
+        /// 그릴 치수 목록 (offset 미적용). BuildMfgSceneCore/BuildEaSecondaryScene가 수집하고,
+        /// CaptureMfgSceneToViewArea가 모델 캡처 후 확정된 실측 newScale로 DrawMfgDimsAtScale에서 그린다.
+        /// 추정 스케일(EstimateFitScaleForViewArea)은 2D 은선 투영 실측과 달라 보조선 길이가 어긋났음 (설계 §4.4 v2-c, 2026-07-01).
+        /// </summary>
+        public System.Collections.Generic.List<MfgPendingDim> PendingDims { get; set; } = new System.Collections.Generic.List<MfgPendingDim>();
 
         /// <summary>
         /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).

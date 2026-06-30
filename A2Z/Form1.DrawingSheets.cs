@@ -2092,7 +2092,7 @@ namespace A2Z
         /// 사용자 사양: Z=0.65 / X·Y=0.70 (모델 차지 비율). ShowAllDimensions 보조선 위치 계산 기준.
         /// 모델 RescaleObject 시점의 shrinkFactor와 동일 값을 유지해야 보조선이 모델 fit 결과와 일치.
         /// </summary>
-        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices, float fitFactorOverride = -1f, bool normalizeLandscape = false)
+        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices, float fitFactorOverride = -1f)
         {
             float minX = float.MaxValue, maxX = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
@@ -2121,15 +2121,6 @@ namespace A2Z
                 default:  modelW = maxX - minX; modelH = maxY - minY; break;  // "Z"/null
             }
             if (modelW < 1e-3f || modelH < 1e-3f) return 1f;
-
-            // 가공도 전용: 캡처 직전 ProbeAndRollLandscape가 세로 부재를 화면축 90° 회전해 항상 '가로'로
-            //   눕히므로, 추정 스케일도 긴 변=W·짧은 변=H로 정규화해야 실제 캡처 fitRatio와 일치한다.
-            //   (제작도는 회전 없이 ApplyOrientationRotation을 쓰므로 normalizeLandscape=false → 영향 없음.)
-            //   이게 부재마다·뷰마다 보조선 길이가 달라지던 근본 원인(estScale≠newScale)을 제거한다. 2026-07-01
-            if (normalizeLandscape && modelH > modelW)
-            {
-                float t = modelW; modelW = modelH; modelH = t;
-            }
 
             // 사용자 사양 (2026-05-14): Z=0.65 / X·Y=0.70 — RescaleObject shrinkFactor와 동일 유지
             float fitFactor = fitFactorOverride > 0f ? fitFactorOverride : ((viewDirection == "Z") ? 0.65f : 0.70f);
