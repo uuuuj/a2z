@@ -565,15 +565,15 @@ namespace A2Z
             foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                 DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
             foreach (var dim in dimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
                 DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
             foreach (var dim in dimensions.Where(d => d.IsTotal && d.IsVisible))
                 DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, positiveOffset, true);
 
             // 2차 뷰에 폭(높이) 치수 추가 — 기존엔 길이축만 그려 부재 높이(예: 50)가 어느 뷰에도
             //   안 나오던 문제(#3·#5). 폭 = 보이는 축 중 길이축이 아닌 것. 회전 뷰는 +깊이축이 화면
@@ -600,15 +600,15 @@ namespace A2Z
                 foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
                         bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
                 foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff2,
                         bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
                 foreach (var dim in widthDims.Where(d => d.IsTotal && d.IsVisible))
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, totalOff,
                         bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extensionLines,
-                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW);
+                        bom.MaxX, bom.MaxY, bom.MaxZ, posOffW, true);
                 DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 추가 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
             }
 
@@ -1227,7 +1227,7 @@ namespace A2Z
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff1,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
                     }
                     foreach (var dim in mfgDimensions.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel > 0))
                     {
@@ -1235,7 +1235,7 @@ namespace A2Z
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgChainOff2,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
                     }
                     foreach (var dim in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
                     {
@@ -1243,7 +1243,7 @@ namespace A2Z
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, mfgTotalOff,
                             mfgGlobalMinX, mfgGlobalMinY, mfgGlobalMinZ, viewDirection, mfgExtLines,
-                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff);
+                            mfgGlobalMaxX, mfgGlobalMaxY, mfgGlobalMaxZ, posOff, true);
                     }
 
                     if (mfgExtLines.Count > 0)
