@@ -1090,7 +1090,8 @@ namespace A2Z
             float globalMaxX = 0,
             float globalMaxY = 0,
             float globalMaxZ = 0,
-            bool positiveOffset = false)
+            bool positiveOffset = false,
+            bool alignExtToBaseline = false)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -1190,19 +1191,42 @@ namespace A2Z
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
             // 2026-06-23: gap을 보조선 길이의 절반 이하로 제한 — 오프셋이 짧으면(가공도 보조선 축소)
             //   고정 10mm gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
-            float e1x = originalStart.X - startVertex.X, e1y = originalStart.Y - startVertex.Y, e1z = originalStart.Z - startVertex.Z;
+            // 가공도 전용(alignExtToBaseline): 보조선을 osnap 점이 아니라 모델 가장자리(baseline)에서 시작.
+            //   → 모든 보조선 길이 = 오프셋 거리로 통일, 반대쪽 점이 부재를 가로지르는 문제 제거.
+            //   (제작도는 false → 기존 osnap 점에서 시작, 무영향)
+            VIZCore3D.NET.Data.Vertex3D extStart = originalStart, extEnd = originalEnd;
+            if (alignExtToBaseline)
+            {
+                switch (offsetDir)
+                {
+                    case "X":
+                        extStart = new VIZCore3D.NET.Data.Vertex3D(baseline, originalStart.Y, originalStart.Z);
+                        extEnd = new VIZCore3D.NET.Data.Vertex3D(baseline, originalEnd.Y, originalEnd.Z);
+                        break;
+                    case "Y":
+                        extStart = new VIZCore3D.NET.Data.Vertex3D(originalStart.X, baseline, originalStart.Z);
+                        extEnd = new VIZCore3D.NET.Data.Vertex3D(originalEnd.X, baseline, originalEnd.Z);
+                        break;
+                    case "Z":
+                        extStart = new VIZCore3D.NET.Data.Vertex3D(originalStart.X, originalStart.Y, baseline);
+                        extEnd = new VIZCore3D.NET.Data.Vertex3D(originalEnd.X, originalEnd.Y, baseline);
+                        break;
+                }
+            }
+
+            float e1x = extStart.X - startVertex.X, e1y = extStart.Y - startVertex.Y, e1z = extStart.Z - startVertex.Z;
             float extLen1 = (float)Math.Sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
             float gap1 = Math.Min(ExtensionLineGap, extLen1 * 0.5f);
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine1.Add(OffsetTowardLineEnd(originalStart, startVertex, gap1));
+            extLine1.Add(OffsetTowardLineEnd(extStart, startVertex, gap1));
             extLine1.Add(startVertex);
             extensionLines.Add(extLine1);
 
-            float e2x = originalEnd.X - endVertex.X, e2y = originalEnd.Y - endVertex.Y, e2z = originalEnd.Z - endVertex.Z;
+            float e2x = extEnd.X - endVertex.X, e2y = extEnd.Y - endVertex.Y, e2z = extEnd.Z - endVertex.Z;
             float extLen2 = (float)Math.Sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
             float gap2 = Math.Min(ExtensionLineGap, extLen2 * 0.5f);
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
-            extLine2.Add(OffsetTowardLineEnd(originalEnd, endVertex, gap2));
+            extLine2.Add(OffsetTowardLineEnd(extEnd, endVertex, gap2));
             extLine2.Add(endVertex);
             extensionLines.Add(extLine2);
 
