@@ -1529,6 +1529,15 @@ namespace A2Z
                     float textH = textSz.h;
 
                     float textPosH, textPosV;
+                    bool isHoleOrSlot = !balloon.text.StartsWith("EarthBoss");
+                    if (isHoleOrSlot)
+                    {
+                        // 홀/슬롯 풍선: 수직 아래로 — 홀 H 위치 그대로 두어 리더가 수직이 되고,
+                        //   모델 아래(모델 바깥)로 빼낸다. (사용자 사양 2026-06-30, 방향이 위로면 부호 반전)
+                        textPosH = balloon.originH;
+                        textPosV = modelMinV_m - (modelMaxV_m - modelMinV_m) * 0.6f;
+                    }
+                    else
                     switch (balloon.quadrant)
                     {
                         case 0: // 왼쪽위
