@@ -396,18 +396,35 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 가공도 세로(폭) 치수를 화면 오른쪽에 두기 위한 positiveOffset(=true는 offsetDir축 max).
-        /// 캡처의 화면-X/Y 부호가 (뷰, 오프셋축)마다 달라(사내 검증 2026-06-30) 단순 규칙이 안 됨 →
-        /// 검증된 표로 직접 매핑. (값이 반대면 해당 칸만 뒤집으면 됨)
-        ///   view=X: 항상 true(maxY=오른쪽)
-        ///   view=Z: offsetDir=X→true, Y→false
-        ///   view=Y: offsetDir=Z→true, X→false
+        /// 세로(폭) 치수를 화면 오른쪽에 두는 positiveOffset을 **부재마다 실제 카메라 투영으로 계산**.
+        /// (고정 표 폐기 — 모든 부재에 일반화 2026-06-30)
+        /// 원리: 캡처는 최장 가시축(=치수 오프셋축=길이축)을 가로로 눕힌다. 그 길이축이 카메라의
+        ///   우축/상축 중 어디에 더 정렬되는지로 회전 여부를 판정하고, 회전 시 화면-오른쪽은 상축이
+        ///   된다(90° 회전). +오프셋축이 그 화면-오른쪽과 같은 방향이면 max(true)쪽이 오른쪽.
+        /// 부호 calibration: eff 부호가 반대면 sRollSign(회전 시)·또는 반환 부호만 뒤집으면 전부 일관.
         /// </summary>
-        private bool MfgScreenRightPositive(string viewDirection, string offsetDir)
+        private bool MfgHeightToRight(string offsetDir)
         {
-            if (viewDirection == "X") return true;
-            if (viewDirection == "Z") return offsetDir == "X";
-            return offsetDir != "X";   // view=Y
+            const float sRollSign = 1f;   // 회전 시 화면-오른쪽 = +상축(상축이 오른쪽으로 옴). 반대면 -1
+            try
+            {
+                var axes = vizcore3d.View.GetCameraAxis();   // [0]=우, [1]=상, [2]=시선 (월드좌표)
+                if (axes != null && axes.Count >= 3)
+                {
+                    var right = axes[0]; var up = axes[1];
+                    float ox = offsetDir == "X" ? 1f : 0f;
+                    float oy = offsetDir == "Y" ? 1f : 0f;
+                    float oz = offsetDir == "Z" ? 1f : 0f;
+                    float dotR = ox * right.X + oy * right.Y + oz * right.Z;
+                    float dotU = ox * up.X + oy * up.Y + oz * up.Z;
+                    bool rolled = Math.Abs(dotU) > Math.Abs(dotR);   // 길이축이 세로 → 회전 예정
+                    float eff = rolled ? (dotU * sRollSign) : dotR;  // +오프셋축이 화면-오른쪽이면 양수
+                    DiagLog($"[HeightDir] off={offsetDir} dotR={dotR:F2} dotU={dotU:F2} rolled={rolled} posOff={eff > 0}");
+                    return eff > 0;
+                }
+            }
+            catch { }
+            return true;
         }
 
         private MfgViewPose BuildEaSecondaryScene(
@@ -609,8 +626,8 @@ namespace A2Z
                               : (bom.MinZ + bom.MaxZ) / 2f;
                 var offValW = widthDims.Where(d => !d.IsTotal)
                     .SelectMany(d => new[] { GetAxisValue(d.StartPoint, offAxisW), GetAxisValue(d.EndPoint, offAxisW) });
-                // 세로(폭) 치수는 화면 오른쪽으로 — (뷰, 오프셋축)별 검증된 부호 사용
-                bool posOffW = MfgScreenRightPositive(pose.ViewDirection, offAxisW);
+                // 세로(폭) 치수는 화면 오른쪽으로 — 실제 카메라 투영으로 계산(부재 일반화)
+                bool posOffW = MfgHeightToRight(offAxisW);
 
                 foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
@@ -1190,7 +1207,7 @@ namespace A2Z
                         foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
                         {
                             if (ax != pose.LongestAxis)
-                                mfgAxisPosOff[ax] = MfgScreenRightPositive(viewDirection, GetRemainingAxis(viewDirection, ax));
+                                mfgAxisPosOff[ax] = MfgHeightToRight(GetRemainingAxis(viewDirection, ax));
                         }
                     }
 
