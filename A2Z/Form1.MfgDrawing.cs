@@ -395,6 +395,21 @@ namespace A2Z
             return 0f;
         }
 
+        /// <summary>
+        /// 가공도 세로(폭) 치수를 화면 오른쪽에 두기 위한 positiveOffset(=true는 offsetDir축 max).
+        /// 캡처의 화면-X/Y 부호가 (뷰, 오프셋축)마다 달라(사내 검증 2026-06-30) 단순 규칙이 안 됨 →
+        /// 검증된 표로 직접 매핑. (값이 반대면 해당 칸만 뒤집으면 됨)
+        ///   view=X: 항상 true(maxY=오른쪽)
+        ///   view=Z: offsetDir=X→true, Y→false
+        ///   view=Y: offsetDir=Z→true, X→false
+        /// </summary>
+        private bool MfgScreenRightPositive(string viewDirection, string offsetDir)
+        {
+            if (viewDirection == "X") return true;
+            if (viewDirection == "Z") return offsetDir == "X";
+            return offsetDir != "X";   // view=Y
+        }
+
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
@@ -594,8 +609,8 @@ namespace A2Z
                               : (bom.MinZ + bom.MaxZ) / 2f;
                 var offValW = widthDims.Where(d => !d.IsTotal)
                     .SelectMany(d => new[] { GetAxisValue(d.StartPoint, offAxisW), GetAxisValue(d.EndPoint, offAxisW) });
-                bool posOffW = ComputePositiveOffsetByOsnapExtreme(offValW, centerW);
-                if (pose.LongestAxis == "Z") posOffW = true;   // 회전 매핑: +깊이축(Z) = 화면 오른쪽
+                // 세로(폭) 치수는 화면 오른쪽으로 — (뷰, 오프셋축)별 검증된 부호 사용
+                bool posOffW = MfgScreenRightPositive(pose.ViewDirection, offAxisW);
 
                 foreach (var dim in widthDims.Where(d => !d.IsTotal && d.IsVisible && d.DisplayLevel == 0))
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis, chainOff1,
@@ -1171,14 +1186,11 @@ namespace A2Z
                     {
                         if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
                             mfgAxisPosOff[pose.LongestAxis] = !isAboveWider;
-                        // 폭(높이) 치수를 화면 오른쪽으로 통일. 폭은 길이축 방향으로 오프셋되는데,
-                        //   view=Y 비회전(X 최장)은 +X가 화면 왼쪽이라 false(min)=오른쪽, 그 외는 true(max)=오른쪽.
-                        //   (사내 검증: 1·2번 부재 오른쪽 정상, 3번만 왼쪽 → 이 규칙으로 통일) 2026-06-29
-                        bool widthRight = !(pose.ViewDirection == "Y" && pose.LongestAxis != "Z");
+                        // 폭(세로) 치수를 화면 오른쪽으로 — (뷰, 오프셋축)별 검증 부호 (MfgScreenRightPositive)
                         foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
                         {
                             if (ax != pose.LongestAxis)
-                                mfgAxisPosOff[ax] = widthRight;
+                                mfgAxisPosOff[ax] = MfgScreenRightPositive(viewDirection, GetRemainingAxis(viewDirection, ax));
                         }
                     }
 
