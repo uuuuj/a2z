@@ -1191,25 +1191,8 @@ namespace A2Z
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
             // 2026-06-23: gap을 보조선 길이의 절반 이하로 제한 — 오프셋이 짧으면(가공도 보조선 축소)
             //   고정 10mm gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
-            // 가공도 전용: 치수 텍스트를 치수선 바깥(모델 반대편)으로 명시 배치.
-            //   SDK 기본은 안쪽(모델 쪽)에 두고, AlignDistanceTextPosition은 무효 + ApplyParallelTextShift는
-            //   작은 부재(maxEstDist≤100)면 skip이라 안쪽에 남음 → 직접 좌표 지정.
-            if (alignExtToBaseline && measureId >= 0)
-            {
-                float tmX = (startVertex.X + endVertex.X) / 2f;
-                float tmY = (startVertex.Y + endVertex.Y) / 2f;
-                float tmZ = (startVertex.Z + endVertex.Z) / 2f;
-                float outM = Math.Abs(offset) * 0.6f;          // 치수선 너머로(바깥) 밀어냄
-                float outSign = positiveOffset ? 1f : -1f;
-                VIZCore3D.NET.Data.Vector3D tpos;
-                switch (offsetDir)
-                {
-                    case "X": tpos = new VIZCore3D.NET.Data.Vector3D(tmX + outSign * outM, tmY, tmZ); break;
-                    case "Y": tpos = new VIZCore3D.NET.Data.Vector3D(tmX, tmY + outSign * outM, tmZ); break;
-                    default:  tpos = new VIZCore3D.NET.Data.Vector3D(tmX, tmY, tmZ + outSign * outM); break;
-                }
-                try { vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measureId, tpos); } catch { }
-            }
+            // (가공도 텍스트 바깥 배치는 캡처 직전 CaptureMfgSceneToViewArea에서 수행 — SetMeasureItemDistanceTextPos는
+            //  Add2DMeasureFrom3DMeasure 직전에 호출해야 반영됨. DrawDimension 시점은 이후 2D 변환이 덮어씀.)
 
             // 가공도 전용(alignExtToBaseline): 보조선을 osnap 점이 아니라 모델 가장자리(baseline)에서 시작.
             //   → 모든 보조선 길이 = 오프셋 거리로 통일, 반대쪽 점이 부재를 가로지르는 문제 제거.

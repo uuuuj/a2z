@@ -335,6 +335,11 @@ namespace A2Z
                         pose.ViewDirection,
                         vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
                         measures);
+
+                    // 가공도: 치수 텍스트를 치수선 바깥(모델 반대편)으로 — 캡처 직전이라야 반영됨.
+                    //   측정 기하에서 측정축/오프셋축을 구해, 텍스트를 모델 중심 반대쪽으로 치수선 너머로 민다.
+                    PushMfgDimTextOutside(measures, pose.ViewDirection, bom);
+
                     vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
                 }
             }
@@ -393,6 +398,70 @@ namespace A2Z
 
             DiagLog($"[Orient] bom={bomIndex} 가로유지 probeW={pw:F2} probeH={ph:F2}");
             return 0f;
+        }
+
+        /// <summary>
+        /// 가공도 치수 텍스트를 치수선 바깥(모델 반대편)으로 민다. 캡처 직전(Add2DMeasureFrom3DMeasure 앞)에서 호출해야 반영됨.
+        /// SDK 기본은 안쪽 + AlignDistanceTextPosition 무효 + ApplyParallelTextShift는 작은 부재(maxEstDist≤100) skip → 직접 좌표 지정.
+        /// 측정 기하에서 측정축/오프셋축을 구해, 모델 중심 반대쪽으로 치수선 너머로 텍스트를 이동.
+        /// </summary>
+        private void PushMfgDimTextOutside(
+            System.Collections.Generic.List<VIZCore3D.NET.Data.MeasureItem> measures,
+            string viewDirection, BOMData bom)
+        {
+            string[] visAxes;
+            switch (viewDirection)
+            {
+                case "X": visAxes = new[] { "Y", "Z" }; break;
+                case "Y": visAxes = new[] { "X", "Z" }; break;
+                default:  visAxes = new[] { "X", "Y" }; break;
+            }
+            Func<VIZCore3D.NET.Data.Vertex3D, string, float> axOf =
+                (p, a) => a == "X" ? p.X : a == "Y" ? p.Y : p.Z;
+
+            foreach (var m in measures)
+            {
+                try
+                {
+                    if (!m.Visible) continue;
+                    if (m.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_ANGLE ||
+                        m.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_SURFACE_ANGLE) continue;
+
+                    VIZCore3D.NET.Data.Vertex3D q0 = null, q1 = null;
+                    foreach (var pos in m.Position)
+                    {
+                        if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN || pos.Position == null) continue;
+                        if (q0 == null) q0 = pos.Position; else { q1 = pos.Position; break; }
+                    }
+                    if (q0 == null || q1 == null) continue;
+
+                    float dX = Math.Abs(q0.X - q1.X), dY = Math.Abs(q0.Y - q1.Y), dZ = Math.Abs(q0.Z - q1.Z);
+                    string measAxis = (dX >= dY && dX >= dZ) ? "X" : (dY >= dZ ? "Y" : "Z");
+                    string offAx = visAxes[0] == measAxis ? visAxes[1] : visAxes[0];
+
+                    float offVal = axOf(q0, offAx);
+                    float cen = offAx == "X" ? (bom.MinX + bom.MaxX) / 2f
+                              : offAx == "Y" ? (bom.MinY + bom.MaxY) / 2f
+                              : (bom.MinZ + bom.MaxZ) / 2f;
+                    float edge = offAx == "X" ? (offVal > cen ? bom.MaxX : bom.MinX)
+                               : offAx == "Y" ? (offVal > cen ? bom.MaxY : bom.MinY)
+                               : (offVal > cen ? bom.MaxZ : bom.MinZ);
+                    float offMag = Math.Abs(offVal - edge);
+                    float sign = offVal >= cen ? 1f : -1f;
+                    float push = offVal + sign * offMag * 0.6f;   // 치수선 너머(바깥)로
+
+                    float mx = (q0.X + q1.X) / 2f, my = (q0.Y + q1.Y) / 2f, mz = (q0.Z + q1.Z) / 2f;
+                    VIZCore3D.NET.Data.Vector3D tp;
+                    switch (offAx)
+                    {
+                        case "X": tp = new VIZCore3D.NET.Data.Vector3D(push, my, mz); break;
+                        case "Y": tp = new VIZCore3D.NET.Data.Vector3D(mx, push, mz); break;
+                        default:  tp = new VIZCore3D.NET.Data.Vector3D(mx, my, push); break;
+                    }
+                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(m.ID, tp);
+                }
+                catch { }
+            }
         }
 
         /// <summary>
