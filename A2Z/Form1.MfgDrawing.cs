@@ -663,8 +663,8 @@ namespace A2Z
             style.ArrowSize = 5;
             style.AssistantLine = false;
             style.AlignDistanceText = true;
-            // AlignDistanceTextPosition 제거 — 제작도와 동일(수동 SetMeasureItemDistanceTextPos만). 2026-07-01
-            style.AlignDistanceTextMargine = 3;
+            style.AlignDistanceTextPosition = 2;   // 바깥쪽 — 가공도 세로 치수(오른쪽 배치) 텍스트를 오른쪽으로
+            style.AlignDistanceTextMargine = 5;
             vizcore3d.Review.Measure.SetStyle(style);
 
             string offsetAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);
@@ -1244,10 +1244,11 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;
-                    // AlignDistanceTextPosition(2=바깥쪽)는 [전체 옵션만 지원] 제약 — 2D 출력에서 수동
-                    //   SetMeasureItemDistanceTextPos(PushMfgDimTextOutside)를 무력화해 텍스트가 안 나가던 원인.
-                    //   제작도(Dimensions.cs:50~51)는 이 속성 미설정 + 수동 좌표만 사용 → 동일하게 맞춤. 2026-07-01
-                    mfgStyle.AlignDistanceTextMargine = 3;
+                    // 가공도 세로 치수선은 오른쪽(모델 바깥)에 두므로 텍스트도 바깥쪽 = 2. 제작도(세로선 왼쪽)는
+                    //   기본 정렬로 왼쪽=바깥이지만 가공도는 명시적으로 바깥쪽 지정 필요. AlignDistanceText가 2D에서
+                    //   먹히므로(제작도 실증) 동급인 이 속성도 2D 반영됨. 수동 배치 제거 후라 스타일이 살아남. 2026-07-01
+                    mfgStyle.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽(모델 반대편)
+                    mfgStyle.AlignDistanceTextMargine = 5;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
                     float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
