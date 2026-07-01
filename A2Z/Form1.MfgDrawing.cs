@@ -857,8 +857,8 @@ namespace A2Z
         private const float MfgMinTextSpace = 25.0f;     // 가공도 치수 텍스트 겹침 간격 (제작도와 별도 값)
         // 가공도 보조선 오프셋 — 종이(캔버스) 절대 mm. 제작도 5/5(1단 5·전체 10)와 별도로 줄임.
         //   사용자 사양 2026-06-23: "많이" → 1단 2·전체 4mm. ComputeCanvasAbsoluteOffsets에 인자로 전달.
-        private const float MfgCanvasBaseOff = 2.0f;     // 1단 종이 mm
-        private const float MfgCanvasLvlSp   = 2.0f;     // 단 간격 → 전체 = 2+2 = 4mm
+        private const float MfgCanvasBaseOff = 4.0f;     // 1단 종이 mm (2→4, 2026-07-01: 짧아서 세로 텍스트가 모델과 겹쳐 2배)
+        private const float MfgCanvasLvlSp   = 4.0f;     // 단 간격 → 전체 = 4+4 = 8mm
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
