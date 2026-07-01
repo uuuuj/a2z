@@ -430,12 +430,11 @@ namespace A2Z
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
-                // 텍스트 위치는 수동 지정 안 함 — 제작도와 동일하게 SDK 자동 정렬(AlignDistanceText=true)에 맡긴다.
-                //   → 가로 치수=치수선 위, 세로 치수=왼쪽 (표준 제도 관례, 제작도와 일치). 2026-07-01
-                //   (수동 SetMeasureItemDistanceTextPos는 자동 정렬을 덮어써 중앙에 앉았고, 수직 오프셋은 SDK가 투영해 무시했음)
+                // 텍스트를 치수선 너머(모델 바깥)로 수동 배치 — 자동 정렬 OFF라 수직 성분이 먹힘.
+                //   방향 = positiveOffset(치수선 배치와 동일) → 세로(오른쪽 배치)는 오른쪽, 가로(위 배치)는 위. 캔버스 6mm. 2026-07-01
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true, 6f, newScale);
             }
             if (extLines.Count > 0)
             {
@@ -662,9 +661,7 @@ namespace A2Z
             style.ArrowColor = Color.Blue;
             style.ArrowSize = 5;
             style.AssistantLine = false;
-            style.AlignDistanceText = true;
-            style.AlignDistanceTextPosition = 2;   // 바깥쪽 — 가공도 세로 치수(오른쪽 배치) 텍스트를 오른쪽으로
-            style.AlignDistanceTextMargine = 5;
+            style.AlignDistanceText = false;   // 자동 정렬 OFF — 수동 좌표로 세로=오른쪽 배치 (DrawMfgDimsAtScale)
             vizcore3d.Review.Measure.SetStyle(style);
 
             string offsetAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);
@@ -1243,12 +1240,10 @@ namespace A2Z
                     mfgStyle.ArrowColor = System.Drawing.Color.Blue;      // ← 통일 Blue
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
-                    mfgStyle.AlignDistanceText = true;
-                    // 가공도 세로 치수선은 오른쪽(모델 바깥)에 두므로 텍스트도 바깥쪽 = 2. 제작도(세로선 왼쪽)는
-                    //   기본 정렬로 왼쪽=바깥이지만 가공도는 명시적으로 바깥쪽 지정 필요. AlignDistanceText가 2D에서
-                    //   먹히므로(제작도 실증) 동급인 이 속성도 2D 반영됨. 수동 배치 제거 후라 스타일이 살아남. 2026-07-01
-                    mfgStyle.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽(모델 반대편)
-                    mfgStyle.AlignDistanceTextMargine = 5;
+                    // 자동 정렬 OFF — 2D 출력은 위치 옵션(0/1/2 바깥쪽)을 무시하고 표준(세로=왼쪽)만 강제하므로,
+                    //   세로 치수를 오른쪽(모델 바깥)에 두려면 수동 좌표로 배치해야 함. 자동 정렬이 켜져 있으면
+                    //   수동 좌표의 수직 성분을 치수선에 투영해 무력화 → OFF 후 DrawMfgDimsAtScale이 직접 배치. 2026-07-01
+                    mfgStyle.AlignDistanceText = false;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
                     float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
