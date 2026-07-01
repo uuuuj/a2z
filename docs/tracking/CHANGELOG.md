@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-07-01 — 가공도 치수 텍스트 바깥 배치: 생성 시점 정확 좌표 (역추정 폐기)
+
+**유형**: fix (가공도 치수 텍스트)
+**커밋**: `pending`
+**관련 TASK**: T-073
+
+**배경**: AlignDistanceTextPosition 제거로 `SetMeasureItemDistanceTextPos`가 먹히기 시작(텍스트가 움직임)했으나, 위치가 **좌우로 밀리고** 세로 텍스트가 여전히 **모델-치수선 사이**. 사용자 지적: 두 증상이 연관됨. SHDC MCP 문서 확인 — `SetMeasureItemDistanceTextPos(reviewID, position)`의 position은 **3D 월드 절대 좌표**, `Add2DMeasureFrom3DMeasure` 이전 호출이 공식. 원인: `PushMfgDimTextOutside`가 텍스트의 치수선-방향 중심을 측정 내부점(`m.Position`)에서 **역추정**하는데 그 점들이 치수선 양끝이 아니라 중심이 어긋나 좌우로 밀렸고, 이게 세로 텍스트가 사이에 끼는 것과 동일 원인.
+
+**변경 사항**:
+- 역추정 방식(`PushMfgDimTextOutside`) 폐기. `DrawDimension`이 치수 **생성 즉시** 정확한 좌표로 텍스트 배치:
+  - 치수선-방향 중심 = `startVertex`/`endVertex`(치수선 끝점) 중점.
+  - 바깥 방향 = `positiveOffset`(치수선 배치와 동일한 권위값) → 치수선 너머 **캔버스 절대 6mm**(실측 `newScale` 기준).
+- `DrawDimension`에 가공도 전용 파라미터(`mfgTextOutwardCanvas`·`mfgCanvasScale`) 추가 — 제작도는 기본 0이라 무영향.
+- 캡처 경로에서 `ApplyParallelTextShift`·`PushMfgDimTextOutside` 호출 제거(가공도만). `[DimTextOut]` 진단 로그.
+
+**영향 범위**: 가공도 치수 텍스트만. 제작도 무영향.
+
+**검증**: 상단(가로)·오른쪽(세로) 치수 텍스트가 치수선 너머(바깥) 중앙에 나오는지, 좌우 밀림 없는지.
+
 ## 2026-07-01 — 가공도 치수 텍스트 바깥 배치: AlignDistanceTextPosition 제거 (제작도 일치)
 
 **유형**: fix (가공도 치수 텍스트)
