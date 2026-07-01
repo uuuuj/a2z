@@ -430,10 +430,12 @@ namespace A2Z
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
-                // 텍스트 바깥 배치: 치수선 너머 캔버스 6mm (실측 newScale 기준) — DrawDimension이 생성 즉시 정확히 배치.
+                // 텍스트 위치는 수동 지정 안 함 — 제작도와 동일하게 SDK 자동 정렬(AlignDistanceText=true)에 맡긴다.
+                //   → 가로 치수=치수선 위, 세로 치수=왼쪽 (표준 제도 관례, 제작도와 일치). 2026-07-01
+                //   (수동 SetMeasureItemDistanceTextPos는 자동 정렬을 덮어써 중앙에 앉았고, 수직 오프셋은 SDK가 투영해 무시했음)
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true, 6f, newScale);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
             }
             if (extLines.Count > 0)
             {
