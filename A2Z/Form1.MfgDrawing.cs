@@ -430,11 +430,11 @@ namespace A2Z
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
-                // 텍스트를 치수선 너머(모델 바깥)로 수동 배치 — 자동 정렬 OFF라 수직 성분이 먹힘.
-                //   방향 = positiveOffset(치수선 배치와 동일) → 세로(오른쪽 배치)는 오른쪽, 가로(위 배치)는 위. 캔버스 6mm. 2026-07-01
+                // 텍스트 위치는 SDK 자동 정렬(AlignDistanceText=true)에 맡김 — 제작도와 동일(가로=위, 세로=왼쪽).
+                //   세로=오른쪽으로 두는 방법은 별도 조사 중(스타일 위치옵션·수동좌표 모두 2D에서 세로 좌우 전환 실패).
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true, 6f, newScale);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
             }
             if (extLines.Count > 0)
             {
@@ -661,7 +661,8 @@ namespace A2Z
             style.ArrowColor = Color.Blue;
             style.ArrowSize = 5;
             style.AssistantLine = false;
-            style.AlignDistanceText = false;   // 자동 정렬 OFF — 수동 좌표로 세로=오른쪽 배치 (DrawMfgDimsAtScale)
+            style.AlignDistanceText = true;   // 제작도와 동일 자동 정렬
+            style.AlignDistanceTextMargine = 3;
             vizcore3d.Review.Measure.SetStyle(style);
 
             string offsetAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);
@@ -1240,10 +1241,8 @@ namespace A2Z
                     mfgStyle.ArrowColor = System.Drawing.Color.Blue;      // ← 통일 Blue
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
-                    // 자동 정렬 OFF — 2D 출력은 위치 옵션(0/1/2 바깥쪽)을 무시하고 표준(세로=왼쪽)만 강제하므로,
-                    //   세로 치수를 오른쪽(모델 바깥)에 두려면 수동 좌표로 배치해야 함. 자동 정렬이 켜져 있으면
-                    //   수동 좌표의 수직 성분을 치수선에 투영해 무력화 → OFF 후 DrawMfgDimsAtScale이 직접 배치. 2026-07-01
-                    mfgStyle.AlignDistanceText = false;
+                    mfgStyle.AlignDistanceText = true;   // 제작도와 동일 자동 정렬 (가로=위, 세로=왼쪽). 세로=오른쪽은 별도 방법 조사 중
+                    mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
                     float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
