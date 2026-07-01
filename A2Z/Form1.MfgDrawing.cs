@@ -430,11 +430,12 @@ namespace A2Z
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
-                // 텍스트 위치는 SDK 자동 정렬(AlignDistanceText=true)에 맡김 — 제작도와 동일(가로=위, 세로=왼쪽).
-                //   세로=오른쪽으로 두는 방법은 별도 조사 중(스타일 위치옵션·수동좌표 모두 2D에서 세로 좌우 전환 실패).
+                // alignExtToBaseline=false — 제작도와 동일하게 보조선을 osnap 점 그대로에서 시작.
+                //   (true=박스 스냅은 대각(beveled) 부재의 실제 꼭짓점을 박스 모서리로 밀어내 대각을 무시했음.
+                //    직사각 부재는 극점 osnap 좌표가 박스값과 같아 무영향. 2026-07-01)
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false);
             }
             if (extLines.Count > 0)
             {
