@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-07-01 — 가공도 치수 텍스트 바깥 배치: AlignDistanceTextPosition 제거 (제작도 일치)
+
+**유형**: fix (가공도 치수 텍스트)
+**커밋**: `pending`
+**관련 TASK**: T-073
+
+**배경**: 보조선 통일 후에도 오른쪽(세로) 치수 텍스트가 **모델-치수선 사이**에 머물고 바깥으로 안 나감(사용자 검증). SDK 문서 검증(`sdk-verifier`) + 제작도 스타일 대조 결과, `SetMeasureItemDistanceTextPos`(3D ID+Vector3D, `Add2DMeasureFrom3DMeasure` 이전) API·타이밍은 정확. 유일한 차이는 **가공도만 `MeasureStyle.AlignDistanceTextPosition = 2`(바깥쪽)를 설정** — 이 속성은 `[전체 옵션만 지원]` 제약이라 2D 출력에서 수동 좌표 지정을 무력화한 것으로 판단. 제작도(`Dimensions.cs:50~51`)는 이 속성을 폐기하고 수동 좌표만 씀.
+
+**변경 사항**:
+- 가공도 두 스타일 블록(`BuildMfgSceneCore`·`BuildEaSecondaryScene`)에서 `AlignDistanceTextPosition = 2` **제거** → 제작도와 동일하게 수동 `SetMeasureItemDistanceTextPos`만 사용.
+- `PushMfgDimTextOutside`에 실측 `newScale` 전달 → 텍스트를 치수선 너머 **캔버스 절대 6mm**로 밀기(옛 `offset×0.6`은 2/4mm라 너무 작아 겹침). 배율 무관 일정.
+- `[PushDimOut]` 진단 로그 추가(offAx·offVal·push·tp).
+
+**영향 범위**: 가공도 치수 텍스트만. 제작도 무영향.
+
+**검증**: 오른쪽(세로)·상단(가로) 치수 텍스트가 치수선 너머(바깥)로 나오는지.
+
 ## 2026-07-01 — 가공도 보조선·텍스트: 캡처 후 실측 newScale로 그리기 (구조 재설계)
 
 **유형**: fix (가공도 출력 품질) — 직전 추정-스케일 방식 폐기·대체

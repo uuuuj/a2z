@@ -347,7 +347,7 @@ namespace A2Z
 
                     // 가공도: 치수 텍스트를 치수선 바깥(모델 반대편)으로 — 캡처 직전이라야 반영됨.
                     //   측정 기하에서 측정축/오프셋축을 구해, 텍스트를 모델 중심 반대쪽으로 치수선 너머로 민다.
-                    PushMfgDimTextOutside(measures, pose.ViewDirection, bom);
+                    PushMfgDimTextOutside(measures, pose.ViewDirection, bom, newScale);
 
                     vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
                 }
@@ -456,7 +456,7 @@ namespace A2Z
         /// </summary>
         private void PushMfgDimTextOutside(
             System.Collections.Generic.List<VIZCore3D.NET.Data.MeasureItem> measures,
-            string viewDirection, BOMData bom)
+            string viewDirection, BOMData bom, float newScale)
         {
             string[] visAxes;
             switch (viewDirection)
@@ -499,7 +499,10 @@ namespace A2Z
                                : (offVal > cen ? bom.MaxZ : bom.MinZ);
                     float offMag = Math.Abs(offVal - edge);
                     float sign = offVal >= cen ? 1f : -1f;
-                    float push = offVal + sign * offMag * 0.6f;   // 치수선 너머(바깥)로
+                    // 치수선(offVal) 너머로 '캔버스 절대' clearance만큼 밀어 텍스트를 확실히 바깥에 둔다(배율 무관 일정).
+                    //   offset(2/4mm)에 비례(옛 0.6×)시키면 너무 작아 치수선과 겹쳐 '사이'로 보였음.
+                    float clearCanvas = 6f;   // 치수선 너머 캔버스 mm
+                    float push = offVal + sign * (newScale > 0f ? clearCanvas / newScale : offMag * 0.6f);
 
                     float mx = (q0.X + q1.X) / 2f, my = (q0.Y + q1.Y) / 2f, mz = (q0.Z + q1.Z) / 2f;
                     VIZCore3D.NET.Data.Vector3D tp;
@@ -509,6 +512,8 @@ namespace A2Z
                         case "Y": tp = new VIZCore3D.NET.Data.Vector3D(mx, push, mz); break;
                         default:  tp = new VIZCore3D.NET.Data.Vector3D(mx, my, push); break;
                     }
+                    DiagLog($"[PushDimOut] id={m.ID} offAx={offAx} offVal={offVal:F1} edge={edge:F1} " +
+                        $"offMag={offMag:F1} push={push:F1} tp=({tp.X:F1},{tp.Y:F1},{tp.Z:F1})");
                     vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(m.ID, tp);
                 }
                 catch { }
@@ -662,7 +667,7 @@ namespace A2Z
             style.ArrowSize = 5;
             style.AssistantLine = false;
             style.AlignDistanceText = true;
-            style.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽 — 치수 숫자를 치수선 바깥(모델 반대편)으로
+            // AlignDistanceTextPosition 제거 — 제작도와 동일(수동 SetMeasureItemDistanceTextPos만). 2026-07-01
             style.AlignDistanceTextMargine = 3;
             vizcore3d.Review.Measure.SetStyle(style);
 
@@ -1243,7 +1248,9 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;
-                    mfgStyle.AlignDistanceTextPosition = 2;   // 0:아래 1:위 2:바깥쪽 — 치수 숫자를 치수선 바깥(모델 반대편)으로
+                    // AlignDistanceTextPosition(2=바깥쪽)는 [전체 옵션만 지원] 제약 — 2D 출력에서 수동
+                    //   SetMeasureItemDistanceTextPos(PushMfgDimTextOutside)를 무력화해 텍스트가 안 나가던 원인.
+                    //   제작도(Dimensions.cs:50~51)는 이 속성 미설정 + 수동 좌표만 사용 → 동일하게 맞춤. 2026-07-01
                     mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
