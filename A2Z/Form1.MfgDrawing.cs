@@ -340,15 +340,8 @@ namespace A2Z
                 {
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);   // 제작도와 동일 (0.5→0.3)
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);   // 제작도(DrawingSheets.cs:1638)와 동일 — 라이브 가공도 누락분
-                    ApplyParallelTextShift(
-                        pose.ViewDirection,
-                        vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
-                        measures);
-
-                    // 가공도: 치수 텍스트를 치수선 바깥(모델 반대편)으로 — 캡처 직전이라야 반영됨.
-                    //   측정 기하에서 측정축/오프셋축을 구해, 텍스트를 모델 중심 반대쪽으로 치수선 너머로 민다.
-                    PushMfgDimTextOutside(measures, pose.ViewDirection, bom, newScale);
-
+                    // 텍스트 바깥 배치는 DrawMfgDimsAtScale→DrawDimension이 치수 생성 즉시 정확한 sv/ev 중점 기준으로 설정함.
+                    //   (옛 ApplyParallelTextShift·PushMfgDimTextOutside는 m.Position 역추정이라 중심이 어긋나 좌우로 밀렸음 — 제거)
                     vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
                 }
             }
@@ -437,9 +430,10 @@ namespace A2Z
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
+                // 텍스트 바깥 배치: 치수선 너머 캔버스 6mm (실측 newScale 기준) — DrawDimension이 생성 즉시 정확히 배치.
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, true, 6f, newScale);
             }
             if (extLines.Count > 0)
             {
