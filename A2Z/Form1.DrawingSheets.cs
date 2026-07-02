@@ -1122,7 +1122,8 @@ namespace A2Z
         /// <param name="saveDir">PDF 저장 폴더</param>
         /// <param name="showSummary">true면 완료/오류 메시지박스 표시 (옛 btnExportAllPDF 동작). false면 DiagLog만 (P2 본진).</param>
         /// <param name="groupMfgSheets">
-        /// true면 가공도 시트들을 *모아서* GenerateMfgDrawing2DAll(List)로 1번에 출력 (btnMfgDrawingSheet 패턴, 8×3 그리드 1 PDF).
+        /// true면 가공도 시트 묶음 분기 진입 (btnMfgDrawingSheet 패턴). 단 현재 이 분기는 hard skip no-op이고,
+        ///   가공도 PDF는 GenerateMfgDrawingManual(btnMfgDrawingSheet_Click)이 담당한다 (P4 재배선 대기).
         /// false면 가공도도 시트별로 분리 PDF (옛 btnExportAllPDF 동작 유지).
         /// 사용자 지적: "가공도는 한 번에 뽑는 코드 기존에 있는데?" → P2 본진은 true로 호출.
         /// </param>

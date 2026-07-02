@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-07-03 — 가공도 EA 스틴트 죽은 코드 정리 (3-렌즈 만장일치)
+
+**유형**: refactor (죽은 코드 제거)
+**커밋**: `pending`
+**관련 TASK**: T-073 (가공도 EA 치수 배치) 잔재 정리
+
+**배경**: 2026-06-30~07-02 가공도 EA 작업(24커밋, 시행착오 다수)이 남긴 폐기 접근 잔재를 다중 에이전트 워크플로(파인더 2 + 후보별 3-렌즈 적대 검증)로 탐지. 만장일치로 확정된 7건만 제거(정밀도 우선, 미검증 후보는 보존). `isEA`/`isEA3d`/`isEAUse180`·진단 로그·제작도 공유 코드는 제외.
+
+**제거 항목**:
+- `PushMfgDimTextOutside`(가공도 치수 텍스트 역추정 수동 배치) — 호출부 0. `dc410d4` revert가 호출만 제거하고 본체를 남긴 잔재. 깨진 XML doc 포함.
+- `GenerateMfgDrawing2DAll`(옛 8×3 그리드 일괄 출력) + `RenderMfgViewForDrawing`(그 셀 렌더 어댑터) — `cac4454` 재배선 후 호출부 0, 전이적 dead. `GenerateMfgDrawingManual`→`RenderMfgRowToViewArea` 경로로 일원화.
+- `DrawDimension`의 `mfgTextOutwardCanvas`/`mfgCanvasScale` 파라미터 + `[DimTextOut]` 블록 — 호출부가 인자를 안 넘겨 가드 항상 false, 도달 불가.
+- `MfgViewPose.MirrorAxis` 필드 — `40c60ec`가 유일 reader(치수 좌표 반전)를 제거해 write-only.
+- `MfgViewPose.RequiresPostSelectionRotation` 파생 프로퍼티 — 배선된 적 없음(소비자는 `ApplyZ90`/`ApplyR180` 직접 검사).
+- 관련 stale 주석(캡처 직전 텍스트 배치 등) 및 삭제 메서드 참조 doc 갱신.
+
+**영향 범위**: 순수 죽은 코드 제거 — 사용자 대면 동작 무변경. 12 삽입 / 453 삭제. `ApplyParallelTextShift`(제작도 공유)·`MirrorVertical`·`ShapeDrawingIds`(라이브 경로) 등 살아있는 코드는 보존.
+
+**검증**: MSBuild Debug 통과(에러 0). `PushMfgDimTextOutside`/`GenerateMfgDrawing2DAll`/`RenderMfgViewForDrawing` 활성 참조 0(tombstone 주석만 잔존).
+
 ## 2026-07-01 — 가공도 치수 텍스트: 수동 배치 제거, 제작도 자동 정렬에 위임
 
 **유형**: fix (가공도 치수 텍스트)

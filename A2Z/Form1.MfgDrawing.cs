@@ -358,8 +358,8 @@ namespace A2Z
                 {
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);   // 제작도와 동일 (0.5→0.3)
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);   // 제작도(DrawingSheets.cs:1638)와 동일 — 라이브 가공도 누락분
-                    // 텍스트 바깥 배치는 DrawMfgDimsAtScale→DrawDimension이 치수 생성 즉시 정확한 sv/ev 중점 기준으로 설정함.
-                    //   (옛 ApplyParallelTextShift·PushMfgDimTextOutside는 m.Position 역추정이라 중심이 어긋나 좌우로 밀렸음 — 제거)
+                    // 치수 텍스트 위치는 제작도와 동일하게 SDK 자동 정렬에 위임 (수동 배치 없음) — 가로=치수선 위, 세로=왼쪽(회사 표준).
+                    //   (옛 수동 배치 ApplyParallelTextShift·PushMfgDimTextOutside는 m.Position 역추정이라 중심이 어긋나 폐기 — 2026-07)
                     vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
                 }
             }
@@ -421,7 +421,6 @@ namespace A2Z
         }
 
         /// <summary>
-        /// <summary>
         /// 가공도 보조선·치수를 '모델 2D 캡처 + RescaleObject 후 확정된 실측 배율(newScale)'로 그린다.
         /// 추정 스케일이 아닌 실측을 써야 보조선 길이 = 캔버스 절대값(2/4mm)으로 부재·뷰 무관 일정해짐 (설계 §4.4 v2-c).
         /// pose.PendingDims = BuildMfgSceneCore/BuildEaSecondaryScene가 수집한 그릴 목록(offset 미적용).
@@ -462,76 +461,6 @@ namespace A2Z
             }
             DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
                 $"off0={off0:F2} off1={off1:F2} off2={off2:F2} dims={pose.PendingDims.Count}");
-        }
-
-        /// 가공도 치수 텍스트를 치수선 바깥(모델 반대편)으로 민다. 캡처 직전(Add2DMeasureFrom3DMeasure 앞)에서 호출해야 반영됨.
-        /// SDK 기본은 안쪽 + AlignDistanceTextPosition 무효 + ApplyParallelTextShift는 작은 부재(maxEstDist≤100) skip → 직접 좌표 지정.
-        /// 측정 기하에서 측정축/오프셋축을 구해, 모델 중심 반대쪽으로 치수선 너머로 텍스트를 이동.
-        /// </summary>
-        private void PushMfgDimTextOutside(
-            System.Collections.Generic.List<VIZCore3D.NET.Data.MeasureItem> measures,
-            string viewDirection, BOMData bom, float newScale)
-        {
-            string[] visAxes;
-            switch (viewDirection)
-            {
-                case "X": visAxes = new[] { "Y", "Z" }; break;
-                case "Y": visAxes = new[] { "X", "Z" }; break;
-                default:  visAxes = new[] { "X", "Y" }; break;
-            }
-            Func<VIZCore3D.NET.Data.Vertex3D, string, float> axOf =
-                (p, a) => a == "X" ? p.X : a == "Y" ? p.Y : p.Z;
-
-            foreach (var m in measures)
-            {
-                try
-                {
-                    if (!m.Visible) continue;
-                    if (m.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_ANGLE ||
-                        m.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_SURFACE_ANGLE) continue;
-
-                    VIZCore3D.NET.Data.Vertex3D q0 = null, q1 = null;
-                    foreach (var pos in m.Position)
-                    {
-                        if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN || pos.Position == null) continue;
-                        if (q0 == null) q0 = pos.Position; else { q1 = pos.Position; break; }
-                    }
-                    if (q0 == null || q1 == null) continue;
-
-                    // 오프셋축 = 끝점이 일정한(차이 ≈ 0) 가시축. (측정축을 "최대 차이"로 잡으면
-                    //   앵글의 깊이 차이가 측정값만큼 커서 오검출 → 텍스트가 치수선 따라 옆으로 밀림)
-                    float d0 = Math.Abs(axOf(q0, visAxes[0]) - axOf(q1, visAxes[0]));
-                    float d1 = Math.Abs(axOf(q0, visAxes[1]) - axOf(q1, visAxes[1]));
-                    string offAx = d0 <= d1 ? visAxes[0] : visAxes[1];
-
-                    float offVal = axOf(q0, offAx);
-                    float cen = offAx == "X" ? (bom.MinX + bom.MaxX) / 2f
-                              : offAx == "Y" ? (bom.MinY + bom.MaxY) / 2f
-                              : (bom.MinZ + bom.MaxZ) / 2f;
-                    float edge = offAx == "X" ? (offVal > cen ? bom.MaxX : bom.MinX)
-                               : offAx == "Y" ? (offVal > cen ? bom.MaxY : bom.MinY)
-                               : (offVal > cen ? bom.MaxZ : bom.MinZ);
-                    float offMag = Math.Abs(offVal - edge);
-                    float sign = offVal >= cen ? 1f : -1f;
-                    // 치수선(offVal) 너머로 '캔버스 절대' clearance만큼 밀어 텍스트를 확실히 바깥에 둔다(배율 무관 일정).
-                    //   offset(2/4mm)에 비례(옛 0.6×)시키면 너무 작아 치수선과 겹쳐 '사이'로 보였음.
-                    float clearCanvas = 6f;   // 치수선 너머 캔버스 mm
-                    float push = offVal + sign * (newScale > 0f ? clearCanvas / newScale : offMag * 0.6f);
-
-                    float mx = (q0.X + q1.X) / 2f, my = (q0.Y + q1.Y) / 2f, mz = (q0.Z + q1.Z) / 2f;
-                    VIZCore3D.NET.Data.Vector3D tp;
-                    switch (offAx)
-                    {
-                        case "X": tp = new VIZCore3D.NET.Data.Vector3D(push, my, mz); break;
-                        case "Y": tp = new VIZCore3D.NET.Data.Vector3D(mx, push, mz); break;
-                        default:  tp = new VIZCore3D.NET.Data.Vector3D(mx, my, push); break;
-                    }
-                    DiagLog($"[PushDimOut] id={m.ID} offAx={offAx} offVal={offVal:F1} edge={edge:F1} " +
-                        $"offMag={offMag:F1} push={push:F1} tp=({tp.X:F1},{tp.Y:F1},{tp.Z:F1})");
-                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(m.ID, tp);
-                }
-                catch { }
-            }
         }
 
         /// <summary>
@@ -666,7 +595,7 @@ namespace A2Z
 
             // ── 2차 뷰 상하 미러 판정 — 코너가 최종 슬롯에서 가운데를 향하는지 (2026-07-02) ──
             //   위 슬롯이면 코너가 아래(cornerUp=false), 아래 슬롯이면 위(cornerUp=true)여야 함.
-            //   어긋나면: 모델 = 2D 미러(SetSelected3DMirrorBy2DView), 치수·보조선 = MirrorAxis 3D 좌표 반전.
+            //   어긋나면: 모델 = 2D 미러(SetSelected3DMirrorBy2DView). 치수·보조선은 SDK 2D 미러가 매핑까지 함께 뒤집으므로 별도 반전 불필요 (40c60ec).
             string secVertAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);   // 2차 뷰 화면 세로축
             bool secAxisUp = MfgAxisUpPositive(secVertAxis);
             if (primaryPose.HasSecCorner)
@@ -674,7 +603,6 @@ namespace A2Z
                 bool secCornerUp = (primaryPose.SecCornerAtMax == secAxisUp);
                 bool needUp = !secondaryAtTop;
                 pose.MirrorVertical = (secCornerUp != needUp);
-                pose.MirrorAxis = primaryPose.SecCornerAxis;
                 DiagLog($"[EAMirror] bom={bom.Index} secAxis={primaryPose.SecCornerAxis} atMax={primaryPose.SecCornerAtMax} " +
                     $"axisUp={secAxisUp} cornerUp={secCornerUp} atTop={secondaryAtTop} → mirror={pose.MirrorVertical}");
             }
@@ -1077,7 +1005,6 @@ namespace A2Z
         ///   - ExecuteMfgDrawing (수동, 3D 뷰 유지): pose를 _lastMfgViewPose에 저장.
         ///     LvDrawingSheet_SelectedIndexChanged 후처리 회전이 참조.
         ///   - RenderMfgRowToViewArea (PDF): EA면 최장축 치수를 두 번째 뷰에 예약한다.
-        ///   - RenderMfgViewForDrawing (구형 미사용 경로): pose를 지역변수로만 사용한다.
         /// </summary>
         private MfgViewPose BuildMfgSceneCore(
             int bomIndex,
@@ -1147,7 +1074,7 @@ namespace A2Z
             pose.OrientationAngle = orientAngle_saved;
 
             // Z 최장축 시 90° 회전 결정 (실제 적용은 어댑터)
-            //   ExecuteMfgDrawing / RenderMfgViewForDrawing 양쪽에서 pose.LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90).
+            //   ExecuteMfgDrawing에서 pose.LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90) (PDF는 ProbeAndRollLandscape가 실측 회전).
             //   B1b1a는 결정만, 어댑터가 적용.
             pose.ApplyZ90 = (pose.LongestAxis == "Z");
 
@@ -2227,338 +2154,6 @@ namespace A2Z
             var icon = result.HasIssues ? MessageBoxIcon.Warning : MessageBoxIcon.Information;
             MessageBox.Show(sb.ToString(), "가공도 출력 완료",
                 MessageBoxButtons.OK, icon);
-        }
-
-        /// <summary>
-        /// 가공도 시트 목록을 받아 8행×3열 그리드에 2D 일괄 출력
-        /// GenerateSheetDrawing2D와 동일한 초기화 패턴, BOM 테이블 없이 도면정보만
-        /// </summary>
-        private void GenerateMfgDrawing2DAll(List<DrawingSheetData> mfgSheets)
-        {
-            // T-064 P3 롤백 (2026-05-14): 가공도는 옛 GridStructure 흐름 유지.
-            // 메인 도면(GenerateSheetDrawing2D)만 엑셀 템플릿(P2) 사용.
-
-            try
-            {
-                vizcore3d.View.EnableAnimation = false;
-
-                // ── 0. 기존 3D 어노테이션 모두 초기화 ──
-                vizcore3d.Review.Note.Clear();
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
-
-                // ── 1. 2D 완전 초기화 ──
-                Clear2DView();
-
-                // 2D 패널 크기 조정
-                if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
-                {
-                    vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
-                    Application.DoEvents();
-                }
-
-                // ── 2. 캔버스 설정 ──
-                // T-064 (2026-05-14 3차): 사용자 사양 — 가공도에 ISO/Looking 라벨이 잔존하는 문제 회피.
-                //   메인 도면(GenerateSheetDrawing2D_WithExcelTemplate)이 그린 그리드 셀 라벨이 가공도 진입 시 잔존.
-                //   캔버스 자체를 제거하고 새로 만들어 모든 잔존물 제거.
-                try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
-                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);  // A4 가로
-
-                int selectedCanvas = 1;
-                vizcore3d.Drawing2D.View.SetSelectCanvas(selectedCanvas);
-                float wCanvas = 0.0f, hCanvas = 0.0f;
-                vizcore3d.Drawing2D.View.GetCanvasSize(ref wCanvas, ref hCanvas);
-
-                // ── 3. 외곽 테두리 생성 (간단한 1x1 그리드로 깔끔한 A4 테두리) ──
-                // T-064 (2026-05-14 4차): 사용자 사양 "가공도 그냥 템플릿 안쓰는 버전으로 되돌리자"
-                //   → 직전 commit 27aae40 (가공도 엑셀 템플릿 ImportExcelWithData) 롤백.
-                //   → 옛 외곽 1×1 그리드 + CreateTemplateBorder + table2 (우측 하단 도면정보) 복귀.
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(1, 1, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
-                VIZCore3D.NET.Data.TemplateBorderInfo bInfo = vizcore3d.Drawing2D.Template.CreateTemplateBorder();
-
-                // ── 4. 모델 배치용 그리드 재생성 (4x6) ──
-                // T-064 (2026-05-14 2차): 사용자 사양 — 상단 빈 행 제거 (gridRows 5→4, Row 1부터 사용)
-                //   옛 1차(718e534): gridRows=5, usableRowStart=2 → Row 1이 빈 상단 여백 차지
-                //   2차: gridRows=4, usableRowStart=1 → Row 1부터 모델 배치 → 상단 여백 사라짐
-                //   한 페이지 부재 수는 12개로 유지 (rowsPerCol=4 × 3 모델 그룹)
-                const int gridRows = 4;
-                const int gridCols = 6;   // 라벨(1,3,5) + 모델(2,4,6)
-                const int usableRowStart = 1;  // 1행부터 (옛 2)
-                const int usableRowEnd = 4;    // 4행까지 (옛 5)
-                const int rowsPerCol = usableRowEnd - usableRowStart + 1; // 4
-
-                vizcore3d.Drawing2D.GridStructure.AddGridStructure(gridRows, gridCols, wCanvas, hCanvas);
-                vizcore3d.Drawing2D.GridStructure.SetMargins(10, 10, 10, 10);
-
-                // 도면정보 — A4 우측 하단 모서리에 Anchor 절대좌표 방식으로 배치 (T-064 4차: 엑셀 템플릿 롤백 복귀)
-                VIZCore3D.NET.Data.TemplateTableData table2 = new VIZCore3D.NET.Data.TemplateTableData(5, 4);
-                table2.SetText(0, 0, "작성 일자"); table2.SetText(0, 1, DateTime.Now.ToString("yyyy-MM-dd (ddd)"));
-                table2.SetText(1, 0, "소속");      table2.SetText(1, 1, "삼성중공업");
-                table2.SetText(2, 0, "담당자");    table2.SetText(2, 1, "홍길동");
-                table2.SetText(3, 0, "검수자");    table2.SetText(3, 1, "홍길동");
-                table2.SetText(4, 0, "Image");     table2.SetText(4, 1, string.Format("{0}\\Logo.png", GetSolutionPath()));
-                table2.ImageHeight = 50;
-                table2.IsTextWrapped = true;
-                table2.ColumnWidths = new Dictionary<int, int>() { { 0, 15 }, { 1, 30 }, { 2, 10 }, { 3, 10 } };
-
-                // bInfo 좌표 기반 Anchor 방식: 우측 하단 모서리에 붙이기
-                table2.HorizontalAnchor = VIZCore3D.NET.Data.TableHorizontalAnchor.Right;
-                table2.VerticalAnchor = VIZCore3D.NET.Data.TableVerticalAnchor.Bottom;
-                table2.X = bInfo.MaxX;   // 테두리 우측
-                table2.Y = bInfo.MinY;   // 테두리 하단
-                vizcore3d.Drawing2D.Template.RenderTemplate(table2);
-
-                vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;  // T-040 v5: 2.0→3.0 (모델 두드러지게)
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
-                // T-064 (2026-05-14): 사용자 사양 — 가공도 치수 텍스트 키움 (5→8mm, 풍선 비활성화에 따른 보강)
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(8f);
-
-                // ── 4. 각 가공도 시트를 열 우선 순서로 셀에 배치 (2~7행만 사용) ──
-                // 라벨 칼럼(1,3,5) + 모델 칼럼(2,4,6) 구조
-                const int modelGroupCount = 3;  // 3개 모델 그룹
-                int maxSlots = rowsPerCol * modelGroupCount; // 18
-                int count = Math.Min(mfgSheets.Count, maxSlots);
-                for (int i = 0; i < count; i++)
-                {
-                    int modelGroup = i / rowsPerCol;              // 0, 1, 2
-                    int rowInGroup = i % rowsPerCol;              // 0~3
-                    int row = rowInGroup + usableRowStart;        // 1~4행
-                    // T-064 (2026-05-14 3차): 사용자 사양 — 라벨을 모델 오른쪽으로 이동 (옛 라벨 왼쪽 → 모델 왼쪽 / 라벨 오른쪽)
-                    int modelCol = modelGroup * 2 + 1;            // 1, 3, 5 (옛 labelCol)
-                    int labelCol = modelGroup * 2 + 2;            // 2, 4, 6 (옛 modelCol)
-
-                    // 모델 2D 렌더링
-                    RenderMfgViewForDrawing(row, modelCol, mfgSheets[i].MemberIndices[0]);
-
-                    // 라벨 배치 (모델 Name) — 오른쪽 셀, 넓힘 + 줄바꿈 허용
-                    try
-                    {
-                        BOMData labelBom = bomList.FirstOrDefault(b => b.Index == mfgSheets[i].MemberIndices[0]);
-                        if (labelBom != null && !string.IsNullOrEmpty(labelBom.Name))
-                        {
-                            VIZCore3D.NET.Data.TemplateTableData labelTable = new VIZCore3D.NET.Data.TemplateTableData(1, 1);
-                            labelTable.SetText(0, 0, labelBom.Name);
-                            // T-064 (2026-05-14 3차): 사용자 사양 — 라벨 폭 25→40mm, 긴 이름은 줄바꿈 (IsTextWrapped=true)
-                            labelTable.IsTextWrapped = true;
-                            labelTable.ColumnWidths = new Dictionary<int, int>() { { 0, 40 } };
-
-                            vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(row, labelCol,
-                                VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
-                            vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(row, labelCol,
-                                VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
-                            vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(labelTable, row, labelCol);
-                        }
-                    }
-                    catch { }
-                }
-
-                // ── 5. 최종 렌더링 ──
-                vizcore3d.Drawing2D.Render();
-
-                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-
-                vizcore3d.Drawing2D.View.SetCanvasResetViewPos(-1);
-
-                // ── 6. 뷰어 크기 조정 ──
-                this.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
-                        {
-                            vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.1);
-                        }
-
-                        vizcore3d.Drawing2D.View.SetCanvasResetViewPos(-1);
-
-                        try
-                        {
-                            vizcore3d.Drawing2D.Object2D.SelectAllObjectBy2DView();
-
-                            SplitterPanel panel2 = vizcore3d.SplitContainer.Panel2;
-                            IntPtr hwnd = panel2.Controls.Count > 0
-                                ? panel2.Controls[0].Handle
-                                : panel2.Handle;
-
-                            SetFocus(hwnd);
-
-                            Point center = panel2.PointToScreen(
-                                new Point(panel2.Width / 2, panel2.Height / 2));
-                            int lParam = (center.Y << 16) | (center.X & 0xFFFF);
-
-                            for (int z = 0; z < 7; z++)
-                            {
-                                IntPtr wParam = (IntPtr)(WHEEL_DELTA << 16);
-                                SendMessage(hwnd, WM_MOUSEWHEEL, wParam, (IntPtr)lParam);
-                            }
-
-                            vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                            vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                        }
-                        catch { }
-                    }
-                    catch { }
-                }));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"가공도 2D 일괄 출력 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// 가공도 셀 렌더 — 그리드 셀 안에 단일 부재 2D 캡처.
-        /// Step B3 (2026-05-19): 어댑터로 축소.
-        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선)은 BuildMfgSceneCore가 수행.
-        /// 자동 어댑터 후처리:
-        ///   - DASH_LINE RenderMode (PDF 은선용)
-        ///   - FlyToObject3d (카메라 fit)
-        ///   - pose.ApplyZ90 / pose.ApplyR180 적용
-        ///   - 2D 캔버스 변환 (Create2DViewObjectWithModelHiddenLineAtCanvasOrigin)
-        ///   - 그리드 셀 fit (FitObjectToGridCellAspect + 30% scale + 20mm min)
-        ///   - ShapeDrawing → 2D (pose.ShapeDrawingIds 사용)
-        ///   - Note(풍선) → 2D (Add2DNoteFrom3DNote)
-        ///   - Measure → 2D + ApplyParallelTextShift
-        ///   - 두께 복원
-        /// 
-        /// Codex P3 제약 (2026-05-18): _lastMfgViewPose write X (지역변수만).
-        /// 사용자 사양 (2026-05-19): noteIds.Clear() 제거 — PDF에 풍선 표시.
-        /// 현재 수동 PDF 출력은 RenderMfgRowToViewArea를 사용하며, EA 상하 2뷰도 그 경로에서 처리한다.
-        /// </summary>
-        private int RenderMfgViewForDrawing(int row, int col, int bomIndex)
-        {
-            BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
-            if (bom == null) return -1;
-
-            // ── 공통 코어 호출 (지역변수 pose만, _lastMfgViewPose write X) ──
-            var pose = BuildMfgSceneCore(bomIndex);
-
-            // ── 자동 어댑터 후처리: DASH_LINE + FlyToObject3d ──
-            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-            vizcore3d.View.SilhouetteEdge = true;
-            vizcore3d.View.SilhouetteEdgeColor = Color.Green;
-
-            List<int> targetIndices = new List<int> { bom.Index };
-            vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-
-            // pose.ApplyZ90 / pose.ApplyR180 적용
-            if (pose.ApplyZ90)
-            {
-                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-            }
-            if (pose.ApplyR180)
-            {
-                vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-            }
-
-            // ── 2D 변환: 은선 포함 ──
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-            int objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
-                VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-
-            // ── 그리드 셀 fit (30% target + 20mm min) ──
-            vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, objId,
-                VIZCore3D.NET.Data.GridHorizontalAlignment.Center,
-                VIZCore3D.NET.Data.GridVerticalAlignment.Middle);
-
-            {
-                float cellW = vizcore3d.Drawing2D.GridStructure.GetGridCellWidth(row, col);
-                float cellH = vizcore3d.Drawing2D.GridStructure.GetGridCellHeight(row, col);
-                float marginL = vizcore3d.Drawing2D.GridStructure.GetGridCellLeftMargin(row, col);
-                float marginR = vizcore3d.Drawing2D.GridStructure.GetGridCellRightMargin(row, col);
-                float marginT = vizcore3d.Drawing2D.GridStructure.GetGridCellTopMargin(row, col);
-                float marginB = vizcore3d.Drawing2D.GridStructure.GetGridCellBottomMargin(row, col);
-
-                float contentW = cellW - marginL - marginR;
-                float contentH = cellH - marginT - marginB;
-
-                float objW = 0f, objH = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
-
-                if (objW > 0 && objH > 0 && contentW > 0 && contentH > 0)
-                {
-                    float targetW = contentW * 0.30f;
-                    float targetH = contentH * 0.30f;
-                    float scaleW = targetW / objW;
-                    float scaleH = targetH / objH;
-                    float fitScale = Math.Min(scaleW, scaleH);
-
-                    if (fitScale > 0 && Math.Abs(fitScale - 1.0f) > 0.01f)
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, fitScale);
-
-                    float scaledW = 0f, scaledH = 0f;
-                    vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref scaledW, ref scaledH);
-                    if (scaledW > 0 && scaledW < 20f)
-                    {
-                        float currentScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
-                        float adjustRatio = 20f / scaledW;
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, currentScale * adjustRatio);
-                    }
-                }
-            }
-
-            // ── ShapeDrawing(보조선) → 2D ──
-            //   pose.ShapeDrawingIds: 코어가 채운 보조선 ID 목록
-            if (pose.ShapeDrawingIds != null && pose.ShapeDrawingIds.Count > 0)
-            {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(0.1f);
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineType(VIZCore3D.NET.Data.Object2D_LineTypes.SOLID);
-                vizcore3d.Drawing2D.Object2D.Add2DObjectFromShapeDrawing(pose.ShapeDrawingIds);
-            }
-
-            // ── Note(풍선) → 2D ──
-            //   ⚠️ noteIds.Clear() 제거 (사용자 사양 2026-05-19): PDF에 풍선 표시.
-            //   옛 T-064 사양 폐기 (memory/feedback_mfg_balloon_2026-05-19.md).
-            List<int> noteIds = new List<int>();
-            List<VIZCore3D.NET.Data.NoteItem> notes = vizcore3d.Review.Note.Items;
-            foreach (var note in notes)
-                noteIds.Add(note.ID);
-
-            if (noteIds.Count > 0)
-            {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(3.5f);
-                vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-
-                foreach (int idx in noteIds)
-                {
-                    try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(idx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
-                    catch { }
-                }
-            }
-
-            // ── Measure(치수선) → 2D + ApplyParallelTextShift ──
-            List<int> measureIds = new List<int>();
-            List<VIZCore3D.NET.Data.MeasureItem> measures = vizcore3d.Review.Measure.Items;
-            foreach (var measure in measures)
-            {
-                if (measure.Visible) measureIds.Add(measure.ID);
-            }
-            if (measureIds.Count > 0)
-            {
-                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.5f);
-                ApplyParallelTextShift(pose.ViewDirection,
-                    vizcore3d.Drawing2D.Object2D.GetObjectScale(objId), measures);
-                vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
-            }
-
-            // ── 두께 복원 (다음 셀용) ──
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);
-
-            DiagLog($"B3 RenderMfgViewForDrawing row={row} col={col} bom={bom.Index} " +
-                $"viewDir={pose.ViewDirection} longestAxis={pose.LongestAxis} " +
-                $"ApplyZ90={pose.ApplyZ90} ApplyR180={pose.ApplyR180} " +
-                $"shapeIds={(pose.ShapeDrawingIds?.Count ?? 0)} noteIds={noteIds.Count} measureIds={measureIds.Count} " +
-                $"objId={objId}");
-
-            return objId;
         }
 
         /// <summary>
