@@ -677,15 +677,16 @@ namespace A2Z
             // ── 2차 뷰 상하 미러 판정 — 코너가 최종 슬롯에서 가운데를 향하는지 (2026-07-02) ──
             //   위 슬롯이면 코너가 아래(cornerUp=false), 아래 슬롯이면 위(cornerUp=true)여야 함.
             //   어긋나면: 모델 = 2D 미러(SetSelected3DMirrorBy2DView), 치수·보조선 = MirrorAxis 3D 좌표 반전.
+            string secVertAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);   // 2차 뷰 화면 세로축
+            bool secAxisUp = MfgAxisUpPositive(secVertAxis);
             if (primaryPose.HasSecCorner)
             {
-                bool axisUpS = MfgAxisUpPositive(primaryPose.SecCornerAxis);
-                bool secCornerUp = (primaryPose.SecCornerAtMax == axisUpS);
+                bool secCornerUp = (primaryPose.SecCornerAtMax == secAxisUp);
                 bool needUp = !secondaryAtTop;
                 pose.MirrorVertical = (secCornerUp != needUp);
                 pose.MirrorAxis = primaryPose.SecCornerAxis;
                 DiagLog($"[EAMirror] bom={bom.Index} secAxis={primaryPose.SecCornerAxis} atMax={primaryPose.SecCornerAtMax} " +
-                    $"axisUp={axisUpS} cornerUp={secCornerUp} atTop={secondaryAtTop} → mirror={pose.MirrorVertical}");
+                    $"axisUp={secAxisUp} cornerUp={secCornerUp} atTop={secondaryAtTop} → mirror={pose.MirrorVertical}");
             }
 
             var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
@@ -793,11 +794,14 @@ namespace A2Z
                 });
             bool positiveOffset = ComputePositiveOffsetByOsnapExtreme(offsetValues, modelCenter);
 
-            // 회전(Z 최장) 2차 뷰: 길이 치수를 화면 위쪽으로 강제.
-            //   +90 화면 회전으로 3D '외곽(positive)' 기준이 화면 위/아래와 어긋나, 길이가 두 뷰 사이(중간)로
-            //   떨어진다(회전 안 하는 부재는 정상). 화면 기준 고정값 사용 — 부호는 사내 검증으로 확정.
-            if (pose.LongestAxis == "Z")
-                positiveOffset = false;   // 화면 위쪽 추정값 (위가 아니면 true로 뒤집기)
+            // 길이 치수는 항상 페어 '바깥쪽'으로 — 위 슬롯이면 위, 아래 슬롯이면 아래 (2026-07-02).
+            //   스왑·미러 도입으로 2차 뷰 슬롯이 부재마다 달라져, 기존 휴리스틱(외곽 osnap·Z최장 고정값)이
+            //   치수를 뷰 사이(가운데)에 놓아 반대 뷰 모델과 겹치던 문제 제거.
+            //   미러 시 좌표·PosOff가 나중에 반전되므로 수집(pre-mirror) 공간으로 환산해 지정.
+            bool lenDimUpPre = pose.MirrorVertical ? !secondaryAtTop : secondaryAtTop;
+            positiveOffset = (secAxisUp == lenDimUpPre);
+            DiagLog($"[EALenDim] bom={bom.Index} axisUp={secAxisUp} mirror={pose.MirrorVertical} " +
+                $"atTop={secondaryAtTop} → posOff={positiveOffset}");
 
             // 보조선·치수 '그리기'는 캡처 직후 실측 newScale로(DrawMfgDimsAtScale). 여기선 목록만 수집.
             //   길이축(positiveOffset) 먼저. 보조선 시작점은 같은 레벨 osnap 중 치수선 쪽 극점으로 스냅. 2026-07-01
