@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-07-03 — 가공도 EA 미검증 후보 검증 + 2차 정리
+
+**유형**: refactor (죽은 코드 제거)
+**커밋**: `pending`
+**관련 TASK**: T-073 잔재 정리 (1차 정리 후속)
+
+**배경**: 1차 정리 때 세션 한도로 3-렌즈 검증이 끊긴 후보들을 Opus로 직접 grep 검증. 확정 dead만 추가 제거, 나머지는 근거와 함께 보존.
+
+**추가 제거**:
+- `mfgTotalOff`(비-_m) + `maxTotalDist` 재계산 루프 — 2번 할당·읽기 0. 캡처 후 실측 offset(v2-c)로 대체된 옛 인라인 offset 잔재(`mfgTotalOff_m`는 별도 경로로 live 유지).
+- `BuildMfgSceneCore`·`BuildEaSecondaryScene`의 `availW`/`availH` 파라미터 — 호출부가 값 전달하나 두 메서드 내부 참조 0. cell-fit이 `EstimateFitScaleForViewArea`로 이동한 뒤 남은 미사용 파라미터. 시그니처 + 호출부 2곳 정리.
+- stale 주석 4곳: `MfgScreenRightPositive`·`ApplyAbsoluteCameraRoll`(미존재 심볼), `세로=오른쪽 조사 중`(왼쪽=회사 표준으로 종결), `btnMfgDrawing_Click`(삭제된 버튼) → 현행 심볼/정책으로 갱신.
+
+**보존(근거)**: `isAboveWider`/`isLShape`(읽힘=live), `UsedMinusCamera`(스냅샷 판정에 읽힘), `CameraData` 스냅샷·필드(T-036 재사용 계획), `OrientationAxis`/`OrientationAngle`(8필드 설계), `alignExtToBaseline`(활성 실험 폴백), `struName`(진행 중 페이지 빌더), `zoomRatio`(내부 사용).
+
+**검증**: MSBuild Debug 통과(에러 0). code-reference 앵커 -24 라인 드리프트 정정.
+
 ## 2026-07-03 — 가공도 EA 스틴트 죽은 코드 정리 (3-렌즈 만장일치)
 
 **유형**: refactor (죽은 코드 제거)
