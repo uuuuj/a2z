@@ -549,6 +549,33 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 해당 3D 축의 +방향이 캡처 화면의 '위'인지 판정 (가로화 회전 예정 반영).
+        /// MfgHeightToRight와 동일 원리 — 카메라 세팅 후·화면회전 전에 호출.
+        /// MfgUpRollSign: +90° 화면회전 시 새 상축 = -기존 우축 가정. 실기 반대면 부호만 반전. 2026-07-02
+        /// </summary>
+        private const float MfgUpRollSign = -1f;
+        private bool MfgAxisUpPositive(string axis)
+        {
+            try
+            {
+                var axes = vizcore3d.View.GetCameraAxis();
+                if (axes != null && axes.Count >= 2)
+                {
+                    float ox = axis == "X" ? 1f : 0f, oy = axis == "Y" ? 1f : 0f, oz = axis == "Z" ? 1f : 0f;
+                    var right = axes[0]; var up = axes[1];
+                    float dotR = ox * right.X + oy * right.Y + oz * right.Z;
+                    float dotU = ox * up.X + oy * up.Y + oz * up.Z;
+                    bool willRoll = Math.Abs(dotR) > Math.Abs(dotU);   // 축이 지금 가로 → 회전 후 세로가 됨
+                    float eff = willRoll ? (dotR * MfgUpRollSign) : dotU;
+                    DiagLog($"[AxisUp] ax={axis} dotR={dotR:F2} dotU={dotU:F2} willRoll={willRoll} upPos={eff > 0}");
+                    return eff > 0;
+                }
+            }
+            catch { }
+            return true;
+        }
+
+        /// <summary>
         /// 가공도 보조선 시작 보정 — 치수 끝점의 '오프셋축' 좌표를, 같은 치수축 레벨(±tol)의 osnap 점들 중
         /// 치수선 쪽 극값으로 스냅한다. 직사각 부재는 그 극값이 외곽 모서리라 변화 없고,
         /// 대각(beveled) 부재는 실제 대각 꼭짓점이 되어 — 순수 osnap(보조선이 모델을 가로지름)과
@@ -811,6 +838,22 @@ namespace A2Z
                 // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이
                 //   치수선·보조선과 구분이 사라진다(제작도는 캡처 직전 실루엣 미사용). 2026-06-29
                 vizcore3d.View.SilhouetteEdge = false;
+
+                // ── EA 두 뷰 상하 스왑 판정 — 접힘 모서리(코너)가 두 뷰 사이(가운데)를 향하도록 ──
+                //   1차 뷰의 코너가 화면 '위'로 가면 두 뷰의 위/아래 슬롯을 맞바꾼다. 2026-07-02
+                //   (호출 시점: 카메라 세팅 후·화면회전 전 — MfgAxisUpPositive가 회전 예정을 보정)
+                bool swapViews = false;
+                if (isEA && pose.HasCorner)
+                {
+                    bool axisUp = MfgAxisUpPositive(pose.CornerAxis);
+                    bool cornerUp = (pose.CornerAtMax == axisUp);
+                    swapViews = cornerUp;
+                    DiagLog($"[EASlot] bom={bom.Index} cornerAxis={pose.CornerAxis} atMax={pose.CornerAtMax} " +
+                        $"axisUp={axisUp} cornerUp={cornerUp} → swap={swapViews}");
+                }
+                float primaryY = swapViews ? area.Y + viewHeight + viewGap : area.Y;
+                float secondaryY = swapViews ? area.Y : area.Y + viewHeight + viewGap;
+
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
                 System.Windows.Forms.Application.DoEvents();
@@ -818,7 +861,7 @@ namespace A2Z
                 int primaryObjId;
                 bool primaryOk = CaptureMfgSceneToViewArea(
                     rowIdx, bom, pose,
-                    area.X, area.Y, area.Width, viewHeight,
+                    area.X, primaryY, area.Width, viewHeight,
                     isEA ? "EA primary" : "primary",
                     out primaryObjId);
                 // 회전 원복 (누적 방지) — 캡처 성공/실패와 무관하게
@@ -846,7 +889,7 @@ namespace A2Z
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
                             rowIdx, bom, secondaryPose,
-                            area.X, area.Y + viewHeight + viewGap,
+                            area.X, secondaryY,
                             area.Width, viewHeight,
                             "EA secondary",
                             out secondaryObjId);
@@ -1201,6 +1244,43 @@ namespace A2Z
             //   대각(beveled) 꼭짓점은 깊이 필터(FilterHiddenLineOsnap)가 뒷면 플랜지째로 지울 수 있는데,
             //   실루엣 외곽으로는 도면에 그려지므로 스냅은 원본에서 찾는다(정사영이라 깊이는 2D 위치 무관). 2026-07-02
             var mfgOsnapFull = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(mfgOsnapWithNames);
+
+            // ── 5-2a. EA 접힘 모서리(코너) 방향 판정 — 두 뷰 상하 스왑용 (2026-07-02) ──
+            //   1차 뷰 높이축(h)의 min/max 슬랩 중 '깊이축으로 두껍게 퍼진 쪽'(=반대 플랜지가 있는 쪽)이 코너.
+            //   자유단 쪽은 깊이 방향으로 판 두께(~8mm)뿐이라 극명하게 갈린다.
+            if (isEA && !string.IsNullOrEmpty(pose.LongestAxis))
+            {
+                string hAx = GetRemainingAxis(viewDirection, pose.LongestAxis);
+                Func<VIZCore3D.NET.Data.Vertex3D, string, float> cAx =
+                    (v, a) => a == "X" ? v.X : a == "Y" ? v.Y : v.Z;
+                float hMin = float.MaxValue, hMax = float.MinValue;
+                foreach (var o in mfgOsnapFull)
+                {
+                    float hv = cAx(o.point, hAx);
+                    if (hv < hMin) hMin = hv;
+                    if (hv > hMax) hMax = hv;
+                }
+                float band = (hMax - hMin) * 0.3f;
+                if (band > 0.5f)
+                {
+                    float minLo = float.MaxValue, minHi = float.MinValue;
+                    float maxLo = float.MaxValue, maxHi = float.MinValue;
+                    foreach (var o in mfgOsnapFull)
+                    {
+                        float hv = cAx(o.point, hAx);
+                        float dv = cAx(o.point, viewDirection);
+                        if (hv <= hMin + band) { if (dv < minLo) minLo = dv; if (dv > minHi) minHi = dv; }
+                        if (hv >= hMax - band) { if (dv < maxLo) maxLo = dv; if (dv > maxHi) maxHi = dv; }
+                    }
+                    float extMin = (minHi >= minLo) ? minHi - minLo : 0f;
+                    float extMax = (maxHi >= maxLo) ? maxHi - maxLo : 0f;
+                    pose.CornerAxis = hAx;
+                    pose.CornerAtMax = extMax > extMin;
+                    pose.HasCorner = Math.Abs(extMax - extMin) > 1.0f;
+                    DiagLog($"[Corner] bom={bom.Index} hAx={hAx} extMin={extMin:F1} extMax={extMax:F1} " +
+                        $"atMax={pose.CornerAtMax} has={pose.HasCorner}");
+                }
+            }
 
             // ── 5-2. 은선 Osnap 필터링 (카메라 방향 결정 후 적용) ──
             mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,

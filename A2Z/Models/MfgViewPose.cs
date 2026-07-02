@@ -57,6 +57,14 @@ namespace A2Z
         public System.Collections.Generic.List<MfgPendingDim> PendingDims { get; set; } = new System.Collections.Generic.List<MfgPendingDim>();
 
         /// <summary>
+        /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).
+        /// CornerAxis = 1차 뷰 높이축, CornerAtMax = 코너가 그 축 max쪽에 있는지.
+        /// </summary>
+        public bool HasCorner { get; set; }
+        public string CornerAxis { get; set; }
+        public bool CornerAtMax { get; set; }
+
+        /// <summary>
         /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).
         /// LvDrawingSheet_SelectedIndexChanged의 시트 진입 후처리 회전 분기에서 사용.
         /// </summary>
