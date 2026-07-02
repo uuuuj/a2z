@@ -297,6 +297,22 @@ namespace A2Z
                 areaX + areaWidth / 2f,
                 areaY + areaHeight / 2f);
 
+            // 2차 뷰 상하 미러 — 모델 2D 객체 반전. 치수·보조선은 3D 좌표 반전(BuildEaSecondaryScene)으로 이미 정합. 2026-07-02
+            if (pose.MirrorVertical)
+            {
+                try
+                {
+                    vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 1);
+                    vizcore3d.Drawing2D.Object2D.SetSelected3DMirrorBy2DView(true);   // true = 상/하 반전
+                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} 상하 미러 적용 objId={objId}");
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN 미러 실패: {ex.Message}");
+                }
+            }
+
             // 보조선·치수를 '확정된 실측 배율(newScale)'로 지금 그린다 — 캔버스 절대 오프셋이 부재·뷰 무관 일정.
             //   (코어는 pose.PendingDims로 목록만 수집) 설계 §4.4 v2-c, 2026-07-01
             try { DrawMfgDimsAtScale(pose, bom, newScale); }
@@ -612,11 +628,24 @@ namespace A2Z
             }
         }
 
+        private VIZCore3D.NET.Data.Vector3D MirrorPointOnAxis(
+            VIZCore3D.NET.Data.Vector3D p, string axis, float mn, float mx)
+        {
+            float s = mn + mx;
+            switch (axis)
+            {
+                case "X": return new VIZCore3D.NET.Data.Vector3D(s - p.X, p.Y, p.Z);
+                case "Y": return new VIZCore3D.NET.Data.Vector3D(p.X, s - p.Y, p.Z);
+                default:  return new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, s - p.Z);
+            }
+        }
+
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
             float availW,
-            float availH)
+            float availH,
+            bool secondaryAtTop = true)
         {
             var pose = new MfgViewPose { LongestAxis = primaryPose.LongestAxis };
 
@@ -644,6 +673,20 @@ namespace A2Z
             pose.UsedMinusCamera = true;
             vizcore3d.View.MoveCamera(pose.CameraDirection);
             // 가로화(세로면 회전)는 캡처 직전 호출자(RenderMfgRowToViewArea)에서 ProbeAndRollLandscape로 수행.
+
+            // ── 2차 뷰 상하 미러 판정 — 코너가 최종 슬롯에서 가운데를 향하는지 (2026-07-02) ──
+            //   위 슬롯이면 코너가 아래(cornerUp=false), 아래 슬롯이면 위(cornerUp=true)여야 함.
+            //   어긋나면: 모델 = 2D 미러(SetSelected3DMirrorBy2DView), 치수·보조선 = MirrorAxis 3D 좌표 반전.
+            if (primaryPose.HasSecCorner)
+            {
+                bool axisUpS = MfgAxisUpPositive(primaryPose.SecCornerAxis);
+                bool secCornerUp = (primaryPose.SecCornerAtMax == axisUpS);
+                bool needUp = !secondaryAtTop;
+                pose.MirrorVertical = (secCornerUp != needUp);
+                pose.MirrorAxis = primaryPose.SecCornerAxis;
+                DiagLog($"[EAMirror] bom={bom.Index} secAxis={primaryPose.SecCornerAxis} atMax={primaryPose.SecCornerAtMax} " +
+                    $"axisUp={axisUpS} cornerUp={secCornerUp} atTop={secondaryAtTop} → mirror={pose.MirrorVertical}");
+            }
 
             var osnapPoints = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
             var osnapList = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
@@ -796,6 +839,26 @@ namespace A2Z
                 DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 수집 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
             }
 
+            // 미러 시 치수·보조선 좌표를 MirrorAxis 기준으로 반전 — 2D 미러된 모델과 정합 (2026-07-02)
+            if (pose.MirrorVertical && !string.IsNullOrEmpty(pose.MirrorAxis))
+            {
+                float mMn, mMx;
+                switch (pose.MirrorAxis)
+                {
+                    case "X": mMn = bom.MinX; mMx = bom.MaxX; break;
+                    case "Y": mMn = bom.MinY; mMx = bom.MaxY; break;
+                    default:  mMn = bom.MinZ; mMx = bom.MaxZ; break;
+                }
+                foreach (var pd in pose.PendingDims)
+                {
+                    pd.Start = MirrorPointOnAxis(pd.Start, pose.MirrorAxis, mMn, mMx);
+                    pd.End = MirrorPointOnAxis(pd.End, pose.MirrorAxis, mMn, mMx);
+                    if (GetRemainingAxis(pose.ViewDirection, pd.Axis) == pose.MirrorAxis)
+                        pd.PosOff = !pd.PosOff;
+                }
+                DiagLog($"[EAMirror] bom={bom.Index} dims 좌표 반전 axis={pose.MirrorAxis} n={pose.PendingDims.Count}");
+            }
+
             DiagLog($"[EA Secondary] bom={bom.Index} view={pose.ViewDirection} " +
                 $"longest={pose.LongestAxis} dims={dimensions.Count} Z90={pose.ApplyZ90}");
             return pose;
@@ -840,16 +903,17 @@ namespace A2Z
                 vizcore3d.View.SilhouetteEdge = false;
 
                 // ── EA 두 뷰 상하 스왑 판정 — 접힘 모서리(코너)가 두 뷰 사이(가운데)를 향하도록 ──
-                //   1차 뷰의 코너가 화면 '위'로 가면 두 뷰의 위/아래 슬롯을 맞바꾼다. 2026-07-02
+                //   캔버스 Y는 위로 증가: 1차 뷰 기본 슬롯 = 아래(area.Y), 2차 뷰 = 위(area.Y+viewHeight).
+                //   아래 뷰의 코너는 '위(가운데)'를 향해야 하므로, 1차 코너가 아래를 향하면(cornerUp=false) 스왑. 2026-07-02
                 //   (호출 시점: 카메라 세팅 후·화면회전 전 — MfgAxisUpPositive가 회전 예정을 보정)
                 bool swapViews = false;
                 if (isEA && pose.HasCorner)
                 {
                     bool axisUp = MfgAxisUpPositive(pose.CornerAxis);
                     bool cornerUp = (pose.CornerAtMax == axisUp);
-                    swapViews = cornerUp;
+                    swapViews = !cornerUp;
                     DiagLog($"[EASlot] bom={bom.Index} cornerAxis={pose.CornerAxis} atMax={pose.CornerAtMax} " +
-                        $"axisUp={axisUp} cornerUp={cornerUp} → swap={swapViews}");
+                        $"axisUp={axisUp} cornerUp={cornerUp} → swap={swapViews} (1차 기본=아래)");
                 }
                 float primaryY = swapViews ? area.Y + viewHeight + viewGap : area.Y;
                 float secondaryY = swapViews ? area.Y : area.Y + viewHeight + viewGap;
@@ -880,7 +944,7 @@ namespace A2Z
                     try
                     {
                         var secondaryPose = BuildEaSecondaryScene(
-                            bom, pose, area.Width, viewHeight);
+                            bom, pose, area.Width, viewHeight, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
 
                         // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전
                         float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
@@ -1279,6 +1343,39 @@ namespace A2Z
                     pose.HasCorner = Math.Abs(extMax - extMin) > 1.0f;
                     DiagLog($"[Corner] bom={bom.Index} hAx={hAx} extMin={extMin:F1} extMax={extMax:F1} " +
                         $"atMax={pose.CornerAtMax} has={pose.HasCorner}");
+                }
+
+                // 2차 뷰 높이축(=1차 뷰 깊이축=viewDirection) 기준 동일 판정 — 2차 뷰 상하 미러 결정용.
+                {
+                    string sAx = viewDirection;
+                    float sMinV = float.MaxValue, sMaxV = float.MinValue;
+                    foreach (var o in mfgOsnapFull)
+                    {
+                        float sv = cAx(o.point, sAx);
+                        if (sv < sMinV) sMinV = sv;
+                        if (sv > sMaxV) sMaxV = sv;
+                    }
+                    float sBand = (sMaxV - sMinV) * 0.3f;
+                    if (sBand > 0.5f)
+                    {
+                        string dAx = GetRemainingAxis(viewDirection, pose.LongestAxis);   // 판별축 = 1차 높이축
+                        float sMinLo = float.MaxValue, sMinHi = float.MinValue;
+                        float sMaxLo = float.MaxValue, sMaxHi = float.MinValue;
+                        foreach (var o in mfgOsnapFull)
+                        {
+                            float sv = cAx(o.point, sAx);
+                            float dv = cAx(o.point, dAx);
+                            if (sv <= sMinV + sBand) { if (dv < sMinLo) sMinLo = dv; if (dv > sMinHi) sMinHi = dv; }
+                            if (sv >= sMaxV - sBand) { if (dv < sMaxLo) sMaxLo = dv; if (dv > sMaxHi) sMaxHi = dv; }
+                        }
+                        float sExtMin = (sMinHi >= sMinLo) ? sMinHi - sMinLo : 0f;
+                        float sExtMax = (sMaxHi >= sMaxLo) ? sMaxHi - sMaxLo : 0f;
+                        pose.SecCornerAxis = sAx;
+                        pose.SecCornerAtMax = sExtMax > sExtMin;
+                        pose.HasSecCorner = Math.Abs(sExtMax - sExtMin) > 1.0f;
+                        DiagLog($"[Corner2] bom={bom.Index} sAx={sAx} extMin={sExtMin:F1} extMax={sExtMax:F1} " +
+                            $"atMax={pose.SecCornerAtMax} has={pose.HasSecCorner}");
+                    }
                 }
             }
 

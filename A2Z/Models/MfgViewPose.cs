@@ -59,10 +59,21 @@ namespace A2Z
         /// <summary>
         /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).
         /// CornerAxis = 1차 뷰 높이축, CornerAtMax = 코너가 그 축 max쪽에 있는지.
+        /// Sec* = 2차 뷰 높이축(=1차 뷰 깊이축) 기준 동일 판정 — 2차 뷰 상하 미러 결정용.
         /// </summary>
         public bool HasCorner { get; set; }
         public string CornerAxis { get; set; }
         public bool CornerAtMax { get; set; }
+        public bool HasSecCorner { get; set; }
+        public string SecCornerAxis { get; set; }
+        public bool SecCornerAtMax { get; set; }
+
+        /// <summary>
+        /// 이 뷰를 상하 반전해 그릴지 (2차 뷰 전용, 2026-07-02). 모델은 2D 미러(SetSelected3DMirrorBy2DView),
+        /// 치수·보조선은 MirrorAxis 기준 3D 좌표 반전으로 함께 뒤집는다.
+        /// </summary>
+        public bool MirrorVertical { get; set; }
+        public string MirrorAxis { get; set; }
 
         /// <summary>
         /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).
