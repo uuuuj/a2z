@@ -548,6 +548,39 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// 가공도 보조선 시작 보정 — 치수 끝점의 '오프셋축' 좌표를, 같은 치수축 레벨(±tol)의 osnap 점들 중
+        /// 치수선 쪽 극값으로 스냅한다. 직사각 부재는 그 극값이 외곽 모서리라 변화 없고,
+        /// 대각(beveled) 부재는 실제 대각 꼭짓점이 되어 — 순수 osnap(보조선이 모델을 가로지름)과
+        /// 박스 스냅(빈 공간에 뜸)의 문제를 동시에 해소한다. 측정값(치수축 성분)은 불변. 2026-07-02
+        /// </summary>
+        private VIZCore3D.NET.Data.Vector3D SnapDimPointTowardDimLine(
+            VIZCore3D.NET.Data.Vector3D p, string dimAxis, string offAxis, bool posOff,
+            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> osnapFull, float tol)
+        {
+            if (osnapFull == null || osnapFull.Count == 0) return p;
+            Func<VIZCore3D.NET.Data.Vertex3D, string, float> vAx =
+                (v, a) => a == "X" ? v.X : a == "Y" ? v.Y : v.Z;
+            float pDim = GetAxisValue(p, dimAxis);
+
+            bool found = false;
+            float best = 0f;
+            foreach (var o in osnapFull)
+            {
+                if (Math.Abs(vAx(o.point, dimAxis) - pDim) > tol) continue;
+                float ov = vAx(o.point, offAxis);
+                if (!found || (posOff ? ov > best : ov < best)) { best = ov; found = true; }
+            }
+            if (!found) return p;
+
+            switch (offAxis)
+            {
+                case "X": return new VIZCore3D.NET.Data.Vector3D(best, p.Y, p.Z);
+                case "Y": return new VIZCore3D.NET.Data.Vector3D(p.X, best, p.Z);
+                default:  return new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, best);
+            }
+        }
+
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
@@ -629,6 +662,10 @@ namespace A2Z
             if (osnapPoints.Count < 2)
                 return pose;
 
+            // 4점 선별 전 전체 목록 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
+            //   대각 꼭짓점 등은 4점 극점에서 빠질 수 있어 전체 목록이 필요. 2026-07-02
+            var osnapFullSec = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(osnapPoints);
+
             const float tolerance = 0.5f;
             // 2차 뷰도 제작도 4점 규칙 적용 (사용자 사양 2026-06-23) — 1차 뷰와 동일하게 극점만 남김.
             {
@@ -688,13 +725,16 @@ namespace A2Z
                 positiveOffset = false;   // 화면 위쪽 추정값 (위가 아니면 true로 뒤집기)
 
             // 보조선·치수 '그리기'는 캡처 직후 실측 newScale로(DrawMfgDimsAtScale). 여기선 목록만 수집.
-            //   길이축(positiveOffset) 먼저. 2026-07-01
+            //   길이축(positiveOffset) 먼저. 보조선 시작점은 같은 레벨 osnap 중 치수선 쪽 극점으로 스냅. 2026-07-01
             foreach (var dim in dimensions.Where(d => d.IsVisible))
             {
                 int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                string offAxL = GetRemainingAxis(pose.ViewDirection, dim.Axis);
                 pose.PendingDims.Add(new MfgPendingDim
                 {
-                    Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = positiveOffset
+                    Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
+                    End   = SnapDimPointTowardDimLine(dim.EndPoint,   dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
+                    Axis = dim.Axis, Level = lvl, PosOff = positiveOffset
                 });
             }
 
@@ -709,13 +749,16 @@ namespace A2Z
             var widthDims = AddChainDimensionByAxis(mergedPoints, widthAxisSec, tolerance, pose.ViewDirection);
             if (widthDims.Count > 0)
             {
-                bool posOffW = MfgHeightToRight(GetRemainingAxis(pose.ViewDirection, widthAxisSec));
+                string offAxW = GetRemainingAxis(pose.ViewDirection, widthAxisSec);
+                bool posOffW = MfgHeightToRight(offAxW);
                 foreach (var dim in widthDims.Where(d => d.IsVisible))
                 {
                     int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
                     pose.PendingDims.Add(new MfgPendingDim
                     {
-                        Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = posOffW
+                        Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxW, posOffW, osnapFullSec, 1.0f),
+                        End   = SnapDimPointTowardDimLine(dim.EndPoint,   dim.Axis, offAxW, posOffW, osnapFullSec, 1.0f),
+                        Axis = dim.Axis, Level = lvl, PosOff = posOffW
                     });
                 }
                 DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 수집 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
@@ -1153,6 +1196,10 @@ namespace A2Z
             mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
                 bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
 
+            // 4점 선별 전 전체 목록 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
+            //   대각 꼭짓점 등은 4점 극점에서 빠질 수 있어 전체 목록이 필요. 2026-07-02
+            var mfgOsnapFull = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(mfgOsnapWithNames);
+
             // ── 5-3. 가공도 osnap 4점 선별 — 제작도와 동일 알고리즘(FilterOsnapForDimAxis) ──
             //   (사용자 사양 2026-06-23) 보는 뷰에서 가로축 max/min + 세로축 max/min 4 극점만 남기고
             //   중복·깊이 겹침 제거. 제작도와 통일 → EA 중간 station 폭주·치수 겹침 원천 제거.
@@ -1287,9 +1334,13 @@ namespace A2Z
                         if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
                         int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
+                        // 보조선 시작점 = 같은 레벨 osnap 중 치수선 쪽 극점 (대각 부재의 실제 꼭짓점 대응)
+                        string offAxP = GetRemainingAxis(viewDirection, dim.Axis);
                         pose.PendingDims.Add(new MfgPendingDim
                         {
-                            Start = dim.StartPoint, End = dim.EndPoint, Axis = dim.Axis, Level = lvl, PosOff = posOff
+                            Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxP, posOff, mfgOsnapFull, 1.0f),
+                            End   = SnapDimPointTowardDimLine(dim.EndPoint,   dim.Axis, offAxP, posOff, mfgOsnapFull, 1.0f),
+                            Axis = dim.Axis, Level = lvl, PosOff = posOff
                         });
                     }
                 }
