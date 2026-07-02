@@ -1091,9 +1091,7 @@ namespace A2Z
             float globalMaxY = 0,
             float globalMaxZ = 0,
             bool positiveOffset = false,
-            bool alignExtToBaseline = false,
-            float mfgTextOutwardCanvas = 0f,
-            float mfgCanvasScale = 0f)
+            bool alignExtToBaseline = false)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -1188,35 +1186,11 @@ namespace A2Z
                 }
             }
 
-            // 가공도 전용: 치수 텍스트를 치수선 너머(바깥)로 정확히 배치.
-            //   치수선 끝점(startVertex/endVertex) 중점을 따라 두고, offsetDir로 캔버스 절대 clearance만큼 밀기.
-            //   방향은 positiveOffset(권위값)로 결정 — m.Position 역추정(중심 어긋나 좌우로 밀리던 원인) 제거. 2026-07-01
-            if (mfgTextOutwardCanvas > 0f && mfgCanvasScale > 0f && measureId >= 0 && offsetDir != "")
-            {
-                float outSign = positiveOffset ? 1f : -1f;
-                float pushComp = offsetValue + outSign * (mfgTextOutwardCanvas / mfgCanvasScale);
-                float tcx = (startVertex.X + endVertex.X) / 2f;
-                float tcy = (startVertex.Y + endVertex.Y) / 2f;
-                float tcz = (startVertex.Z + endVertex.Z) / 2f;
-                VIZCore3D.NET.Data.Vector3D textPos;
-                switch (offsetDir)
-                {
-                    case "X": textPos = new VIZCore3D.NET.Data.Vector3D(pushComp, tcy, tcz); break;
-                    case "Y": textPos = new VIZCore3D.NET.Data.Vector3D(tcx, pushComp, tcz); break;
-                    default:  textPos = new VIZCore3D.NET.Data.Vector3D(tcx, tcy, pushComp); break;
-                }
-                try { vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measureId, textPos); } catch { }
-                DiagLog($"[DimTextOut] id={measureId} axis={axis} offDir={offsetDir} offVal={offsetValue:F1} " +
-                    $"push={pushComp:F1} tp=({textPos.X:F1},{textPos.Y:F1},{textPos.Z:F1})");
-            }
-
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
             // T-046: 모델 표면에서 ExtensionLineGap(10mm)만큼 떨어져 시작 (시각적 가독성)
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
             // 2026-06-23: gap을 보조선 길이의 절반 이하로 제한 — 오프셋이 짧으면(가공도 보조선 축소)
             //   고정 10mm gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
-            // (가공도 텍스트 바깥 배치는 캡처 직전 CaptureMfgSceneToViewArea에서 수행 — SetMeasureItemDistanceTextPos는
-            //  Add2DMeasureFrom3DMeasure 직전에 호출해야 반영됨. DrawDimension 시점은 이후 2D 변환이 덮어씀.)
 
             // 가공도 전용(alignExtToBaseline): 보조선을 osnap 점이 아니라 모델 가장자리(baseline)에서 시작.
             //   → 모든 보조선 길이 = 오프셋 거리로 통일, 반대쪽 점이 부재를 가로지르는 문제 제거.

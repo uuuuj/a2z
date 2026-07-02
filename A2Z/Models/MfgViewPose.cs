@@ -1,5 +1,5 @@
 // Step B1a (2026-05-19): 가공도 공통 3D 장면 결과 모델.
-// 수동(ExecuteMfgDrawing)·자동(RenderMfgViewForDrawing) 공통 코어 BuildMfgSceneCore가 반환.
+// 수동(ExecuteMfgDrawing)·자동(RenderMfgRowToViewArea) 공통 코어 BuildMfgSceneCore가 반환.
 // T-036 전역 필드(_mfgDrawingZ90Applied 등) 대체 — 카메라 회전 의도를 객체로 캡슐화.
 // LvDrawingSheet_SelectedIndexChanged 후처리 회전이 _lastMfgViewPose를 참조해 적용.
 //
@@ -44,8 +44,8 @@ namespace A2Z
 
         /// <summary>
         /// Step B3 (2026-05-19): 코어가 vizcore3d.ShapeDrawing.AddLine으로 등록한 보조선 ID 목록.
-        /// 자동 어댑터(RenderMfgViewForDrawing)가 Add2DObjectFromShapeDrawing 호출에 사용.
-        /// 수동 어댑터(ExecuteMfgDrawing)는 3D 시각화만 하므로 미사용.
+        /// PDF 경로에서 DrawMfgDimsAtScale가 채우고 CaptureMfgSceneToViewArea가 Add2DObjectFromShapeDrawing로 소비.
+        /// 수동 어댑터(ExecuteMfgDrawing, 3D 미리보기)는 3D 시각화만 하므로 미사용.
         /// </summary>
         public System.Collections.Generic.List<int> ShapeDrawingIds { get; set; } = new System.Collections.Generic.List<int>();
 
@@ -69,11 +69,10 @@ namespace A2Z
         public bool SecCornerAtMax { get; set; }
 
         /// <summary>
-        /// 이 뷰를 상하 반전해 그릴지 (2차 뷰 전용, 2026-07-02). 모델은 2D 미러(SetSelected3DMirrorBy2DView),
-        /// 치수·보조선은 MirrorAxis 기준 3D 좌표 반전으로 함께 뒤집는다.
+        /// 이 뷰를 상하 반전해 그릴지 (2차 뷰 전용, 2026-07-02). 모델은 2D 미러(SetSelected3DMirrorBy2DView)로
+        /// 뒤집으며, SDK 2D 미러가 치수·보조선 매핑까지 함께 뒤집으므로 별도 3D 좌표 반전은 하지 않는다 (40c60ec).
         /// </summary>
         public bool MirrorVertical { get; set; }
-        public string MirrorAxis { get; set; }
 
         /// <summary>
         /// 두 뷰 상하 스왑 여부 — 코어(5-2a)에서 판정 (2026-07-02).
@@ -82,14 +81,5 @@ namespace A2Z
         /// </summary>
         public bool SwapViews { get; set; }
         public bool CornerAxisUp { get; set; }
-
-        /// <summary>
-        /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).
-        /// LvDrawingSheet_SelectedIndexChanged의 시트 진입 후처리 회전 분기에서 사용.
-        /// </summary>
-        public bool RequiresPostSelectionRotation
-        {
-            get { return ApplyZ90 || ApplyR180; }
-        }
     }
 }

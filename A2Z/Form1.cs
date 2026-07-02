@@ -126,7 +126,6 @@ namespace A2Z
         /// 옛 _mfgDrawingZ90Applied / _mfgDrawingR180Applied / _mfgDrawingCameraSnapshot 3 필드 통합.
         /// ExecuteMfgDrawing(수동)이 BuildMfgSceneCore 결과로 채움.
         /// LvDrawingSheet_SelectedIndexChanged 말미 후처리 회전이 pose.ApplyZ90 / ApplyR180 / CameraData 참조.
-        /// RenderMfgViewForDrawing(자동)은 pose write X (지역변수만, Codex P3).
         /// </summary>
         private MfgViewPose _lastMfgViewPose = null;
 
