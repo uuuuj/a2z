@@ -630,18 +630,6 @@ namespace A2Z
             }
         }
 
-        private VIZCore3D.NET.Data.Vector3D MirrorPointOnAxis(
-            VIZCore3D.NET.Data.Vector3D p, string axis, float mn, float mx)
-        {
-            float s = mn + mx;
-            switch (axis)
-            {
-                case "X": return new VIZCore3D.NET.Data.Vector3D(s - p.X, p.Y, p.Z);
-                case "Y": return new VIZCore3D.NET.Data.Vector3D(p.X, s - p.Y, p.Z);
-                default:  return new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, s - p.Z);
-            }
-        }
-
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
@@ -852,25 +840,11 @@ namespace A2Z
                 DiagLog($"[EA Secondary] bom={bom.Index} 폭치수 수집 axis={widthAxisSec} dims={widthDims.Count} posOffW={posOffW}");
             }
 
-            // 미러 시 치수·보조선 좌표를 MirrorAxis 기준으로 반전 — 2D 미러된 모델과 정합 (2026-07-02)
-            if (pose.MirrorVertical && !string.IsNullOrEmpty(pose.MirrorAxis))
-            {
-                float mMn, mMx;
-                switch (pose.MirrorAxis)
-                {
-                    case "X": mMn = bom.MinX; mMx = bom.MaxX; break;
-                    case "Y": mMn = bom.MinY; mMx = bom.MaxY; break;
-                    default:  mMn = bom.MinZ; mMx = bom.MaxZ; break;
-                }
-                foreach (var pd in pose.PendingDims)
-                {
-                    pd.Start = MirrorPointOnAxis(pd.Start, pose.MirrorAxis, mMn, mMx);
-                    pd.End = MirrorPointOnAxis(pd.End, pose.MirrorAxis, mMn, mMx);
-                    if (GetRemainingAxis(pose.ViewDirection, pd.Axis) == pose.MirrorAxis)
-                        pd.PosOff = !pd.PosOff;
-                }
-                DiagLog($"[EAMirror] bom={bom.Index} dims 좌표 반전 axis={pose.MirrorAxis} n={pose.PendingDims.Count}");
-            }
+            // 미러 시 치수 좌표는 반전하지 않는다 (2026-07-02 실기 확정):
+            //   SetSelected3DMirrorBy2DView는 모델뿐 아니라 이후 Add2DMeasureFrom3DMeasure의 3D→2D 매핑까지
+            //   함께 뒤집는다 — 22546(비미러)·22548(미러)이 같은 3D 배치에서 반대 화면쪽에 렌더됨으로 증명.
+            //   따라서 원래 기하 기준으로 그대로 두면 모델과 함께 통째로 뒤집혀 정합. 사전 반전은 이중 반전이었음.
+            //   ([EALenDim]의 pre-mirror 방향 환산만으로 충분)
 
             DiagLog($"[EA Secondary] bom={bom.Index} view={pose.ViewDirection} " +
                 $"longest={pose.LongestAxis} dims={dimensions.Count} Z90={pose.ApplyZ90}");
