@@ -1,6 +1,6 @@
 # Form1.MfgDrawing.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.MfgDrawing.cs` (약 2,455 라인)
+**경로**: `A2Z/Form1.MfgDrawing.cs` (약 2,431 라인)
 
 **책임**: 가공도 3D 미리보기, 엑셀 템플릿 기반 PDF 출력, 카메라 방향 결정, Osnap 치수와 풍선 생성, EA 앵글 상하 2뷰 배치(가로화·스왑·미러).
 
@@ -8,7 +8,7 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---:|---|
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2106 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2082 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
 
 옛 `btnMfgDrawing_Click` 핸들러는 제거됐다. 시트 선택 미리보기는 `LvDrawingSheet_SelectedIndexChanged`가 `ExecuteMfgDrawing`을 호출한다.
 
@@ -16,7 +16,7 @@
 
 ### <a id="GenerateMfgDrawingManual"></a>GenerateMfgDrawingManual
 
-- **라인**: L1897
+- **라인**: L1873
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
 - `사용자템플릿_엑셀_가공도.xlsx`를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`).
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
@@ -24,7 +24,7 @@
 
 ### <a id="RenderMfgRowToViewArea"></a>RenderMfgRowToViewArea
 
-- **라인**: L786
+- **라인**: L784
 - 일반 부재는 View 영역 전체에 한 뷰를 배치한다.
 - EA 부재는 View 영역을 위·아래로 분할하고, 코어(`BuildMfgSceneCore`)와 2차 뷰(`BuildEaSecondaryScene`)를 각각 캡처한다.
 - 첫 번째 뷰는 최장축 치수를 예약하고, 두 번째 뷰가 해당 치수를 담당한다.
@@ -33,7 +33,7 @@
 
 ### <a id="BuildMfgSceneCore"></a>BuildMfgSceneCore
 
-- **라인**: L1009
+- **라인**: L1003
 - 대상 부재 격리, BBox 최장축 판정, PAD/PLATE 카메라 선택을 수행한다.
 - `ORIENTATION` UDA와 EA 열린 방향 보정을 적용한다.
 - LINE/POINT Osnap 수집, 뒷면 필터, 체인 치수(그릴 목록 `pose.PendingDims`)를 수집한다.
@@ -74,27 +74,27 @@
 
 ### <a id="ExecuteMfgDrawing"></a>ExecuteMfgDrawing
 
-- **라인**: L1811
+- **라인**: L1787
 - 가공도 시트 선택 시 단일 3D 미리보기를 만든다.
 - `BuildMfgSceneCore` 결과의 Z90/R180 회전을 적용한다.
 - 결과 카메라 정보를 `_lastMfgViewPose`에 저장한다.
 
 ### <a id="IsAngleFromSpref"></a>IsAngleFromSpref
 
-- **라인**: L2221
+- **라인**: L2197
 - 부모 방향으로 최대 10단계 탐색해 `SPREF`를 읽는다.
 - `/` 제거 후 `:` 앞 ITEM이 `EA`로 시작하면 앵글 부재로 판정한다.
 
 ### <a id="FilterHiddenLineOsnap"></a>FilterHiddenLineOsnap
 
-- **라인**: L2241
+- **라인**: L2217
 - 카메라 깊이축의 뒤쪽 15% 영역에 있는 Osnap을 제외한다.
 - 단, 가시축 max/min 극점은 뒷면이어도 보존한다(2번 뷰 전체 높이 누락 방지).
 - PLUS/MINUS 카메라에 따라 제거 방향을 반대로 적용한다.
 
 ### <a id="ApplyOrientationRotation"></a>ApplyOrientationRotation
 
-- **라인**: L2428
+- **라인**: L2404
 - `ORIENTATION` UDA 각도를 화면 Z축 회전으로 적용한다.
 
 ## 보조 메서드
@@ -104,8 +104,8 @@
 | `RestoreAllPartsVisibility` | L23 | 활성, 출력 후 가시성 복원 |
 | `SplitMfgIntoPages` | L69 | 활성, 페이지당 5부재 분할 |
 | `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 |
-| `GetSprefValue` | L2162 | 활성 |
-| `ParseOrientation` | L2379 | 활성 |
+| `GetSprefValue` | L2138 | 활성 |
+| `ParseOrientation` | L2355 | 활성 |
 
 옛 그리드 8×3 일괄 출력 경로(`GenerateMfgDrawing2DAll`)와 그 셀 렌더 어댑터(`RenderMfgViewForDrawing`)는 2026-07-03 제거됐다. 현재 PDF 출력은 `GenerateMfgDrawingManual` → `RenderMfgRowToViewArea` 경로로 일원화됐다.
 

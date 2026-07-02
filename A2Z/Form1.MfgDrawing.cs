@@ -562,8 +562,6 @@ namespace A2Z
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
-            float availW,
-            float availH,
             bool secondaryAtTop = true)
         {
             var pose = new MfgViewPose { LongestAxis = primaryPose.LongestAxis };
@@ -573,7 +571,7 @@ namespace A2Z
             vizcore3d.ShapeDrawing.Clear();
 
             // 두 번째 뷰는 독립 카메라에서 절대 방향으로 만든다.
-            //   절대 방향(ApplyAbsoluteCameraRoll)이라 primary 회전을 되돌릴 필요가 없다 —
+            //   절대 방향(MoveCamera로 직교 프레임 재설정)이라 primary 회전을 되돌릴 필요가 없다 —
             //   MoveCamera가 깨끗한 직교 프레임을 다시 잡고, 거기서 절대 roll만 박는다(누적 0).
             if (primaryPose.LongestAxis == "Z")
             {
@@ -806,11 +804,7 @@ namespace A2Z
                 float viewGap = 0f;   // 완전 밀착 (사용자 사양 2026-06-23) — EA 평면도·정면도 사이 간격 제거
                 float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
-                var pose = BuildMfgSceneCore(
-                    bom.Index,
-                    area.Width,
-                    viewHeight,
-                    isEA);
+                var pose = BuildMfgSceneCore(bom.Index, isEA);
 
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이
@@ -848,7 +842,7 @@ namespace A2Z
                     try
                     {
                         var secondaryPose = BuildEaSecondaryScene(
-                            bom, pose, area.Width, viewHeight, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
+                            bom, pose, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
 
                         // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전
                         float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
@@ -1008,8 +1002,6 @@ namespace A2Z
         /// </summary>
         private MfgViewPose BuildMfgSceneCore(
             int bomIndex,
-            float availW = -1f,
-            float availH = -1f,
             bool reserveLongestAxisForSecondary = false)
         {
             var pose = new MfgViewPose();
@@ -1326,7 +1318,6 @@ namespace A2Z
             //   B1b1c (2026-05-19): 자동 본체 L1217~L1369 추출.
             //   색상 통일 (사용자 사양 2026-05-19): Cyan → Blue (수동 스타일 채택).
             bool hasDimensions = mfgOsnapWithNames.Count > 0;
-            float mfgTotalOff = 250.0f;
             var mfgDimensions = new List<ChainDimensionData>();
             // shapeDrawingIds → pose.ShapeDrawingIds (B3, 2026-05-19)
 
@@ -1350,21 +1341,6 @@ namespace A2Z
                 //   FilterMfgDimensions(축당 8개·겹침 회피)는 안전망(총치수 표시·중복 정리)으로 유지.
                 mfgDimensions = FilterMfgDimensions(mfgDimensions);
 
-                // 전체길이 치수가 1000mm 초과하면 보조선 300mm, 아니면 250mm
-                float maxTotalDist = 0f;
-                foreach (var td in mfgDimensions.Where(d => d.IsTotal && d.IsVisible))
-                {
-                    float dist = 0f;
-                    switch (td.Axis)
-                    {
-                        case "X": dist = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
-                        case "Y": dist = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
-                        case "Z": dist = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
-                    }
-                    if (dist > maxTotalDist) maxTotalDist = dist;
-                }
-                mfgTotalOff = maxTotalDist > 1000.0f ? 300.0f : 250.0f;
-
                 if (mfgDimensions.Count > 0)
                 {
                     // 7. 치수 그리기 (수동 스타일 Blue, 사용자 사양 2026-05-19)
@@ -1387,7 +1363,7 @@ namespace A2Z
                     mfgStyle.ArrowColor = System.Drawing.Color.Blue;      // ← 통일 Blue
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
-                    mfgStyle.AlignDistanceText = true;   // 제작도와 동일 자동 정렬 (가로=위, 세로=왼쪽). 세로=오른쪽은 별도 방법 조사 중
+                    mfgStyle.AlignDistanceText = true;   // 제작도와 동일 자동 정렬 (가로=위, 세로=왼쪽). 세로 텍스트 왼쪽이 회사 표준(정답)
                     mfgStyle.AlignDistanceTextMargine = 3;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
@@ -1418,7 +1394,7 @@ namespace A2Z
                         //   posOff = (+길이오프셋축이 화면 위인가) = CornerAxisUp. 비스왑은 기존 휴리스틱. 2026-07-02
                         if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
                             mfgAxisPosOff[pose.LongestAxis] = pose.SwapViews ? pose.CornerAxisUp : !isAboveWider;
-                        // 폭(세로) 치수를 화면 오른쪽으로 — (뷰, 오프셋축)별 검증 부호 (MfgScreenRightPositive)
+                        // 폭(세로) 치수를 화면 오른쪽으로 — 부재별 실제 카메라 투영으로 판정 (MfgHeightToRight)
                         foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
                         {
                             if (ax != pose.LongestAxis)
@@ -1791,7 +1767,7 @@ namespace A2Z
 
         /// <summary>
         /// 가공도 핵심 로직 (BOM Index를 받아서 가공도 출력)
-        /// btnMfgDrawing_Click과 도면정보 탭 가공도 시트에서 공통 사용.
+        /// 시트 선택 3D 미리보기(LvDrawingSheet_SelectedIndexChanged)에서 사용.
         ///
         /// Step B2 (2026-05-19): 어댑터로 축소.
         /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선)은 BuildMfgSceneCore가 수행.
