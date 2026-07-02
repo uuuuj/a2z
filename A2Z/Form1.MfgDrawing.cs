@@ -573,6 +573,10 @@ namespace A2Z
             }
             if (!found) return p;
 
+            float before = GetAxisValue(p, offAxis);
+            if (Math.Abs(best - before) > 0.5f)
+                DiagLog($"[DimSnap] dim={dimAxis}@{pDim:F1} off={offAxis} {before:F1}→{best:F1} posOff={posOff}");
+
             switch (offAxis)
             {
                 case "X": return new VIZCore3D.NET.Data.Vector3D(best, p.Y, p.Z);
@@ -652,6 +656,11 @@ namespace A2Z
                         slot.CenterX, slot.CenterY, slot.CenterZ), bom.Name));
             }
 
+            // 은선 필터 '전' 원본 보존 — 보조선 시작점 레벨 스냅용.
+            //   대각(beveled) 꼭짓점은 깊이 필터가 뒷면 플랜지째로 지울 수 있는데, 실루엣 외곽으로는
+            //   도면에 그려지므로 스냅은 원본에서 찾는다. 2026-07-02
+            var osnapFullSec = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(osnapPoints);
+
             osnapPoints = FilterHiddenLineOsnap(
                 osnapPoints,
                 pose.ViewDirection,
@@ -661,10 +670,6 @@ namespace A2Z
                 true);
             if (osnapPoints.Count < 2)
                 return pose;
-
-            // 4점 선별 전 전체 목록 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
-            //   대각 꼭짓점 등은 4점 극점에서 빠질 수 있어 전체 목록이 필요. 2026-07-02
-            var osnapFullSec = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(osnapPoints);
 
             const float tolerance = 0.5f;
             // 2차 뷰도 제작도 4점 규칙 적용 (사용자 사양 2026-06-23) — 1차 뷰와 동일하게 극점만 남김.
@@ -1192,13 +1197,14 @@ namespace A2Z
                 isLShape = true;
             }
 
+            // 은선 필터 '전' 원본 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
+            //   대각(beveled) 꼭짓점은 깊이 필터(FilterHiddenLineOsnap)가 뒷면 플랜지째로 지울 수 있는데,
+            //   실루엣 외곽으로는 도면에 그려지므로 스냅은 원본에서 찾는다(정사영이라 깊이는 2D 위치 무관). 2026-07-02
+            var mfgOsnapFull = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(mfgOsnapWithNames);
+
             // ── 5-2. 은선 Osnap 필터링 (카메라 방향 결정 후 적용) ──
             mfgOsnapWithNames = FilterHiddenLineOsnap(mfgOsnapWithNames, viewDirection,
                 bom.MinX, bom.MaxX, bom.MinY, bom.MaxY, bom.MinZ, bom.MaxZ, isMinusCameraSelected);
-
-            // 4점 선별 전 전체 목록 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
-            //   대각 꼭짓점 등은 4점 극점에서 빠질 수 있어 전체 목록이 필요. 2026-07-02
-            var mfgOsnapFull = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>(mfgOsnapWithNames);
 
             // ── 5-3. 가공도 osnap 4점 선별 — 제작도와 동일 알고리즘(FilterOsnapForDimAxis) ──
             //   (사용자 사양 2026-06-23) 보는 뷰에서 가로축 max/min + 세로축 max/min 4 극점만 남기고
