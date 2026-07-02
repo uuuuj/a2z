@@ -272,6 +272,24 @@ namespace A2Z
                 return false;
             }
 
+            // 2차 뷰 상하 미러 — 배치(Rescale/MoveObjectTo) '전'에 적용해, 미러 피벗이 어디든
+            //   이후 MoveObjectTo가 최종 위치를 보정하게 한다 (미러가 객체를 이동시키던 문제 대응). 2026-07-02
+            //   치수·보조선은 3D 좌표 반전(BuildEaSecondaryScene)으로 이미 정합.
+            if (pose.MirrorVertical)
+            {
+                try
+                {
+                    vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 1);
+                    vizcore3d.Drawing2D.Object2D.SetSelected3DMirrorBy2DView(true);   // true = 상/하 반전
+                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} 상하 미러 적용(배치 전) objId={objId}");
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN 미러 실패: {ex.Message}");
+                }
+            }
+
             float objW = 0f, objH = 0f;
             vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
             if (objW <= 0 || objH <= 0 || float.IsNaN(objW) || float.IsNaN(objH))
@@ -296,22 +314,6 @@ namespace A2Z
                 objId,
                 areaX + areaWidth / 2f,
                 areaY + areaHeight / 2f);
-
-            // 2차 뷰 상하 미러 — 모델 2D 객체 반전. 치수·보조선은 3D 좌표 반전(BuildEaSecondaryScene)으로 이미 정합. 2026-07-02
-            if (pose.MirrorVertical)
-            {
-                try
-                {
-                    vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 1);
-                    vizcore3d.Drawing2D.Object2D.SetSelected3DMirrorBy2DView(true);   // true = 상/하 반전
-                    vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} 상하 미러 적용 objId={objId}");
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN 미러 실패: {ex.Message}");
-                }
-            }
 
             // 보조선·치수를 '확정된 실측 배율(newScale)'로 지금 그린다 — 캔버스 절대 오프셋이 부재·뷰 무관 일정.
             //   (코어는 pose.PendingDims로 목록만 수집) 설계 §4.4 v2-c, 2026-07-01
@@ -804,17 +806,24 @@ namespace A2Z
                 $"atTop={secondaryAtTop} → posOff={positiveOffset}");
 
             // 보조선·치수 '그리기'는 캡처 직후 실측 newScale로(DrawMfgDimsAtScale). 여기선 목록만 수집.
-            //   길이축(positiveOffset) 먼저. 보조선 시작점은 같은 레벨 osnap 중 치수선 쪽 극점으로 스냅. 2026-07-01
-            foreach (var dim in dimensions.Where(d => d.IsVisible))
+            //   길이 치수는 '위 슬롯 뷰'가 그린다 (사용자 사양 2026-07-02): 스왑이면 1차(위)가 이미 가짐 → 2차는 스킵.
+            if (!primaryPose.SwapViews)
             {
-                int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
-                string offAxL = GetRemainingAxis(pose.ViewDirection, dim.Axis);
-                pose.PendingDims.Add(new MfgPendingDim
+                foreach (var dim in dimensions.Where(d => d.IsVisible))
                 {
-                    Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
-                    End   = SnapDimPointTowardDimLine(dim.EndPoint,   dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
-                    Axis = dim.Axis, Level = lvl, PosOff = positiveOffset
-                });
+                    int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                    string offAxL = GetRemainingAxis(pose.ViewDirection, dim.Axis);
+                    pose.PendingDims.Add(new MfgPendingDim
+                    {
+                        Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
+                        End   = SnapDimPointTowardDimLine(dim.EndPoint,   dim.Axis, offAxL, positiveOffset, osnapFullSec, 1.0f),
+                        Axis = dim.Axis, Level = lvl, PosOff = positiveOffset
+                    });
+                }
+            }
+            else
+            {
+                DiagLog($"[EALenDim] bom={bom.Index} 길이 치수 스킵 — 스왑으로 1차(위 슬롯)가 보유");
             }
 
             // 2차 뷰에 폭(높이) 치수 추가 — 폭 = 보이는 축 중 길이축이 아닌 것. 세로(폭)는 화면 오른쪽으로(MfgHeightToRight).
@@ -906,19 +915,8 @@ namespace A2Z
                 //   치수선·보조선과 구분이 사라진다(제작도는 캡처 직전 실루엣 미사용). 2026-06-29
                 vizcore3d.View.SilhouetteEdge = false;
 
-                // ── EA 두 뷰 상하 스왑 판정 — 접힘 모서리(코너)가 두 뷰 사이(가운데)를 향하도록 ──
-                //   캔버스 Y는 위로 증가: 1차 뷰 기본 슬롯 = 아래(area.Y), 2차 뷰 = 위(area.Y+viewHeight).
-                //   아래 뷰의 코너는 '위(가운데)'를 향해야 하므로, 1차 코너가 아래를 향하면(cornerUp=false) 스왑. 2026-07-02
-                //   (호출 시점: 카메라 세팅 후·화면회전 전 — MfgAxisUpPositive가 회전 예정을 보정)
-                bool swapViews = false;
-                if (isEA && pose.HasCorner)
-                {
-                    bool axisUp = MfgAxisUpPositive(pose.CornerAxis);
-                    bool cornerUp = (pose.CornerAtMax == axisUp);
-                    swapViews = !cornerUp;
-                    DiagLog($"[EASlot] bom={bom.Index} cornerAxis={pose.CornerAxis} atMax={pose.CornerAtMax} " +
-                        $"axisUp={axisUp} cornerUp={cornerUp} → swap={swapViews} (1차 기본=아래)");
-                }
+                // ── EA 두 뷰 상하 슬롯 — 스왑 판정은 코어(5-2a 직후)에서 수행 (길이 치수 배치가 의존) ──
+                bool swapViews = isEA && pose.SwapViews;
                 float primaryY = swapViews ? area.Y + viewHeight + viewGap : area.Y;
                 float secondaryY = swapViews ? area.Y : area.Y + viewHeight + viewGap;
 
@@ -1381,6 +1379,18 @@ namespace A2Z
                             $"atMax={pose.SecCornerAtMax} has={pose.HasSecCorner}");
                     }
                 }
+
+                // ── 상하 스왑 판정 (코어에서 — 2026-07-02) ──
+                //   캔버스 Y는 위로 증가: 1차 뷰 기본 슬롯=아래. 아래 뷰 코너는 위(가운데)를 향해야 함.
+                //   치수 수집 전에 확정해야 '길이 치수를 위 슬롯 뷰에 배치'(사용자 사양)가 가능.
+                if (pose.HasCorner)
+                {
+                    pose.CornerAxisUp = MfgAxisUpPositive(pose.CornerAxis);
+                    bool cornerUpP = (pose.CornerAtMax == pose.CornerAxisUp);
+                    pose.SwapViews = !cornerUpP;
+                    DiagLog($"[EASlot] bom={bom.Index} cornerAxis={pose.CornerAxis} atMax={pose.CornerAtMax} " +
+                        $"axisUp={pose.CornerAxisUp} cornerUp={cornerUpP} → swap={pose.SwapViews} (1차 기본=아래)");
+                }
             }
 
             // ── 5-2. 은선 Osnap 필터링 (카메라 방향 결정 후 적용) ──
@@ -1503,8 +1513,10 @@ namespace A2Z
                     // EA 앵글: 체인치수 방향 강제 오버라이드
                     if (isEA)
                     {
+                        // 길이 치수: 스왑(1차가 위 슬롯)이면 1차가 길이를 그리며 항상 화면 '위'(페어 바깥)로 —
+                        //   posOff = (+길이오프셋축이 화면 위인가) = CornerAxisUp. 비스왑은 기존 휴리스틱. 2026-07-02
                         if (mfgAxisPosOff.ContainsKey(pose.LongestAxis))
-                            mfgAxisPosOff[pose.LongestAxis] = !isAboveWider;
+                            mfgAxisPosOff[pose.LongestAxis] = pose.SwapViews ? pose.CornerAxisUp : !isAboveWider;
                         // 폭(세로) 치수를 화면 오른쪽으로 — (뷰, 오프셋축)별 검증 부호 (MfgScreenRightPositive)
                         foreach (string ax in new List<string>(mfgAxisPosOff.Keys))
                         {
@@ -1518,7 +1530,9 @@ namespace A2Z
                     //   보조선 길이가 부재·뷰마다 어긋났음(설계 §4.4 v2-c). 여기선 그릴 목록만 수집(offset 미적용). 2026-07-01
                     foreach (var dim in mfgDimensions.Where(d => d.IsVisible))
                     {
-                        if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis) continue;
+                        // 길이 치수는 '위 슬롯 뷰'가 그린다 (사용자 사양 2026-07-02):
+                        //   비스왑(2차가 위) → 1차는 길이 스킵(기존 예약). 스왑(1차가 위) → 1차가 길이 유지.
+                        if (isEA && reserveLongestAxisForSecondary && !pose.SwapViews && dim.Axis == pose.LongestAxis) continue;
                         int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         // 보조선 시작점 = 같은 레벨 osnap 중 치수선 쪽 극점 (대각 부재의 실제 꼭짓점 대응)

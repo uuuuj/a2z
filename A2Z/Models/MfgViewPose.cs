@@ -76,6 +76,14 @@ namespace A2Z
         public string MirrorAxis { get; set; }
 
         /// <summary>
+        /// 두 뷰 상하 스왑 여부 — 코어(5-2a)에서 판정 (2026-07-02).
+        /// 길이 치수를 '위 슬롯 뷰'에 배치하기 위해 치수 수집 전에 확정 필요.
+        /// CornerAxisUp = +CornerAxis가 화면 위인지 (길이 치수 posOff 계산용).
+        /// </summary>
+        public bool SwapViews { get; set; }
+        public bool CornerAxisUp { get; set; }
+
+        /// <summary>
         /// 후처리 회전 필요 여부 (파생 property — ApplyZ90 OR ApplyR180).
         /// LvDrawingSheet_SelectedIndexChanged의 시트 진입 후처리 회전 분기에서 사용.
         /// </summary>
