@@ -439,11 +439,14 @@ namespace A2Z
             vizcore3d.ShapeDrawing.Clear();
             pose.ShapeDrawingIds.Clear();
 
-            // 실측 배율로 캔버스 절대 오프셋(가공도 2/4mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
+            // 실측 배율로 캔버스 절대 오프셋(가공도 6/12mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
             ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
                 MfgCanvasBaseOff, MfgCanvasLvlSp);
             int maxLevel = pose.PendingDims.Any(d => d.Level == 1) ? 2 : 1;
             float off0 = baseOff, off1 = baseOff + lvlSp, off2 = baseOff + lvlSp * maxLevel;
+            // 보조선 시작 gap도 종이 절대 기준(2mm)으로 — 오프셋과 동일하게 실측 배율 역산 (2026-07-03).
+            //   옛 모델좌표 고정 10mm는 부재·축척마다 종이 gap이 들쭉날쭉했음.
+            float extGap = MfgCanvasExtGap / newScale;
 
             var extLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
             foreach (var pd in pose.PendingDims)
@@ -454,7 +457,7 @@ namespace A2Z
                 //    직사각 부재는 극점 osnap 좌표가 박스값과 같아 무영향. 2026-07-01)
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false, extGap);
             }
             if (extLines.Count > 0)
             {
@@ -462,7 +465,7 @@ namespace A2Z
                 if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
             }
             DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
-                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} dims={pose.PendingDims.Count}");
+                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} dims={pose.PendingDims.Count}");
         }
 
         /// <summary>
@@ -916,6 +919,7 @@ namespace A2Z
         //   사용자 사양 2026-06-23: "많이" → 1단 2·전체 4mm. ComputeCanvasAbsoluteOffsets에 인자로 전달.
         private const float MfgCanvasBaseOff = 6.0f;     // 1단 종이 mm (2→4→6, 2026-07-01: 텍스트-모델 겹침으로 1.5배 추가 확대)
         private const float MfgCanvasLvlSp   = 6.0f;     // 단 간격 → 전체 = 6+6 = 12mm
+        private const float MfgCanvasExtGap  = 2.0f;     // 보조선 시작 gap 종이 mm — 오프셋과 동일하게 종이 절대 기준 (2026-07-03, 옛 모델좌표 10mm 폐기)
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
