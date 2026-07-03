@@ -260,11 +260,13 @@ namespace A2Z
                 return false;
             }
 
-            // 모델 은선 두께 — 제작도(DrawingSheets.cs:1636)와 동일 API. Set2DViewCreateObjectItemLineWidth와
+            // 모델선 두께 — 제작도(DrawingSheets.cs:1636)와 동일 API. Set2DViewCreateObjectItemLineWidth와
             //   별개(이건 2D 개체 생성 라인폭). 라이브 가공도 캡처가 이걸 누락해 모델선이 가늘게 나오던 문제 교정 (전수조사 2026-07-01).
             vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-            objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+            // 은선 없는 캡처 — 가공도는 단면(보이는 외곽선)만 출력 (사용자 사양 2026-07-03).
+            //   SDK 공식 예제도 이 버전 사용. 옛 WithModelHiddenLine(점선 은선 포함)은 폐기.
+            objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             if (objId < 0)
             {
@@ -391,8 +393,8 @@ namespace A2Z
             int probe = -1;
             try
             {
-                probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
-                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+                probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
+                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);   // 본 캡처와 동일 방식(은선 X) — W/H 판정 일치
             }
             catch { }
 
@@ -753,9 +755,10 @@ namespace A2Z
             {
                 string offAxW = GetRemainingAxis(pose.ViewDirection, widthAxisSec);
                 bool posOffW = MfgHeightToRight(offAxW);
-                foreach (var dim in widthDims.Where(d => d.IsVisible))
+                // 세로(폭) 치수는 1단만 — 전체 치수(2단)는 체인과 중복이라 생략 (사용자 사양 2026-07-03).
+                foreach (var dim in widthDims.Where(d => d.IsVisible && !d.IsTotal))
                 {
-                    int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
+                    int lvl = dim.DisplayLevel > 0 ? 1 : 0;
                     pose.PendingDims.Add(new MfgPendingDim
                     {
                         Start = SnapDimPointTowardDimLine(dim.StartPoint, dim.Axis, offAxW, posOffW, osnapFullSec, 1.0f),
@@ -806,7 +809,7 @@ namespace A2Z
 
                 var pose = BuildMfgSceneCore(bom.Index, isEA);
 
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03).
                 // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이
                 //   치수선·보조선과 구분이 사라진다(제작도는 캡처 직전 실루엣 미사용). 2026-06-29
                 vizcore3d.View.SilhouetteEdge = false;
@@ -1410,6 +1413,8 @@ namespace A2Z
                         // 길이 치수는 '위 슬롯 뷰'가 그린다 (사용자 사양 2026-07-02):
                         //   비스왑(2차가 위) → 1차는 길이 스킵(기존 예약). 스왑(1차가 위) → 1차가 길이 유지.
                         if (isEA && reserveLongestAxisForSecondary && !pose.SwapViews && dim.Axis == pose.LongestAxis) continue;
+                        // 세로(폭) 치수는 1단만 — 전체 치수(2단)는 체인과 중복이라 생략 (사용자 사양 2026-07-03).
+                        if (dim.IsTotal && dim.Axis != pose.LongestAxis) continue;
                         int lvl = dim.IsTotal ? 2 : (dim.DisplayLevel > 0 ? 1 : 0);
                         bool posOff = mfgAxisPosOff.ContainsKey(dim.Axis) && mfgAxisPosOff[dim.Axis];
                         // 보조선 시작점 = 같은 레벨 osnap 중 치수선 쪽 극점 (대각 부재의 실제 꼭짓점 대응)
@@ -1915,7 +1920,7 @@ namespace A2Z
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
                 vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03). 출력 후 SMOOTH 복원은 유지.
 
                 // ── BOM 표 1회 채우기 (가공도 전체 부재, 모든 페이지 동일) ──
                 var allMfgBomIndices = mfgSheets
@@ -2274,26 +2279,9 @@ namespace A2Z
                 }
             }
 
-            // 가시축(깊이축 제외) 극점은 실루엣 외곽이라 뒷면이어도 보존.
-            //   앵글의 먼쪽 세로 플랜지(높이 50)가 깊이 뒷면에 있으면 통째로 지워져 앞쪽 두께(8)만 남던 문제
-            //   → 2번 뷰 전체 세로 길이 누락. 가시축 max/min 점을 복원해 4점 필터가 전체 높이를 잡게 한다.
-            if (filtered.Count > 0)
-            {
-                Func<VIZCore3D.NET.Data.Vertex3D, string, float> axOf =
-                    (p, a) => a == "X" ? p.X : a == "Y" ? p.Y : p.Z;
-                string[] visAxesH = viewDirection == "X" ? new[] { "Y", "Z" }
-                                  : viewDirection == "Y" ? new[] { "X", "Z" }
-                                  : new[] { "X", "Y" };
-                foreach (var ax in visAxesH)
-                {
-                    var mx = osnapList.Aggregate((a, b) => axOf(a.point, ax) >= axOf(b.point, ax) ? a : b);
-                    var mn = osnapList.Aggregate((a, b) => axOf(a.point, ax) <= axOf(b.point, ax) ? a : b);
-                    if (!filtered.Any(p => p.point.X == mx.point.X && p.point.Y == mx.point.Y && p.point.Z == mx.point.Z))
-                        filtered.Add(mx);
-                    if (!filtered.Any(p => p.point.X == mn.point.X && p.point.Y == mn.point.Y && p.point.Z == mn.point.Z))
-                        filtered.Add(mn);
-                }
-            }
+            // 뒷면 가시축 극점 복원 폐지 (사용자 사양 2026-07-03):
+            //   은선 캡처 제거로 단면(보이는 외곽)만 출력하므로, 뒷면 osnap은 극점이어도 치수화하지 않는다.
+            //   (옛 예외 954e4de — 은선 모드에서 먼쪽 플랜지 높이 누락 대응 — 는 은선 폐지로 근거 소멸)
 
             // 필터 후 포인트가 없으면 원본 유지
             return filtered.Count > 0 ? filtered : osnapList;
