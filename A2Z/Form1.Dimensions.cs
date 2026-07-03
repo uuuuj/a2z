@@ -511,14 +511,17 @@ namespace A2Z
 
                 // canvasMaxOff: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
                 float canvasMaxOff = 0f;  // 2D 캔버스 mm. 1단 + 차분 = 2단
+                float extGapModel = -1f;  // 보조선 시작 gap (모델좌표). -1 = 기본 10mm (3D 미리보기 경로)
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
                     // 보조선 길이 = 캔버스 절대 5/10mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
                     ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing, out canvasMaxOff);
+                    // 보조선 시작 gap도 종이 절대(2mm)로 — 옛 모델좌표 10mm는 축척마다 종이 gap이 달라졌음 (2026-07-03)
+                    extGapModel = FabCanvasExtGap / canvasScaleOverride;
 
                     float maxDist = filteredDims.Max(d => d.Distance);
-                    DiagLog($"보조선 헬퍼 view={viewDirection} maxDist={maxDist:F1} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2}");
+                    DiagLog($"보조선 헬퍼 view={viewDirection} maxDist={maxDist:F1} scale={canvasScaleOverride:F4} → baseOffset_3d={baseOffset:F2} levelSpacing_3d={levelSpacing:F2} extGap_3d={extGapModel:F2}");
                 }
                 else
                 {
@@ -627,7 +630,7 @@ namespace A2Z
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
                 }
 
                 // Level 2 치수 (중간)
@@ -637,7 +640,7 @@ namespace A2Z
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level2Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이)
@@ -649,7 +652,7 @@ namespace A2Z
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level0Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
                 }
 
                 // 보조선 그리기 — ShapeDrawing ID 수집
@@ -1240,12 +1243,18 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-046 보조선 gap 기본값 (모델 좌표 mm) — 제작도용. 모델 표면에서 보조선이 떨어져 시작하는 거리.
-        /// 가공도는 이 값을 쓰지 않고 종이 절대 2mm(MfgCanvasExtGap)를 실측 배율로 역산해
-        /// DrawDimension의 extGapOverride로 전달한다 (2026-07-03).
+        /// T-046 보조선 gap 기본값 (모델 좌표 mm) — 3D 미리보기 등 종이 배율이 없는 경로용.
+        /// 2D 출력은 제작도·가공도 모두 종이 절대 gap을 배율로 역산해 extGapOverride로 전달:
+        ///   제작도 = FabCanvasExtGap/estScale (2026-07-03), 가공도 = MfgCanvasExtGap/실측 newScale.
         /// 작은 부재라도 헬퍼의 안전장치(`distance >= len ? to`)로 역전 방지.
         /// </summary>
         private const float ExtensionLineGap = 10.0f;
+
+        /// <summary>
+        /// 제작도 보조선 시작 gap 종이 mm — 오프셋(5/10mm)과 동일하게 종이 절대 기준 (2026-07-03).
+        /// 옛 모델좌표 고정 10mm는 부재 크기(축척)마다 종이 gap이 들쭉날쭉했음. 가공도(MfgCanvasExtGap=2)와 동일 정책.
+        /// </summary>
+        private const float FabCanvasExtGap = 2.0f;
 
         /// <summary>
         /// from 점에서 to 점 방향으로 distance만큼 이동한 점을 반환.
