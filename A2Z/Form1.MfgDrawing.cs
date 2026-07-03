@@ -239,6 +239,86 @@ namespace A2Z
             return path;
         }
 
+        /// <summary>
+        /// [임시 §5-1] 카메라 ± 반영 검증 — 같은 부재를 PLUS(위 슬롯)/MINUS(아래 슬롯)로 캡처해 별도 PDF 1장 저장.
+        /// 두 그림이 완전히 같으면 캡처가 카메라 ±를 무시(옛 은선 캡처와 동일), 좌우 반전·선 차이가 있으면 반영.
+        /// 홀 있는 부재를 우선 선택(홀 위치 반전이 눈에 잘 보임). 검증 완료 후 메서드째 제거 예정.
+        /// </summary>
+        private void RunMfgCameraSignProbe(
+            List<DrawingSheetData> mfgSheets, string saveDir, string xlsxPath,
+            ref Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache)
+        {
+            try
+            {
+                BOMData bom = null;
+                foreach (var s in mfgSheets)
+                {
+                    if (s.MemberIndices.Count == 0) continue;
+                    var b = bomList.FirstOrDefault(x => x.Index == s.MemberIndices[0]);
+                    if (b == null) continue;
+                    if (bom == null) bom = b;
+                    if (b.Holes != null && b.Holes.Count > 0) { bom = b; break; }
+                }
+                if (bom == null) return;
+
+                // 카메라 축 = 실사용 축과 동일 규칙: 최장축 Z면 X, 아니면 Z
+                float sx = bom.MaxX - bom.MinX, sy = bom.MaxY - bom.MinY, sz = bom.MaxZ - bom.MinZ;
+                string longest = (sz >= sx && sz >= sy) ? "Z" : (sx >= sy ? "X" : "Y");
+                string camAxis = longest == "Z" ? "X" : "Z";
+                var dirPlus = camAxis == "X"
+                    ? VIZCore3D.NET.Data.CameraDirection.X_PLUS
+                    : VIZCore3D.NET.Data.CameraDirection.Z_PLUS;
+                var dirMinus = camAxis == "X"
+                    ? VIZCore3D.NET.Data.CameraDirection.X_MINUS
+                    : VIZCore3D.NET.Data.CameraDirection.Z_MINUS;
+
+                ResetCanvasForMfgPage();
+                var data = new Dictionary<int, string>();
+                for (int k = 1; k <= 129; k++) data[k] = "";
+                data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
+                data[5] = bom.Name ?? "";
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
+
+                var area = viewAreasCache[1];
+                float halfH = area.Height / 2f;
+                var targets = new List<int> { bom.Index };
+
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                vizcore3d.Object3D.Show(targets, true);
+                vizcore3d.View.SilhouetteEdge = false;
+
+                foreach (var probe in new[]
+                {
+                    (dir: dirPlus,  label: "PLUS",  y: area.Y),
+                    (dir: dirMinus, label: "MINUS", y: area.Y + halfH),
+                })
+                {
+                    vizcore3d.Review.Note.Clear();
+                    vizcore3d.Review.Measure.Clear();
+                    vizcore3d.ShapeDrawing.Clear();
+                    vizcore3d.View.MoveCamera(probe.dir);
+                    vizcore3d.View.FlyToObject3d(targets, 1.25f);
+                    System.Windows.Forms.Application.DoEvents();
+                    var pose = new MfgViewPose { ViewDirection = camAxis, LongestAxis = longest };
+                    bool ok = CaptureMfgSceneToViewArea(0, bom, pose, area.X, probe.y, area.Width, halfH,
+                        $"±검증 {probe.label}", out int probeObjId);
+                    DiagLog($"[CamSignProbe] bom={bom.Index} axis={camAxis} {probe.label} ok={ok} objId={probeObjId}");
+                }
+
+                vizcore3d.Drawing2D.Render();
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                string pdfPath = Path.Combine(saveDir, $"카메라부호검증_{DateTime.Now:HHmmss}.pdf");
+                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                DiagLog($"[CamSignProbe] 저장: {pdfPath} — 두 그림 동일이면 ± 무시 / 좌우 반전·차이면 반영");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[CamSignProbe] 실패(본 출력 계속): {ex.Message}");
+            }
+        }
+
         private bool CaptureMfgSceneToViewArea(
             int rowIdx,
             BOMData bom,
@@ -920,6 +1000,10 @@ namespace A2Z
         private const float MfgCanvasBaseOff = 6.0f;     // 1단 종이 mm (2→4→6, 2026-07-01: 텍스트-모델 겹침으로 1.5배 추가 확대)
         private const float MfgCanvasLvlSp   = 6.0f;     // 단 간격 → 전체 = 6+6 = 12mm
         private const float MfgCanvasExtGap  = 2.0f;     // 보조선 시작 gap 종이 mm — 오프셋과 동일하게 종이 절대 기준 (2026-07-03, 옛 모델좌표 10mm 폐기)
+
+        // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.
+        //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
+        private const bool MfgCameraSignProbeEnabled = true;
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
@@ -1967,6 +2051,10 @@ namespace A2Z
 
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
+
+                // [임시 §5-1] 카메라 ± 검증 PDF 1장 — 본 페이지 출력 앞에 별도 저장 (검증 후 제거)
+                if (MfgCameraSignProbeEnabled)
+                    RunMfgCameraSignProbe(mfgSheets, saveDir, xlsxPath, ref viewAreasCache);
 
                 foreach (var page in pages)
                 {
