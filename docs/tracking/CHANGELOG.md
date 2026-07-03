@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-07-03 — 가공도 보조선 gap 종이 절대 2mm 통일
+
+**유형**: fix (가공도 출력 품질)
+**커밋**: `pending`
+**관련 TASK**: T-073 후속 (보조선 기준 단위 통일)
+
+**배경**: 보조선 오프셋은 종이 절대(6/12mm, 실측 newScale 역산)인데 시작 gap만 모델좌표 고정 10mm(`ExtensionLineGap`)라, 종이에서 보이는 gap이 부재·축척마다 들쭉날쭉. 10mm는 옛 오프셋이 모델좌표 100~300mm이던 시절 기준의 잔재.
+
+**변경 사항**:
+- `DrawDimension`에 `extGapOverride` optional 파라미터 추가(모델좌표, 기본 -1 = 기존 `ExtensionLineGap` 10mm) — 제작도 호출부 무변경·무영향.
+- 가공도 상수 `MfgCanvasExtGap = 2.0f`(종이 mm) 신설. `DrawMfgDimsAtScale`가 `2mm / newScale`로 역산해 전달 → 오프셋과 동일한 종이 절대 기준.
+- 기존 안전장치(gap ≤ 보조선 길이의 절반) 유지. `[DrawMfgDims]` 로그에 `extGap` 추가.
+
+**영향 범위**: 가공도 PDF 보조선만. 제작도는 기본값 경로라 무영향.
+
+**검증 (사내 실기)**: 부재 크기가 다른 여러 행에서 osnap-보조선 시작 간격이 종이 기준 동일(2mm)한지. DiagLog `[DrawMfgDims] extGap=` 값이 `2/newScale`인지.
+
 ## 2026-07-03 — 가공도 단면 출력 전환: 은선 폐지 + 세로 치수 1단 + 뒷면 osnap 제외
 
 **유형**: fix (가공도 출력 사양)

@@ -1091,7 +1091,8 @@ namespace A2Z
             float globalMaxY = 0,
             float globalMaxZ = 0,
             bool positiveOffset = false,
-            bool alignExtToBaseline = false)
+            bool alignExtToBaseline = false,
+            float extGapOverride = -1f)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -1187,10 +1188,12 @@ namespace A2Z
             }
 
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
-            // T-046: 모델 표면에서 ExtensionLineGap(10mm)만큼 떨어져 시작 (시각적 가독성)
+            // T-046: 모델 표면에서 gap만큼 떨어져 시작 (시각적 가독성)
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
+            // gap 기본 = ExtensionLineGap(모델좌표 10mm, 제작도). 가공도는 extGapOverride로
+            //   종이 절대 2mm를 실측 newScale로 역산해 전달 — 오프셋(6/12mm)과 같은 기준 (2026-07-03).
             // 2026-06-23: gap을 보조선 길이의 절반 이하로 제한 — 오프셋이 짧으면(가공도 보조선 축소)
-            //   고정 10mm gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
+            //   고정 gap이 보조선을 통째로 먹어 0으로 접혀 '아래쪽 보조선 누락'이 생기던 것 방지.
 
             // 가공도 전용(alignExtToBaseline): 보조선을 osnap 점이 아니라 모델 가장자리(baseline)에서 시작.
             //   → 모든 보조선 길이 = 오프셋 거리로 통일, 반대쪽 점이 부재를 가로지르는 문제 제거.
@@ -1215,11 +1218,11 @@ namespace A2Z
                 }
             }
 
+            float extGapBase = extGapOverride >= 0f ? extGapOverride : ExtensionLineGap;
+
             float e1x = extStart.X - startVertex.X, e1y = extStart.Y - startVertex.Y, e1z = extStart.Z - startVertex.Z;
             float extLen1 = (float)Math.Sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
-            // 가공도(aligned)는 gap을 길이의 고정 비율로 → 보조선 길이가 부재·뷰마다 동일.
-            //   (기존 min(10mm,..)은 10mm가 캔버스 절대값이 아니라 부재마다 달라짐)
-            float gap1 = alignExtToBaseline ? extLen1 * 0.25f : Math.Min(ExtensionLineGap, extLen1 * 0.5f);
+            float gap1 = alignExtToBaseline ? extLen1 * 0.25f : Math.Min(extGapBase, extLen1 * 0.5f);
             var extLine1 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
             extLine1.Add(OffsetTowardLineEnd(extStart, startVertex, gap1));
             extLine1.Add(startVertex);
@@ -1227,7 +1230,7 @@ namespace A2Z
 
             float e2x = extEnd.X - endVertex.X, e2y = extEnd.Y - endVertex.Y, e2z = extEnd.Z - endVertex.Z;
             float extLen2 = (float)Math.Sqrt(e2x * e2x + e2y * e2y + e2z * e2z);
-            float gap2 = alignExtToBaseline ? extLen2 * 0.25f : Math.Min(ExtensionLineGap, extLen2 * 0.5f);
+            float gap2 = alignExtToBaseline ? extLen2 * 0.25f : Math.Min(extGapBase, extLen2 * 0.5f);
             var extLine2 = new VIZCore3D.NET.Data.Vertex3DItemCollection();
             extLine2.Add(OffsetTowardLineEnd(extEnd, endVertex, gap2));
             extLine2.Add(endVertex);
@@ -1237,8 +1240,9 @@ namespace A2Z
         }
 
         /// <summary>
-        /// T-046 보조선 gap (모델 좌표 mm). 모델 표면에서 보조선이 떨어져 시작하는 거리.
-        /// 가공도 보조선 오프셋(100~300mm)에 비례해 시각적으로 명확히 보이는 10mm로 설정.
+        /// T-046 보조선 gap 기본값 (모델 좌표 mm) — 제작도용. 모델 표면에서 보조선이 떨어져 시작하는 거리.
+        /// 가공도는 이 값을 쓰지 않고 종이 절대 2mm(MfgCanvasExtGap)를 실측 배율로 역산해
+        /// DrawDimension의 extGapOverride로 전달한다 (2026-07-03).
         /// 작은 부재라도 헬퍼의 안전장치(`distance >= len ? to`)로 역전 방지.
         /// </summary>
         private const float ExtensionLineGap = 10.0f;
