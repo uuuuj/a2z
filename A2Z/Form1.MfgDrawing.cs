@@ -1019,8 +1019,8 @@ namespace A2Z
         private const float MfgMinTextSpace = 25.0f;     // 가공도 치수 텍스트 겹침 간격 (제작도와 별도 값)
         // 가공도 보조선 오프셋 — 종이(캔버스) 절대 mm. 제작도 5/5(1단 5·전체 10)와 별도로 줄임.
         //   사용자 사양 2026-06-23: "많이" → 1단 2·전체 4mm. ComputeCanvasAbsoluteOffsets에 인자로 전달.
-        private const float MfgCanvasBaseOff = 6.0f;     // 1단 종이 mm (2→4→6, 2026-07-01: 텍스트-모델 겹침으로 1.5배 추가 확대)
-        private const float MfgCanvasLvlSp   = 6.0f;     // 단 간격 → 전체 = 6+6 = 12mm
+        private const float MfgCanvasBaseOff = 9.0f;     // 1단 종이 mm (2→4→6→9, 2026-07-06: 세로 텍스트-모델 밀착 해소 1.5배 — 제작도와 동일 배율)
+        private const float MfgCanvasLvlSp   = 9.0f;     // 단 간격 → 전체 = 9+9 = 18mm
         private const float MfgCanvasExtGap  = 2.0f;     // 보조선 시작 gap 종이 mm — 오프셋과 동일하게 종이 절대 기준 (2026-07-03, 옛 모델좌표 10mm 폐기)
 
         // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.

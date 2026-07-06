@@ -362,13 +362,14 @@ namespace A2Z
         /// <summary>
         /// 보조선 길이 정책 단일 출처 (2026-06-03 가공도 통일).
         /// 캔버스 절대 mm를 모델좌표 offset으로 역산. 기본 제작도 5/5(1단 5·전체 10mm).
-        /// 가공도는 전용 상수(canvasBase/canvasLvl 인자)로 따로 줄인다 (2026-06-23: 1단 2·전체 4mm).
+        /// 가공도는 전용 상수(canvasBase/canvasLvl 인자)를 따로 쓴다 (현행 9/9 — MfgCanvasBaseOff/MfgCanvasLvlSp).
+        /// 제작도 기본값 7.5/7.5 (2026-07-06: 세로 치수 텍스트-모델 밀착 해소로 5/5에서 1.5배 통일 확대).
         /// 제작도(ShowAllDimensions)·가공도(BuildMfgSceneCore·EA 두번째 뷰) 공용 — 식은 한 곳, 값만 분기.
         /// canvasScale은 호출자가 0 초과를 보장.
         /// </summary>
         private void ComputeCanvasAbsoluteOffsets(
             float canvasScale, out float baseOffset, out float levelSpacing, out float canvasMaxOff,
-            float canvasBase = 5f, float canvasLvl = 5f)
+            float canvasBase = 7.5f, float canvasLvl = 7.5f)
         {
             canvasMaxOff = canvasBase + canvasLvl;
             baseOffset   = canvasBase / canvasScale;
@@ -503,8 +504,8 @@ namespace A2Z
                 float modelCenterZ = (globalMinZ + globalMaxZ) / 2f;
 
                 // 오프셋 (3D/2D 동일 — 2D 변환 시 좌표가 함께 변환되므로 동일 값 사용)
-                // 2026-06-03 갱신: 보조선 길이 = 캔버스 절대 1단=5mm / 2단=10mm 고정.
-                //   ComputeCanvasAbsoluteOffsets(canvasBase=5, canvasLvl=5) 단일 출처 — 제작도·가공도 공용.
+                // 캔버스 절대 1단=7.5mm / 2단=15mm (2026-07-06: 세로 텍스트-모델 밀착 해소로 5/10에서 1.5배 확대).
+                //   ComputeCanvasAbsoluteOffsets 기본값 단일 출처 — 제작도·가공도 공용(가공도는 9/9 별도 상수).
                 //   모델좌표 변환: 캔버스 mm ÷ canvasScale → 출력물(PDF)에서 항상 동일 길이.
                 //   (canvasScaleOverride ≤ 0인 3D 미리보기 경로만 모델좌표 fallback: baseOffset=100 / levelSpacing=80)
                 float baseOffset, levelSpacing;
@@ -515,7 +516,7 @@ namespace A2Z
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
-                    // 보조선 길이 = 캔버스 절대 5/10mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
+                    // 보조선 길이 = 캔버스 절대 7.5/15mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
                     ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing, out canvasMaxOff);
                     // 보조선 시작 gap도 종이 절대(2mm)로 — 옛 모델좌표 10mm는 축척마다 종이 gap이 달라졌음 (2026-07-03)
                     extGapModel = FabCanvasExtGap / canvasScaleOverride;
