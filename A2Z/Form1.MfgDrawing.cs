@@ -522,6 +522,28 @@ namespace A2Z
             // 실측 배율로 캔버스 절대 오프셋(가공도 6/12mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
             ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
                 MfgCanvasBaseOff, MfgCanvasLvlSp);
+
+            // 작은 치수 단 승격 (사용자 사양 2026-07-03): 텍스트가 안 들어가는 작은 체인 치수는
+            //   텍스트를 옮기지 않고 치수선째 위 단(Level 1)으로 올린다 — 제작도와 동일 규칙(뷰 최대/26, max>100mm).
+            //   승격이 생기면 아래 maxLevel 계산이 전체 치수를 자동으로 3단(off2)으로 민다.
+            Func<MfgPendingDim, float> axisDist = pd =>
+                pd.Axis == "X" ? Math.Abs(pd.End.X - pd.Start.X)
+                : pd.Axis == "Y" ? Math.Abs(pd.End.Y - pd.Start.Y)
+                : Math.Abs(pd.End.Z - pd.Start.Z);
+            float maxPdDist = 0f;
+            foreach (var pd in pose.PendingDims)
+            {
+                float dpd = axisDist(pd);
+                if (dpd > maxPdDist) maxPdDist = dpd;
+            }
+            int promoted = 0;
+            if (maxPdDist > 100f)
+            {
+                float smallTh = maxPdDist / 26f;
+                foreach (var pd in pose.PendingDims)
+                    if (pd.Level == 0 && axisDist(pd) <= smallTh) { pd.Level = 1; promoted++; }
+            }
+
             int maxLevel = pose.PendingDims.Any(d => d.Level == 1) ? 2 : 1;
             float off0 = baseOff, off1 = baseOff + lvlSp, off2 = baseOff + lvlSp * maxLevel;
             // 보조선 시작 gap도 종이 절대 기준(2mm)으로 — 오프셋과 동일하게 실측 배율 역산 (2026-07-03).
@@ -545,7 +567,7 @@ namespace A2Z
                 if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
             }
             DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
-                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} dims={pose.PendingDims.Count}");
+                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} dims={pose.PendingDims.Count} promoted={promoted}");
         }
 
         /// <summary>

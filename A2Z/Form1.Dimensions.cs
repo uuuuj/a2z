@@ -619,19 +619,28 @@ namespace A2Z
                 float level1Offset = baseOffset;
                 float level2Offset = baseOffset + levelSpacing;
 
-                // T-040 (2026-05-13): AlignDistanceTextPosition 토글 폐기 — SetMeasureItemDistanceTextPos로 대체
-                // (텍스트 위치 시프트는 RenderSheetViewForDrawing에서 2D 변환 직전에 수행)
+                // 작은 치수 단 승격 (사용자 사양 2026-07-03): 텍스트가 치수선에 안 들어가는 작은 치수는
+                //   제자리에서 텍스트를 옮기지(시프트) 않고 치수선째 2단으로 올려 그린다 — 이웃과의 겹침 원천 해소.
+                //   그런 치수가 있으면 전체 치수는 3단으로 밀린다. 임계는 옛 텍스트 시프트(v12)와 동일:
+                //   뷰 최대 치수/26, 뷰 max ≤ 100mm면 승격 없음. (ApplyParallelTextShift는 이 방식으로 대체·폐기)
+                float maxChainDist = filteredDims.Count > 0 ? filteredDims.Max(d => d.Distance) : 0f;
+                float smallDimThreshold = (canvasScaleOverride > 0f && maxChainDist > 100f) ? maxChainDist / 26f : 0f;
+                int promotedSmall = 0;
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
                 foreach (var dim in level1Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
+                    bool small = smallDimThreshold > 0f && dim.Distance <= smallDimThreshold;
+                    if (small) promotedSmall++;
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
-                        level1Offset, globalMinX, globalMinY, globalMinZ,
+                        small ? level2Offset : level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
                 }
+                if (promotedSmall > 0)
+                    DiagLog($"[SmallDimPromote] view={viewDirection} 승격={promotedSmall} threshold={smallDimThreshold:F1}mm maxDist={maxChainDist:F1}mm");
 
                 // Level 2 치수 (중간)
                 foreach (var dim in level2Dims)
@@ -644,7 +653,8 @@ namespace A2Z
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이)
-                int maxLevelUsed = level2Dims.Count > 0 ? 2 : 1;
+                //   작은 치수가 2단으로 승격됐으면 전체는 3단으로 (사용자 사양 2026-07-03)
+                int maxLevelUsed = (level2Dims.Count > 0 || promotedSmall > 0) ? 2 : 1;
                 float level0Offset = baseOffset + (levelSpacing * maxLevelUsed);
                 foreach (var dim in level0Dims)
                 {
@@ -2085,153 +2095,6 @@ namespace A2Z
                 if (a != viewDirection && a != dimAxis) return a;
             }
             return "X";
-        }
-
-        // ─── T-040 v12: v6 직각 시프트 베이스 + 임계 maxEstDist/26 + 인접 비교 부호 ───
-        // 사양:
-        //  - 임계: 측정값 ≤ maxEstDist / 26 (사용자 사양 — v11의 13 → 동적)
-        //  - 시프트 거리: 캔버스 3mm
-        //  - SDK measureItem 직접 순회 (가공도에도 동일 작동)
-        //  - 직각 시프트 (가로 치수 → right, 세로 치수 → up)
-        //  - shiftDir: SDK measure를 측정축별 그룹 후 측정축 중심 좌표 순 정렬 → 인접 dim의 estDist 비교
-        //    · 양쪽 인접 큰 쪽 / 같음 +1 / 한쪽만 반대(체인 바깥) / 없음 skip
-        //  - 뷰 max ≤ 100mm 시 전체 skip
-        private void ApplyParallelTextShift(
-            string viewDirection,
-            float canvasScale,
-            List<VIZCore3D.NET.Data.MeasureItem> measures)
-        {
-            if (viewDirection == "ISO") return;
-            if (canvasScale <= 0.0001f) return;
-            if (measures == null || measures.Count == 0) return;
-
-            // 1차 패스: 각 측정의 MAIN 두 좌표 + dimAxis + dimCenter + estDist + 시프트용 posItem 수집
-            var infos = new List<(VIZCore3D.NET.Data.MeasureItem m, char dimAxis, float dimCenter, float estDist, VIZCore3D.NET.Data.ReviewPosition textPos)>();
-            float maxEstDist = 0f;
-            foreach (var measure in measures)
-            {
-                if (!measure.Visible) continue;
-                // 각도 측정은 두 점 간 거리 개념이 없어 시프트 대상에서 제외 (비-90° 각도 표시, 2026-06-23)
-                if (measure.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_ANGLE ||
-                    measure.Kind == VIZCore3D.NET.Manager.ReviewManager.ReviewKind.RK_MEASURE_SURFACE_ANGLE) continue;
-                VIZCore3D.NET.Data.Vertex3D mp0 = null, mp1 = null;
-                foreach (var pos in measure.Position)
-                {
-                    if (pos.Kind != VIZCore3D.NET.Data.ReviewPosition.DataKind.MAIN) continue;
-                    if (pos.Position == null) continue;
-                    if (mp0 == null) mp0 = pos.Position;
-                    else { mp1 = pos.Position; break; }
-                }
-                if (mp0 == null || mp1 == null) continue;
-
-                float ddx = mp0.X - mp1.X, ddy = mp0.Y - mp1.Y, ddz = mp0.Z - mp1.Z;
-                float estDist = (float)Math.Sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
-                if (estDist > maxEstDist) maxEstDist = estDist;
-
-                float adx = Math.Abs(ddx), ady = Math.Abs(ddy), adz = Math.Abs(ddz);
-                char dimAxis = (adx >= ady && adx >= adz) ? 'X' : (ady >= adz ? 'Y' : 'Z');
-                float dimCenter = (dimAxis == 'X') ? (mp0.X + mp1.X) / 2f
-                                : (dimAxis == 'Y') ? (mp0.Y + mp1.Y) / 2f
-                                : (mp0.Z + mp1.Z) / 2f;
-
-                // 시프트 대상 posItem (Text 비어있지 않은 첫 항목)
-                VIZCore3D.NET.Data.ReviewPosition textPos = null;
-                foreach (var pos in measure.Position)
-                {
-                    if (string.IsNullOrEmpty(pos.Text)) continue;
-                    if (pos.Position == null) continue;
-                    textPos = pos;
-                    break;
-                }
-                if (textPos == null) continue;
-
-                infos.Add((measure, dimAxis, dimCenter, estDist, textPos));
-            }
-
-            if (maxEstDist <= 100f)
-            {
-                DiagLog($"T-040 TextShift view={viewDirection} skip (maxEstDist={maxEstDist:F1}mm <= 100mm)");
-                return;
-            }
-
-            float threshold = maxEstDist / 26f;
-            float modelShift = 3f / canvasScale;
-            int shiftedCount = 0;
-
-            // P3 #3 진단 (2026-05-23, 사용자 사내 검증):
-            //   같은 축 chain dimension에서 작은 측정(6mm)이 잘못된 방향으로 시프트되어
-            //   다른 측정(59mm)과 겹치는 문제. dimAxis·dimCenter·shiftDir 정확히 추적.
-            DiagLog($"[TextShift] BEGIN view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F2}mm threshold={threshold:F2}mm maxEstDist={maxEstDist:F2}mm infoCount={infos.Count}");
-            foreach (var info in infos)
-                DiagLog($"[TextShift]   info dimAxis={info.dimAxis} dimCenter={info.dimCenter:F2} estDist={info.estDist:F2} textPos=({info.textPos.Position.X:F2},{info.textPos.Position.Y:F2},{info.textPos.Position.Z:F2})");
-
-            // 측정축별 그룹 → 측정축 중심 좌표 순 정렬 → 인접 식별
-            foreach (var axisGrp in infos.GroupBy(x => x.dimAxis))
-            {
-                var sorted = axisGrp.OrderBy(x => x.dimCenter).ToList();
-                DiagLog($"[TextShift] axis={axisGrp.Key} sorted({sorted.Count}): [{string.Join(", ", sorted.Select(s => $"{s.estDist:F1}@{s.dimCenter:F1}"))}]");
-
-                for (int i = 0; i < sorted.Count; i++)
-                {
-                    var info = sorted[i];
-                    if (info.estDist > threshold)
-                    {
-                        DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} > threshold={threshold:F2} → skip");
-                        continue;
-                    }
-
-                    float? leftDist = (i > 0) ? sorted[i - 1].estDist : (float?)null;
-                    float? rightDist = (i < sorted.Count - 1) ? sorted[i + 1].estDist : (float?)null;
-
-                    int shiftDir;
-                    string reason;
-                    if (leftDist.HasValue && rightDist.HasValue)
-                    {
-                        if (leftDist.Value > rightDist.Value) { shiftDir = -1; reason = $"both L={leftDist:F1} > R={rightDist:F1} → -1 (left, 큰 쪽)"; }
-                        else if (rightDist.Value > leftDist.Value) { shiftDir = +1; reason = $"both R={rightDist:F1} > L={leftDist:F1} → +1 (right, 큰 쪽)"; }
-                        else { shiftDir = +1; reason = $"both equal → +1"; }
-                    }
-                    else if (leftDist.HasValue) { shiftDir = +1; reason = $"L={leftDist:F1} only → +1 (right, 빈 쪽)"; }
-                    else if (rightDist.HasValue) { shiftDir = -1; reason = $"R={rightDist:F1} only → -1 (left, 빈 쪽)"; }
-                    else { DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} both null → skip"); continue; }
-
-                    DiagLog($"[TextShift]   i={i} estDist={info.estDist:F2} dimAxis={info.dimAxis} dimCenter={info.dimCenter:F2} shiftDir={shiftDir} reason={reason}");
-
-                    var p = info.textPos.Position;
-                    VIZCore3D.NET.Data.Vector3D shifted;
-                    // 직각 시프트 (가로 → right, 세로 → up) × shiftDir
-                    switch (viewDirection)
-                    {
-                        case "X":  // right=+Y, up=+Z
-                            if (info.dimAxis == 'Y')
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + shiftDir * modelShift, p.Z);
-                            else
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + shiftDir * modelShift);
-                            break;
-                        case "Y":  // right=-X, up=+Z
-                            if (info.dimAxis == 'X')
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X - shiftDir * modelShift, p.Y, p.Z);
-                            else
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z + shiftDir * modelShift);
-                            break;
-                        case "Z":  // top: right=+X, up=+Y
-                            if (info.dimAxis == 'X')
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X + shiftDir * modelShift, p.Y, p.Z);
-                            else
-                                shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y + shiftDir * modelShift, p.Z);
-                            break;
-                        default:
-                            shifted = new VIZCore3D.NET.Data.Vector3D(p.X, p.Y, p.Z);
-                            break;
-                    }
-                    DiagLog($"[TextShift]   → shifted to ({shifted.X:F2},{shifted.Y:F2},{shifted.Z:F2}) (was {p.X:F2},{p.Y:F2},{p.Z:F2})");
-                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(info.m.ID, shifted);
-                    shiftedCount++;
-                }
-            }
-
-            DiagLog($"T-040 TextShift view={viewDirection} canvasScale={canvasScale:F4} modelShift={modelShift:F1}mm threshold={threshold:F1}mm maxEstDist={maxEstDist:F1}mm shifted={shiftedCount}");
-            DiagLog($"[TextShift] END view={viewDirection} shifted={shiftedCount}/{infos.Count}");
         }
 
         private List<ChainDimensionData> AddChainDimensionByAxis(
