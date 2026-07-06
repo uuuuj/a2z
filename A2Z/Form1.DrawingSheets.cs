@@ -1916,7 +1916,8 @@ namespace A2Z
                     }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
-                    // ── 치수(Measure) → 2D (X/Y/Z만, ApplyParallelTextShift로 텍스트 시프트 후) ──
+                    // ── 치수(Measure) → 2D (X/Y/Z만) ──
+                    //   작은 치수 텍스트는 시프트하지 않는다 — ShowAllDimensions가 치수선째 2단 승격 (2026-07-03 사용자 사양).
                     if (viewDir != "ISO")
                     {
                         var measureItems = vizcore3d.Review.Measure.Items;
@@ -1925,12 +1926,7 @@ namespace A2Z
                             if (m.Visible) measureIds.Add(m.ID);
 
                         if (measureIds.Count > 0)
-                        {
-                            ApplyParallelTextShift(viewDir,
-                                vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
-                                measureItems);
                             vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
-                        }
                     }
 
                     viewsRendered++;
@@ -2577,12 +2573,7 @@ namespace A2Z
             }
             if (measureIds.Count > 0)
             {
-                // T-040 v7 (2026-05-13): 평행 시프트 — 직각 시프트 폐기
-                // 임계 maxEstDist/26 이하 치수를 인접 큰 dim 쪽 측정축 방향으로 슬라이드
-                ApplyParallelTextShift(viewDirection,
-                    vizcore3d.Drawing2D.Object2D.GetObjectScale(objId),
-                    measures);
-
+                // 작은 치수 텍스트 시프트 폐기 — ShowAllDimensions가 치수선째 2단 승격 (2026-07-03 사용자 사양)
                 vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
             }
 
