@@ -2587,58 +2587,61 @@ namespace A2Z
                 var osnaps = vizcore3d.Object3D.GetOsnapPoint(idx);
                 if (osnaps == null) continue;
                 var pts = new List<VIZCore3D.NET.Data.Vertex3D>();
+                var segs = new List<(float sx, float sy, float sz, float ex, float ey, float ez)>();
                 foreach (var o in osnaps)
                 {
                     if (o.Kind == VIZCore3D.NET.Data.OsnapKind.LINE)
                     {
                         if (o.Start != null) pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.Start.X, o.Start.Y, o.Start.Z));
                         if (o.End != null)   pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.End.X, o.End.Y, o.End.Z));
+                        if (o.Start != null && o.End != null)
+                            segs.Add((o.Start.X, o.Start.Y, o.Start.Z, o.End.X, o.End.Y, o.End.Z));
                     }
                     else if (o.Kind == VIZCore3D.NET.Data.OsnapKind.POINT && o.Center != null)
                         pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.Center.X, o.Center.Y, o.Center.Z));
                 }
                 if (pts.Count < 2) continue;
 
-                // 길이 체크 + PCA 멱승법 초기값용: 최원점쌍 (이 자체는 길이축이 아님 — 박스형은 대각선)
-                int fi = 0, fj = 1; float best = -1f;
+                // 길이 안정성 체크: 최원점쌍 거리 (방향 계산엔 사용 안 함)
+                float best = -1f;
                 for (int i = 0; i < pts.Count; i++)
                     for (int j = i + 1; j < pts.Count; j++)
                     {
                         float d = Dist(pts[i], pts[j]);
-                        if (d > best) { best = d; fi = i; fj = j; }
+                        if (d > best) best = d;
                     }
                 if (best <= MarkJunctionTol) continue;   // 너무 짧아 방향 불안정
-                float gx = pts[fj].X - pts[fi].X, gy = pts[fj].Y - pts[fi].Y, gz = pts[fj].Z - pts[fi].Z;
-                float gl = (float)Math.Sqrt(gx * gx + gy * gy + gz * gz);
-                if (gl < 1e-3f) continue;
 
                 float cx = 0, cy = 0, cz = 0;
                 foreach (var p in pts) { cx += p.X; cy += p.Y; cz += p.Z; }
                 var centroid = new VIZCore3D.NET.Data.Vertex3D(cx / pts.Count, cy / pts.Count, cz / pts.Count);
 
-                // 길이축 = 점군 공분산행렬의 최대 고유벡터 (PCA 주성분) — 분산이 가장 큰 방향.
-                //   박스형 부재의 최원점쌍은 대각선이라 길이방향이 아니므로, 멱승법으로 PC1을 구한다.
-                double cxx = 0, cyy = 0, czz = 0, cxy = 0, cxz = 0, cyz = 0;
-                foreach (var p in pts)
+                // 길이축 = 가장 긴 '모서리 방향' — osnap LINE 세그먼트를 방향별(±동일시, 공차 cos 5°)로
+                //   길이 합산해 최대 방향 채택 (2026-07-06 사용자 보고 반영).
+                //   옛 PCA(점군 분산 주성분)는 사선 끝단·홀 점 쏠림에 몇 도 기울어
+                //   실제 90° 접합을 87°로 오검출했음. 실제 모서리 방향은 점 분포에 안 휘둘린다.
+                var dirBins = new List<double[]>();   // [ux, uy, uz, totalLen]
+                const double dirTol = 0.9962;         // cos 5°
+                foreach (var sg in segs)
                 {
-                    double ax = p.X - centroid.X, ay = p.Y - centroid.Y, az = p.Z - centroid.Z;
-                    cxx += ax * ax; cyy += ay * ay; czz += az * az;
-                    cxy += ax * ay; cxz += ax * az; cyz += ay * az;
+                    double sdx = sg.ex - sg.sx, sdy = sg.ey - sg.sy, sdz = sg.ez - sg.sz;
+                    double sl = Math.Sqrt(sdx * sdx + sdy * sdy + sdz * sdz);
+                    if (sl < 1e-3) continue;
+                    sdx /= sl; sdy /= sl; sdz /= sl;
+                    int bi = -1;
+                    for (int k = 0; k < dirBins.Count; k++)
+                        if (Math.Abs(dirBins[k][0] * sdx + dirBins[k][1] * sdy + dirBins[k][2] * sdz) >= dirTol) { bi = k; break; }
+                    if (bi < 0) dirBins.Add(new[] { sdx, sdy, sdz, sl });
+                    else dirBins[bi][3] += sl;
                 }
-                double vx = gx / gl, vy = gy / gl, vz = gz / gl;   // 초기값 = 최원점쌍 방향(PC1 성분 보유)
-                for (int it = 0; it < 32; it++)
-                {
-                    double nx = cxx * vx + cxy * vy + cxz * vz;
-                    double ny = cxy * vx + cyy * vy + cyz * vz;
-                    double nz = cxz * vx + cyz * vy + czz * vz;
-                    double nn = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-                    if (nn < 1e-12) break;
-                    vx = nx / nn; vy = ny / nn; vz = nz / nn;
-                }
-                var dir = new VIZCore3D.NET.Data.Vertex3D((float)vx, (float)vy, (float)vz);
+                if (dirBins.Count == 0) continue;     // LINE 모서리 없음 — 길이 방향 판정 불가
+                double[] mainBin = dirBins[0];
+                foreach (var b in dirBins)
+                    if (b[3] > mainBin[3]) mainBin = b;
+                var dir = new VIZCore3D.NET.Data.Vertex3D((float)mainBin[0], (float)mainBin[1], (float)mainBin[2]);
 
                 members.Add((idx, partIdx, pts, centroid, dir));
-                DiagLog($"[각도축] 부재 {idx} part{partIdx} 점{pts.Count} PCA길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 최원거리={best:F1}");
+                DiagLog($"[각도축] 부재 {idx} part{partIdx} 점{pts.Count} 모서리길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 방향합={mainBin[3]:F0}mm 최원거리={best:F1}");
             }
             if (members.Count < 2) return;
 
@@ -2709,11 +2712,25 @@ namespace A2Z
                     DiagLog($"[각도] view={viewDirection} {A.idx}×{B.idx} clash={isClash} 접합거리={bestD:F1} 3D각={theta:F1} 직각배수={isRight}");
                     if (isRight) continue;                    // 수직·수평(90배수) 제외
 
-                    // 이 뷰에서 그릴 수 있나 — 두 축 모두 화면 평면에 충분히 투영돼야 (깊이축 평행 생략)
+                    // 이 뷰에서 그릴지 — 접합 평면(두 길이축이 만드는 평면)이 화면과 평행한 뷰에서만 (2026-07-06).
+                    //   평면 법선(dirA×dirB)이 깊이축과 가장 정렬된 뷰(셋 중 최대) 1곳에만 그린다 —
+                    //   그래야 각도가 왜곡 없는 실값으로, 꺾임이 실제 평면으로 보이는 뷰에 표시된다.
+                    //   (옛 조건 '두 축이 화면에 조금이라도 투영되면'은 기울어진 뷰에도 그렸음 — 사용자 보고)
+                    float pnx = dirA.Y * dirB.Z - dirA.Z * dirB.Y;
+                    float pny = dirA.Z * dirB.X - dirA.X * dirB.Z;
+                    float pnz = dirA.X * dirB.Y - dirA.Y * dirB.X;
+                    float pnl = (float)Math.Sqrt(pnx * pnx + pny * pny + pnz * pnz);
+                    if (pnl < 1e-4f) continue;   // 두 축 평행 — 접합 평면 정의 불가
+                    float nax = Math.Abs(pnx) / pnl, nay = Math.Abs(pny) / pnl, naz = Math.Abs(pnz) / pnl;
+                    string bestView = (nax >= nay && nax >= naz) ? "X" : (nay >= naz ? "Y" : "Z");
+                    if (bestView != viewDirection)
+                    {
+                        DiagLog($"[각도] view={viewDirection} {A.idx}×{B.idx} skip — 최적 뷰={bestView} 법선=({nax:F2},{nay:F2},{naz:F2})");
+                        continue;
+                    }
+
                     var (ah, av) = ProjDir(dirA);
                     var (bh, bv) = ProjDir(dirB);
-                    if ((float)Math.Sqrt(ah * ah + av * av) < 0.05f) continue;
-                    if ((float)Math.Sqrt(bh * bh + bv * bv) < 0.05f) continue;
 
                     // 마킹: 접합점 + 각 부재 본체 쪽으로 뻗은 가상점 (원본 3D, SDK가 카메라 투영)
                     float reachA = Math.Max(MarkJunctionTol * 3f, Dist(A.centroid, junction));
