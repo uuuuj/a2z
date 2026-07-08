@@ -2583,10 +2583,11 @@ namespace A2Z
                 VIZCore3D.NET.Data.Vertex3D centroid, VIZCore3D.NET.Data.Vertex3D dir)>();
             foreach (int idx in memberIndices)
             {
-                if (IsPadOrPlateFromSpref(idx)) continue;
+                // 제외 사유를 전부 로그 — "기울어 붙었는데 각도 안 나옴" 진단용 (2026-07-06)
+                if (IsPadOrPlateFromSpref(idx)) { DiagLog($"[각도축] 부재 {idx} 제외 — 판형(PAD/PLATE)"); continue; }
                 int partIdx = bodyToPartIndexMap.ContainsKey(idx) ? bodyToPartIndexMap[idx] : -1;
                 var osnaps = vizcore3d.Object3D.GetOsnapPoint(idx);
-                if (osnaps == null) continue;
+                if (osnaps == null) { DiagLog($"[각도축] 부재 {idx} 제외 — osnap 없음"); continue; }
                 var pts = new List<VIZCore3D.NET.Data.Vertex3D>();
                 var segs = new List<(float sx, float sy, float sz, float ex, float ey, float ez)>();
                 foreach (var o in osnaps)
@@ -2601,7 +2602,7 @@ namespace A2Z
                     else if (o.Kind == VIZCore3D.NET.Data.OsnapKind.POINT && o.Center != null)
                         pts.Add(new VIZCore3D.NET.Data.Vertex3D(o.Center.X, o.Center.Y, o.Center.Z));
                 }
-                if (pts.Count < 2) continue;
+                if (pts.Count < 2) { DiagLog($"[각도축] 부재 {idx} 제외 — osnap 점 부족({pts.Count})"); continue; }
 
                 // 길이 안정성 체크: 최원점쌍 거리 (방향 계산엔 사용 안 함)
                 float best = -1f;
@@ -2611,7 +2612,7 @@ namespace A2Z
                         float d = Dist(pts[i], pts[j]);
                         if (d > best) best = d;
                     }
-                if (best <= MarkJunctionTol) continue;   // 너무 짧아 방향 불안정
+                if (best <= MarkJunctionTol) { DiagLog($"[각도축] 부재 {idx} 제외 — 크기 과소(최원거리 {best:F1}mm)"); continue; }
 
                 float cx = 0, cy = 0, cz = 0;
                 foreach (var p in pts) { cx += p.X; cy += p.Y; cz += p.Z; }
@@ -2635,14 +2636,18 @@ namespace A2Z
                     if (bi < 0) dirBins.Add(new[] { sdx, sdy, sdz, sl });
                     else dirBins[bi][3] += sl;
                 }
-                if (dirBins.Count == 0) continue;     // LINE 모서리 없음 — 길이 방향 판정 불가
+                if (dirBins.Count == 0) { DiagLog($"[각도축] 부재 {idx} 제외 — LINE 모서리 없음(점 {pts.Count}개뿐)"); continue; }
                 double[] mainBin = dirBins[0];
                 foreach (var b in dirBins)
                     if (b[3] > mainBin[3]) mainBin = b;
+                double secondLen = 0;
+                foreach (var b in dirBins)
+                    if (b != mainBin && b[3] > secondLen) secondLen = b[3];
                 var dir = new VIZCore3D.NET.Data.Vertex3D((float)mainBin[0], (float)mainBin[1], (float)mainBin[2]);
 
                 members.Add((idx, partIdx, pts, centroid, dir));
-                DiagLog($"[각도축] 부재 {idx} part{partIdx} 점{pts.Count} 모서리길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 방향합={mainBin[3]:F0}mm 최원거리={best:F1}");
+                // 2위 방향합 병기 — 1·2위가 비슷하면(짧은 부재) 길이축 신뢰도 낮음 신호
+                DiagLog($"[각도축] 부재 {idx} part{partIdx} 점{pts.Count} 모서리길이축=({dir.X:F2},{dir.Y:F2},{dir.Z:F2}) 방향합={mainBin[3]:F0}mm 2위={secondLen:F0}mm 최원거리={best:F1}");
             }
             if (members.Count < 2) return;
 
