@@ -628,6 +628,14 @@ namespace A2Z
                 float smallDimThreshold = (canvasScaleOverride > 0f && maxChainDist > 100f) ? maxChainDist / 26f : 0f;
                 int promotedSmall = 0;
 
+                // 2단 텍스트 슬라이드 (사용자 사양 2026-07-06): 2단에 그려지는 치수(승격 작은 치수 + 기존 2단)는
+                //   텍스트를 가로=화면 오른쪽 / 세로=화면 위로 종이 절대 5mm 이동.
+                //   실기 검증된 뷰 매핑(옛 시프트 v6~v12): X뷰 right=+Y·up=+Z / Y뷰 right=-X·up=+Z / Z뷰 right=+X·up=+Y
+                //   → 부호는 'Y뷰의 X축 치수'만 음(-X), 나머지 전부 양.
+                float lvl2SlideModel = canvasScaleOverride > 0f ? Lvl2TextSlideCanvas / canvasScaleOverride : 0f;
+                Func<string, float> lvl2SlideSigned = ax =>
+                    (viewDirection == "Y" && ax == "X" ? -1f : 1f) * lvl2SlideModel;
+
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
                 foreach (var dim in level1Dims)
@@ -638,19 +646,21 @@ namespace A2Z
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         small ? level2Offset : level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
+                        textSlideModel: small ? lvl2SlideSigned(dim.Axis) : 0f);
                 }
                 if (promotedSmall > 0)
                     DiagLog($"[SmallDimPromote] view={viewDirection} 승격={promotedSmall} threshold={smallDimThreshold:F1}mm maxDist={maxChainDist:F1}mm");
 
-                // Level 2 치수 (중간)
+                // Level 2 치수 (중간) — 2단에 그려지므로 텍스트 슬라이드 동일 적용
                 foreach (var dim in level2Dims)
                 {
                     bool posOff = axisPositiveOffset.ContainsKey(dim.Axis) && axisPositiveOffset[dim.Axis];
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level2Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
+                        textSlideModel: lvl2SlideSigned(dim.Axis));
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이)
@@ -1106,7 +1116,8 @@ namespace A2Z
             float globalMaxZ = 0,
             bool positiveOffset = false,
             bool alignExtToBaseline = false,
-            float extGapOverride = -1f)
+            float extGapOverride = -1f,
+            float textSlideModel = 0f)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -1201,6 +1212,29 @@ namespace A2Z
                 }
             }
 
+            // 2단 승격 치수 텍스트 슬라이드 (사용자 사양 2026-07-06): 치수선 방향으로 종이 절대 5mm.
+            //   SetMeasureItemDistanceTextPos는 치수선 방향 성분만 반영(수직 성분은 투영·무시 — 실기 확정)이라
+            //   가로 치수=화면 오른쪽, 세로 치수=화면 위로만 이동 가능. 부호·거리는 호출자가 결정해 전달.
+            if (textSlideModel != 0f && measureId >= 0)
+            {
+                float tsx = (startVertex.X + endVertex.X) / 2f;
+                float tsy = (startVertex.Y + endVertex.Y) / 2f;
+                float tsz = (startVertex.Z + endVertex.Z) / 2f;
+                switch (axis)
+                {
+                    case "X": tsx += textSlideModel; break;
+                    case "Y": tsy += textSlideModel; break;
+                    default:  tsz += textSlideModel; break;
+                }
+                try
+                {
+                    vizcore3d.Drawing2D.Measure.SetMeasureItemDistanceTextPos(measureId,
+                        new VIZCore3D.NET.Data.Vector3D(tsx, tsy, tsz));
+                }
+                catch { }
+                DiagLog($"[TextSlide] id={measureId} axis={axis} view={viewDirection} slide={textSlideModel:F2} tp=({tsx:F1},{tsy:F1},{tsz:F1})");
+            }
+
             // 보조선 추가 (Osnap 위치 → 치수선 위치)
             // T-046: 모델 표면에서 gap만큼 떨어져 시작 (시각적 가독성)
             //        Osnap 좌표 → 치수선 방향 단위벡터 × gap만큼 이동 → 치수선까지 직선
@@ -1266,6 +1300,12 @@ namespace A2Z
         /// 옛 모델좌표 고정 10mm는 부재 크기(축척)마다 종이 gap이 들쭉날쭉했음. 가공도(MfgCanvasExtGap=2)와 동일 정책.
         /// </summary>
         private const float FabCanvasExtGap = 2.0f;
+
+        /// <summary>
+        /// 2단(작은 치수 단) 텍스트 슬라이드 종이 mm (2026-07-06 사용자 사양) — 2단에 그려지는 치수는
+        /// 텍스트를 치수선 방향으로 일괄 이동: 가로 치수=화면 오른쪽, 세로 치수=화면 위 (SDK가 치수선 방향만 반영).
+        /// </summary>
+        private const float Lvl2TextSlideCanvas = 5.0f;
 
         /// <summary>
         /// from 점에서 to 점 방향으로 distance만큼 이동한 점을 반환.

@@ -551,15 +551,27 @@ namespace A2Z
             float extGap = MfgCanvasExtGap / newScale;
 
             var extLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
+            // 2단(Level 1) 텍스트 슬라이드 — 제작도와 동일 사양(종이 5mm, 치수선 방향만 SDK 반영).
+            //   부호는 실제 카메라 투영 헬퍼: 가로(길이축) 치수=화면 오른쪽(MfgHeightToRight),
+            //   세로(폭) 치수=화면 위(MfgAxisUpPositive). 호출 시점 카메라 = 캡처 시점과 동일(roll 원복 전).
+            float lvl2SlideMag = MfgLvl2TextSlideCanvas / newScale;
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
+                float slide = 0f;
+                if (pd.Level == 1)
+                {
+                    bool slidePositive = pd.Axis == pose.LongestAxis
+                        ? MfgHeightToRight(pd.Axis)
+                        : MfgAxisUpPositive(pd.Axis);
+                    slide = (slidePositive ? 1f : -1f) * lvl2SlideMag;
+                }
                 // alignExtToBaseline=false — 제작도와 동일하게 보조선을 osnap 점 그대로에서 시작.
                 //   (true=박스 스냅은 대각(beveled) 부재의 실제 꼭짓점을 박스 모서리로 밀어내 대각을 무시했음.
                 //    직사각 부재는 극점 osnap 좌표가 박스값과 같아 무영향. 2026-07-01)
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false, extGap);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false, extGap, slide);
             }
             if (extLines.Count > 0)
             {
@@ -1022,6 +1034,7 @@ namespace A2Z
         private const float MfgCanvasBaseOff = 9.0f;     // 1단 종이 mm (2→4→6→9, 2026-07-06: 세로 텍스트-모델 밀착 해소 1.5배 — 제작도와 동일 배율)
         private const float MfgCanvasLvlSp   = 9.0f;     // 단 간격 → 전체 = 9+9 = 18mm
         private const float MfgCanvasExtGap  = 2.0f;     // 보조선 시작 gap 종이 mm — 오프셋과 동일하게 종이 절대 기준 (2026-07-03, 옛 모델좌표 10mm 폐기)
+        private const float MfgLvl2TextSlideCanvas = 5.0f;  // 2단(Level 1) 치수 텍스트 슬라이드 종이 mm — 가로=오른쪽/세로=위 (2026-07-06, 제작도와 동일 사양)
 
         // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
