@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-07-09 — 템플릿 JSON 사전변환 PoC (SDK 1.0.26.709 신규 API 실측, 임시)
+
+**유형**: chore (진단 코드, 임시)
+**커밋**: `pending`
+**관련**: 소프트힐스 신규 배포 (eml 2026-07-09, VIZCore3D+.NET 1.0.26.709) — 병목 ⑥ "템플릿 적용 5초" 대응
+
+**배경**: 신규 `ConvertExcelToJson`/`ApplyTemplateFromJson`으로 엑셀 파싱을 1회로 줄일 수 있으나, **JSON에 변환 시점의 Input 데이터가 함께 구워짐**(벤더: "inputData 바뀌면 재변환 필요") — 페이지마다 값이 다른 우리 출력과 충돌. 전략(A: 고정만 굽고 가변은 얹기 / B: JSON 텍스트 치환)을 정하려면 JSON 구조·실측 시간 필요.
+
+**변경 사항** (전부 임시, `MfgTemplateJsonPocEnabled` 스위치):
+- `RunTemplateJsonPoc` — 가공도 출력 진입 시 1페이지 데이터로 ConvertExcelToJson(엑셀 옆 `.json`) → ApplyTemplateFromJson으로 별도 페이지 렌더 → `템플릿JSON검증_*.pdf` 저장. `[TplJson] Convert=/Apply=/size=` 로그.
+- 페이지 루프의 `ImportExcelWithData`에 `[TplTime]` 소요 로그 (기존 방식 기준선).
+- `.gitignore`에 생성물 `사용자템플릿_엑셀_*.json` 추가.
+- SDK 신규 6종 API는 sdk-verifier로 시그니처 검증 완료 (XML 2026-07-09).
+
+**검증 (사내)**: 가공도 출력 1회 → ① `[TplTime]` vs `[TplJson] Apply=` 시간 비교 ② 검증 PDF가 본 출력 1페이지와 동일한지(표·라벨·테두리·Input 값) ③ **JSON 파일 회수** — Input 값이 어떤 형태로 저장되는지 보고 전략 A/B 확정.
+
 ## 2026-07-06 — 2단 치수 텍스트 슬라이드 5mm (제작도·가공도)
 
 **유형**: feat (치수 텍스트 배치)
