@@ -319,6 +319,44 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// [임시 ⑥] 템플릿 JSON 사전변환 PoC — SDK 1.0.26.709 신규 API 실측.
+        /// ① ConvertExcelToJson 1회(엑셀 옆 같은 이름 .json, 1페이지 데이터로 굽기) + 시간 로그
+        /// ② ApplyTemplateFromJson으로 별도 페이지 그려 시간 로그 + 검증 PDF 저장 (기존 페이지와 육안 비교)
+        /// ③ JSON 파일 크기 로그 — 파일 자체는 구조 확인용(가변 데이터가 어떻게 구워지는지) 회수 대상.
+        /// 전략(고정만 굽기 vs JSON 치환) 확정 후 본 적용하고 이 메서드는 제거.
+        /// </summary>
+        private void RunTemplateJsonPoc(string xlsxPath, Dictionary<int, string> inputData, string saveDir)
+        {
+            try
+            {
+                string jsonPath = Path.ChangeExtension(xlsxPath, ".json");
+                if (File.Exists(jsonPath)) File.Delete(jsonPath);   // PoC는 항상 새로 변환해 시간 실측
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                string ret = vizcore3d.Drawing2D.Template.ConvertExcelToJson(xlsxPath, inputData, jsonPath);
+                sw.Stop();
+                long size = File.Exists(jsonPath) ? new FileInfo(jsonPath).Length : -1;
+                DiagLog($"[TplJson] Convert={sw.ElapsedMilliseconds}ms ret={(ret ?? "null")} size={size}B");
+                if (string.IsNullOrEmpty(ret) || !File.Exists(jsonPath)) return;
+
+                ResetCanvasForMfgPage();
+                sw.Restart();
+                vizcore3d.Drawing2D.Template.ApplyTemplateFromJson(jsonPath);
+                sw.Stop();
+                DiagLog($"[TplJson] Apply={sw.ElapsedMilliseconds}ms");
+
+                vizcore3d.Drawing2D.Render();
+                string pdf = Path.Combine(saveDir, $"템플릿JSON검증_{DateTime.Now:HHmmss}.pdf");
+                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdf);
+                DiagLog($"[TplJson] 저장: {pdf} — 본 출력 1페이지와 표·라벨·테두리·Input 값 비교. JSON 파일 회수: {jsonPath}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[TplJson] 실패(본 출력 계속): {ex.Message}");
+            }
+        }
+
         private bool CaptureMfgSceneToViewArea(
             int rowIdx,
             BOMData bom,
@@ -1039,6 +1077,10 @@ namespace A2Z
         // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
         private const bool MfgCameraSignProbeEnabled = true;
+
+        // [임시 ⑥] 템플릿 JSON 사전변환 PoC 스위치 (SDK 1.0.26.709 신규 ConvertExcelToJson/ApplyTemplateFromJson).
+        //   변환·적용 시간 측정 + 검증 PDF + JSON 구조 확인용. 전략(고정만 굽기 vs JSON 치환) 확정 후 본 적용하고 제거.
+        private const bool MfgTemplateJsonPocEnabled = true;
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
@@ -2091,6 +2133,13 @@ namespace A2Z
                 if (MfgCameraSignProbeEnabled)
                     RunMfgCameraSignProbe(mfgSheets, saveDir, xlsxPath, ref viewAreasCache);
 
+                // [임시 ⑥] 템플릿 JSON 사전변환 PoC — 1페이지 데이터로 변환·적용 실측 + 검증 PDF (전략 확정 후 제거)
+                if (MfgTemplateJsonPocEnabled && pages.Count > 0)
+                {
+                    var pocData = BuildMfgPageData(pages[0], pages.Count, struName, bomSnapshot);
+                    RunTemplateJsonPoc(xlsxPath, pocData, saveDir);
+                }
+
                 foreach (var page in pages)
                 {
                     int failedRows = 0;
@@ -2099,7 +2148,11 @@ namespace A2Z
                     {
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
+                        // [TplTime] 기존 방식(엑셀 직접 파싱) 소요 실측 — JSON PoC와 비교 기준선 (임시 ⑥)
+                        var swTpl = System.Diagnostics.Stopwatch.StartNew();
                         vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                        swTpl.Stop();
+                        DiagLog($"[TplTime] ImportExcelWithData p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                         for (int i = 0; i < page.Rows.Count; i++)
