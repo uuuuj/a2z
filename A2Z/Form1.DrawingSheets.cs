@@ -1685,7 +1685,7 @@ namespace A2Z
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
+                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
@@ -1693,42 +1693,50 @@ namespace A2Z
                 }
 
                 // ── 3. data Dictionary 구성 ({Input_N} 슬롯 치환) ──
-                // 슬롯 컨벤션 (PoC와 동일):
+                // 슬롯 컨벤션 (신 템플릿 제작도_도면_1 — BOM 20행 기준, 열별 20연속):
                 //   1 = 프로젝트명, 2 = 선박번호, 3 = 도면종류
-                //   4..18 = BOM No (15행), 19..33 = ITEM, 34..48 = MATERIAL, 49..63 = SIZE,
-                //   64..78 = Q'TY, 79..93 = T/W, 94..108 = MA, 109..123 = FA
+                //   4..23 = BOM No (20행), 24..43 = ITEM, 44..63 = MATERIAL, 64..83 = SIZE,
+                //   84..103 = Q'TY, 104..123 = T/W, 124..143 = MA, 144..163 = FA
                 Dictionary<int, string> data = new Dictionary<int, string>();
                 // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
-                //   신 템플릿(제작도_도면_1)은 Input_159까지 사용: 124=Note, 125~128=PAINT/DP, 129=TAG NO, 130~159=Rev 표.
-                for (int k = 1; k <= 159; k++) data[k] = "";
+                //   신 템플릿은 Input_199까지 사용: 164=Note, 165~168=PAINT/DP, 169=TAG NO, 170~199=Rev 표.
+                for (int k = 1; k <= 199; k++) data[k] = "";
                 // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
                 data[1] = "CEDAR FLNG";
                 data[2] = "SN2688";
                 // 시트 종류 라벨 — 제작도/조립도/설치도/가공도 (GetSheetKindLabel: Form1.Stru.cs)
                 data[3] = GetSheetKindLabel(sheet);
 
-                // BOM 8컬럼 × 15행 — lvDrawingBOMInfo Row 0(요약행) 제외
+                // BOM 8컬럼 × 20행 — lvDrawingBOMInfo Row 0(요약행) 제외
                 int bomMapped = 0;
                 if (lvDrawingBOMInfo.Items.Count > 1)
                 {
-                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 15);
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 20);
                     for (int i = 0; i < n; i++)
                     {
                         ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
                         data[4 + i]   = item.Text;                              // NO
-                        data[19 + i]  = SafeSubItem(item, 1);                   // ITEM
-                        data[34 + i]  = SafeSubItem(item, 2);                   // MATERIAL
-                        data[49 + i]  = SafeSubItem(item, 3);                   // SIZE
-                        data[64 + i]  = SafeSubItem(item, 4);                   // Q'TY
-                        data[79 + i]  = SafeSubItem(item, 5);                   // T/W
-                        data[94 + i]  = SafeSubItem(item, 6);                   // MA
-                        data[109 + i] = SafeSubItem(item, 7);                   // FA
+                        data[24 + i]  = SafeSubItem(item, 1);                   // ITEM
+                        data[44 + i]  = SafeSubItem(item, 2);                   // MATERIAL
+                        data[64 + i]  = SafeSubItem(item, 3);                   // SIZE
+                        data[84 + i]  = SafeSubItem(item, 4);                   // Q'TY
+                        data[104 + i] = SafeSubItem(item, 5);                   // T/W
+                        data[124 + i] = SafeSubItem(item, 6);                   // MA
+                        data[144 + i] = SafeSubItem(item, 7);                   // FA
                     }
                     bomMapped = n;
+                    if (lvDrawingBOMInfo.Items.Count - 1 > 20)
+                        DiagLog($"P2 BOM {lvDrawingBOMInfo.Items.Count - 1}행 중 20행만 표시 (템플릿 한도)");
                 }
                 DiagLog($"P2 data 구성: kind='{data[3]}' BOM {bomMapped}행 (Input 총 {data.Count}개)");
 
                 // ── 4. ImportExcelWithData — 엑셀 자동 그리기 + 데이터 치환 ──
+                // 신 템플릿의 {Image} 슬롯(CONTRACTOR 로고) 치환용 — 미등록이면 태그가 글자로 노출됨.
+                string logoPath = System.IO.Path.Combine(solutionPath, "Logo.png");
+                if (System.IO.File.Exists(logoPath))
+                    vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(logoPath, logoPath);
+                else
+                    DiagLog($"P2 Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {logoPath}");
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 ImportExcelWithData OK — {Path.GetFileName(xlsxPath)}");

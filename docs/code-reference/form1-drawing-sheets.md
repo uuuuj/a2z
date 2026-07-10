@@ -38,28 +38,28 @@
 - **X/Y/Z 경로**: X-Ray 유지 → 측정/노트 Clear → 해당 축 카메라 → `ShowAllDimensions(axis)`
 
 ### <a id="CreateIsoBalloonNotes"></a>CreateIsoBalloonNotes(memberIndices, forDrawing2D=false)
-- **라인**: L596~L753
+- **라인**: L845+
 - **핵심**: ISO_PLUS 등각 투영 2D 근사 (0.707f, 0.408f, 0.816f) → 3D 방향 계산 → 2D AABB 겹침 검사 → 36회 회전 시도 → `Review.Note.AddNoteSurface`
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L1262+
+- **라인**: L1263+
 - **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
-- **라인**: L1612+
-- **단계**: 엑셀 `{Input_N}` 치환 → `{View_1~7}` 영역 파싱 → `View_5`·`View_7` 고정 이미지 배치 (`View_6` 예약) → 모델 4면도·치수·풍선 렌더
+- **라인**: L1613+
+- **단계**: `Set2DViewTemplateMark(Logo.png)` 로고 등록 → 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 (BOM 8열×20행, 열별 20연속 슬롯 4~163 + 비-BOM 164~199) → `{View_1~7}` 영역 파싱 → `View_5`·`View_7` 고정 이미지 배치 (`View_6` 예약) → 모델 4면도·치수·풍선 렌더
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2002+
+- **라인**: L2016+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2018+
+- **라인**: L2032+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
-- **라인**: L944
+- **라인**: L1245
 - **역할**: `Path.GetInvalidFileNameChars()`의 문자를 `_`로 치환
 
 ---
