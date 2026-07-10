@@ -1698,6 +1698,9 @@ namespace A2Z
                 //   4..18 = BOM No (15행), 19..33 = ITEM, 34..48 = MATERIAL, 49..63 = SIZE,
                 //   64..78 = Q'TY, 79..93 = T/W, 94..108 = MA, 109..123 = FA
                 Dictionary<int, string> data = new Dictionary<int, string>();
+                // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
+                //   신 템플릿(제작도_도면_1)은 Input_159까지 사용: 124=Note, 125~128=PAINT/DP, 129=TAG NO, 130~159=Rev 표.
+                for (int k = 1; k <= 159; k++) data[k] = "";
                 // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
                 data[1] = "CEDAR FLNG";
                 data[2] = "SN2688";
