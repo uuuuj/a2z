@@ -86,4 +86,8 @@ Desktop.ini
 
 ## 리팩토링 베이스라인 (사내 PC 캡처 산출물, 로컬 전용)
 docs/리팩토링/_baseline/
+
+## 템플릿 JSON 사전변환 생성물 (런타임 캐시·치환 산출물, 로컬 전용)
 사용자템플릿_엑셀_*.json
+*.tags.json
+*.applied.json
