@@ -18,7 +18,7 @@
 
 - **라인**: L1878
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
-- `사용자템플릿_엑셀_가공도.xlsx`를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`).
+- `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). Import 전 `Set2DViewTemplateMark(Logo.png)` 1회 등록({Image} 슬롯 치환).
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 
@@ -103,7 +103,7 @@
 |---|---:|---|
 | `RestoreAllPartsVisibility` | L23 | 활성, 출력 후 가시성 복원 |
 | `SplitMfgIntoPages` | L69 | 활성, 페이지당 5부재 분할 |
-| `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 |
+| `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 (부재명 Input_200~204, BOM 8×20 Input_4~163, 선초기화 1..204) |
 | `GetSprefValue` | L2143 | 활성 |
 | `ParseOrientation` | L2343 | 활성 |
 

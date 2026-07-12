@@ -125,7 +125,8 @@ namespace A2Z
             var data = new Dictionary<int, string>();
 
             // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            for (int k = 1; k <= 129; k++)
+            //   신 템플릿(가공도_도면_1)은 제작도와 동일 슬롯 체계 Input 1~199 + 부재명 200~204.
+            for (int k = 1; k <= 204; k++)
                 data[k] = "";
 
             // ── 도면정보 ──
@@ -135,33 +136,34 @@ namespace A2Z
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
 
-            // ── 좌측 5행 BOM 이름 (Input_5~Input_9) ──
+            // ── 부재명 5칸 (Input_200~Input_204, 각 View 왼쪽 라벨) ──
+            //   신 템플릿: 부재명은 BOM 슬롯과 분리된 200~204 대역 (2026-07-12 배치).
             for (int i = 0; i < page.Rows.Count && i < 5; i++)
             {
                 var sheet = page.Rows[i];
                 if (sheet.MemberIndices.Count == 0) continue;
                 var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                 if (bom == null) continue;
-                data[5 + i] = bom.Name ?? "";
+                data[200 + i] = bom.Name ?? "";
             }
 
-            // ── 우측 BOM 표 8컬럼 × 15행 (Input_10~Input_129, snapshot 사용) ──
-            // 제작도와 동일 매핑 패턴, 슬롯 번호만 +6 이동.
+            // ── 우측 BOM 표 8컬럼 × 20행 (Input_4~Input_163, snapshot 사용) ──
+            //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 열별 20연속.
             int bomMapped = 0;
             if (bomSnapshot != null)
             {
-                int n = Math.Min(bomSnapshot.Count, 15);
+                int n = Math.Min(bomSnapshot.Count, 20);
                 for (int i = 0; i < n; i++)
                 {
                     string[] row = bomSnapshot[i];
-                    data[10 + i]  = row[0];   // NO
-                    data[25 + i]  = row[1];   // ITEM
-                    data[40 + i]  = row[2];   // MATERIAL
-                    data[55 + i]  = row[3];   // SIZE
-                    data[70 + i]  = row[4];   // Q'TY
-                    data[85 + i]  = row[5];   // T/W
-                    data[100 + i] = row[6];   // MA
-                    data[115 + i] = row[7];   // FA
+                    data[4 + i]   = row[0];   // NO
+                    data[24 + i]  = row[1];   // ITEM
+                    data[44 + i]  = row[2];   // MATERIAL
+                    data[64 + i]  = row[3];   // SIZE
+                    data[84 + i]  = row[4];   // Q'TY
+                    data[104 + i] = row[5];   // T/W
+                    data[124 + i] = row[6];   // MA
+                    data[144 + i] = row[7];   // FA
                 }
                 bomMapped = n;
             }
@@ -274,9 +276,9 @@ namespace A2Z
 
                 ResetCanvasForMfgPage();
                 var data = new Dictionary<int, string>();
-                for (int k = 1; k <= 129; k++) data[k] = "";
+                for (int k = 1; k <= 204; k++) data[k] = "";
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
-                data[5] = bom.Name ?? "";
+                data[200] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (구 5번 → 200번)
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
@@ -2049,7 +2051,7 @@ namespace A2Z
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
-            string xlsxPath = Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx");
+            string xlsxPath = Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx");
             if (!File.Exists(xlsxPath))
             {
                 DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
@@ -2094,9 +2096,9 @@ namespace A2Z
                     .Distinct()
                     .ToList();
 
-                if (allMfgBomIndices.Count > 15)
+                if (allMfgBomIndices.Count > 20)
                 {
-                    string msg = $"가공도 부재 {allMfgBomIndices.Count}개 — BOM 표 15행 초과, 16번째 이후 PDF 미표시";
+                    string msg = $"가공도 부재 {allMfgBomIndices.Count}개 — BOM 표 20행 초과, 21번째 이후 PDF 미표시";
                     DiagLog($"[GenMfgManual] WARN {msg}");
                     result.Warnings.Add(msg);
                 }
@@ -2111,7 +2113,7 @@ namespace A2Z
                 CollectBOMInfo(false, syntheticSheet);
 
                 var bomSnapshot = SnapshotBomRows();
-                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 15);
+                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20);
                 result.BomRows = bomSnapshot.Count;
                 result.ExpectedBomRows = expectedBomRows;
 
@@ -2119,12 +2121,20 @@ namespace A2Z
                 {
                     DiagLog($"[GenMfgManual] WARN BOM snapshot mismatch: {bomSnapshot.Count} vs 예상 {expectedBomRows}");
                     if (bomSnapshot.Count > expectedBomRows)
-                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 첫 15행만 사용");
+                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 첫 20행만 사용");
                 }
 
                 bool bomSnapshotInsufficient = bomSnapshot.Count < expectedBomRows;
                 if (bomSnapshotInsufficient)
                     DiagLog($"[GenMfgManual] WARN BOM 부족: {bomSnapshot.Count} < {expectedBomRows} (PDF 계속 생성)");
+
+                // 신 템플릿의 {Image} 슬롯(CONTRACTOR 로고) 치환용 로고 1회 등록 —
+                //   미등록이면 ImportExcelWithData가 {Image} 태그를 글자 그대로 남긴다 (제작도와 동일 처리).
+                string mfgLogoPath = Path.Combine(GetSolutionPath(), "Logo.png");
+                if (File.Exists(mfgLogoPath))
+                    vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(mfgLogoPath, mfgLogoPath);
+                else
+                    DiagLog($"[GenMfgManual] Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {mfgLogoPath}");
 
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
@@ -2288,7 +2298,7 @@ namespace A2Z
             if (result.TemplateMissing)
             {
                 MessageBox.Show(
-                    $"가공도 엑셀 템플릿 누락:\n{Path.Combine(GetSolutionPath(), "사용자템플릿_엑셀_가공도.xlsx")}\n\nPDF 생성 안 됨.",
+                    $"가공도 엑셀 템플릿 누락:\n{Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx")}\n\nPDF 생성 안 됨.",
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
