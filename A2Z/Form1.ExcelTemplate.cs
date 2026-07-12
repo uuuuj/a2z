@@ -209,6 +209,14 @@ namespace A2Z
         //   구워져 치환 불가) 치환 방식을 못 쓰므로 호출자가 기존 ImportExcelWithData로 폴백한다. 즉 blind 가정 없이
         //   동작 여부를 코드가 판정 → 사내 검증에서 [TplJson] 로그로 어느 경로를 탔는지 즉시 확인 가능.
 
+        // [임시 진단 2026-07-12] 신 템플릿 파일(openpyxl 축소본)이 모델 캡처 네이티브 크래시 원인인지 격리.
+        //   true = 구 검증 템플릿(사용자템플릿_엑셀_*, Excel 원본·예전 정상)으로 출력.
+        //     → 크래시 사라지면 신 템플릿 파일이 범인 확정(Excel-native 재생성 필요).
+        //     → 구 템플릿으로도 죽으면 템플릿이 아니라 코드/모델 문제.
+        //   데이터 슬롯 매핑은 신 체계(20행·부재명 200~204)라 구 템플릿에선 값이 어긋나지만, 크래시 여부만 본다.
+        //   결과 확인 후 false로 원복(또는 신 템플릿 재생성 후 제거).
+        private const bool UseLegacyTemplateForCrashDiag = true;
+
         // xlsxPath → 태그 보존 JSON 경로. 값 "" = 태그 미보존(치환 불가, 폴백 확정). 키 없음 = 아직 미변환.
         private readonly Dictionary<string, string> _templateTagJsonCache = new Dictionary<string, string>();
 
