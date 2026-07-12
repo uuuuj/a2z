@@ -2053,7 +2053,8 @@ namespace A2Z
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
-            string xlsxPath = Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx");
+            string xlsxPath = Path.Combine(GetSolutionPath(),
+                UseLegacyTemplateForCrashDiag ? "사용자템플릿_엑셀_가공도.xlsx" : "가공도_도면_1.xlsx");
             if (!File.Exists(xlsxPath))
             {
                 DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
