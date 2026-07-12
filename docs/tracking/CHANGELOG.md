@@ -9,7 +9,7 @@
 ## 2026-07-12 — 가공도 출력 신 템플릿 코드 연결 (부재명 200~204 + BOM 20행)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `1c19993`
 **관련**: 사용자 사양 "부재명 배치 + BOM 20칸" 후속 코드 연결 (2026-07-12)
 
 **변경 사항** (`Form1.MfgDrawing.cs`, `GenerateMfgDrawingManual`/`BuildMfgPageData`):
