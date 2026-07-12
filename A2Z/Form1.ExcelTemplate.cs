@@ -282,27 +282,11 @@ namespace A2Z
         /// </summary>
         private bool TryApplyTemplateFromJson(string xlsxPath, Dictionary<int, string> data)
         {
-            string tagJson = EnsureTemplateTagJson(xlsxPath);
-            if (tagJson == null) return false;
-
-            try
-            {
-                string txt = File.ReadAllText(tagJson);
-                // {Input_N} 은 닫는 중괄호까지 포함해 치환하므로 부분 토큰 오치환 없음
-                //   (예: "{Input_1}" 은 "{Input_19}" 안에서 매칭되지 않음).
-                foreach (var kv in data)
-                    txt = txt.Replace("{Input_" + kv.Key + "}", JsonEscapeValue(kv.Value ?? ""));
-
-                string appliedPath = Path.ChangeExtension(xlsxPath, ".applied.json");
-                File.WriteAllText(appliedPath, txt);
-                vizcore3d.Drawing2D.Template.ApplyTemplateFromJson(appliedPath);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"[TplJson] ApplyTemplateFromJson 실패 — ImportExcelWithData 폴백: {ex.Message}");
-                return false;
-            }
+            // JSON 사전변환 폐기 (2026-07-12) — 실측 결과 ConvertExcelToJson 290초 + 태그 미보존(hasTags=False)로
+            //   치환 불가라 무용지물. 게다가 이 무거운 변환 호출이 이후 모델 캡처(Create2DViewObject) 네이티브
+            //   크래시의 유력 용의(예전 정상 버전엔 없던 호출). 호출 자체를 막아 항상 ImportExcelWithData 폴백.
+            //   크래시가 사라지면 이 변환이 원인 확정 — 사내 검증 후 헬퍼 3종 제거 예정.
+            return false;
         }
 
         /// <summary>JSON 문자열 값에 안전하게 들어가도록 이스케이프 (따옴표·역슬래시·개행).</summary>
