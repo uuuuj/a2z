@@ -91,3 +91,12 @@ docs/리팩토링/_baseline/
 사용자템플릿_엑셀_*.json
 *.tags.json
 *.applied.json
+
+## A2Z 클린 빌드용 참조 DLL (lib/) — 2026-07-12 bin\Debug 의존 제거
+##  대용량 VizCore DLL(VIZCore3D+.NET 221MB·Interop 88MB)은 GitHub 100MB 한도 초과 →
+##  커밋 제외(각 PC가 lib\에 별도 배치). 위 VIZCore3D*.dll 규칙이 lib\ 안에서도 계속 차단.
+##  소형 보조 DLL(ShdCore/SQLite.Interop/ShCux/ShCuxRev)은 self-contained 위해 커밋.
+!lib/ShdCore.dll
+!lib/SQLite.Interop.dll
+!lib/ShCux.dll
+!lib/ShCuxRev.dll
