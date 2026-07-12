@@ -215,7 +215,8 @@ namespace A2Z
         //     → 구 템플릿으로도 죽으면 템플릿이 아니라 코드/모델 문제.
         //   데이터 슬롯 매핑은 신 체계(20행·부재명 200~204)라 구 템플릿에선 값이 어긋나지만, 크래시 여부만 본다.
         //   결과 확인 후 false로 원복(또는 신 템플릿 재생성 후 제거).
-        private const bool UseLegacyTemplateForCrashDiag = true;
+        //   2026-07-12: 격리 결과 신 템플릿 파일이 크래시 원인 확정 → 열너비 명시화 수정 후 신 템플릿으로 복귀(false).
+        private const bool UseLegacyTemplateForCrashDiag = false;
 
         // xlsxPath → 태그 보존 JSON 경로. 값 "" = 태그 미보존(치환 불가, 폴백 확정). 키 없음 = 아직 미변환.
         private readonly Dictionary<string, string> _templateTagJsonCache = new Dictionary<string, string>();
