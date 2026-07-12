@@ -226,6 +226,23 @@ namespace A2Z
             string jsonPath = Path.ChangeExtension(xlsxPath, ".tags.json");
             try
             {
+                // 디스크 재사용 — 이전 세션이 만든 JSON이 엑셀보다 최신이고 태그가 남아있으면 변환 생략(앱 재시작 후 첫 출력도 빠름).
+                if (File.Exists(jsonPath)
+                    && File.GetLastWriteTimeUtc(jsonPath) >= File.GetLastWriteTimeUtc(xlsxPath))
+                {
+                    string diskTxt = File.ReadAllText(jsonPath);
+                    if (diskTxt.IndexOf("{Input_", StringComparison.Ordinal) >= 0)
+                    {
+                        _templateTagJsonCache[xlsxPath] = jsonPath;
+                        DiagLog($"[TplJson] 디스크 JSON 재사용(변환 생략) size={diskTxt.Length}B — {Path.GetFileName(jsonPath)}");
+                        return jsonPath;
+                    }
+                    // 태그 미보존 JSON이 남아있으면 폴백 확정(재변환해도 결과 동일하므로 시간 낭비 회피)
+                    DiagLog($"[TplJson] 디스크 JSON에 태그 없음 — ImportExcelWithData 폴백 확정");
+                    _templateTagJsonCache[xlsxPath] = "";
+                    return null;
+                }
+
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 // inputData=null → 태그 치환 없이 원본 구조만 JSON으로 (태그가 텍스트로 남길 기대)
                 string ret = vizcore3d.Drawing2D.Template.ConvertExcelToJson(xlsxPath, null, jsonPath);
