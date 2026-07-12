@@ -279,7 +279,8 @@ namespace A2Z
                 for (int k = 1; k <= 204; k++) data[k] = "";
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
                 data[200] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (구 5번 → 200번)
-                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                if (!TryApplyTemplateFromJson(xlsxPath, data))   // 본 경로와 동일 — 느린 엑셀 재파싱 회피
+                    vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                 var area = viewAreasCache[1];
@@ -1080,9 +1081,10 @@ namespace A2Z
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
         private const bool MfgCameraSignProbeEnabled = true;
 
-        // [임시 ⑥] 템플릿 JSON 사전변환 PoC 스위치 (SDK 1.0.26.709 신규 ConvertExcelToJson/ApplyTemplateFromJson).
-        //   변환·적용 시간 측정 + 검증 PDF + JSON 구조 확인용. 전략(고정만 굽기 vs JSON 치환) 확정 후 본 적용하고 제거.
-        private const bool MfgTemplateJsonPocEnabled = true;
+        // [임시 ⑥] 템플릿 JSON 사전변환 PoC 스위치 — 2026-07-12 본 적용 완료로 OFF.
+        //   실제 출력이 이제 TryApplyTemplateFromJson(세션 1회 변환 + 태그 치환)을 타므로 이 PoC는 중복이며,
+        //   PoC는 매번 강제 재변환(느림)이라 켜두면 출력이 오히려 느려짐. JSON 구조/시간은 본 경로 [TplJson] 로그로 확인.
+        private const bool MfgTemplateJsonPocEnabled = false;
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
@@ -2158,11 +2160,14 @@ namespace A2Z
                     {
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
-                        // [TplTime] 기존 방식(엑셀 직접 파싱) 소요 실측 — JSON PoC와 비교 기준선 (임시 ⑥)
+                        // 템플릿 적용 — JSON 사전변환(세션 1회) + 태그 치환 우선, 실패 시 ImportExcelWithData 폴백.
+                        //   신 1mm 그리드 템플릿은 페이지마다 ImportExcelWithData가 수십 초 → 이 경로로 2페이지부터 빠름.
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
-                        vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                        bool jsonApplied = TryApplyTemplateFromJson(xlsxPath, data);
+                        if (!jsonApplied)
+                            vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                         swTpl.Stop();
-                        DiagLog($"[TplTime] ImportExcelWithData p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
+                        DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx} {(jsonApplied ? "JSON" : "ImportExcel(폴백)")}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                         for (int i = 0; i < page.Rows.Count; i++)

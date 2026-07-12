@@ -198,5 +198,123 @@ namespace A2Z
             if (idx < 0 || idx >= item.SubItems.Count) return "";
             return item.SubItems[idx].Text ?? "";
         }
+
+        // ── 템플릿 JSON 사전변환 캐시 (신 1mm 그리드 템플릿의 ImportExcelWithData 병목 대응) ──
+        //   신 템플릿(제작도_도면_1·가공도_도면_1)은 297×210=약 6만 셀이라 ImportExcelWithData(엑셀 통째 파싱)가
+        //   출력마다 수십 초 → UI 멈춤. SDK ConvertExcelToJson으로 엑셀을 1회만 파싱해 JSON으로 굽고(inputData=null →
+        //   {Input_N} 태그 텍스트 보존 시도), 이후 페이지마다 JSON 텍스트에서 태그만 치환 + ApplyTemplateFromJson
+        //   (엑셀 파싱 없음)으로 그린다. 세션당 변환 1회, 이후 출력은 빠름.
+        //
+        //   자가 검증: null 변환 결과 JSON에 "{Input_" 토큰이 실제로 남는지 런타임 확인. 안 남으면(=태그가 값으로
+        //   구워져 치환 불가) 치환 방식을 못 쓰므로 호출자가 기존 ImportExcelWithData로 폴백한다. 즉 blind 가정 없이
+        //   동작 여부를 코드가 판정 → 사내 검증에서 [TplJson] 로그로 어느 경로를 탔는지 즉시 확인 가능.
+
+        // xlsxPath → 태그 보존 JSON 경로. 값 "" = 태그 미보존(치환 불가, 폴백 확정). 키 없음 = 아직 미변환.
+        private readonly Dictionary<string, string> _templateTagJsonCache = new Dictionary<string, string>();
+
+        /// <summary>
+        /// 엑셀 템플릿을 1회만 JSON으로 변환(태그 보존)해 캐시. 반환: 치환 가능한 JSON 경로, 불가/실패 시 null.
+        /// </summary>
+        private string EnsureTemplateTagJson(string xlsxPath)
+        {
+            if (_templateTagJsonCache.TryGetValue(xlsxPath, out string cached))
+            {
+                if (string.IsNullOrEmpty(cached)) return null;             // 태그 미보존으로 판정됨 → 폴백
+                return File.Exists(cached) ? cached : null;
+            }
+
+            string jsonPath = Path.ChangeExtension(xlsxPath, ".tags.json");
+            try
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                // inputData=null → 태그 치환 없이 원본 구조만 JSON으로 (태그가 텍스트로 남길 기대)
+                string ret = vizcore3d.Drawing2D.Template.ConvertExcelToJson(xlsxPath, null, jsonPath);
+                sw.Stop();
+
+                if (string.IsNullOrEmpty(ret) || !File.Exists(jsonPath))
+                {
+                    DiagLog($"[TplJson] ConvertExcelToJson 실패 ret={(ret ?? "null")} — ImportExcelWithData 폴백");
+                    _templateTagJsonCache[xlsxPath] = "";
+                    return null;
+                }
+
+                string txt = File.ReadAllText(jsonPath);
+                bool hasTags = txt.IndexOf("{Input_", StringComparison.Ordinal) >= 0;
+                DiagLog($"[TplJson] convert once {sw.ElapsedMilliseconds}ms hasTags={hasTags} size={txt.Length}B → {Path.GetFileName(jsonPath)}");
+
+                if (!hasTags)
+                {
+                    // 태그가 값으로 구워져 텍스트 치환 불가 → 폴백 확정 (전략 재검토 필요, 로그로 신호)
+                    _templateTagJsonCache[xlsxPath] = "";
+                    return null;
+                }
+                _templateTagJsonCache[xlsxPath] = jsonPath;
+                return jsonPath;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[TplJson] convert 예외 — ImportExcelWithData 폴백: {ex.Message}");
+                _templateTagJsonCache[xlsxPath] = "";
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 태그 보존 JSON에서 {Input_N}만 치환 후 ApplyTemplateFromJson으로 그린다.
+        /// 성공 true, 폴백 필요(변환 불가·apply 실패) 시 false — 호출자가 ImportExcelWithData로 대체한다.
+        /// </summary>
+        private bool TryApplyTemplateFromJson(string xlsxPath, Dictionary<int, string> data)
+        {
+            string tagJson = EnsureTemplateTagJson(xlsxPath);
+            if (tagJson == null) return false;
+
+            try
+            {
+                string txt = File.ReadAllText(tagJson);
+                // {Input_N} 은 닫는 중괄호까지 포함해 치환하므로 부분 토큰 오치환 없음
+                //   (예: "{Input_1}" 은 "{Input_19}" 안에서 매칭되지 않음).
+                foreach (var kv in data)
+                    txt = txt.Replace("{Input_" + kv.Key + "}", JsonEscapeValue(kv.Value ?? ""));
+
+                string appliedPath = Path.ChangeExtension(xlsxPath, ".applied.json");
+                File.WriteAllText(appliedPath, txt);
+                vizcore3d.Drawing2D.Template.ApplyTemplateFromJson(appliedPath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[TplJson] ApplyTemplateFromJson 실패 — ImportExcelWithData 폴백: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>JSON 문자열 값에 안전하게 들어가도록 이스케이프 (따옴표·역슬래시·개행).</summary>
+        private static string JsonEscapeValue(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s ?? "";
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
+        }
+
+        // xlsxPath → {View_n} 영역 목록 (세션 캐시). View 좌표는 템플릿 고정이라 1회 파싱 후 재사용.
+        //   GetViewAreasFromExcel도 큰 엑셀을 통째 파싱하므로 배치 출력 시 재파싱 비용이 큼.
+        private readonly Dictionary<string, List<VIZCore3D.NET.Data.TemplateViewArea>> _viewAreasCache
+            = new Dictionary<string, List<VIZCore3D.NET.Data.TemplateViewArea>>();
+
+        /// <summary>{View_n} 영역을 세션 1회만 파싱해 캐시. 실패(빈 결과)는 캐시하지 않아 다음 호출에 재시도.</summary>
+        private List<VIZCore3D.NET.Data.TemplateViewArea> GetViewAreasCached(string xlsxPath)
+        {
+            if (_viewAreasCache.TryGetValue(xlsxPath, out var cached))
+                return cached;
+
+            var swVa = System.Diagnostics.Stopwatch.StartNew();
+            var list = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
+            swVa.Stop();
+            if (list != null && list.Count > 0)
+            {
+                _viewAreasCache[xlsxPath] = list;
+                DiagLog($"[TplJson] GetViewAreas 1회 파싱 {swVa.ElapsedMilliseconds}ms {list.Count}개 캐시 — {Path.GetFileName(xlsxPath)}");
+            }
+            return list;
+        }
     }
 }

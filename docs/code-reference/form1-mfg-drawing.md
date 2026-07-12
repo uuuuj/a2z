@@ -18,7 +18,8 @@
 
 - **라인**: L1878
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
-- `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). Import 전 `Set2DViewTemplateMark(Logo.png)` 1회 등록({Image} 슬롯 치환).
+- `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). 템플릿 적용 전 `Set2DViewTemplateMark(Logo.png)` 1회 등록({Image} 슬롯 치환).
+- 템플릿 적용은 `TryApplyTemplateFromJson`(세션 1회 JSON 변환 + 태그 치환, `Form1.ExcelTemplate.cs`) 우선 + 실패 시 `ImportExcelWithData` 폴백 — 6만 셀 신 템플릿 파싱 지연으로 인한 UI 멈춤 대응 (2026-07-12).
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 

@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-07-12 — 템플릿 JSON 사전변환 본 적용 (2D 출력 멈춤 해소)
+
+**유형**: fix / feat
+**커밋**: `pending`
+**관련**: 사용자 검증 보고 "2D 출력 누르니 프로그램 멈춤" + 선택 "JSON 사전변환 본 적용" (2026-07-12)
+
+**증상·원인**: 신 템플릿(제작도_도면_1·가공도_도면_1)은 1칸=1mm라 **297×210 = 약 6만 셀(구 템플릿 대비 16배)**. 출력마다 `ImportExcelWithData`(엑셀 통째 파싱, 벤더가 지목한 "5초" 병목) + `GetViewAreasFromExcel`가 각각 큰 엑셀을 파싱 → 수십 초간 UI 스레드 블록 = "응답 없음". JSON 사전변환은 임시 PoC에만 있고 본 경로엔 미적용 상태였음.
+
+**해결** (`Form1.ExcelTemplate.cs` 공용 헬퍼 신설 + 제작도·가공도 경로 배선):
+- `EnsureTemplateTagJson(xlsx)` — `ConvertExcelToJson(xlsx, null, …)`로 엑셀을 **세션 1회만** JSON으로 굽는다(inputData=null → `{Input_N}` 태그 텍스트 보존 기대). 결과 JSON에 `{Input_` 토큰이 실제 남는지 **런타임 자가 검증** → 남으면 치환 방식 사용, 안 남으면 폴백 확정.
+- `TryApplyTemplateFromJson(xlsx, data)` — 캐시된 태그 JSON에서 `{Input_N}`만 문자열 치환(JSON 이스케이프) → 임시 JSON 기록 → `ApplyTemplateFromJson`(엑셀 파싱 없음)으로 그린다. 실패/불가 시 false 반환 → 호출자가 기존 `ImportExcelWithData`로 **자동 폴백**.
+- `GetViewAreasCached(xlsx)` — `{View_n}` 영역도 세션 1회만 파싱(정적 좌표) → 배치 출력 재파싱 제거.
+- 제작도(`GenerateSheetDrawing2D_WithExcelTemplate`)·가공도(`GenerateMfgDrawingManual` 페이지 루프·카메라 프로브) 모두 JSON 우선 + 폴백으로 전환. `[TplJson]`/`[TplTime]` 로그로 실제 경로·시간 기록.
+- 중복된 임시 JSON PoC(`MfgTemplateJsonPocEnabled`) OFF — 본 경로가 대체, PoC는 매번 강제 재변환이라 오히려 느림.
+
+**효과 기대**: 세션 첫 출력은 변환 1회(일회성 지연) 후, 2번째 출력·배치·가공도 페이지 루프는 엑셀 파싱 없이 빠름. **blind 가정 없음** — JSON에 태그가 안 남으면 자동으로 기존 경로로 폴백해 최소한 동작은 보장(느릴 뿐).
+
+**검증 (사내)**: 2D 출력 1회 → ① 멈춤 없이 뜨는지 ② `[TplJson] hasTags=` 로그값(True면 JSON 경로, False면 폴백) ③ 표·라벨·BOM·치수가 기존과 동일한지. hasTags=False로 폴백되면 JSON 파일(`*.tags.json`) 회수해 전략 재설계.
+
 ## 2026-07-12 — 가공도 출력 신 템플릿 코드 연결 (부재명 200~204 + BOM 20행)
 
 **유형**: feat
