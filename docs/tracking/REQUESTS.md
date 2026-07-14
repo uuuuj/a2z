@@ -10,6 +10,18 @@
 
 ## 접수 대기 / 진행 중
 
+### REQ-007 — 앱 시작 시간 단축 (라이브러리 매번 추출 → 조건부)
+- **생성일**: 2026-07-03
+- **상태**: OPEN
+- **우선순위**: MEDIUM
+- **배경**: 빌드 후 실행 또는 배포된 exe 실행 시 메인 창이 뜨기까지 오래 걸림. 원인 분석 결과 `Form1()` 생성자의 `VIZCore3D.NET.ModuleInitializer.Run()`이 SHDC 공식 문서의 "항상 추출(Case 2)" 방식이라 매 실행마다 네이티브 라이브러리(ShdCore.dll 등)를 디스크에 재추출. 라이선스 서버(127.0.0.1:8901) 동기 연결과 무거운 초기화가 모두 생성자·OnInitialized에서 UI 스레드를 붙잡아 창 표시 전까지 블로킹.
+- **기대효과**:
+  - `ModuleInitializer` 조건부 추출(`ExistLibrary()`/`CompareVersion()` = 공식 Case 1)로 두 번째 실행부터 startup 단축
+  - Stopwatch 측정으로 실제 병목(추출 vs 라이선스 연결 vs 엔진 생성) 확정
+  - (선택) 스플래시 또는 빈 창 먼저 띄우기로 체감 개선
+- **관련**: A2Z/Form1.cs:197 (`ModuleInitializer.Run`), A2Z/Form1.License.cs:24 (`LicenseServer`)
+- **분해된 작업**: 미부여 (착수 시 T-xxx)
+
 ### REQ-006 — Clash Detection 결과 행 선택 시 두 부재 3D 강조 + 카메라 fit
 - **생성일**: 2026-05-11
 - **완료일**: 2026-05-11 (commit `66ac0bb`)
