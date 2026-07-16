@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "slide-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8788",
+        "--directory",
+        "C:\\Users\\duddl\\AppData\\Local\\Temp\\claude\\C--Users-duddl-Desktop-Project-a2z\\774260fd-2622-4588-9572-6413dbe29bb1\\scratchpad"
+      ],
+      "port": 8788
+    }
+  ]
+}
