@@ -1685,8 +1685,7 @@ namespace A2Z
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath,
-                    UseLegacyTemplateForCrashDiag ? "사용자템플릿_엑셀_제작도.xlsx" : "제작도_도면_1.xlsx");
+                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
@@ -1731,7 +1730,7 @@ namespace A2Z
                 }
                 DiagLog($"P2 data 구성: kind='{data[3]}' BOM {bomMapped}행 (Input 총 {data.Count}개)");
 
-                // ── 4. 템플릿 그리기 + 데이터 치환 (JSON 우선, 폴백 ImportExcelWithData) ──
+                // ── 4. ImportExcelWithData — 엑셀 자동 그리기 + 데이터 치환 ──
                 // 신 템플릿의 {Image} 슬롯(CONTRACTOR 로고) 치환용 — 미등록이면 태그가 글자로 노출됨.
                 string logoPath = System.IO.Path.Combine(solutionPath, "Logo.png");
                 if (System.IO.File.Exists(logoPath))
@@ -1739,18 +1738,15 @@ namespace A2Z
                 else
                     DiagLog($"P2 Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {logoPath}");
 
-                // 신 1mm 그리드 템플릿(약 6만 셀)은 ImportExcelWithData가 수십 초 → UI 멈춤.
-                //   JSON 사전변환(세션 1회) + 태그 치환 + ApplyTemplateFromJson으로 대체, 실패 시 자동 폴백.
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
-                bool jsonApplied = TryApplyTemplateFromJson(xlsxPath, data);
-                if (!jsonApplied)
-                    vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 swTpl.Stop();
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
-                DiagLog($"P2 템플릿 적용 {(jsonApplied ? "JSON" : "ImportExcel(폴백)")} {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
+                DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
 
-                // ── 5. {View_n} 영역 좌표 (세션 캐시 — 같은 큰 엑셀 재파싱 방지) ──
-                var viewAreas = GetViewAreasCached(xlsxPath);
+                // ── 5. {View_n} 영역 좌표 — 매 출력 파싱 (작은 템플릿 ~수 ms).
+                //   캐시 금지: 앱 켠 채 템플릿을 엑셀에서 고치면 옛 좌표를 재사용하는 버그가 있었음 (2026-07-19).
+                var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
                 if (viewAreas == null || viewAreas.Count == 0)
                 {
                     DiagLog("P2 GetViewAreasFromExcel 비어있음 — 엑셀에 {View_N} 태그 없음");

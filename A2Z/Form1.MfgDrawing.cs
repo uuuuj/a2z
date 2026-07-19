@@ -279,8 +279,7 @@ namespace A2Z
                 for (int k = 1; k <= 204; k++) data[k] = "";
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
                 data[200] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (구 5번 → 200번)
-                if (!TryApplyTemplateFromJson(xlsxPath, data))   // 본 경로와 동일 — 느린 엑셀 재파싱 회피
-                    vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                 var area = viewAreasCache[1];
@@ -319,44 +318,6 @@ namespace A2Z
             catch (Exception ex)
             {
                 DiagLog($"[CamSignProbe] 실패(본 출력 계속): {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// [임시 ⑥] 템플릿 JSON 사전변환 PoC — SDK 1.0.26.709 신규 API 실측.
-        /// ① ConvertExcelToJson 1회(엑셀 옆 같은 이름 .json, 1페이지 데이터로 굽기) + 시간 로그
-        /// ② ApplyTemplateFromJson으로 별도 페이지 그려 시간 로그 + 검증 PDF 저장 (기존 페이지와 육안 비교)
-        /// ③ JSON 파일 크기 로그 — 파일 자체는 구조 확인용(가변 데이터가 어떻게 구워지는지) 회수 대상.
-        /// 전략(고정만 굽기 vs JSON 치환) 확정 후 본 적용하고 이 메서드는 제거.
-        /// </summary>
-        private void RunTemplateJsonPoc(string xlsxPath, Dictionary<int, string> inputData, string saveDir)
-        {
-            try
-            {
-                string jsonPath = Path.ChangeExtension(xlsxPath, ".json");
-                if (File.Exists(jsonPath)) File.Delete(jsonPath);   // PoC는 항상 새로 변환해 시간 실측
-
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                string ret = vizcore3d.Drawing2D.Template.ConvertExcelToJson(xlsxPath, inputData, jsonPath);
-                sw.Stop();
-                long size = File.Exists(jsonPath) ? new FileInfo(jsonPath).Length : -1;
-                DiagLog($"[TplJson] Convert={sw.ElapsedMilliseconds}ms ret={(ret ?? "null")} size={size}B");
-                if (string.IsNullOrEmpty(ret) || !File.Exists(jsonPath)) return;
-
-                ResetCanvasForMfgPage();
-                sw.Restart();
-                vizcore3d.Drawing2D.Template.ApplyTemplateFromJson(jsonPath);
-                sw.Stop();
-                DiagLog($"[TplJson] Apply={sw.ElapsedMilliseconds}ms");
-
-                vizcore3d.Drawing2D.Render();
-                string pdf = Path.Combine(saveDir, $"템플릿JSON검증_{DateTime.Now:HHmmss}.pdf");
-                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdf);
-                DiagLog($"[TplJson] 저장: {pdf} — 본 출력 1페이지와 표·라벨·테두리·Input 값 비교. JSON 파일 회수: {jsonPath}");
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"[TplJson] 실패(본 출력 계속): {ex.Message}");
             }
         }
 
@@ -1081,10 +1042,8 @@ namespace A2Z
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
         private const bool MfgCameraSignProbeEnabled = true;
 
-        // [임시 ⑥] 템플릿 JSON 사전변환 PoC 스위치 — 2026-07-12 본 적용 완료로 OFF.
-        //   실제 출력이 이제 TryApplyTemplateFromJson(세션 1회 변환 + 태그 치환)을 타므로 이 PoC는 중복이며,
-        //   PoC는 매번 강제 재변환(느림)이라 켜두면 출력이 오히려 느려짐. JSON 구조/시간은 본 경로 [TplJson] 로그로 확인.
-        private const bool MfgTemplateJsonPocEnabled = false;
+        // (제거 2026-07-19) 템플릿 JSON 사전변환 PoC — 실측 결과 ConvertExcelToJson 290초 + 태그 미보존으로
+        //   접근법 자체 폐기. 템플릿을 작게(~4천 셀) 유지하면 ImportExcelWithData가 수백 ms라 JSON 불필요.
 
         /// <summary>
         /// 가공도 치수 선별 — 카메라가 보는 평면의 치수를 규칙 기반으로 추린다.
@@ -2053,8 +2012,7 @@ namespace A2Z
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
-            string xlsxPath = Path.Combine(GetSolutionPath(),
-                UseLegacyTemplateForCrashDiag ? "사용자템플릿_엑셀_가공도.xlsx" : "가공도_도면_1.xlsx");
+            string xlsxPath = Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx");
             if (!File.Exists(xlsxPath))
             {
                 DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
@@ -2146,13 +2104,6 @@ namespace A2Z
                 if (MfgCameraSignProbeEnabled)
                     RunMfgCameraSignProbe(mfgSheets, saveDir, xlsxPath, ref viewAreasCache);
 
-                // [임시 ⑥] 템플릿 JSON 사전변환 PoC — 1페이지 데이터로 변환·적용 실측 + 검증 PDF (전략 확정 후 제거)
-                if (MfgTemplateJsonPocEnabled && pages.Count > 0)
-                {
-                    var pocData = BuildMfgPageData(pages[0], pages.Count, struName, bomSnapshot);
-                    RunTemplateJsonPoc(xlsxPath, pocData, saveDir);
-                }
-
                 foreach (var page in pages)
                 {
                     int failedRows = 0;
@@ -2161,14 +2112,10 @@ namespace A2Z
                     {
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
-                        // 템플릿 적용 — JSON 사전변환(세션 1회) + 태그 치환 우선, 실패 시 ImportExcelWithData 폴백.
-                        //   신 1mm 그리드 템플릿은 페이지마다 ImportExcelWithData가 수십 초 → 이 경로로 2페이지부터 빠름.
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
-                        bool jsonApplied = TryApplyTemplateFromJson(xlsxPath, data);
-                        if (!jsonApplied)
-                            vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                        vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                         swTpl.Stop();
-                        DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx} {(jsonApplied ? "JSON" : "ImportExcel(폴백)")}={swTpl.ElapsedMilliseconds}ms");
+                        DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                         for (int i = 0; i < page.Rows.Count; i++)
