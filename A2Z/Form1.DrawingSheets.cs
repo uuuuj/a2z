@@ -2076,20 +2076,23 @@ namespace A2Z
                     1,
                     VIZCore3D.NET.Data.TableHorizontalAnchor.Center,
                     VIZCore3D.NET.Data.TableVerticalAnchor.Middle);
-                // RenderTemplate 배치 캘리브레이션 (2026-07-19 실측, PDF 2장 대조):
-                //   지정 (X,Y) 대비 실제 이미지 좌상단이 X −23.2mm·Y −7.8mm 지점에 그려짐 — 이미지 크기와
-                //   무관한 상수 오프셋(편차 ±0.3). 이미지는 셀 안에서 좌측·상단 정렬. 따라서 영역 중앙에
-                //   보이게 하려면 좌상단 목표점(중앙 − 이미지 절반)에 오프셋을 더해 전달한다.
-                //   ⚠ 앵커(Center/Middle)를 바꾸면 측정이 무효 — 앵커 유지 상태로 캘리브레이션됨.
+                // RenderTemplate 배치 캘리브레이션 (2026-07-19 실측, PDF 3장 대조):
+                //   지정 (X,Y) 대비 실제 이미지 좌상단이 (X−Cx, Y−Cy)에 그려지는데, Cx·Cy가 표 크기에
+                //   선형 의존 — 두 이미지(11×11, 17×27)의 실측 4점 fit:
+                //     Cx ≈ 28.4 − 0.333×표폭(ColumnWidths),  Cy ≈ 10.2 − 0.123×이미지높이
+                //   이미지는 셀 안에서 좌측·상단 정렬이므로, 영역 중앙 배치는 좌상단 목표점(중앙−이미지 절반)에
+                //   Cx·Cy를 더해 전달한다. ⚠ 앵커(Center/Middle)를 바꾸면 측정 무효.
                 //   구 템플릿(프레임이 A1부터)에선 우연히 안 보였고 신 템플릿(여백 후 프레임)에서 드러남.
-                const float RtCalibX = 23.2f;
-                const float RtCalibY = 7.8f;
-                imageTable.X = centerX + RtCalibX - targetWidth / 2f;
-                imageTable.Y = centerY + RtCalibY + targetHeight / 2f;
-                imageTable.ImageHeight = Math.Max(1, (int)Math.Floor(targetHeight));
+                int tableW = Math.Max(1, (int)Math.Floor(availableWidth));
+                int imageH = Math.Max(1, (int)Math.Floor(targetHeight));
+                float calibX = 28.4f - 0.333f * tableW;
+                float calibY = 10.2f - 0.123f * imageH;
+                imageTable.X = centerX + calibX - targetWidth / 2f;
+                imageTable.Y = centerY + calibY + targetHeight / 2f;
+                imageTable.ImageHeight = imageH;
                 imageTable.ColumnWidths = new Dictionary<int, int>
                 {
-                    { 0, Math.Max(1, (int)Math.Floor(availableWidth)) }
+                    { 0, tableW }
                 };
                 imageTable.SetText(0, 0, imagePath);
 
