@@ -101,3 +101,6 @@ docs/리팩토링/_baseline/
 !lib/SQLite.Interop.dll
 !lib/ShCux.dll
 !lib/ShCuxRev.dll
+
+## 스크린샷 캡처 (로컬 전용)
+스크린샷*.png
