@@ -2054,6 +2054,7 @@ namespace A2Z
                 float availableWidth = Math.Max(1f, area.Width - (margin * 2f));
                 float availableHeight = Math.Max(1f, area.Height - (margin * 2f));
                 float targetHeight;
+                float targetWidth;
                 using (System.Drawing.Image image = System.Drawing.Image.FromFile(imagePath))
                 {
                     if (image.Width <= 0 || image.Height <= 0)
@@ -2065,6 +2066,7 @@ namespace A2Z
                     float heightForAvailableWidth =
                         availableWidth * image.Height / image.Width;
                     targetHeight = Math.Min(availableHeight, heightForAvailableWidth);
+                    targetWidth = targetHeight * image.Width / image.Height;
                 }
 
                 float centerX = area.X + (area.Width / 2f);
@@ -2074,8 +2076,16 @@ namespace A2Z
                     1,
                     VIZCore3D.NET.Data.TableHorizontalAnchor.Center,
                     VIZCore3D.NET.Data.TableVerticalAnchor.Middle);
-                imageTable.X = centerX;
-                imageTable.Y = centerY;
+                // RenderTemplate 배치 캘리브레이션 (2026-07-19 실측, PDF 2장 대조):
+                //   지정 (X,Y) 대비 실제 이미지 좌상단이 X −23.2mm·Y −7.8mm 지점에 그려짐 — 이미지 크기와
+                //   무관한 상수 오프셋(편차 ±0.3). 이미지는 셀 안에서 좌측·상단 정렬. 따라서 영역 중앙에
+                //   보이게 하려면 좌상단 목표점(중앙 − 이미지 절반)에 오프셋을 더해 전달한다.
+                //   ⚠ 앵커(Center/Middle)를 바꾸면 측정이 무효 — 앵커 유지 상태로 캘리브레이션됨.
+                //   구 템플릿(프레임이 A1부터)에선 우연히 안 보였고 신 템플릿(여백 후 프레임)에서 드러남.
+                const float RtCalibX = 23.2f;
+                const float RtCalibY = 7.8f;
+                imageTable.X = centerX + RtCalibX - targetWidth / 2f;
+                imageTable.Y = centerY + RtCalibY + targetHeight / 2f;
                 imageTable.ImageHeight = Math.Max(1, (int)Math.Floor(targetHeight));
                 imageTable.ColumnWidths = new Dictionary<int, int>
                 {
@@ -2088,6 +2098,7 @@ namespace A2Z
                     $"P2 이미지 배치 완료: {Path.GetFileName(imagePath)} " +
                     $"path='{imagePath}' " +
                     $"area=View_{area.Index} center=({centerX:F1},{centerY:F1}) " +
+                    $"보정후 XY=({imageTable.X:F1},{imageTable.Y:F1}) imgWH=({targetWidth:F1}x{targetHeight:F1}) " +
                     $"box=({availableWidth:F1}x{availableHeight:F1}) imageH={imageTable.ImageHeight}");
                 return true;
             }
