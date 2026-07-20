@@ -1685,7 +1685,13 @@ namespace A2Z
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
+                // [임시 격리 6단계 2026-07-21] 가공도 크래시가 '템플릿 파일'인지 '가공도 코드'인지 판별.
+                //   true = 정상 완주하는 제작도 흐름으로 가공도_도면_1.xlsx를 그림 (Input 값 배치가 어긋나도 무방 — 크래시 여부만 봄).
+                //   제작도 4면도는 가공도 부재 칸 View_1~4에 그려지고 View_5는 카메라 매핑 없어 스킵됨.
+                //   완주 → 템플릿 무죄(가공도 코드 상류가 범인) / 크래시 → 템플릿 파일 유죄. 판정 후 false 원복.
+                const bool UseMfgTemplateForCrashDiag = true;
+                string xlsxPath = System.IO.Path.Combine(solutionPath,
+                    UseMfgTemplateForCrashDiag ? "가공도_도면_1.xlsx" : "제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
