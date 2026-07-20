@@ -359,10 +359,13 @@ namespace A2Z
             //   별개(이건 2D 개체 생성 라인폭). 라이브 가공도 캡처가 이걸 누락해 모델선이 가늘게 나오던 문제 교정 (전수조사 2026-07-01).
             vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-            // 은선 없는 캡처 — 가공도는 단면(보이는 외곽선)만 출력 (사용자 사양 2026-07-03).
-            //   SDK 공식 예제도 이 버전 사용. 옛 WithModelHiddenLine(점선 은선 포함)은 폐기.
-            DiagLog($"[Capture] row={rowIdx} bom={bom.Index} {viewLabel} Create2DViewObject 직전");   // AccessViolation 위치 특정용
-            objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
+            // 은선 API + 은선제거(HLR) 렌더모드 = 결과물엔 은선 없음(사용자 사양 2026-07-03 '단면만' 유지).
+            //   '은선 없는 캡처(WithModelAtCanvasOrigin)'는 신 템플릿 캔버스에서 AccessViolation으로 폐기 —
+            //   격리 확정 2026-07-20: 같은 API가 구 템플릿에선 정상, 은선 API는 신 템플릿에서 정상(제작도 수십 회),
+            //   '은선 없는 API + 신 템플릿' 조합만 사망(SDK 내부 버그, 벤더 문의 후보).
+            DiagLog($"[Capture] row={rowIdx} bom={bom.Index} {viewLabel} Create2DViewObject(HLR) 직전");   // AccessViolation 위치 특정용
+            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.HIDDEN_LINE_REMOVAL);
+            objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             if (objId < 0)
             {
@@ -490,8 +493,11 @@ namespace A2Z
             DiagLog($"[Orient] bom={bomIndex} probe 캡처 직전");   // AccessViolation 위치 특정용 (catch 불가 예외)
             try
             {
-                probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
-                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);   // 본 캡처와 동일 방식(은선 X) — W/H 판정 일치
+                // 은선 API + 은선제거 렌더모드 — 본 캡처와 동일 방식(W/H 판정 일치).
+                //   '은선 없는 캡처(WithModelAtCanvasOrigin)'는 신 템플릿 캔버스에서 AccessViolation (2026-07-20 격리 확정)
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.HIDDEN_LINE_REMOVAL);
+                probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                    VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             }
             catch { }
 
