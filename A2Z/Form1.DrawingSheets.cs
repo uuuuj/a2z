@@ -1738,8 +1738,16 @@ namespace A2Z
                 else
                     DiagLog($"P2 Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {logoPath}");
 
+                // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_N} 태그에 파일 직접 매핑.
+                //   1 = N 화살표(BOM 왼쪽 상단, AT3), 2 = ISO 화살표(프레임 좌상단, C3).
+                //   Value = [일반, 배경반전] — 옛 RenderTemplate 수동 배치(캘리브레이션 보정)를 대체.
+                var imageMapping = new Dictionary<int, string[]>
+                {
+                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
+                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
+                };
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
-                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, imageMapping);
                 swTpl.Stop();
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
@@ -1754,14 +1762,9 @@ namespace A2Z
                 }
                 DiagLog($"P2 GetViewAreasFromExcel: {viewAreas.Count}개 영역");
 
-                // View_5 = 일반 North Arrow, View_6 = 향후 이미지 예약,
-                // View_7 = ISO North Arrow.
-                PlaceImageInTemplateArea(
-                    ResolveDrawingAssetPath("North_Arrow.png"),
-                    viewAreas.FirstOrDefault(v => v.Index == 5));
-                PlaceImageInTemplateArea(
-                    ResolveDrawingAssetPath("ISO_North_Arrow.png"),
-                    viewAreas.FirstOrDefault(v => v.Index == 7));
+                // 북쪽 화살표 2종은 {Image_1}/{Image_2} 태그 + imageMapping으로 Import 단계에서 처리 (2026-07-20).
+                //   옛 View_5/View_7 수동 배치(PlaceImageInTemplateArea + RenderTemplate 캘리브레이션)는 폐기.
+                //   View_6 = CLIENT 로고 예약(미사용) 유지.
                 vizcore3d.Drawing2D.Render();
 
                 // ── 6. View 인덱스 ↔ 카메라 매핑 (4면도 규약 — PoC와 동일) ──
