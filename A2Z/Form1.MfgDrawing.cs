@@ -2058,7 +2058,10 @@ namespace A2Z
             //   모든 부재를 표시한 후 row 격리 사이의 중간 상태가 화면에 노출됨.
             //   해결: BeginUpdate/EndUpdate로 출력 전체를 감싸 화면 update 차단. finally의 격리 복원 후
             //   EndUpdate가 호출되어 사용자에겐 최종 격리 상태만 보임.
-            vizcore3d.BeginUpdate();
+            // [격리 8단계 2026-07-21] BeginUpdate 임시 해제 — 사망 호출이 캡처 함수 자체로 특정됐고,
+            //   제작도(정상)는 캡처가 BeginUpdate 스코프 밖. '갱신 중단 + 신 캔버스 + 캡처' 조합 용의.
+            //   출력 중 화면 번쩍임(P3 #2 증상)이 일시 재발하나 크래시 판정 우선. 판정 후 재구성.
+            // vizcore3d.BeginUpdate();
 
             try
             {
@@ -2258,8 +2261,8 @@ namespace A2Z
                 }
                 catch { }
 
-                // P3 #2: EndUpdate (BeginUpdate 짝) — 최종 상태(격리 복원 후)를 한 번에 화면에 반영
-                try { vizcore3d.EndUpdate(); } catch { }
+                // P3 #2: EndUpdate (BeginUpdate 짝) — [격리 8단계] Begin 해제와 짝 맞춰 임시 해제
+                // try { vizcore3d.EndUpdate(); } catch { }
             }
 
             DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
