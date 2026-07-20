@@ -105,7 +105,7 @@
 |---|---:|---|
 | `RestoreAllPartsVisibility` | L23 | 활성, 출력 후 가시성 복원 |
 | `SplitMfgIntoPages` | L69 | 활성, 페이지당 5부재 분할 |
-| `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 (부재명 Input_200~204, BOM 8×20 Input_4~163, 선초기화 1..204) |
+| `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 (부재명 Input_195~199, BOM 8×20 Input_4~163, 선초기화 1..199 — **Input 200 이상 금지**: SDK 메모리 손상) |
 | `GetSprefValue` | L2143 | 활성 |
 | `ParseOrientation` | L2343 | 활성 |
 
