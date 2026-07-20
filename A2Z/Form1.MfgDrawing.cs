@@ -292,7 +292,12 @@ namespace A2Z
                 for (int k = 1; k <= 199; k++) data[k] = "";   // 200 이상 금지 (SDK 메모리 손상 — BuildMfgPageData 주석)
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
                 data[195] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (195~199 대역)
-                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                var probeImageMapping = new Dictionary<int, string[]>
+                {
+                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
+                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
+                };
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, probeImageMapping);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                 var area = viewAreasCache[1];
@@ -2120,6 +2125,14 @@ namespace A2Z
                 else
                     DiagLog($"[GenMfgManual] Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {mfgLogoPath}");
 
+                // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_1}=N 화살표(AT3), {Image_2}=ISO 화살표(C3).
+                //   Value = [일반, 배경반전]. 옛 View_6/7 수동 배치(PlaceImageInTemplateArea)를 대체.
+                var mfgImageMapping = new Dictionary<int, string[]>
+                {
+                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
+                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
+                };
+
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
 
@@ -2136,20 +2149,12 @@ namespace A2Z
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
-                        vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                        // 북쪽 화살표 2종은 {Image_1}/{Image_2} + mfgImageMapping으로 Import 단계에서 처리 (2026-07-20).
+                        //   ⚠ 태그 번호 한계 주의 — View는 1~7, Input은 1~199까지만 (초과 시 SDK 메모리 손상 → 캡처 AccessViolation).
+                        vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, mfgImageMapping);
                         swTpl.Stop();
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
-
-                        // 북쪽 화살표 이미지 — 제작도와 동일 배치·캘리브레이션 (PlaceImageInTemplateArea 공용).
-                        //   가공도 슬롯: View_6 = N 화살표(AT3), View_7 = ISO 화살표(C3). 부재 칸은 View_1~5.
-                        //   ⚠ View_8 금지 — View_8 태그가 있으면 템플릿 import 단계에서 SDK 내부 메모리가 손상돼
-                        //   직후 모델 캡처가 AccessViolation으로 사망 (2026-07-20 실측, SDK가 View 번호 7까지만 지원 추정).
-                        //   페이지마다 템플릿을 다시 그리므로 매 페이지 배치. 슬롯 없으면 조용히 생략.
-                        if (viewAreasCache.TryGetValue(6, out var northArrowArea))
-                            PlaceImageInTemplateArea(ResolveDrawingAssetPath("North_Arrow.png"), northArrowArea);
-                        if (viewAreasCache.TryGetValue(7, out var isoArrowArea))
-                            PlaceImageInTemplateArea(ResolveDrawingAssetPath("ISO_North_Arrow.png"), isoArrowArea);
 
                         for (int i = 0; i < page.Rows.Count; i++)
                         {

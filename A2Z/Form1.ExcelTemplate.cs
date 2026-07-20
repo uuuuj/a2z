@@ -89,7 +89,8 @@ namespace A2Z
                 DiagLog("[PoC-Excel-Step4] Set2DViewTemplateMark OK");
 
                 // 5. 신 API #2 — 엑셀 템플릿 적용 + {Input_N} 데이터 치환
-                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
+                //    (SDK 1.0.26.716부터 imageMapping 인자 필수 — 구 템플릿엔 {Image_N} 태그가 없어 빈 매핑)
+                vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, new Dictionary<int, string[]>());
                 DiagLog("[PoC-Excel-Step4] ImportExcelWithData OK");
 
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
