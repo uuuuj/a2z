@@ -502,6 +502,7 @@ namespace A2Z
                 // 은선 API + DASH_LINE 렌더모드 — 제작도가 완주로 검증한 조합과 100% 동일 (2026-07-20 격리 4단계).
                 //   '은선 없는 캡처(WithModelAtCanvasOrigin)'와 'HLR 모드 + 은선 캡처' 모두 신 템플릿에서 AccessViolation.
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
+                DiagLog($"[Orient] bom={bomIndex} RenderMode OK — Create 직전");   // 사망 호출 정밀 특정용
                 probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                     VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             }
@@ -2154,6 +2155,11 @@ namespace A2Z
                         swTpl.Stop();
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
+
+                        // 캔버스 선(先)렌더 — 제작도(정상 완주) 검증 시퀀스 정합 (격리 7단계 2026-07-21).
+                        //   제작도는 import 직후 Drawing2D.Render()를 호출한 뒤 캡처하는데 가공도는 이게 없었음.
+                        //   '그리지 않은 캔버스 + 첫 캡처' 조합이 신 템플릿에서 AccessViolation 용의.
+                        vizcore3d.Drawing2D.Render();
 
                         for (int i = 0; i < page.Rows.Count; i++)
                         {
