@@ -1685,12 +1685,7 @@ namespace A2Z
 
                 // ── 2. 엑셀 파일 경로 ──
                 string solutionPath = GetSolutionPath();
-                // [임시 격리 9단계 2026-07-21] 재제작 가공도 템플릿을 정상 제작도 흐름으로 렌더 —
-                //   '가공도 레이아웃(밴드·부재명 병합)' 자체가 캡처 사망 방아쇠인지 최종 판정.
-                //   완주 → 템플릿 완전 무죄(가공도 코드 잔여 차이 수사) / 사망 → 레이아웃 요소 이분탐색. 판정 후 false 원복.
-                const bool UseMfgTemplateForCrashDiag = true;
-                string xlsxPath = System.IO.Path.Combine(solutionPath,
-                    UseMfgTemplateForCrashDiag ? "가공도_도면_1.xlsx" : "제작도_도면_1.xlsx");
+                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
