@@ -2130,9 +2130,11 @@ namespace A2Z
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                         // 북쪽 화살표 이미지 — 제작도와 동일 배치·캘리브레이션 (PlaceImageInTemplateArea 공용).
-                        //   가공도 슬롯: View_8 = N 화살표(AT3, 제작도 View_5 자리 대응 — 부재 칸 1~5와 충돌 방지 재번호),
-                        //   View_7 = ISO 화살표(C3). 페이지마다 템플릿을 다시 그리므로 매 페이지 배치. 슬롯 없으면 조용히 생략.
-                        if (viewAreasCache.TryGetValue(8, out var northArrowArea))
+                        //   가공도 슬롯: View_6 = N 화살표(AT3), View_7 = ISO 화살표(C3). 부재 칸은 View_1~5.
+                        //   ⚠ View_8 금지 — View_8 태그가 있으면 템플릿 import 단계에서 SDK 내부 메모리가 손상돼
+                        //   직후 모델 캡처가 AccessViolation으로 사망 (2026-07-20 실측, SDK가 View 번호 7까지만 지원 추정).
+                        //   페이지마다 템플릿을 다시 그리므로 매 페이지 배치. 슬롯 없으면 조용히 생략.
+                        if (viewAreasCache.TryGetValue(6, out var northArrowArea))
                             PlaceImageInTemplateArea(ResolveDrawingAssetPath("North_Arrow.png"), northArrowArea);
                         if (viewAreasCache.TryGetValue(7, out var isoArrowArea))
                             PlaceImageInTemplateArea(ResolveDrawingAssetPath("ISO_North_Arrow.png"), isoArrowArea);
