@@ -361,6 +361,7 @@ namespace A2Z
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
             // 은선 없는 캡처 — 가공도는 단면(보이는 외곽선)만 출력 (사용자 사양 2026-07-03).
             //   SDK 공식 예제도 이 버전 사용. 옛 WithModelHiddenLine(점선 은선 포함)은 폐기.
+            DiagLog($"[Capture] row={rowIdx} bom={bom.Index} {viewLabel} Create2DViewObject 직전");   // AccessViolation 위치 특정용
             objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             if (objId < 0)
@@ -486,6 +487,7 @@ namespace A2Z
 
             // 실제 투영 방향을 임시 캡처로 측정 (ground truth — 축 규약 추측 제거)
             int probe = -1;
+            DiagLog($"[Orient] bom={bomIndex} probe 캡처 직전");   // AccessViolation 위치 특정용 (catch 불가 예외)
             try
             {
                 probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelAtCanvasOrigin(
@@ -1053,7 +1055,9 @@ namespace A2Z
 
         // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
-        private const bool MfgCameraSignProbeEnabled = true;
+        //   2026-07-20 OFF: 신 템플릿에서 가공도 AccessViolation이 프로브 캡처 지점에서 지속(템플릿 규칙 정리 후에도)
+        //   → 크래시 격리 위해 비활성. 본 페이지 루프가 통과하는지로 프로브 vs 캡처API 판별.
+        private const bool MfgCameraSignProbeEnabled = false;
 
         // (제거 2026-07-19) 템플릿 JSON 사전변환 PoC — 실측 결과 ConvertExcelToJson 290초 + 태그 미보존으로
         //   접근법 자체 폐기. 템플릿을 작게(~4천 셀) 유지하면 ImportExcelWithData가 수백 ms라 JSON 불필요.
