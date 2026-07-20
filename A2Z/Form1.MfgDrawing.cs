@@ -125,8 +125,9 @@ namespace A2Z
             var data = new Dictionary<int, string>();
 
             // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            //   신 템플릿(가공도_도면_1)은 제작도와 동일 슬롯 체계 Input 1~199 + 부재명 200~204.
-            for (int k = 1; k <= 204; k++)
+            //   ⚠ Input 번호는 199까지만 — 200 이상(dict 키·템플릿 태그 모두)은 SDK 내부 배열 범위를 넘겨
+            //   import 시 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측 격리). View도 동일하게 1~7만.
+            for (int k = 1; k <= 199; k++)
                 data[k] = "";
 
             // ── 도면정보 ──
@@ -136,15 +137,16 @@ namespace A2Z
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
 
-            // ── 부재명 5칸 (Input_200~Input_204, 각 View 왼쪽 라벨) ──
-            //   신 템플릿: 부재명은 BOM 슬롯과 분리된 200~204 대역 (2026-07-12 배치).
+            // ── 부재명 5칸 (Input_195~Input_199, 각 View 왼쪽 라벨) ──
+            //   200~204 대역은 SDK 한계로 폐기(위 주석) → 가공도에서 항상 빈칸인 Rev 표 마지막 행
+            //   태그(195~199)를 템플릿에서 제거하고 그 번호를 부재명이 사용 (2026-07-20).
             for (int i = 0; i < page.Rows.Count && i < 5; i++)
             {
                 var sheet = page.Rows[i];
                 if (sheet.MemberIndices.Count == 0) continue;
                 var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                 if (bom == null) continue;
-                data[200 + i] = bom.Name ?? "";
+                data[195 + i] = bom.Name ?? "";
             }
 
             // ── 우측 BOM 표 8컬럼 × 20행 (Input_4~Input_163, snapshot 사용) ──
@@ -287,9 +289,9 @@ namespace A2Z
 
                 ResetCanvasForMfgPage();
                 var data = new Dictionary<int, string>();
-                for (int k = 1; k <= 204; k++) data[k] = "";
+                for (int k = 1; k <= 199; k++) data[k] = "";   // 200 이상 금지 (SDK 메모리 손상 — BuildMfgPageData 주석)
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
-                data[200] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (구 5번 → 200번)
+                data[195] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (195~199 대역)
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
