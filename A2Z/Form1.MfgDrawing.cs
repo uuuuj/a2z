@@ -187,7 +187,18 @@ namespace A2Z
             if (list == null || list.Count == 0)
                 throw new InvalidOperationException($"가공도 템플릿 View 영역 없음: {xlsxPath}");
 
-            var dict = list.ToDictionary(a => a.Index, a => a);
+            // 중복 인덱스 방어 — 템플릿 편집 중 같은 View_n 태그가 두 곳에 남으면 ToDictionary가 예외로 죽는다.
+            //   (실사례 2026-07-20: 제작도 복제 시 북쪽 화살표 View_5가 부재 5번 칸과 중복) 첫 번째만 쓰고 경고.
+            var dict = new Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea>();
+            foreach (var a in list)
+            {
+                if (dict.ContainsKey(a.Index))
+                {
+                    DiagLog($"[EnsureViewAreasCache] WARN View_{a.Index} 태그 중복 — 첫 번째 위치 사용, 템플릿 확인 필요: {Path.GetFileName(xlsxPath)}");
+                    continue;
+                }
+                dict[a.Index] = a;
+            }
             for (int i = 1; i <= 5; i++)
                 if (!dict.ContainsKey(i))
                     throw new InvalidOperationException($"가공도 템플릿 View_{i} 누락: {xlsxPath}");
@@ -2117,6 +2128,14 @@ namespace A2Z
                         swTpl.Stop();
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
+
+                        // 북쪽 화살표 이미지 — 제작도와 동일 배치·캘리브레이션 (PlaceImageInTemplateArea 공용).
+                        //   가공도 슬롯: View_8 = N 화살표(AT3, 제작도 View_5 자리 대응 — 부재 칸 1~5와 충돌 방지 재번호),
+                        //   View_7 = ISO 화살표(C3). 페이지마다 템플릿을 다시 그리므로 매 페이지 배치. 슬롯 없으면 조용히 생략.
+                        if (viewAreasCache.TryGetValue(8, out var northArrowArea))
+                            PlaceImageInTemplateArea(ResolveDrawingAssetPath("North_Arrow.png"), northArrowArea);
+                        if (viewAreasCache.TryGetValue(7, out var isoArrowArea))
+                            PlaceImageInTemplateArea(ResolveDrawingAssetPath("ISO_North_Arrow.png"), isoArrowArea);
 
                         for (int i = 0; i < page.Rows.Count; i++)
                         {
