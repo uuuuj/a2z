@@ -364,12 +364,11 @@ namespace A2Z
             //   별개(이건 2D 개체 생성 라인폭). 라이브 가공도 캡처가 이걸 누락해 모델선이 가늘게 나오던 문제 교정 (전수조사 2026-07-01).
             vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemLineWidth(2.0f);
-            // 은선 API + 은선제거(HLR) 렌더모드 = 결과물엔 은선 없음(사용자 사양 2026-07-03 '단면만' 유지).
-            //   '은선 없는 캡처(WithModelAtCanvasOrigin)'는 신 템플릿 캔버스에서 AccessViolation으로 폐기 —
-            //   격리 확정 2026-07-20: 같은 API가 구 템플릿에선 정상, 은선 API는 신 템플릿에서 정상(제작도 수십 회),
-            //   '은선 없는 API + 신 템플릿' 조합만 사망(SDK 내부 버그, 벤더 문의 후보).
-            DiagLog($"[Capture] row={rowIdx} bom={bom.Index} {viewLabel} Create2DViewObject(HLR) 직전");   // AccessViolation 위치 특정용
-            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.HIDDEN_LINE_REMOVAL);
+            // 은선 API + DASH_LINE 렌더모드 — 제작도가 완주로 검증한 조합과 100% 동일 (2026-07-20 격리 4단계).
+            //   신 템플릿에서 '은선 없는 캡처'와 'HLR 모드 + 은선 캡처' 모두 AccessViolation (벤더 문의 후보 2건).
+            //   ⚠ DASH_LINE이라 은선이 점선으로 보일 수 있음 — 안정화 우선, '단면만' 사양은 벤더 수정 후 복원 예정.
+            DiagLog($"[Capture] row={rowIdx} bom={bom.Index} {viewLabel} Create2DViewObject(DASH) 직전");   // AccessViolation 위치 특정용
+            vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
             objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             if (objId < 0)
@@ -498,9 +497,9 @@ namespace A2Z
             DiagLog($"[Orient] bom={bomIndex} probe 캡처 직전");   // AccessViolation 위치 특정용 (catch 불가 예외)
             try
             {
-                // 은선 API + 은선제거 렌더모드 — 본 캡처와 동일 방식(W/H 판정 일치).
-                //   '은선 없는 캡처(WithModelAtCanvasOrigin)'는 신 템플릿 캔버스에서 AccessViolation (2026-07-20 격리 확정)
-                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.HIDDEN_LINE_REMOVAL);
+                // 은선 API + DASH_LINE 렌더모드 — 제작도가 완주로 검증한 조합과 100% 동일 (2026-07-20 격리 4단계).
+                //   '은선 없는 캡처(WithModelAtCanvasOrigin)'와 'HLR 모드 + 은선 캡처' 모두 신 템플릿에서 AccessViolation.
+                vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                 probe = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                     VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
             }
