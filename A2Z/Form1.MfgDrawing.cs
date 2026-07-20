@@ -489,8 +489,10 @@ namespace A2Z
         /// </summary>
         private float ProbeAndRollLandscape(int bomIndex, float zoomRatio)
         {
-            var targets = new List<int> { bomIndex };
-            vizcore3d.View.FlyToObject3d(targets, zoomRatio);
+            // [격리 5단계 2026-07-21] 캡처 직전 FlyToObject3d 제거 — 제작도(정상)는 MoveCamera만 쓰고 Fly가 없음.
+            //   신 템플릿에서 'Fly 직후 캡처'가 AccessViolation 용의 (카메라 이동/애니메이션 중 캡처 진입 의심).
+            //   W/H 판정은 직교 투영 비율이라 카메라 fit(줌)과 무관 → Fly 없이도 판정 동일.
+            //   (카메라 방향은 BuildMfgSceneCore가 이미 설정, 배치·크기는 캡처 후 Rescale/MoveObjectTo가 처리)
 
             // 실제 투영 방향을 임시 캡처로 측정 (ground truth — 축 규약 추측 제거)
             int probe = -1;
@@ -517,10 +519,9 @@ namespace A2Z
 
             if (ph > pw + 0.001f)
             {
-                // 세로 → 화면축 90° 회전으로 가로화
+                // 세로 → 화면축 90° 회전으로 가로화 (roll 뒤 Fly는 격리 5단계에서 제거 — 프레이밍은 캡처와 무관)
                 vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                 vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                vizcore3d.View.FlyToObject3d(targets, zoomRatio);   // baseline 순서: roll 뒤 Fly
                 DiagLog($"[Orient] bom={bomIndex} 가로전환(90°) probeW={pw:F2} probeH={ph:F2}");
                 return 90f;
             }
@@ -964,8 +965,8 @@ namespace A2Z
                 float secondaryY = swapViews ? area.Y : area.Y + viewHeight + viewGap;
 
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
+                //   (DoEvents 제거 — 격리 5단계 2026-07-21: 네이티브 캡처 전후 메시지 펌프가 크래시 용의)
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
-                System.Windows.Forms.Application.DoEvents();
 
                 int primaryObjId;
                 bool primaryOk = CaptureMfgSceneToViewArea(
@@ -991,9 +992,8 @@ namespace A2Z
                         var secondaryPose = BuildEaSecondaryScene(
                             bom, pose, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
 
-                        // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전
+                        // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전 (DoEvents 제거 — 격리 5단계)
                         float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
-                        System.Windows.Forms.Application.DoEvents();
 
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
