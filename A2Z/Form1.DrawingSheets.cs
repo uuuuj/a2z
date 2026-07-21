@@ -1700,7 +1700,10 @@ namespace A2Z
                 Dictionary<int, string> data = new Dictionary<int, string>();
                 // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
                 //   신 템플릿은 Input_199까지 사용: 164=Note, 165~168=PAINT/DP, 169=TAG NO, 170~199=Rev 표.
-                for (int k = 1; k <= 199; k++) data[k] = "";
+                //   비-BOM 슬롯은 공백(" ")으로 채워 "내용 있음" 위장 — RemoveEmptyTemplateBorders가 전역 동작이라
+                //   Rev 표·NOTE 등 의도적으로 비워두는 칸의 괘선까지 지웠음(2026-07-21 실기). BOM(4~163)만 ""로 둬
+                //   미기재 행만 괘선 제거 대상이 되게 선별.
+                for (int k = 1; k <= 199; k++) data[k] = (k >= 4 && k <= 163) ? "" : " ";
                 // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
                 data[1] = "CEDAR FLNG";
                 data[2] = "SN2688";

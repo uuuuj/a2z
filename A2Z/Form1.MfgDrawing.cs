@@ -127,8 +127,10 @@ namespace A2Z
             // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
             //   ⚠ Input 번호는 199까지만 — 200 이상(dict 키·템플릿 태그 모두)은 SDK 내부 배열 범위를 넘겨
             //   import 시 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측 격리). View도 동일하게 1~7만.
+            //   비-BOM 슬롯(164~194)은 공백(" ")으로 채워 RemoveEmptyTemplateBorders(전역)의 괘선 제거에서 보호,
+            //   BOM(4~163)·부재명(195~199)은 "" — 미기재 행·빈 밴드는 괘선 제거 대상 (제작도와 동일 정책).
             for (int k = 1; k <= 199; k++)
-                data[k] = "";
+                data[k] = ((k >= 4 && k <= 163) || k >= 195) ? "" : " ";
 
             // ── 도면정보 ──
             data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)

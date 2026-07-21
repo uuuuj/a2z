@@ -48,7 +48,7 @@
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
 - **라인**: L1613+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21 — 비-BOM 슬롯은 공백 `" "` 위장으로 보호) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
 - **라인**: L2016+
