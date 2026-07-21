@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-07-21 — 설치도 외부 연결 Assembly·실제 접합영역 치수
+
+**유형**: feat
+**커밋**: `PENDING`
+**관련 TASK**: T-075 (설치도 외부 연결 Assembly·실제 접합영역 위치 치수)
+**관련 ISSUE**: GitHub issue #12
+**변경 사항**:
+- 설치도 ISO/Z/X/Y에 선택 STRU 실선과 직접 연결된 외부 Assembly 전체 점선 두 겹 표현 추가
+- Clash PART 쌍 하위 BODY의 공식 접합선·접합 Mesh로 실제 접합 영역을 만들고 LINE/POINT Osnap에 스냅
+- 같은 Assembly의 분리 접합을 A1/A2로 구분하고 ISO에는 Assembly/Part 이름, 직교 뷰에는 접합 기호 표시
+- 선택 STRU·연결 Assembly 전체 Osnap 범위와 연결 Part 끝단→접합 영역→끝단 필수 치수 생성
+- 실제 접합 형상이 없는 근접 결과는 HotPoint fallback으로 구분하고 진단 로그 기록
+
+**영향 범위**: 설치도 시트 생성·선택, ISO/평면/정면/측면 2D 렌더, 설치 치수 선별 및 스마트 필터
+
 ## 2026-07-21 — 제작도 연결 부재 어셈블리 이름 표시
 
 **유형**: feat

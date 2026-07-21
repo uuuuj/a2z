@@ -432,6 +432,22 @@
 
 ## IN_PROGRESS
 
+### T-075 — 설치도 외부 연결 Assembly·실제 접합영역 위치 치수
+- **생성일/착수일**: 2026-07-21
+- **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 PDF 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #12
+- **배경**: 설치도에서 선택 STRU와 직접 연결된 외부 Assembly의 부착 위치를 보여줘야 한다. Clash HotPoint 하나만으로는 면접촉의 양 끝과 같은 Part/Body의 분리된 접합 영역을 표현할 수 없다.
+- **구현**:
+  - [x] 선택 STRU 실선 + 직접 연결 외부 Assembly 전체 점선을 ISO/Z/X/Y 전 뷰에 적용
+  - [x] Clash PART 쌍 하위 BODY 조합에서 `GetObjectCollisionLine`, `GetJunctionMesh`로 실제 접합 영역 산출
+  - [x] 이어진 선분 1mm 영역화, 분리 영역 A1/A2 라벨, LINE/POINT Osnap 3mm 스냅
+  - [x] 선택 STRU·연결 Assembly 주축/보조축 전체 Osnap 범위 치수
+  - [x] 연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX 필수 체인 치수
+  - [x] 접합 형상 없는 Clearance/Proximity는 HotPoint fallback + 로그
+  - [x] Debug 별도 출력 폴더 빌드 통과
+  - [ ] 사내 모델로 접합선/면접촉 A1/A2·4개 뷰 점선·치수 PDF 확인
+- **영향 파일**: `A2Z/Form1.GlobalViews.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.Dimensions.cs`, `A2Z/Models.cs`, 설치도/Osnap 문서
+
 ### T-013 — ISO 뷰 점선·실선 분리와 3D 위치 정합
 - **생성일**: 2026-04-20
 - **착수일**: 2026-04-21

@@ -117,7 +117,7 @@
 
   <!-- ============ SLIDE 1 ============ -->
   <section class="page" id="s1">
-  <div class="slide" role="img" aria-label="제작도·조립도·가공도가 하나의 4극점 Osnap 선별 엔진을 공유하고 가공도만 은선 필터를 추가하며 설치도만 BBox 기반으로 분리된다는 것을 파이프라인과 도면별 카드로 정리한 슬라이드">
+  <div class="slide" role="img" aria-label="제작도·조립도·가공도의 4극점 Osnap 선별과 설치도의 Assembly 전체 극점 및 실제 접합영역 Osnap 선별을 정리한 슬라이드">
     <header>
       <div>
         <div class="kicker">도면 표현 로직 · Osnap 선별</div>
@@ -156,9 +156,9 @@
           </div>
         </div>
         <div class="pipe-alt">
-          <span class="albl">설치도만 예외</span>
+          <span class="albl">설치도 전용</span>
           <span class="aarr">→</span>
-          <span class="abox">Osnap을 아예 안 씀 · <b>부재 바운딩박스(BBox) Min/Max 경계</b>를 기준점으로 사용</span>
+          <span class="abox"><b>선택 STRU·연결 Assembly 전체 Osnap MIN/MAX</b> + 실제 BODY 접합선 양 끝 Osnap</span>
         </div>
       </section>
       <section class="dcards">
@@ -179,20 +179,20 @@
           <div class="note">뒷면 Osnap 제거(단면만). 홀은 이미 제외.</div>
         </div>
         <div class="dcard d-ins">
-          <h4>설치도</h4><div class="id">전체 조립</div>
-          <div class="how">Osnap 미사용</div>
-          <div class="note"><b>BBox Min/Max</b> 경계 기반. 부재 간 간격·전체 치수.</div>
+          <h4>설치도</h4><div class="id">선택 STRU + 외부 연결 Assembly</div>
+          <div class="how">전체 극점 + 접합영역</div>
+          <div class="note"><b>LINE·POINT Osnap</b>만 사용. Part 끝단→접합 시작→접합 끝→끝단.</div>
         </div>
       </section>
     </main>
     <footer class="foot3">
       <div class="fcard">
         <div class="ft"><span class="ic">🎯</span> 핵심</div>
-        <p>선별 엔진은 <b>하나</b>. 제작·조립·가공이 <b>같은 “코너 4극점 + 부재당 1점”</b> 규칙 공유. 가공도만 은선 필터 추가, 설치도만 BBox로 분리.</p>
+        <p>제작·조립·가공은 <b>“코너 4극점 + 부재당 1점”</b>을 공유. 설치도는 각 Assembly 전체 극점과 <b>실제 접합 영역 양 끝</b>을 함께 남긴다.</p>
       </div>
       <div class="fcard">
         <div class="ft"><span class="ic">📍</span> 정리 위치</div>
-        <p>문서: <code>기술 노트/Osnap 기준.md</code> · 코드: <code>FilterOsnapForDimAxis</code>(선별), <code>CollectAllOsnap</code>(수집), <code>FilterHiddenLineOsnap</code>(은선), <code>ExtractInstallationDimensions</code>(설치도 BBox)</p>
+        <p>문서: <code>기능/치수/설치도 치수 추출.md</code> · 코드: <code>FilterOsnapForDimAxis</code>(공용), <code>PrepareInstallationConnectionData</code>(접합영역), <code>ComputeInstallationDimensions</code>(설치도)</p>
       </div>
       <div class="fcard warn">
         <div class="ft"><span class="ic">⚠️</span> 용어 주의</div>
