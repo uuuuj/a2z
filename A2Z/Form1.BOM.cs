@@ -364,7 +364,7 @@ namespace A2Z
                 //    Osnap/치수보다 Clash가 선행되어야 함. 치수 생성은 판정 통과 후에만.
                 ShowBusyOverlay("간섭검사 실행 중...");
                 _autoProcessOsnapSuccess = false;
-                bool clashStarted = DetectClash();
+                bool clashStarted = DetectClash(includeOutsideNeighbors: true);
 
                 if (!clashStarted)
                 {
