@@ -443,7 +443,7 @@ namespace A2Z
             try
             {
                 string solutionPath = GetSolutionPath();
-                string logoPath = System.IO.Path.Combine(solutionPath, "Logo.png");
+                string logoPath = System.IO.Path.Combine(solutionPath, "assets", "Logo.png");
                 if (System.IO.File.Exists(logoPath))
                 {
                     vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(logoPath, logoPath);

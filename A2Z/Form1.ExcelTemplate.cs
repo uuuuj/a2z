@@ -29,7 +29,7 @@ namespace A2Z
 
             string solutionPath = GetSolutionPath();
             string xlsxPath = Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
-            string logoPath = Path.Combine(solutionPath, "Logo.png");
+            string logoPath = Path.Combine(solutionPath, "assets", "Logo.png");
 
             if (!File.Exists(xlsxPath))
             {

@@ -133,15 +133,15 @@
   <ItemGroup>
     <None Include="App.config" />
     <!-- 제작도 고정 이미지: 실행 폴더 기준 절대경로로 사용할 수 있도록 자동 복사 -->
-    <Content Include="..\North_Arrow.png">
+    <Content Include="..\assets\North_Arrow.png">
       <Link>North_Arrow.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\ISO_North_Arrow.png">
+    <Content Include="..\assets\ISO_North_Arrow.png">
       <Link>ISO_North_Arrow.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\Logo.png">
+    <Content Include="..\assets\Logo.png">
       <Link>Logo.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
