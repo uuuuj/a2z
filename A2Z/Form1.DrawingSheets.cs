@@ -485,33 +485,6 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 도면 생성 버튼 핸들러
-        /// </summary>
-        private void btnGenerateSheets_Click(object sender, EventArgs e)
-        {
-            if (!vizcore3d.Model.IsOpen())
-            {
-                MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (bomList.Count == 0)
-            {
-                MessageBox.Show("BOM 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (clashList.Count == 0)
-            {
-                MessageBox.Show("Clash 데이터가 없습니다. 먼저 Clash 검사를 수행해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            GenerateDrawingSheets();
-            MessageBox.Show($"도면 시트 {drawingSheetList.Count}개가 생성되었습니다.", "도면 생성", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        /// <summary>
         /// 도면 시트 선택 시 X-Ray + 치수 표시 (UI 이벤트 → ApplySheetSelection 위임)
         /// </summary>
         private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)

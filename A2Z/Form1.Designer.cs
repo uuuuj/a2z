@@ -118,7 +118,6 @@ namespace A2Z
             this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
             this.btnGenerateSheet2D = new System.Windows.Forms.Button();
             this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
-            this.btnGenerateSheets = new System.Windows.Forms.Button();
             this.btnExtractDrawingList = new System.Windows.Forms.Button();
             this.groupBoxStru = new System.Windows.Forms.GroupBox();
             this.clbStruList = new System.Windows.Forms.CheckedListBox();
@@ -992,7 +991,6 @@ namespace A2Z
             this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
             this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
-            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheets);
             this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelDrawingButtons.Location = new System.Drawing.Point(3, 898);
             this.panelDrawingButtons.Name = "panelDrawingButtons";
@@ -1044,42 +1042,32 @@ namespace A2Z
             this.clbStruList.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.ClbStruList_ItemCheck);
             this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
             //
-            // btnGenerateSheets
-            //
-            this.btnGenerateSheets.Location = new System.Drawing.Point(6, 5);
-            this.btnGenerateSheets.Name = "btnGenerateSheets";
-            this.btnGenerateSheets.Size = new System.Drawing.Size(100, 30);
-            this.btnGenerateSheets.TabIndex = 0;
-            this.btnGenerateSheets.Text = "도면 생성";
-            this.btnGenerateSheets.UseVisualStyleBackColor = true;
-            this.btnGenerateSheets.Click += new System.EventHandler(this.btnGenerateSheets_Click);
-            //
             // btnMfgDrawingSheet
             //
-            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(112, 5);
+            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(6, 5);
             this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
             this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
-            this.btnMfgDrawingSheet.TabIndex = 1;
+            this.btnMfgDrawingSheet.TabIndex = 0;
             this.btnMfgDrawingSheet.Text = "가공도 출력";
             this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
             this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
             //
             // btnGenerateSheet2D
             //
-            this.btnGenerateSheet2D.Location = new System.Drawing.Point(218, 5);
+            this.btnGenerateSheet2D.Location = new System.Drawing.Point(112, 5);
             this.btnGenerateSheet2D.Name = "btnGenerateSheet2D";
             this.btnGenerateSheet2D.Size = new System.Drawing.Size(100, 30);
-            this.btnGenerateSheet2D.TabIndex = 2;
+            this.btnGenerateSheet2D.TabIndex = 1;
             this.btnGenerateSheet2D.Text = "2D 출력";
             this.btnGenerateSheet2D.UseVisualStyleBackColor = true;
             this.btnGenerateSheet2D.Click += new System.EventHandler(this.btnGenerateSheet2D_Click);
             //
             // btnExportSheet2DPDF
             //
-            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(324, 5);
+            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(218, 5);
             this.btnExportSheet2DPDF.Name = "btnExportSheet2DPDF";
             this.btnExportSheet2DPDF.Size = new System.Drawing.Size(75, 30);
-            this.btnExportSheet2DPDF.TabIndex = 3;
+            this.btnExportSheet2DPDF.TabIndex = 2;
             this.btnExportSheet2DPDF.Text = "PDF 출력";
             this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
             this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
@@ -1089,7 +1077,7 @@ namespace A2Z
             this.btnExtractDrawingList.Location = new System.Drawing.Point(6, 38);
             this.btnExtractDrawingList.Name = "btnExtractDrawingList";
             this.btnExtractDrawingList.Size = new System.Drawing.Size(120, 28);
-            this.btnExtractDrawingList.TabIndex = 5;
+            this.btnExtractDrawingList.TabIndex = 3;
             this.btnExtractDrawingList.Text = "도면 일괄 출력";
             this.btnExtractDrawingList.UseVisualStyleBackColor = true;
             this.btnExtractDrawingList.Click += new System.EventHandler(this.btnExtractDrawingList_Click);
@@ -1429,7 +1417,6 @@ namespace A2Z
         private System.Windows.Forms.ColumnHeader colSheetMembers;
         private System.Windows.Forms.ColumnHeader colSheetCount;
         private System.Windows.Forms.Panel panelDrawingButtons;
-        private System.Windows.Forms.Button btnGenerateSheets;
         private System.Windows.Forms.Button btnExtractDrawingList;  // T-064 P2a — 도면 일괄 출력 (라벨 변경 2026-05-19)
         private System.Windows.Forms.Button btnMfgDrawingSheet;
         private System.Windows.Forms.Button btnGenerateSheet2D;
