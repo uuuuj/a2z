@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,580 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,725 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -50,19 +50,23 @@
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L1198+
+- **라인**: L1211+
 - **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
-- **라인**: L1548+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21 — 슬롯 초기값으로 선별: BOM·Note·Rev 위 4행만 제거, PAINT/DP/TAG·Rev 첫 기재행은 공백 위장 보존) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더. ISO는 두 겹 — 조립도: 전체−기준 LONG_DASHED 점선+기준부재 실선 / 제작도: `시트 부재+연결 부재` 점선 배경 캡처 → 시트 부재 노드 기준 CropFit → LONG_DASHED → 점선 fit → 시트 부재 실선 캡처 → `Match2DObjectsTo3DObjectPosition(실선, 점선)` 정합
+- **라인**: L1561+
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21 — 슬롯 초기값으로 선별: BOM·Note·Rev 위 4행만 제거, PAINT/DP/TAG·Rev 첫 기재행은 공백 위장 보존) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더. ISO는 두 겹 — 조립도: 전체−기준 LONG_DASHED 점선+기준부재 실선 / 제작도: `시트 부재+연결 부재` 점선 배경 캡처 → 시트 부재 노드 기준 CropFit → LONG_DASHED → 점선 fit → 시트 부재 실선 캡처 → `Match2DObjectsTo3DObjectPosition(실선, 점선)` 정합 → 점선 객체를 선택해 Clash 월드 좌표에 연결 Assembly 이름 2D 노트 생성
+
+### GetFabricationNeighborAssemblyNotes / FindNearestParentAssembly
+- **라인**: L2115~L2191
+- **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2103+
+- **라인**: L2249+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2119+
+- **라인**: L2265+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
@@ -91,6 +95,8 @@
 - `vizcore3d.Drawing2D.Object2D.ModelLineThickness`, `Set2DViewCreateObjectItemMeasure*`
 - `vizcore3d.View.XRay.*`, `View.SetRenderMode(DASH_LINE)`, `View.MoveCamera(CameraDirection)`
 - `vizcore3d.Review.Note.AddNoteSurface(text, textPos, arrowPos)`
+- `vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(title, target, label)`
+- `Node.Kind`, `Node.ParentIndex`, `Object3D.FromIndex` (연결 Part의 가장 가까운 부모 Assembly 이름 탐색)
 
 ---
 

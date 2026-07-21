@@ -122,7 +122,10 @@ namespace A2Z
         public int Index2 { get; set; }
         public string Name1 { get; set; }
         public string Name2 { get; set; }
+        public float XValue { get; set; }
+        public float YValue { get; set; }
         public float ZValue { get; set; }
+        public bool HasHotPoint { get; set; }
     }
 
     /// <summary>
