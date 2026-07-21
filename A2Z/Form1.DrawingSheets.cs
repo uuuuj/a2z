@@ -17,6 +17,7 @@ namespace A2Z
         /// </summary>
         private void GenerateDrawingSheets()
         {
+            List<ChainDimensionData> initiallyComputedDimensions = chainDimensionList.ToList();
             drawingSheetList.Clear();
             lvDrawingSheet.Items.Clear();
 
@@ -245,19 +246,14 @@ namespace A2Z
                 bomIndexToItemNo[bomList[i].Index] = i + 1;
             }
 
-            // T-025: 치수추출 직후 Sheet 1(전체) 기준 BOM 정보 자동 수집
-            // lvDrawingSheet 선택 이벤트를 기다리지 않고 여기서 직접 채움 (visibility 등 부수효과 없이).
-            if (drawingSheetList.Count > 0)
-            {
-                try
-                {
-                    CollectBOMInfo(false, drawingSheetList[0]);
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"GenerateDrawingSheets CollectBOMInfo FAIL {ex.Message}");
-                }
-            }
+            // 도면 리스트를 사용자에게 보여주기 전에 모든 일반/설치 시트의 치수와 모든 시트의 BOM을 준비한다.
+            // 이후 시트 클릭은 SDK 재조회·치수 재계산 없이 캐시를 UI에 적용한다.
+            ShowBusyOverlay("도면 조회 데이터 준비 중...");
+            PrepareDrawingSheetDimensionCaches(initiallyComputedDimensions);
+            PrepareDrawingSheetBomCaches();
+
+            if (drawingSheetList.Count > 0 && drawingSheetList[0].DimensionsPrepared)
+                ApplyPreparedDimensionsToUi(drawingSheetList[0]);
 
             // ListView 갱신
             foreach (var sheet in drawingSheetList)
@@ -484,6 +480,90 @@ namespace A2Z
             }
         }
 
+        private void PrepareDrawingSheetDimensionCaches(List<ChainDimensionData> initiallyComputedDimensions)
+        {
+            var swTotal = System.Diagnostics.Stopwatch.StartNew();
+            var dimensionsByMemberSet = new Dictionary<string, List<ChainDimensionData>>();
+
+            foreach (DrawingSheetData sheet in drawingSheetList)
+            {
+                // 가공도는 부재별 3D 장면·카메라·풍선을 만들어야 하므로 일반 체인 치수 캐시 대상이 아니다.
+                if (sheet.BaseMemberIndex == -3)
+                    continue;
+
+                var swSheet = System.Diagnostics.Stopwatch.StartNew();
+                string engine = sheet.BaseMemberIndex == -2 ? "INSTALL" : "OSNAP";
+                string memberKey = engine + "|" + string.Join(",", sheet.MemberIndices.OrderBy(x => x));
+                List<ChainDimensionData> prepared;
+                bool reused = dimensionsByMemberSet.TryGetValue(memberKey, out prepared);
+                bool reusedInitialResult = false;
+
+                if (!reused)
+                {
+                    if (sheet.BaseMemberIndex == -1 && initiallyComputedDimensions != null &&
+                        (initiallyComputedDimensions.Count > 0 || _autoProcessOsnapSuccess))
+                    {
+                        prepared = initiallyComputedDimensions.ToList();
+                        reusedInitialResult = true;
+                    }
+                    else if (sheet.BaseMemberIndex == -2)
+                    {
+                        prepared = ComputeInstallationDimensions(sheet.MemberIndices);
+                    }
+                    else
+                    {
+                        prepared = ComputeViewDimensionsForMembers(
+                            sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap);
+                    }
+                    dimensionsByMemberSet[memberKey] = prepared;
+                }
+
+                sheet.PreparedDimensions.Clear();
+                sheet.PreparedDimensions.AddRange(prepared);
+                for (int i = 0; i < sheet.PreparedDimensions.Count; i++)
+                    sheet.PreparedDimensions[i].No = i + 1;
+                sheet.DimensionsPrepared = true;
+
+                swSheet.Stop();
+                DiagLog($"도면 시트 치수 사전 준비: sheet#={sheet.SheetNumber} " +
+                    $"members={sheet.MemberIndices.Count} chain={sheet.PreparedDimensions.Count} " +
+                    $"reused={reused || reusedInitialResult} elapsed={swSheet.ElapsedMilliseconds}ms");
+            }
+
+            swTotal.Stop();
+            DiagLog($"도면 시트 치수 사전 준비 완료: sheets={drawingSheetList.Count} " +
+                $"cacheSets={dimensionsByMemberSet.Count} elapsed={swTotal.ElapsedMilliseconds}ms");
+        }
+
+        private void ApplyPreparedDimensionsToUi(DrawingSheetData sheet)
+        {
+            if (sheet == null || !sheet.DimensionsPrepared) return;
+
+            chainDimensionList.Clear();
+            chainDimensionList.AddRange(sheet.PreparedDimensions);
+
+            lvDimension.BeginUpdate();
+            try
+            {
+                lvDimension.Items.Clear();
+                foreach (ChainDimensionData dim in chainDimensionList)
+                {
+                    ListViewItem item = new ListViewItem(dim.No.ToString());
+                    item.SubItems.Add(dim.Axis);
+                    item.SubItems.Add(dim.ViewName);
+                    item.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
+                    item.SubItems.Add(dim.StartPointStr);
+                    item.SubItems.Add(dim.EndPointStr);
+                    item.Tag = dim;
+                    lvDimension.Items.Add(item);
+                }
+            }
+            finally
+            {
+                lvDimension.EndUpdate();
+            }
+        }
+
         /// <summary>
         /// 도면 시트 선택 시 X-Ray + 치수 표시 (UI 이벤트 → ApplySheetSelection 위임)
         /// </summary>
@@ -519,9 +599,16 @@ namespace A2Z
                 $"sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} " +
                 $"prevXray={xraySelectedNodeIndices?.Count ?? 0} prevChain={chainDimensionList?.Count ?? 0}");
 
+            var swTotal = System.Diagnostics.Stopwatch.StartNew();
+            var swScene = System.Diagnostics.Stopwatch.StartNew();
+            long sceneMs = 0;
+            long dimensionMs = 0;
+            long bomMs = 0;
+
             try
             {
                 vizcore3d.BeginUpdate();
+                vizcore3d.View.EnableAnimation = false;
 
                 // X-Ray 모드 비활성화 (관련 부재만 완전히 표시하기 위해)
                 if (vizcore3d.View.XRay.Enable)
@@ -574,42 +661,40 @@ namespace A2Z
                     vizcore3d.Object3D.Select(new List<int> { highlightIdx }, true, false);
 
                 vizcore3d.EndUpdate();
+                swScene.Stop();
+                sceneMs = swScene.ElapsedMilliseconds;
 
                 // T-028: 시트 유형별 치수 분기
                 //   가공도(-3): ExecuteMfgDrawing (기존 유지 — 단일 부재 가공도)
                 //   설치도(-2): ExtractInstallationDimensions (BBox 기반, 부재 간 간격·전체 조립 치수)
                 //   그 외(Sheet 1, Sheet 2+): ComputeViewDimensionsForMembers (Osnap 기반, 2D 출력과 동일 엔진)
+                var swDimension = System.Diagnostics.Stopwatch.StartNew();
                 if (sheet.BaseMemberIndex == -3)
                 {
                     ExecuteMfgDrawing(sheet.MemberIndices[0]);
                 }
                 else if (sheet.BaseMemberIndex == -2)
                 {
-                    // 설치도 BBox 분기 — 추후 옵션 A(완전 폐기)로 전환 가능
-                    ExtractInstallationDimensions(sheet.MemberIndices);
+                    if (sheet.DimensionsPrepared)
+                        ApplyPreparedDimensionsToUi(sheet);
+                    else
+                        ExtractInstallationDimensions(sheet.MemberIndices);
                 }
                 else
                 {
-                    // 일반 시트 — 2D 출력과 동일한 Osnap 엔진 (3뷰 × 2축 = 6조합 + 중복 제거)
-                    // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
-                    chainDimensionList.Clear();
-                    lvDimension.Items.Clear();
-                    chainDimensionList.AddRange(
-                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
-
-                    int no = 1;
-                    foreach (var dim in chainDimensionList)
+                    if (sheet.DimensionsPrepared)
                     {
-                        dim.No = no;
-                        ListViewItem lvi = new ListViewItem(no.ToString());
-                        lvi.SubItems.Add(dim.Axis);
-                        lvi.SubItems.Add(dim.ViewName);
-                        lvi.SubItems.Add(((int)Math.Round(dim.Distance)).ToString());
-                        lvi.SubItems.Add(dim.StartPointStr);
-                        lvi.SubItems.Add(dim.EndPointStr);
-                        lvi.Tag = dim;
-                        lvDimension.Items.Add(lvi);
-                        no++;
+                        ApplyPreparedDimensionsToUi(sheet);
+                    }
+                    else
+                    {
+                        sheet.PreparedDimensions.Clear();
+                        sheet.PreparedDimensions.AddRange(
+                            ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
+                        for (int i = 0; i < sheet.PreparedDimensions.Count; i++)
+                            sheet.PreparedDimensions[i].No = i + 1;
+                        sheet.DimensionsPrepared = true;
+                        ApplyPreparedDimensionsToUi(sheet);
                     }
 
                     // T-030: 시트 선택 시 3D 뷰 치수 렌더링 제거 (T-029 정책 확장)
@@ -620,6 +705,8 @@ namespace A2Z
 
                     DiagLog($"T-030 시트 선택 자동 치수: sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} chain={chainDimensionList.Count} (3D 미렌더)");
                 }
+                swDimension.Stop();
+                dimensionMs = swDimension.ElapsedMilliseconds;
             }
             catch (Exception ex)
             {
@@ -628,13 +715,13 @@ namespace A2Z
                     $"{ex.Message}\n{ex.StackTrace}");
             }
 
-            // [T-016 진단 로그] 종료 (BOM 재수집 전 상태)
-            DiagLog($"LvDrawingSheet_SelectedIndexChanged EXIT " +
-                $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0}");
-
-            // 선택된 시트 기준으로 BOM정보 자동 수집 (알람 없이)
-            // D1 (2026-05-18): sheet 명시 전달 — lvDrawingSheet.SelectedItems[0] 묵시 의존 제거
-            CollectBOMInfo(false, sheet);
+            var swBom = System.Diagnostics.Stopwatch.StartNew();
+            if (sheet.BomPrepared)
+                ApplyPreparedBomInfo(sheet);
+            else
+                CollectBOMInfo(false, sheet);
+            swBom.Stop();
+            bomMs = swBom.ElapsedMilliseconds;
 
             // T-036 (2026-04-23 3차 → 2026-04-24 4차 3·4단계 → 5단계): 가공도 시트 카메라 복원.
             //   진화 경로:
@@ -674,6 +761,11 @@ namespace A2Z
                     try { vizcore3d.EndUpdate(); } catch { }
                 }
             }
+
+            swTotal.Stop();
+            DiagLog($"LvDrawingSheet_SelectedIndexChanged EXIT " +
+                $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
+                $"scene={sceneMs}ms dimension={dimensionMs}ms bom={bomMs}ms total={swTotal.ElapsedMilliseconds}ms");
         }
 
         /// <summary>

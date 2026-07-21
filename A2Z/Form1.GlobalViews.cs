@@ -210,112 +210,7 @@ namespace A2Z
             chainDimensionList.Clear();
             lvDimension.Items.Clear();
 
-            // 포함된 부재의 BOM 데이터 수집
-            List<BOMData> members = new List<BOMData>();
-            foreach (int idx in memberIndices)
-            {
-                BOMData bom = bomList.FirstOrDefault(b => b.Index == idx);
-                if (bom != null) members.Add(bom);
-            }
-
-            if (members.Count == 0) return;
-
-            float tolerance = 1.0f;
-
-            // 축별로 부재 경계값(Min, Max)을 수집하여 체인치수 생성
-            string[] axes = { "X", "Y", "Z" };
-            foreach (string axis in axes)
-            {
-                // 경계값과 해당 부재 정보를 함께 수집 (보조선 시작점 = 부재 바운딩박스 모서리)
-                var boundaryEntries = new List<(float value, BOMData member)>();
-                foreach (var m in members)
-                {
-                    float minVal = 0, maxVal = 0;
-                    switch (axis)
-                    {
-                        case "X": minVal = m.MinX; maxVal = m.MaxX; break;
-                        case "Y": minVal = m.MinY; maxVal = m.MaxY; break;
-                        case "Z": minVal = m.MinZ; maxVal = m.MaxZ; break;
-                    }
-                    boundaryEntries.Add((minVal, m));
-                    boundaryEntries.Add((maxVal, m));
-                }
-
-                // 오름차순 정렬 후 중복 제거
-                boundaryEntries.Sort((a, b) => a.value.CompareTo(b.value));
-                var uniqueEntries = new List<(float value, BOMData member)>();
-                foreach (var entry in boundaryEntries)
-                {
-                    if (uniqueEntries.Count == 0 || Math.Abs(entry.value - uniqueEntries[uniqueEntries.Count - 1].value) > tolerance)
-                        uniqueEntries.Add(entry);
-                }
-
-                if (uniqueEntries.Count < 2) continue;
-
-                // 부재 바운딩박스 모서리 좌표로 치수 포인트 생성
-                // 보조선이 부재 표면에서 시작하도록 부재의 실제 위치 사용
-                Func<float, BOMData, VIZCore3D.NET.Data.Vector3D> makePoint = (val, m) =>
-                {
-                    switch (axis)
-                    {
-                        case "X": return new VIZCore3D.NET.Data.Vector3D(val, m.MinY, m.MinZ);
-                        case "Y": return new VIZCore3D.NET.Data.Vector3D(m.MinX, val, m.MinZ);
-                        default:  return new VIZCore3D.NET.Data.Vector3D(m.MinX, m.MinY, val);
-                    }
-                };
-
-                // ===== 설치 위치 체인 치수 (인접 경계 간 순차) =====
-                for (int i = 0; i < uniqueEntries.Count - 1; i++)
-                {
-                    float dist = Math.Abs(uniqueEntries[i].value - uniqueEntries[i + 1].value);
-                    if (dist <= tolerance) continue;
-
-                    var startPt = makePoint(uniqueEntries[i].value, uniqueEntries[i].member);
-                    var endPt = makePoint(uniqueEntries[i + 1].value, uniqueEntries[i + 1].member);
-
-                    chainDimensionList.Add(new ChainDimensionData
-                    {
-                        Axis = axis,
-                        ViewName = GetViewNameByAxis(axis),
-                        Distance = dist,
-                        StartPoint = startPt,
-                        EndPoint = endPt,
-                        StartPointStr = $"({startPt.X:F1}, {startPt.Y:F1}, {startPt.Z:F1})",
-                        EndPointStr = $"({endPt.X:F1}, {endPt.Y:F1}, {endPt.Z:F1})",
-                        // REQ-005 (2026-05-11): 두 경계점의 부재 인덱스 저장 → lvDimension 행 선택 강조용
-                        MemberIndices = new List<int> { uniqueEntries[i].member.Index, uniqueEntries[i + 1].member.Index }
-                    });
-                }
-
-                // 2026-05-11: 개별 부재 전체 길이 치수 블록 제거 (사용자 요청)
-                //   이전에는 부재마다 mMin~mMax 길이를 별도로 추가했으나, 비인접 점 쌍처럼 보이는 부작용 발생
-                //   인접 경계 치수 + 전체 조립 치수만 남김
-
-                // ===== 전체 조립 치수 (처음~끝, 순차가 2개 이상일 때) =====
-                if (uniqueEntries.Count > 2)
-                {
-                    var first = uniqueEntries[0];
-                    var last = uniqueEntries[uniqueEntries.Count - 1];
-                    float totalDist = Math.Abs(first.value - last.value);
-
-                    var totalStart = makePoint(first.value, first.member);
-                    var totalEnd = makePoint(last.value, last.member);
-
-                    chainDimensionList.Add(new ChainDimensionData
-                    {
-                        Axis = axis,
-                        ViewName = GetViewNameByAxis(axis),
-                        Distance = totalDist,
-                        StartPoint = totalStart,
-                        EndPoint = totalEnd,
-                        StartPointStr = $"({totalStart.X:F1}, {totalStart.Y:F1}, {totalStart.Z:F1})",
-                        EndPointStr = $"({totalEnd.X:F1}, {totalEnd.Y:F1}, {totalEnd.Z:F1})",
-                        IsTotal = true,
-                        // REQ-005 (2026-05-11): 첫·끝 경계 부재 인덱스
-                        MemberIndices = new List<int> { first.member.Index, last.member.Index }
-                    });
-                }
-            }
+            chainDimensionList.AddRange(ComputeInstallationDimensions(memberIndices));
 
             // ListView 갱신 및 치수 번호 설정
             int no = 1;
@@ -338,6 +233,113 @@ namespace A2Z
             // [T-016 진단 로그] 종료
             DiagLog($"ExtractInstallationDimensions EXIT " +
                 $"chain={chainDimensionList.Count} xray={xraySelectedNodeIndices.Count}");
+        }
+
+        /// <summary>
+        /// 설치도 치수를 UI·SDK 상태 변경 없이 계산한다. 도면 리스트 표시 전 사전 준비에서 사용한다.
+        /// </summary>
+        private List<ChainDimensionData> ComputeInstallationDimensions(List<int> memberIndices)
+        {
+            var result = new List<ChainDimensionData>();
+            var members = new List<BOMData>();
+            if (memberIndices != null)
+            {
+                foreach (int index in memberIndices)
+                {
+                    BOMData bom = bomList.FirstOrDefault(b => b.Index == index);
+                    if (bom != null) members.Add(bom);
+                }
+            }
+            if (members.Count == 0) return result;
+
+            const float tolerance = 1.0f;
+            string[] axes = { "X", "Y", "Z" };
+            foreach (string axis in axes)
+            {
+                var boundaryEntries = new List<(float value, BOMData member)>();
+                foreach (BOMData member in members)
+                {
+                    float minValue = 0;
+                    float maxValue = 0;
+                    switch (axis)
+                    {
+                        case "X": minValue = member.MinX; maxValue = member.MaxX; break;
+                        case "Y": minValue = member.MinY; maxValue = member.MaxY; break;
+                        case "Z": minValue = member.MinZ; maxValue = member.MaxZ; break;
+                    }
+                    boundaryEntries.Add((minValue, member));
+                    boundaryEntries.Add((maxValue, member));
+                }
+
+                boundaryEntries.Sort((a, b) => a.value.CompareTo(b.value));
+                var uniqueEntries = new List<(float value, BOMData member)>();
+                foreach (var entry in boundaryEntries)
+                {
+                    if (uniqueEntries.Count == 0 ||
+                        Math.Abs(entry.value - uniqueEntries[uniqueEntries.Count - 1].value) > tolerance)
+                    {
+                        uniqueEntries.Add(entry);
+                    }
+                }
+                if (uniqueEntries.Count < 2) continue;
+
+                Func<float, BOMData, VIZCore3D.NET.Data.Vector3D> makePoint = (value, member) =>
+                {
+                    switch (axis)
+                    {
+                        case "X": return new VIZCore3D.NET.Data.Vector3D(value, member.MinY, member.MinZ);
+                        case "Y": return new VIZCore3D.NET.Data.Vector3D(member.MinX, value, member.MinZ);
+                        default: return new VIZCore3D.NET.Data.Vector3D(member.MinX, member.MinY, value);
+                    }
+                };
+
+                for (int i = 0; i < uniqueEntries.Count - 1; i++)
+                {
+                    float distance = Math.Abs(uniqueEntries[i].value - uniqueEntries[i + 1].value);
+                    if (distance <= tolerance) continue;
+                    var start = makePoint(uniqueEntries[i].value, uniqueEntries[i].member);
+                    var end = makePoint(uniqueEntries[i + 1].value, uniqueEntries[i + 1].member);
+                    result.Add(new ChainDimensionData
+                    {
+                        Axis = axis,
+                        ViewName = GetViewNameByAxis(axis),
+                        Distance = distance,
+                        StartPoint = start,
+                        EndPoint = end,
+                        StartPointStr = $"({start.X:F1}, {start.Y:F1}, {start.Z:F1})",
+                        EndPointStr = $"({end.X:F1}, {end.Y:F1}, {end.Z:F1})",
+                        MemberIndices = new List<int>
+                        {
+                            uniqueEntries[i].member.Index,
+                            uniqueEntries[i + 1].member.Index
+                        }
+                    });
+                }
+
+                if (uniqueEntries.Count > 2)
+                {
+                    var first = uniqueEntries[0];
+                    var last = uniqueEntries[uniqueEntries.Count - 1];
+                    float distance = Math.Abs(first.value - last.value);
+                    var start = makePoint(first.value, first.member);
+                    var end = makePoint(last.value, last.member);
+                    result.Add(new ChainDimensionData
+                    {
+                        Axis = axis,
+                        ViewName = GetViewNameByAxis(axis),
+                        Distance = distance,
+                        StartPoint = start,
+                        EndPoint = end,
+                        StartPointStr = $"({start.X:F1}, {start.Y:F1}, {start.Z:F1})",
+                        EndPointStr = $"({end.X:F1}, {end.Y:F1}, {end.Z:F1})",
+                        IsTotal = true,
+                        MemberIndices = new List<int> { first.member.Index, last.member.Index }
+                    });
+                }
+            }
+
+            for (int i = 0; i < result.Count; i++) result[i].No = i + 1;
+            return result;
         }
     }
 }

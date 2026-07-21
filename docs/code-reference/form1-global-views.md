@@ -1,6 +1,6 @@
 # Form1.GlobalViews.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.GlobalViews.cs` (약 379 라인)
+**경로**: `A2Z/Form1.GlobalViews.cs` (약 345 라인)
 
 **책임**: 글로벌 뷰(ISO/X/Y/Z) 버튼 핸들러, 3가지 경로(시트/X-Ray/전체) 공용 분기 함수, 설치도 치수 추출.
 
@@ -39,14 +39,17 @@
 - **ISO 분기**: 전체 `bomList` 인덱스로 `CreateIsoBalloonNotes`
 
 ### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(List&lt;int&gt; memberIndices)
-- **라인**: L193~L377
+- **라인**: L201~L238
 - **알고리즘** (축별 X/Y/Z 반복):
   1. 각 부재 Min/Max 경계값 수집
   2. 오름차순 정렬 + 1mm tolerance 중복 제거
   3. **설치 체인 치수**: 인접 경계 간 (i, i+1)
-  4. **개별 부재 길이**: mMax - mMin (중복 방지: 전체 범위와 동일하면 스킵)
-  5. **전체 조립 치수**: 처음~끝 (uniqueEntries ≥ 3일 때)
+  4. **전체 조립 치수**: 처음~끝 (uniqueEntries ≥ 3일 때)
 - **후처리**: `lvDimension` 갱신 + `xraySelectedNodeIndices = memberIndices`
+
+### ComputeInstallationDimensions(List&lt;int&gt; memberIndices)
+- **라인**: L241~L342
+- **핵심**: 위 BBox 치수 계산을 UI·SDK 상태 변경 없이 반환. 도면 리스트 표시 전 설치도 치수 사전 준비에 사용
 
 ---
 
