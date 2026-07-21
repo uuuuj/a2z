@@ -619,7 +619,7 @@ namespace A2Z
             DiagLog($"T-064 STRU '{struNode.NodeName}' CollectBOMData success={bomCollected}, bomList={bomList?.Count ?? 0}");
 
             // 3) DetectClash 호출 (비동기) — OnFinished가 자동으로 시트 생성·치수계산까지 진행
-            bool startResult = DetectClash();
+            bool startResult = DetectClash(includeOutsideNeighbors: true);
             DiagLog($"T-064 STRU '{struNode.NodeName}' DetectClash startResult={startResult}");
             if (!startResult)
             {

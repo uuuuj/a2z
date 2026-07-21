@@ -1,6 +1,6 @@
 # Form1.BOM.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.BOM.cs` (약 1,485 라인)
+**경로**: `A2Z/Form1.BOM.cs` (약 850 라인)
 
 **책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드). **라이선스 관리는 [Form1.License.cs](./form1-license.md)로 분리** (T-017, 2026-04-22).
 
@@ -27,13 +27,13 @@
 - **흐름 문서**: [기능/BOM/초기화.md](../기능/BOM/초기화.md)
 
 ### <a id="btnMainDimension_Click"></a>btnMainDimension_Click
-- **라인**: L355~L423
+- **라인**: L331~L397
 - **트리거**: `btnMainDimension` 버튼 클릭
-- **핵심**: BOM → Osnap → MergeCoordinates → X/Y/Z AddChainDimensionByAxis → ShowAllDimensions → DetectClash(비동기)
+- **핵심**: BOM 재수집 → `DetectClash(includeOutsideNeighbors: true)` 비동기 시작(대상 내부 연결성 + 제작도 주변 Part 결과) → 완료 이벤트에서 Osnap·치수·시트 생성
 - **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인 치수 추출.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
-- **라인**: L1490~L1501
+- **라인**: L843~L851
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
 - **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM 수집.md)

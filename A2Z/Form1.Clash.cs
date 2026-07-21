@@ -331,7 +331,7 @@ namespace A2Z
         /// <summary>
         /// Clash Detection 수행 (ClashManager API 사용)
         /// </summary>
-        private bool DetectClash()
+        private bool DetectClash(bool includeOutsideNeighbors = false)
         {
             clashList.Clear();
             lvClash.Items.Clear();
@@ -386,6 +386,53 @@ namespace A2Z
                         if (vizcore3d.Clash.Add(pairClash))
                         {
                             clashCount++;
+                        }
+                    }
+                }
+
+                // 제작도 ISO 점선용: 현재 제작 대상과 모델의 나머지 Part를 한 번 더 그룹 검사한다.
+                // 기존 targetNodes 내부 pair 검사는 시트 연결성 계산용으로 그대로 유지하고,
+                // 이 결과는 GetClashNeighborPartsOutsideSheet에서 시트 밖 주변 부재를 찾을 때만 추가 활용한다.
+                if (includeOutsideNeighbors && targetNodes.Count > 0)
+                {
+                    var targetNodeIndices = new HashSet<int>(targetNodes.Select(n => n.Index));
+                    var targetPartIndices = new HashSet<int>();
+                    foreach (var node in targetNodes)
+                    {
+                        int partIndex;
+                        if (bodyToPartIndexMap.TryGetValue(node.Index, out partIndex))
+                            targetPartIndices.Add(partIndex);
+                    }
+
+                    var outsideNodes = allNodes.Where(n =>
+                    {
+                        if (targetNodeIndices.Contains(n.Index)) return false;
+
+                        int partIndex;
+                        return !bodyToPartIndexMap.TryGetValue(n.Index, out partIndex) ||
+                               !targetPartIndices.Contains(partIndex);
+                    }).ToList();
+
+                    if (outsideNodes.Count > 0)
+                    {
+                        VIZCore3D.NET.Data.ClashTest outsideClash = new VIZCore3D.NET.Data.ClashTest();
+                        outsideClash.Name = "제작도_주변부재_간섭검사";
+                        outsideClash.TestKind = VIZCore3D.NET.Data.ClashTest.ClashTestKind.GROUP_VS_GROUP;
+                        outsideClash.UseClearanceValue = true;
+                        outsideClash.ClearanceValue = 3.0f;
+                        outsideClash.UseRangeValue = true;
+                        outsideClash.RangeValue = 3.0f;
+                        outsideClash.UsePenetrationTolerance = true;
+                        outsideClash.PenetrationTolerance = 1.0f;
+                        outsideClash.VisibleOnly = false;
+                        outsideClash.BottomLevel = 0;
+                        outsideClash.GroupA = targetNodes;
+                        outsideClash.GroupB = outsideNodes;
+
+                        if (vizcore3d.Clash.Add(outsideClash))
+                        {
+                            clashCount++;
+                            DiagLog($"제작도 주변 간섭검사 추가: inside={targetNodes.Count} outside={outsideNodes.Count}");
                         }
                     }
                 }

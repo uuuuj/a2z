@@ -1927,6 +1927,29 @@ namespace A2Z
                     }
 
                     // ── 모델 캡처 — ISO 두 겹(점선 먼저 캡처 → 실선이 위) 또는 단일 (issue #7) ──
+                    Action<int> fitAndPlaceObject = targetObjId =>
+                    {
+                        float fitW = p.Width - 2f * margin;
+                        float fitH = p.Height - 2f * margin;
+                        float objW = 0f, objH = 0f;
+                        vizcore3d.Drawing2D.Object2D.GetObjectSize(targetObjId, ref objW, ref objH);
+                        float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(targetObjId);
+                        if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
+                        {
+                            float fitScale = Math.Min(fitW / objW, fitH / objH);
+                            float shrinkFactor = (viewDir == "Z") ? 0.65f : 0.70f;
+                            vizcore3d.Drawing2D.Object2D.RescaleObject(
+                                targetObjId, objScale * fitScale * shrinkFactor);
+                        }
+
+                        float xOffset = (p.Index == 1) ? 10f
+                                      : (p.Index == 4) ? 20f
+                                      : 0f;
+                        float cx = p.X + p.Width / 2f;
+                        float cy = p.Y + p.Height / 2f;
+                        vizcore3d.Drawing2D.Object2D.MoveObjectTo(targetObjId, cx + xOffset, cy + 15f);
+                    };
+
                     int dashedObjId = -1;
                     if (isoDashedTargets != null)
                     {
@@ -1940,11 +1963,6 @@ namespace A2Z
                                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
                         if (dashedObjId >= 0)
                         {
-                            // LONG_DASHED — 소프트힐스 예제 기본 파선 (issue #7 확정)
-                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineType(dashedObjId,
-                                VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
-                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
-
                             // 제작도: 이웃 점선을 시트 부재 노드 영역 + 여백만 남기고 잘라냄 (issue #7 — CropFit).
                             //   조립도는 전체 구조를 배경으로 보여줘야 하므로 Crop 안 함 (isoFitByDashed=true).
                             //   3D 노드 투영 기준이라 스케일·Match 전(원점 캡처 상태)에 걸어도 남는 지오메트리에 유지됨.
@@ -1955,6 +1973,14 @@ namespace A2Z
                                 DiagLog($"P2 ISO 제작도 이웃 점선 CropFit obj={dashedObjId} " +
                                         $"nodes={sheet.MemberIndices.Count} offset={IsoNeighborCropOffset:F2}");
                             }
+
+                            // LONG_DASHED — 소프트힐스 예제 순서대로 CropFit 뒤에 선 종류를 정의한다.
+                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineType(dashedObjId,
+                                VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
+                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
+
+                            // 예제 순서: 점선 정의(Crop/LineType)와 배치를 끝낸 뒤 실선을 캡처한다.
+                            fitAndPlaceObject(dashedObjId);
                         }
                         else
                         {
@@ -1978,43 +2004,21 @@ namespace A2Z
                         continue;
                     }
 
-                    // ── 영역 fit + 추가 shrink (사용자 사양 2026-05-14: Z=0.65 / X·Y·ISO=0.70) ──
-                    //   두 겹이면 fit 기준 객체 = 조립도: 점선 배경(전체) / 제작도: 실선(시트) — issue #7
-                    int fitObjId = (dashedObjId >= 0 && isoFitByDashed) ? dashedObjId : objId;
-                    float fitW = p.Width - 2f * margin;
-                    float fitH = p.Height - 2f * margin;
-                    float objW = 0f, objH = 0f;
-                    vizcore3d.Drawing2D.Object2D.GetObjectSize(fitObjId, ref objW, ref objH);
-                    float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(fitObjId);
-                    if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
-                    {
-                        float fitScale = Math.Min(fitW / objW, fitH / objH);
-                        float shrinkFactor = (viewDir == "Z") ? 0.65f : 0.70f;
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(fitObjId, objScale * fitScale * shrinkFactor);
-                    }
-
-                    // ── 영역 중심으로 이동 ──
-                    // ISO(View_1) X +10mm / Looking Y(View_4) X +20mm (사용자 사양 2026-05-14: Y뷰 추가 오른쪽)
-                    // Z(View_2), X(View_3)는 그대로. 모두 Y +15mm 공통.
-                    float xOffset = (p.Index == 1) ? 10f
-                                  : (p.Index == 4) ? 20f
-                                  : 0f;
-                    float cx = p.X + p.Width / 2f;
-                    float cy = p.Y + p.Height / 2f;
-                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(fitObjId, cx + xOffset, cy + 15f);
+                    // 단일 캡처는 여기서 영역 fit + 이동. 두 겹은 점선 캡처 직후 이미 배치 완료.
+                    if (dashedObjId < 0)
+                        fitAndPlaceObject(objId);
 
                     // ── 두 겹 정합 — 스케일 통일 후 Match2DObjectsTo3DObjectPosition (SDK 1.0.26.716, issue #7) ──
-                    //   조립도: 실선(기준부재)을 점선 배경 위 제 위치로 / 제작도: 점선(이웃)을 실선 기준으로.
+                    //   조립도·제작도 모두 예제 불변 순서인 Match(이동=실선, 기준=점선)를 사용한다.
                     if (dashedObjId >= 0)
                     {
-                        int moveObjId = isoFitByDashed ? objId : dashedObjId;
-                        float refScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(fitObjId);
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(moveObjId, refScale);
-                        bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(moveObjId, fitObjId);
+                        float refScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(dashedObjId);
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, refScale);
+                        bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(objId, dashedObjId);
                         float dashW = 0f, dashH = 0f;
                         vizcore3d.Drawing2D.Object2D.GetObjectSize(dashedObjId, ref dashW, ref dashH);
                         DiagLog($"P2 ISO 두겹 {(isoFitByDashed ? "조립도" : "제작도")} dash={dashedObjId} solid={objId} " +
-                                $"move={moveObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
+                                $"move={objId} ref={dashedObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
                     }
 
                     // ── 보조선(ShapeDrawing) → 2D 추가 (X/Y/Z만, ISO는 보조선 없음) ──
