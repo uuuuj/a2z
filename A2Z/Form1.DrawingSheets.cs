@@ -1831,7 +1831,47 @@ namespace A2Z
                     if (viewDir != "ISO" && sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
                         ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
 
-                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.25f);
+                    // ── ISO 두 겹 표현 대상 산출 (issue #7, 2026-07-21) ──
+                    //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
+                    //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선 — 프레임 = 시트 fit (이웃 잘림 허용)
+                    //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
+                    List<int> isoDashedTargets = null;   // 점선 캡처 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
+                    List<int> isoSolidTargets = null;    // 실선 캡처 대상
+                    bool isoFitByDashed = false;         // true = 점선(전체 배경) 기준 fit (조립도) / false = 실선 기준 (제작도)
+                    if (viewDir == "ISO")
+                    {
+                        if (sheet.BaseMemberIndex >= 0 && bomList != null && bomList.Count > 1)   // 조립도
+                        {
+                            isoSolidTargets = new List<int> { sheet.BaseMemberIndex };
+                            isoDashedTargets = new List<int>();
+                            foreach (var b in bomList)
+                                if (b.Index != sheet.BaseMemberIndex) isoDashedTargets.Add(b.Index);
+                            isoFitByDashed = true;
+                        }
+                        else if (sheet.BaseMemberIndex == -1)   // 제작도
+                        {
+                            var neighborParts = GetClashNeighborPartsOutsideSheet(sheet.MemberIndices);
+                            DiagLog($"P2 ISO 제작도 시트 밖 간섭 이웃 {neighborParts.Count}개" +
+                                    (neighborParts.Count == 0 ? " — 단일 캡처 폴백 (간섭 데이터에 밖 부재 없음)" : ""));
+                            if (neighborParts.Count > 0)
+                            {
+                                isoSolidTargets = sheet.MemberIndices;
+                                isoDashedTargets = neighborParts;
+                            }
+                        }
+                    }
+
+                    // 카메라 fit — 조립도 두 겹은 전체(점선+실선) 기준, 그 외 시트 부재 기준
+                    if (isoDashedTargets != null && isoFitByDashed)
+                    {
+                        var flyAll = new List<int>(isoDashedTargets);
+                        flyAll.AddRange(isoSolidTargets);
+                        vizcore3d.View.FlyToObject3d(flyAll, 1.25f);
+                    }
+                    else
+                    {
+                        vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.25f);
+                    }
 
                     // ── 뷰별 3D 어노테이션 ──
                     List<int> shapeDrawingIds = null;
@@ -1882,27 +1922,60 @@ namespace A2Z
                         MarkNonRightAngles(sheet.MemberIndices, viewDir);
                     }
 
-                    // ── 모델 4면도 캡처 ──
+                    // ── 모델 캡처 — ISO 두 겹(점선 먼저 캡처 → 실선이 위) 또는 단일 (issue #7) ──
+                    int dashedObjId = -1;
+                    if (isoDashedTargets != null)
+                    {
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(isoDashedTargets, true);
+                        vizcore3d.EndUpdate();
+
+                        dashedObjId = vizcore3d.Drawing2D.Object2D
+                            .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
+                                VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
+                        if (dashedObjId >= 0)
+                        {
+                            // LONG_DASHED — 소프트힐스 예제 기본 파선 (issue #7 확정)
+                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineType(dashedObjId,
+                                VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
+                            vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
+                        }
+                        else
+                        {
+                            DiagLog($"P2 View_{p.Index} 점선 캡처 실패 — 실선 단일로 계속");
+                        }
+
+                        // 실선 대상만 보이기 (두 번째 캡처 준비)
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(isoSolidTargets, true);
+                        vizcore3d.EndUpdate();
+                    }
+
                     int objId = vizcore3d.Drawing2D.Object2D
                         .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                             VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
                     if (objId < 0)
                     {
-                        DiagLog($"P2 View_{p.Index} Object2D 생성 실패 objId={objId}");
+                        DiagLog($"P2 View_{p.Index} Object2D 생성 실패 objId={objId}" +
+                                (dashedObjId >= 0 ? " (점선 캡처는 캔버스에 잔존)" : ""));
                         continue;
                     }
 
                     // ── 영역 fit + 추가 shrink (사용자 사양 2026-05-14: Z=0.65 / X·Y·ISO=0.70) ──
+                    //   두 겹이면 fit 기준 객체 = 조립도: 점선 배경(전체) / 제작도: 실선(시트) — issue #7
+                    int fitObjId = (dashedObjId >= 0 && isoFitByDashed) ? dashedObjId : objId;
                     float fitW = p.Width - 2f * margin;
                     float fitH = p.Height - 2f * margin;
                     float objW = 0f, objH = 0f;
-                    vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objW, ref objH);
-                    float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                    vizcore3d.Drawing2D.Object2D.GetObjectSize(fitObjId, ref objW, ref objH);
+                    float objScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(fitObjId);
                     if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
                     {
                         float fitScale = Math.Min(fitW / objW, fitH / objH);
                         float shrinkFactor = (viewDir == "Z") ? 0.65f : 0.70f;
-                        vizcore3d.Drawing2D.Object2D.RescaleObject(objId, objScale * fitScale * shrinkFactor);
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(fitObjId, objScale * fitScale * shrinkFactor);
                     }
 
                     // ── 영역 중심으로 이동 ──
@@ -1913,7 +1986,21 @@ namespace A2Z
                                   : 0f;
                     float cx = p.X + p.Width / 2f;
                     float cy = p.Y + p.Height / 2f;
-                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(objId, cx + xOffset, cy + 15f);
+                    vizcore3d.Drawing2D.Object2D.MoveObjectTo(fitObjId, cx + xOffset, cy + 15f);
+
+                    // ── 두 겹 정합 — 스케일 통일 후 Match2DObjectsTo3DObjectPosition (SDK 1.0.26.716, issue #7) ──
+                    //   조립도: 실선(기준부재)을 점선 배경 위 제 위치로 / 제작도: 점선(이웃)을 실선 기준으로.
+                    if (dashedObjId >= 0)
+                    {
+                        int moveObjId = isoFitByDashed ? objId : dashedObjId;
+                        float refScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(fitObjId);
+                        vizcore3d.Drawing2D.Object2D.RescaleObject(moveObjId, refScale);
+                        bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(moveObjId, fitObjId);
+                        float dashW = 0f, dashH = 0f;
+                        vizcore3d.Drawing2D.Object2D.GetObjectSize(dashedObjId, ref dashW, ref dashH);
+                        DiagLog($"P2 ISO 두겹 {(isoFitByDashed ? "조립도" : "제작도")} dash={dashedObjId} solid={objId} " +
+                                $"move={moveObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
+                    }
 
                     // ── 보조선(ShapeDrawing) → 2D 추가 (X/Y/Z만, ISO는 보조선 없음) ──
                     if (shapeDrawingIds != null && shapeDrawingIds.Count > 0)
@@ -1965,6 +2052,41 @@ namespace A2Z
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate ERROR: {ex.Message}\n{ex.StackTrace}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// 제작도(Sheet1) ISO 점선 대상 — 간섭검사에서 시트 부재와 붙어 있는 "시트 밖" 부재(Part 인덱스) 산출 (issue #7).
+        /// clashList 쌍(Part 인덱스)의 한쪽만 시트 소속이면 반대쪽을 수집한다.
+        /// 간섭검사가 보이는 부재만 대상이었다면 밖 부재 쌍이 없어 빈 목록일 수 있음 — 호출부가 단일 캡처로 폴백.
+        /// (빈 목록이 계속되면 시트+주변 한정 간섭검사 1회 추가가 후속 후보 — issue #7 3단계 메모)
+        /// </summary>
+        private List<int> GetClashNeighborPartsOutsideSheet(List<int> sheetMemberIndices)
+        {
+            var result = new List<int>();
+            if (clashList == null || clashList.Count == 0 ||
+                sheetMemberIndices == null || sheetMemberIndices.Count == 0 ||
+                bodyToPartIndexMap == null) return result;
+
+            // 시트 부재(Body) → Part 집합
+            var sheetParts = new HashSet<int>();
+            foreach (int body in sheetMemberIndices)
+            {
+                int part;
+                if (bodyToPartIndexMap.TryGetValue(body, out part))
+                    sheetParts.Add(part);
+            }
+            if (sheetParts.Count == 0) return result;
+
+            var outside = new HashSet<int>();
+            foreach (var clash in clashList)
+            {
+                bool in1 = sheetParts.Contains(clash.Index1);
+                bool in2 = sheetParts.Contains(clash.Index2);
+                if (in1 && !in2) outside.Add(clash.Index2);
+                else if (in2 && !in1) outside.Add(clash.Index1);
+            }
+            result.AddRange(outside);
+            return result;
         }
 
         /// <summary>
@@ -2282,37 +2404,36 @@ namespace A2Z
                 shapeDrawingIds = ShowAllDimensions(viewDirection, true, estScale);
             }
 
-            // ── 5. 2패스 2D 투영 (Sheet 2+ ISO: 나머지 부재 가는점선 + 시트 부재 굵은실선) ──
+            // ── 5. 2패스 2D 투영 (조립도 ISO: 전체−기준 LONG_DASHED 점선 배경 + 기준부재만 실선 — issue #7) ──
             int objId;
 
             if (isIsoFullView)
             {
-                // ── Pass 1: 전체 BOM 부재 → 배경 (생성 후 점선으로 변경) ──
+                // ── Pass 1: 전체 − 기준부재 → 점선 배경 ──
+                var bgIndices = new List<int>();
+                foreach (int ix in allBomIndices)
+                    if (ix != sheet.BaseMemberIndex) bgIndices.Add(ix);
+
                 vizcore3d.BeginUpdate();
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
-                vizcore3d.Object3D.Show(allBomIndices, true);
+                vizcore3d.Object3D.Show(bgIndices, true);
                 vizcore3d.EndUpdate();
 
                 bgObjId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                     VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-                // 생성 후 점선 + 가는 선으로 변경
+                // 생성 후 점선 + 가는 선으로 변경 (LONG_DASHED — 소프트힐스 예제 기본 파선, issue #7)
                 vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineType(bgObjId,
-                    VIZCore3D.NET.Data.Object2D_LineTypes.DASHED_DOUBLEDOTTED);
+                    VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
                 vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(bgObjId, 0.15f);
 
-                // ── Pass 2: 시트 부재만 → 전경 (실선) ──
+                // ── Pass 2: 기준부재만 → 전경 (실선, issue #7) ──
                 vizcore3d.BeginUpdate();
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
-                vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                vizcore3d.Object3D.Show(new List<int> { sheet.BaseMemberIndex }, true);
                 vizcore3d.EndUpdate();
 
                 objId = vizcore3d.Drawing2D.Object2D.Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
                     VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
-
-                // 오리진에서 두 객체의 중심 차이 기록 (피팅 전)
-                float bgCX0 = 0f, bgCY0 = 0f, objCX0 = 0f, objCY0 = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCX0, ref bgCY0);
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCX0, ref objCY0);
 
                 // bgObjId를 셀에 배치 + targetHeight 스케일 조정
                 vizcore3d.Drawing2D.Object2D.FitObjectToGridCellAspect(row, col, bgObjId,
@@ -2362,140 +2483,13 @@ namespace A2Z
                     DiagLog($"T-038+039 v4 MoveObject bgObjId={bgObjId} dx={_lastModelShiftCanvasX:F1} dy={_lastModelShiftCanvasY:F1}");
                 }
 
-                // ── T-013 옵션 B — WorldToScreen 기반 3D→캔버스 좌표 변환 (2026-04-21) ──
-                // 옵션 A 실패 확인: objId가 원점(0,0)에 objScale=0.005로 남아 거의 안 보임.
-                // SDK가 두 2D 객체를 자동 매핑하지 않으므로, 3D BBox 중심을 WorldToScreen으로
-                // 캔버스 좌표로 변환해 obj를 bg 내부 원래 위치에 배치한다.
-                //
-                // 알고리즘:
-                //   1. 전체 BOM의 3D BBox 중심 + 시트 부재의 3D BBox 중심 계산 (bomList 사용)
-                //   2. WorldToScreen(center3D, true)로 각각 캔버스 좌표 추출
-                //   3. objId를 bgFinalScale과 동일 스케일로 축소
-                //   4. objId 중심을 (bgCanvasCenter + 화면 좌표 차이)로 이동
-
-                // 1. 전체 BOM의 3D BBox 중심
-                float bgMinX3D = float.MaxValue, bgMinY3D = float.MaxValue, bgMinZ3D = float.MaxValue;
-                float bgMaxX3D = float.MinValue, bgMaxY3D = float.MinValue, bgMaxZ3D = float.MinValue;
-                foreach (int idx in allBomIndices)
-                {
-                    BOMData b = bomList.FirstOrDefault(x => x.Index == idx);
-                    if (b == null) continue;
-                    bgMinX3D = System.Math.Min(bgMinX3D, b.MinX); bgMaxX3D = System.Math.Max(bgMaxX3D, b.MaxX);
-                    bgMinY3D = System.Math.Min(bgMinY3D, b.MinY); bgMaxY3D = System.Math.Max(bgMaxY3D, b.MaxY);
-                    bgMinZ3D = System.Math.Min(bgMinZ3D, b.MinZ); bgMaxZ3D = System.Math.Max(bgMaxZ3D, b.MaxZ);
-                }
-                var bgCenter3D = new VIZCore3D.NET.Data.Vertex3D(
-                    (bgMinX3D + bgMaxX3D) / 2f,
-                    (bgMinY3D + bgMaxY3D) / 2f,
-                    (bgMinZ3D + bgMaxZ3D) / 2f);
-
-                // 2. 시트 부재의 3D BBox 중심
-                float objMinX3D = float.MaxValue, objMinY3D = float.MaxValue, objMinZ3D = float.MaxValue;
-                float objMaxX3D = float.MinValue, objMaxY3D = float.MinValue, objMaxZ3D = float.MinValue;
-                foreach (int idx in sheet.MemberIndices)
-                {
-                    BOMData b = bomList.FirstOrDefault(x => x.Index == idx);
-                    if (b == null) continue;
-                    objMinX3D = System.Math.Min(objMinX3D, b.MinX); objMaxX3D = System.Math.Max(objMaxX3D, b.MaxX);
-                    objMinY3D = System.Math.Min(objMinY3D, b.MinY); objMaxY3D = System.Math.Max(objMaxY3D, b.MaxY);
-                    objMinZ3D = System.Math.Min(objMinZ3D, b.MinZ); objMaxZ3D = System.Math.Max(objMaxZ3D, b.MaxZ);
-                }
-                var objCenter3D = new VIZCore3D.NET.Data.Vertex3D(
-                    (objMinX3D + objMaxX3D) / 2f,
-                    (objMinY3D + objMaxY3D) / 2f,
-                    (objMinZ3D + objMaxZ3D) / 2f);
-
-                // 3. WorldToScreen으로 캔버스 좌표 추출 (VIZCore3D.NET.xml:63853)
-                var bgScreenC = vizcore3d.View.WorldToScreen(bgCenter3D, true);
-                var objScreenC = vizcore3d.View.WorldToScreen(objCenter3D, true);
-
-                // 3-1. bg의 3D BBox 8개 꼭지점 → WorldToScreen → 원본 캔버스 BBox 계산
-                //      (bgFinalScale 단독으론 스케일 체인 불일치 → bgCanvasSize / bgScreenBBox 비율 필요)
-                var bgCornersScreen = new VIZCore3D.NET.Data.Vertex3D[8];
-                bgCornersScreen[0] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMinY3D, bgMinZ3D), true);
-                bgCornersScreen[1] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMinY3D, bgMinZ3D), true);
-                bgCornersScreen[2] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMaxY3D, bgMinZ3D), true);
-                bgCornersScreen[3] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMinY3D, bgMaxZ3D), true);
-                bgCornersScreen[4] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMaxY3D, bgMinZ3D), true);
-                bgCornersScreen[5] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMinY3D, bgMaxZ3D), true);
-                bgCornersScreen[6] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMinX3D, bgMaxY3D, bgMaxZ3D), true);
-                bgCornersScreen[7] = vizcore3d.View.WorldToScreen(new VIZCore3D.NET.Data.Vertex3D(bgMaxX3D, bgMaxY3D, bgMaxZ3D), true);
-
-                float bgScreenMinX = float.MaxValue, bgScreenMinY = float.MaxValue;
-                float bgScreenMaxX = float.MinValue, bgScreenMaxY = float.MinValue;
-                for (int k = 0; k < 8; k++)
-                {
-                    bgScreenMinX = System.Math.Min(bgScreenMinX, bgCornersScreen[k].X);
-                    bgScreenMinY = System.Math.Min(bgScreenMinY, bgCornersScreen[k].Y);
-                    bgScreenMaxX = System.Math.Max(bgScreenMaxX, bgCornersScreen[k].X);
-                    bgScreenMaxY = System.Math.Max(bgScreenMaxY, bgCornersScreen[k].Y);
-                }
-                float bgScreenW = bgScreenMaxX - bgScreenMinX;
-                float bgScreenH = bgScreenMaxY - bgScreenMinY;
-
-                // 4. objId를 bgFinalScale로 맞추고 위치 이동
+                // ── 두 겹 정합 — Match2DObjectsTo3DObjectPosition (SDK 1.0.26.716, issue #7) ──
+                //   T-013 수동 정렬(WorldToScreen 3D→캔버스 변환 + 8꼭지점 비율 보정, 옵션 B) 전부 대체.
+                //   스케일을 배경 최종 스케일로 통일한 뒤, SDK가 두 캡처의 3D 위치 기준으로 전경을 제 위치에 겹친다.
                 float bgFinalScaleB = vizcore3d.Drawing2D.Object2D.GetObjectScale(bgObjId);
                 vizcore3d.Drawing2D.Object2D.RescaleObject(objId, bgFinalScaleB);
-
-                float bgCX1B = 0f, bgCY1B = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(bgObjId, ref bgCX1B, ref bgCY1B);
-                float objCXB = 0f, objCYB = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objCXB, ref objCYB);
-
-                float dScreenX = objScreenC.X - bgScreenC.X;
-                float dScreenY = objScreenC.Y - bgScreenC.Y;
-
-                // T-013 옵션 B 재수정 (2차): bgFinalScale 단독 곱으론 부족.
-                // 정확한 변환: dScreen(원본 캔버스 단위) → (bgCanvasSize / bgScreenBBox) 비율 → 현재 렌더 단위
-                // 실측 검증: dScreen.Y=195.97 × (30.0/bgScreenH) ≈ 7.3mm (offsetRatio.Z=0.244 × 30=7.32mm와 일치)
-                float bgCanvasWRef = 0f, bgCanvasHRef = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(bgObjId, ref bgCanvasWRef, ref bgCanvasHRef);
-                float ratioX = bgScreenW > 0 ? bgCanvasWRef / bgScreenW : 1f;
-                float ratioY = bgScreenH > 0 ? bgCanvasHRef / bgScreenH : 1f;
-                float targetX = bgCX1B + dScreenX * ratioX;
-                float targetY = bgCY1B + dScreenY * ratioY;
-                float moveX = targetX - objCXB;
-                float moveY = targetY - objCYB;
-
-                vizcore3d.Drawing2D.Object2D.MoveObject(objId, moveX, moveY);
-
-                // 이동 후 objId의 실제 최종 중심·크기 — MoveObject가 실제로 적용되었는지 검증용
-                float objFinalCX = 0f, objFinalCY = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(objId, ref objFinalCX, ref objFinalCY);
-                float objFinalW = 0f, objFinalH = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(objId, ref objFinalW, ref objFinalH);
-
-                // BBox 크기와 상대 오프셋 비율 추가 — obj가 bg 내 어디에 있는지 판정용
-                float bgW3D = bgMaxX3D - bgMinX3D;
-                float bgH3D = bgMaxY3D - bgMinY3D;
-                float bgD3D = bgMaxZ3D - bgMinZ3D;
-                float objW3D = objMaxX3D - objMinX3D;
-                float objH3D = objMaxY3D - objMinY3D;
-                float objD3D = objMaxZ3D - objMinZ3D;
-                float offsetRatioX = bgW3D > 0 ? (objCenter3D.X - bgCenter3D.X) / bgW3D : 0;
-                float offsetRatioY = bgH3D > 0 ? (objCenter3D.Y - bgCenter3D.Y) / bgH3D : 0;
-                float offsetRatioZ = bgD3D > 0 ? (objCenter3D.Z - bgCenter3D.Z) / bgD3D : 0;
-
-                // bgObjId의 현재 캔버스 크기 (bgFinalScale 반영 후)
-                float bgCanvasW = 0f, bgCanvasH = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(bgObjId, ref bgCanvasW, ref bgCanvasH);
-
-                DiagLog($"RenderSheet ISO OPT-B2 bgObjId={bgObjId} objId={objId} " +
-                    $"bg3D=({bgCenter3D.X:F1},{bgCenter3D.Y:F1},{bgCenter3D.Z:F1}) " +
-                    $"obj3D=({objCenter3D.X:F1},{objCenter3D.Y:F1},{objCenter3D.Z:F1}) " +
-                    $"bgSize3D=({bgW3D:F0}x{bgH3D:F0}x{bgD3D:F0}) " +
-                    $"objSize3D=({objW3D:F0}x{objH3D:F0}x{objD3D:F0}) " +
-                    $"offsetRatio=({offsetRatioX:F3},{offsetRatioY:F3},{offsetRatioZ:F3}) " +
-                    $"bgScreen=({bgScreenC.X:F2},{bgScreenC.Y:F2}) " +
-                    $"objScreen=({objScreenC.X:F2},{objScreenC.Y:F2}) " +
-                    $"dScreen=({dScreenX:F2},{dScreenY:F2}) " +
-                    $"bgScreenBBox=({bgScreenW:F2}x{bgScreenH:F2}) " +
-                    $"bgCanvas=({bgCX1B:F2},{bgCY1B:F2}) bgCanvasSize=({bgCanvasW:F1}x{bgCanvasH:F1}) " +
-                    $"ratio=({ratioX:F4},{ratioY:F4}) " +
-                    $"target=({targetX:F2},{targetY:F2}) " +
-                    $"move=({moveX:F2},{moveY:F2}) " +
-                    $"objFinal=({objFinalCX:F2},{objFinalCY:F2}) objFinalSize=({objFinalW:F2}x{objFinalH:F2}) " +
-                    $"scale={bgFinalScaleB:F4}");
+                bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(objId, bgObjId);
+                DiagLog($"RenderSheet ISO Match bg={bgObjId} obj={objId} scale={bgFinalScaleB:F4} matched={matched}");
             }
             else
             {
