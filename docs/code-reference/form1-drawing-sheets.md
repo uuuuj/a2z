@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,730 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,860 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -10,55 +10,59 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L570 | [lv-sheet-selected](../기능/도면시트/시트 선택.md) |
-| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1084 | [drawing-iso](../기능/도면시트/ISO 도면.md) |
-| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1089 | [drawing-axis-x](../기능/도면시트/X축 도면.md) |
-| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1094 | [drawing-axis-y](../기능/도면시트/Y축 도면.md) |
-| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1099 | [drawing-axis-z](../기능/도면시트/Z축 도면.md) |
-| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1107 | [generate-sheet-2d](../기능/도면시트/시트 2D 렌더.md) |
-| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1135 | [export-sheet-2d-pdf](../기능/도면시트/시트 PDF 출력.md) |
+| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L571 | [lv-sheet-selected](../기능/도면시트/시트 선택.md) |
+| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1090 | [drawing-iso](../기능/도면시트/ISO 도면.md) |
+| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1095 | [drawing-axis-x](../기능/도면시트/X축 도면.md) |
+| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1100 | [drawing-axis-y](../기능/도면시트/Y축 도면.md) |
+| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1105 | [drawing-axis-z](../기능/도면시트/Z축 도면.md) |
+| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1113 | [generate-sheet-2d](../기능/도면시트/시트 2D 렌더.md) |
+| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1141 | [export-sheet-2d-pdf](../기능/도면시트/시트 PDF 출력.md) |
 
 ---
 
 ## 핵심 내부 메서드
 
 ### <a id="GenerateDrawingSheets"></a>GenerateDrawingSheets
-- **라인**: L18~L481
+- **라인**: L18~L482
 - **알고리즘**:
   1. **Sheet 1**: 전체 BOM 부재 묶음
   2. **Sheet 2~N**: 각 BOM 부재 시작점 BFS, Clash 인접 리스트 확장
-  3. **마지막 Sheet**: 전체 설치도 (전역 BFS)
+  3. **설치도**: 선택 STRU 전체 + 직접 연결 외부 Assembly와 실제 BODY 접합영역 준비
   4. 중복 구성 일반 시트 제거·재채번
   5. 일반·설치 치수와 모든 시트 BOM을 사전 준비한 뒤 ListView 표시
 
 ### PrepareDrawingSheetDimensionCaches / ApplyPreparedDimensionsToUi
-- **라인**: L483~L567
-- **핵심**: Sheet 1 기존 치수 결과 재사용 → 일반 시트 Osnap 치수 선계산 → 설치도 BBox 치수 선계산. 선택 시에는 준비 목록을 `chainDimensionList`·`lvDimension`에 복사
+- **라인**: L484~L568
+- **핵심**: Sheet 1 기존 치수 결과 재사용 → 일반 시트 Osnap 치수 선계산 → 설치도 Assembly 전체 Osnap·접합영역 치수 선계산. 선택 시에는 준비 목록을 `chainDimensionList`·`lvDimension`에 복사
 
 ### ApplySheetSelection
-- **라인**: L588~L769
-- **핵심**: 애니메이션 없는 모델 전환 → 일반·설치 시트 준비 치수 적용 → 준비 BOM 적용. 로그에 장면·치수·BOM·전체 시간을 분리 기록
+- **라인**: L589~L775
+- **핵심**: 애니메이션 없는 모델 전환 → 일반 시트는 MemberIndices, 설치도는 STRU+외부 연결 Assembly 표시 → 준비 치수·BOM 적용. 로그에 장면·치수·BOM·전체 시간을 분리 기록
 
 ### <a id="ApplyDrawingSheetView"></a>ApplyDrawingSheetView(string viewDirection)
-- **라인**: L810~L908
-- **ISO 경로**: X-Ray 활성 → `ExtractInstallationDimensions` → ISO 카메라 → `CreateIsoBalloonNotes`
+- **라인**: L808~L906
+- **ISO 경로**: 설치도 표시 대상(STRU+외부 연결 Assembly) 활성 → 설치 준비 치수 적용 → ISO 카메라 → 선택 STRU 풍선
 - **X/Y/Z 경로**: X-Ray 유지 → 측정/노트 Clear → 해당 축 카메라 → `ShowAllDimensions(axis)`
 
 ### <a id="CreateIsoBalloonNotes"></a>CreateIsoBalloonNotes(memberIndices, forDrawing2D=false)
-- **라인**: L910+
+- **라인**: L916+
 - **핵심**: ISO_PLUS 등각 투영 2D 근사 (0.707f, 0.408f, 0.816f) → 3D 방향 계산 → 2D AABB 겹침 검사 → 36회 회전 시도 → `Review.Note.AddNoteSurface`
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L1211+
+- **라인**: L1217+
 - **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
-- **라인**: L1561+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21 — 슬롯 초기값으로 선별: BOM·Note·Rev 위 4행만 제거, PAINT/DP/TAG·Rev 첫 기재행은 공백 위장 보존) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더. ISO는 두 겹 — 조립도: 전체−기준 LONG_DASHED 점선+기준부재 실선 / 제작도: `시트 부재+연결 부재` 점선 배경 캡처 → 시트 부재 노드 기준 CropFit → LONG_DASHED → 점선 fit → 시트 부재 실선 캡처 → `Match2DObjectsTo3DObjectPosition(실선, 점선)` 정합 → 점선 객체를 선택해 Clash 월드 좌표에 연결 Assembly 이름 2D 노트 생성
+- **라인**: L1567+
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Assembly 전체 LONG_DASHED 점선으로 두 겹 캡처·Match하고, 접합 중심에 ISO 이름 또는 A/A1 기호를 투영한다.
+
+### GetDrawingSheetDisplayIndices
+- **라인**: L2158~L2168
+- **역할**: 일반 시트는 `MemberIndices`, 설치도는 `MemberIndices + InstallationContextIndices`를 반환해 선택·카메라 fit·2D 축척의 단일 표시 기준으로 사용
 
 ### GetFabricationNeighborAssemblyNotes / FindNearestParentAssembly
-- **라인**: L2120~L2195
+- **라인**: L2206~L2283
 - **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
@@ -97,6 +101,7 @@
 - `vizcore3d.Review.Note.AddNoteSurface(text, textPos, arrowPos)`
 - `vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(title, target, label)`
 - `Node.Kind`, `Node.ParentIndex`, `Object3D.FromIndex` (연결 Part의 가장 가까운 부모 Assembly 이름 탐색)
+- `DrawingSheetData.InstallationContextIndices`, `InstallationConnections` (설치도 외부 Assembly·접합영역 스냅샷)
 
 ---
 

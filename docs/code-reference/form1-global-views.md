@@ -1,6 +1,6 @@
 # Form1.GlobalViews.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.GlobalViews.cs` (약 345 라인)
+**경로**: `A2Z/Form1.GlobalViews.cs` (약 760 라인)
 
 **책임**: 글로벌 뷰(ISO/X/Y/Z) 버튼 핸들러, 3가지 경로(시트/X-Ray/전체) 공용 분기 함수, 설치도 치수 추출.
 
@@ -38,18 +38,24 @@
 - **핵심**: X-Ray 해제 + `xraySelectedNodeIndices.Clear()` → `RestoreAllPartsVisibility()` → `FitToView()`
 - **ISO 분기**: 전체 `bomList` 인덱스로 `CreateIsoBalloonNotes`
 
-### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(List&lt;int&gt; memberIndices)
-- **라인**: L201~L238
-- **알고리즘** (축별 X/Y/Z 반복):
-  1. 각 부재 Min/Max 경계값 수집
-  2. 오름차순 정렬 + 1mm tolerance 중복 제거
-  3. **설치 체인 치수**: 인접 경계 간 (i, i+1)
-  4. **전체 조립 치수**: 처음~끝 (uniqueEntries ≥ 3일 때)
-- **후처리**: `lvDimension` 갱신 + `xraySelectedNodeIndices = memberIndices`
+### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(DrawingSheetData sheet)
+- **라인**: L203~L238
+- **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상을 STRU+외부 연결 Assembly로 갱신
 
-### ComputeInstallationDimensions(List&lt;int&gt; memberIndices)
-- **라인**: L241~L342
-- **핵심**: 위 BBox 치수 계산을 UI·SDK 상태 변경 없이 반환. 도면 리스트 표시 전 설치도 치수 사전 준비에 사용
+### PrepareInstallationConnectionData(DrawingSheetData sheet)
+- **라인**: L244~L370
+- **알고리즘**:
+  1. 제작 대상과 설치 시트 BODY 집합 일치 확인
+  2. 외부 연결 Clash의 Part 쌍별 하위 BODY 조합 생성
+  3. BBox 0.5mm 필터 후 `GeometryUtility.GetObjectCollisionLine(bodyA, bodyB)` 조회
+  4. 이어진 선분은 1mm tolerance로 한 접합 영역, 떨어진 선분은 별도 영역으로 분리
+  5. 접합선이 없으면 `GetJunctionMesh`, 그마저 없으면 HotPoint 근접 fallback
+  6. 접합점은 BODY LINE/POINT Osnap 3mm 이내 스냅, Assembly별 A/B/C 및 A1/A2 라벨 부여
+
+### ComputeInstallationDimensions(DrawingSheetData sheet)
+- **라인**: L650~L737
+- **핵심**: X뷰=Z/Y, Y뷰=Z/X, Z뷰=Y/X 순으로 선택 STRU·연결 Assembly 전체 Osnap MIN/MAX 치수와 `연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX` 필수 체인 치수 생성
+- **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---
 
@@ -82,6 +88,9 @@
 - `vizcore3d.View.FlyToObject3d(indices, zoomFactor)`, `FitToView()`
 - `vizcore3d.View.SetRenderMode(RenderModes.DASH_LINE)`
 - `vizcore3d.Review.Note.Clear()`, `Measure.Clear()`, `ShapeDrawing.Clear()`
+- `vizcore3d.GeometryUtility.GetObjectCollisionLine(bodyA, bodyB)`
+- `vizcore3d.GeometryUtility.GetJunctionMesh(bodyA, bodyB, false)`
+- `vizcore3d.Object3D.GetOsnapPoint(bodyIndex)`, `GetChildObject3d(...)`, `GetBoundBox(...)`
 
 ---
 

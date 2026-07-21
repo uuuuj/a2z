@@ -349,11 +349,22 @@ namespace A2Z
             }
 
             AssignInstallationConnectionLabels(sheet.InstallationConnections);
-            sheet.InstallationContextIndices.AddRange(sheet.InstallationConnections
+            var contextAssemblyIndices = new HashSet<int>(sheet.InstallationConnections
                 .Select(c => c.ConnectedAssemblyIndex)
-                .Where(index => index >= 0)
-                .Distinct()
-                .OrderBy(index => index));
+                .Where(index => index >= 0));
+            foreach (int neighborPartIndex in fabricationNeighborPartIndices)
+            {
+                try
+                {
+                    var neighborPart = vizcore3d.Object3D.FromIndex(neighborPartIndex);
+                    var neighborAssembly = FindNearestParentAssembly(neighborPart);
+                    contextAssemblyIndices.Add(neighborAssembly != null
+                        ? neighborAssembly.Index
+                        : neighborPartIndex);
+                }
+                catch { }
+            }
+            sheet.InstallationContextIndices.AddRange(contextAssemblyIndices.OrderBy(index => index));
 
             DiagLog($"설치도 연결 영역 준비 완료: assemblies={sheet.InstallationContextIndices.Count} " +
                     $"areas={sheet.InstallationConnections.Count} " +
@@ -586,7 +597,9 @@ namespace A2Z
 
         private List<VIZCore3D.NET.Data.Vector3D> GetInstallationReferencePoints(IEnumerable<int> bodyIndices)
         {
+            if (bodyIndices == null) return new List<VIZCore3D.NET.Data.Vector3D>();
             var indices = bodyIndices.Distinct().ToList();
+            if (indices.Count == 0) return new List<VIZCore3D.NET.Data.Vector3D>();
             var points = GetLinePointOsnaps(indices);
             if (points.Count > 0) return points;
 
