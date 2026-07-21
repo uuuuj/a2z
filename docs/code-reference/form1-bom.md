@@ -1,6 +1,6 @@
 # Form1.BOM.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.BOM.cs` (약 850 라인)
+**경로**: `A2Z/Form1.BOM.cs` (약 860 라인)
 
 **책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드). **라이선스 관리는 [Form1.License.cs](./form1-license.md)로 분리** (T-017, 2026-04-22).
 
@@ -9,31 +9,31 @@
 ## 주요 핸들러 · 메서드
 
 ### <a id="vizcore3d-oninitialized"></a>Vizcore3d_OnInitializedVIZCore3D
-- **라인**: L135~L158
+- **라인**: L136~L166
 - **트리거**: `vizcore3d.OnInitializedVIZCore3D`
 - **핵심**: `InitializeLicense()` 위임(Form1.License.cs) → ToolbarDrawing2D·ModelTree 표시 → Clash/Object3D 이벤트 구독 → 엣지 데이터 생성 활성화
 - **흐름 문서**: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D 초기화.md)
 
 ### <a id="btnOpen_Click"></a>btnOpen_Click
-- **라인**: L209~L278
+- **라인**: L168~L248
 - **트리거**: `btnOpen` 버튼 클릭
 - **핵심**: OpenFileDialog → 상태 완전 초기화 → `Model.Open` → FitToView + SilhouetteEdge + BuildBodyToPartNameMap
 - **흐름 문서**: [기능/BOM/모델 열기.md](../기능/BOM/모델 열기.md)
 
 ### <a id="btnResetToInitial_Click"></a>btnResetToInitial_Click
-- **라인**: L283~L302
+- **라인**: L250~L270
 - **트리거**: `btnResetToInitial` 버튼 클릭 (3D 뷰어 상단 글로벌 뷰 버튼 줄 제일 왼쪽, 회색)
 - **핵심**: 가드 체크(`currentFilePath` + `Model.IsOpen`) → 확인 다이얼로그 → `ResetToInitialState()` 위임
 - **흐름 문서**: [기능/BOM/초기화.md](../기능/BOM/초기화.md)
 
 ### <a id="btnMainDimension_Click"></a>btnMainDimension_Click
-- **라인**: L331~L397
+- **라인**: L332~L398
 - **트리거**: `btnMainDimension` 버튼 클릭
 - **핵심**: BOM 재수집 → `DetectClash(includeOutsideNeighbors: true)` 비동기 시작(대상 내부 연결성 + 제작도 주변 Part 결과) → 완료 이벤트에서 Osnap·치수·시트 생성
 - **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인 치수 추출.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
-- **라인**: L843~L851
+- **라인**: L844~L857
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
 - **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM 수집.md)
@@ -44,14 +44,14 @@
 
 | 메서드 | 라인 | 역할 |
 |---|---|---|
-| `ResetToInitialState` | L287~L333 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
+| `ResetToInitialState` | L272~L330 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
 | `CollectAllOsnap` | (후행 라인) | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영 |
 | `CollectBOMInfo` | L20 (Clash.cs) | 도면정보 탭용 그룹 수집 |
 | `CollectBOMData` | (BOM 수집 내부) | bomList 채우는 핵심 로직 |
 | `DetectHoles` | (홀 감지 내부) | 원형/슬롯형 홀 자동 인식 |
-| `BuildBodyToPartNameMap` | (모델 로드 후) | Body↔Part 캐시 구축 |
-| `GetPartNameFromBodyIndex` | L104 | Body Index → Part 풀네임 역조회 |
-| `GetHoleOrSlotForPoint` | L1395 | Osnap 좌표에 대응하는 홀/슬롯홀 사이즈 찾기 |
+| `BuildBodyToPartNameMap` | L37 | Body↔Part 캐시 구축 + 제작도 연결 후보 BBox 캐시 초기화 |
+| `GetPartNameFromBodyIndex` | L105 | Body Index → Part 풀네임 역조회 |
+| `DetectHoles` | L785 | BOM 부재의 원형·슬롯형 홀 감지 |
 
 ---
 
@@ -67,6 +67,7 @@
 | `chainDimensionList` | List&lt;ChainDimensionData&gt; | 체인 치수 |
 | `xraySelectedNodeIndices` | List&lt;int&gt; | X-Ray 선택 부재 |
 | `bodyToPartNameMap` / `bodyToPartIndexMap` | Dict | Body→Part 캐시 |
+| 제작도 연결 후보 캐시 | Dict / HashSet | 전체 Body BBox·실제 부모 Part 캐시와 근접 후보 Clash 결과 |
 | `currentFilePath` | string | 현재 로드된 파일 경로 |
 | `_autoProcessOsnapSuccess` | bool | 자동 파이프라인 Osnap 성공 플래그 |
 

@@ -2079,38 +2079,25 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 제작도(Sheet1) ISO 점선 대상 — 간섭검사에서 시트 부재와 붙어 있는 "시트 밖" 부재(Part 인덱스) 산출 (issue #7).
-        /// clashList 쌍(Part 인덱스)의 한쪽만 시트 소속이면 반대쪽을 수집한다.
-        /// 간섭검사가 보이는 부재만 대상이었다면 밖 부재 쌍이 없어 빈 목록일 수 있음 — 호출부가 단일 캡처로 폴백.
-        /// (빈 목록이 계속되면 시트+주변 한정 간섭검사 1회 추가가 후속 후보 — issue #7 3단계 메모)
+        /// 제작도(Sheet1) ISO 점선 대상 — Bounding Box 근접 후보에 대한 전용 Clash 결과의 연결 Part를 반환한다.
+        /// 현재 시트가 검사 당시 제작 대상과 다르면 오래된 결과를 사용하지 않는다.
         /// </summary>
         private List<int> GetClashNeighborPartsOutsideSheet(List<int> sheetMemberIndices)
         {
-            var result = new List<int>();
-            if (clashList == null || clashList.Count == 0 ||
-                sheetMemberIndices == null || sheetMemberIndices.Count == 0 ||
-                bodyToPartIndexMap == null) return result;
+            if (sheetMemberIndices == null || sheetMemberIndices.Count == 0 ||
+                fabricationTargetBodyIndices == null ||
+                fabricationNeighborPartIndices == null)
+                return new List<int>();
 
-            // 시트 부재(Body) → Part 집합
-            var sheetParts = new HashSet<int>();
-            foreach (int body in sheetMemberIndices)
+            var sheetBodies = new HashSet<int>(sheetMemberIndices);
+            if (!fabricationTargetBodyIndices.SetEquals(sheetBodies))
             {
-                int part;
-                if (bodyToPartIndexMap.TryGetValue(body, out part))
-                    sheetParts.Add(part);
+                DiagLog($"P2 ISO 제작도 연결 결과 불일치: " +
+                        $"tested={fabricationTargetBodyIndices.Count} sheet={sheetBodies.Count}");
+                return new List<int>();
             }
-            if (sheetParts.Count == 0) return result;
 
-            var outside = new HashSet<int>();
-            foreach (var clash in clashList)
-            {
-                bool in1 = sheetParts.Contains(clash.Index1);
-                bool in2 = sheetParts.Contains(clash.Index2);
-                if (in1 && !in2) outside.Add(clash.Index2);
-                else if (in2 && !in1) outside.Add(clash.Index1);
-            }
-            result.AddRange(outside);
-            return result;
+            return fabricationNeighborPartIndices.OrderBy(index => index).ToList();
         }
 
         /// <summary>

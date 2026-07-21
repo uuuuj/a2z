@@ -456,13 +456,14 @@
 - **구현**:
   - [x] `Match2DObjectsTo3DObjectPosition(실선, 점선)`으로 옛 WorldToScreen 수동 정합 교체
   - [x] 조립도: 전체−기준부재 LONG_DASHED 점선 + 기준부재 실선
-  - [x] 제작도: 현재 제작 대상 대 모델 나머지 Part 그룹 간섭검사 추가로 시트 밖 이웃 확보
+  - [x] 제작도: 전체 Body BBox·실제 부모 Part 1회 캐시 → 3mm 근접 후보 선별 → 후보만 전용 그룹 간섭검사
+  - [x] 제작도: 연결 결과를 내부 연결성 `clashList`와 분리하고 `lvClash`에 `[연결]` 목록 표시
   - [x] 제작도: 이웃 캡처 → CropFit → LONG_DASHED → 점선 fit → 실선 캡처 → Match 순서 적용
   - [x] 조립도: 실기 정상인 기존 캡처·배치 순서 유지(제작도 전용 순서 변경에서 제외)
-  - [x] C# 컴파일 오류 0건 (`A2Z.exe` 실행 중이라 전체 Build의 출력 복사 단계만 잠김)
+  - [x] C# Compile 오류 0건 (기존 경고 7건)
 - **사용자 확인 필요**:
   - [ ] 제작도 ISO에 붙어 있는 주변 부재가 점선으로 표시되는지
-  - [ ] 주변 부재가 0개면 연결 정의(Clash 허용거리 / 조립 트리 / UDA)와 전용 탐색 결과 저장 구조 확정
+  - [ ] 진단 로그의 BBox 캐시 시간·근접 후보 수·원본 Clash 결과·상대 Part 목록 확인
   - [ ] Crop 범위가 붙은 부위 주변만 남기며 너무 좁거나 넓지 않은지
   - [ ] 실선과 점선의 3D 위치가 맞고 PDF에서도 LONG_DASHED로 출력되는지
 - **영향 파일**: `A2Z/Form1.Clash.cs`, `A2Z/Form1.BOM.cs`, `A2Z/Form1.Stru.cs`, `A2Z/Form1.DrawingSheets.cs`, 관련 흐름·코드 레퍼런스 문서

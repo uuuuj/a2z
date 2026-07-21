@@ -328,6 +328,188 @@ namespace A2Z
             }
         }
 
+        private void ResetFabricationNeighborSearchCache()
+        {
+            fabricationBodyBoundsCache.Clear();
+            fabricationBodyToPartIndexCache.Clear();
+            fabricationNeighborCacheSourceBodyCount = -1;
+            ClearFabricationNeighborResults();
+        }
+
+        private void ClearFabricationNeighborResults()
+        {
+            fabricationNeighborClashList.Clear();
+            fabricationNeighborPartIndices.Clear();
+            fabricationTargetBodyIndices.Clear();
+            fabricationTargetPartIndices.Clear();
+        }
+
+        /// <summary>
+        /// 모델 Body별 Bounding Box와 실제 부모 Part를 한 번만 수집한다.
+        /// 이후 제작 대상이 바뀌어도 캐시를 재사용하고, 모델 재로드 시 BuildBodyToPartNameMap에서 초기화한다.
+        /// </summary>
+        private bool EnsureFabricationNeighborSearchCache(List<VIZCore3D.NET.Data.Node> allBodyNodes)
+        {
+            if (allBodyNodes == null || allBodyNodes.Count == 0) return false;
+
+            bool cacheComplete = fabricationNeighborCacheSourceBodyCount == allBodyNodes.Count &&
+                                 fabricationBodyBoundsCache.Count > 0;
+            if (cacheComplete) return true;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            fabricationBodyBoundsCache.Clear();
+            fabricationBodyToPartIndexCache.Clear();
+            fabricationNeighborCacheSourceBodyCount = allBodyNodes.Count;
+
+            List<VIZCore3D.NET.Data.Node> partNodes =
+                vizcore3d.Object3D.GetPartialNode(false, true, false);
+            var partIndices = new HashSet<int>(
+                partNodes != null ? partNodes.Select(p => p.Index) : Enumerable.Empty<int>());
+
+            foreach (var body in allBodyNodes)
+            {
+                try
+                {
+                    var bbox = vizcore3d.Object3D.GetBoundBox(
+                        new List<int> { body.Index }, false);
+                    if (bbox != null)
+                    {
+                        fabricationBodyBoundsCache[body.Index] = new BodyBoundsData
+                        {
+                            MinX = bbox.MinX,
+                            MinY = bbox.MinY,
+                            MinZ = bbox.MinZ,
+                            MaxX = bbox.MaxX,
+                            MaxY = bbox.MaxY,
+                            MaxZ = bbox.MaxZ
+                        };
+                    }
+
+                    int partIndex = ResolveActualParentPartIndex(body, partIndices);
+                    if (partIndex >= 0)
+                        fabricationBodyToPartIndexCache[body.Index] = partIndex;
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"제작도 연결 후보 캐시 실패: body={body.Index} name='{body.NodeName}' {ex.Message}");
+                }
+            }
+
+            sw.Stop();
+            DiagLog($"제작도 연결 후보 캐시 완료: body={allBodyNodes.Count} " +
+                    $"bbox={fabricationBodyBoundsCache.Count} part={fabricationBodyToPartIndexCache.Count} " +
+                    $"elapsed={sw.ElapsedMilliseconds}ms");
+            return fabricationBodyBoundsCache.Count > 0;
+        }
+
+        private int ResolveActualParentPartIndex(
+            VIZCore3D.NET.Data.Node body,
+            HashSet<int> partIndices)
+        {
+            if (body == null) return -1;
+            if (partIndices.Contains(body.Index)) return body.Index;
+
+            int currentIndex = body.ParentIndex;
+            for (int depth = 0; depth < 20 && currentIndex >= 0; depth++)
+            {
+                if (partIndices.Contains(currentIndex)) return currentIndex;
+
+                VIZCore3D.NET.Data.Node parent = vizcore3d.Object3D.FromIndex(currentIndex);
+                if (parent == null || parent.ParentIndex == currentIndex) break;
+                currentIndex = parent.ParentIndex;
+            }
+
+            int fallbackPartIndex;
+            return bodyToPartIndexMap.TryGetValue(body.Index, out fallbackPartIndex)
+                ? fallbackPartIndex
+                : -1;
+        }
+
+        private bool BoundsOverlapWithinClearance(
+            BodyBoundsData a,
+            BodyBoundsData b,
+            float clearance)
+        {
+            return a.MaxX + clearance >= b.MinX && b.MaxX + clearance >= a.MinX &&
+                   a.MaxY + clearance >= b.MinY && b.MaxY + clearance >= a.MinY &&
+                   a.MaxZ + clearance >= b.MinZ && b.MaxZ + clearance >= a.MinZ;
+        }
+
+        /// <summary>
+        /// 전체 모델 중 제작 대상과 가까운 Body만 Bounding Box로 선별한다.
+        /// Bounding Box는 광역 필터일 뿐이며, 최종 연결 여부는 선별된 후보에 대한 Clash 결과로 결정한다.
+        /// </summary>
+        private List<VIZCore3D.NET.Data.Node> GetFabricationNeighborCandidates(
+            List<VIZCore3D.NET.Data.Node> allBodyNodes,
+            List<VIZCore3D.NET.Data.Node> targetNodes)
+        {
+            var candidates = new List<VIZCore3D.NET.Data.Node>();
+            if (!EnsureFabricationNeighborSearchCache(allBodyNodes))
+            {
+                DiagLog("제작도 연결 후보 선별 중단: Bounding Box 캐시 없음");
+                return candidates;
+            }
+
+            fabricationTargetBodyIndices = new HashSet<int>(targetNodes.Select(n => n.Index));
+            fabricationTargetPartIndices.Clear();
+            foreach (var target in targetNodes)
+            {
+                int partIndex;
+                if (fabricationBodyToPartIndexCache.TryGetValue(target.Index, out partIndex))
+                    fabricationTargetPartIndices.Add(partIndex);
+            }
+
+            var targetBounds = targetNodes
+                .Where(n => fabricationBodyBoundsCache.ContainsKey(n.Index))
+                .Select(n => fabricationBodyBoundsCache[n.Index])
+                .ToList();
+            if (targetBounds.Count == 0)
+            {
+                DiagLog("제작도 연결 후보 선별 중단: 제작 대상 Bounding Box 없음");
+                return candidates;
+            }
+
+            var aggregateBounds = new BodyBoundsData
+            {
+                MinX = targetBounds.Min(b => b.MinX),
+                MinY = targetBounds.Min(b => b.MinY),
+                MinZ = targetBounds.Min(b => b.MinZ),
+                MaxX = targetBounds.Max(b => b.MaxX),
+                MaxY = targetBounds.Max(b => b.MaxY),
+                MaxZ = targetBounds.Max(b => b.MaxZ)
+            };
+
+            int aggregateHits = 0;
+            foreach (var node in allBodyNodes)
+            {
+                if (fabricationTargetBodyIndices.Contains(node.Index)) continue;
+
+                int partIndex;
+                if (fabricationBodyToPartIndexCache.TryGetValue(node.Index, out partIndex) &&
+                    fabricationTargetPartIndices.Contains(partIndex))
+                    continue;
+
+                BodyBoundsData candidateBounds;
+                if (!fabricationBodyBoundsCache.TryGetValue(node.Index, out candidateBounds))
+                    continue;
+                if (!BoundsOverlapWithinClearance(
+                    aggregateBounds, candidateBounds, FabricationNeighborClearance))
+                    continue;
+
+                aggregateHits++;
+                if (targetBounds.Any(targetBoundsItem => BoundsOverlapWithinClearance(
+                    targetBoundsItem, candidateBounds, FabricationNeighborClearance)))
+                {
+                    candidates.Add(node);
+                }
+            }
+
+            DiagLog($"제작도 연결 후보 선별: all={allBodyNodes.Count} target={targetNodes.Count} " +
+                    $"aggregateHit={aggregateHits} candidates={candidates.Count} " +
+                    $"clearance={FabricationNeighborClearance:F1}mm");
+            return candidates;
+        }
+
         /// <summary>
         /// Clash Detection 수행 (ClashManager API 사용)
         /// </summary>
@@ -335,6 +517,7 @@ namespace A2Z
         {
             clashList.Clear();
             lvClash.Items.Clear();
+            ClearFabricationNeighborResults();
 
             try
             {
@@ -390,49 +573,33 @@ namespace A2Z
                     }
                 }
 
-                // 제작도 ISO 점선용: 현재 제작 대상과 모델의 나머지 Part를 한 번 더 그룹 검사한다.
-                // 기존 targetNodes 내부 pair 검사는 시트 연결성 계산용으로 그대로 유지하고,
-                // 이 결과는 GetClashNeighborPartsOutsideSheet에서 시트 밖 주변 부재를 찾을 때만 추가 활용한다.
+                // 제작도 ISO 점선용: Bounding Box로 근처 후보를 먼저 줄이고 대상 대 후보만 그룹 검사한다.
+                // 기존 targetNodes 내부 pair 검사는 시트 연결성 계산용으로 유지하며,
+                // 이 검사 결과는 전용 컬렉션에 저장해 기존 clashList와 섞지 않는다.
                 if (includeOutsideNeighbors && targetNodes.Count > 0)
                 {
-                    var targetNodeIndices = new HashSet<int>(targetNodes.Select(n => n.Index));
-                    var targetPartIndices = new HashSet<int>();
-                    foreach (var node in targetNodes)
-                    {
-                        int partIndex;
-                        if (bodyToPartIndexMap.TryGetValue(node.Index, out partIndex))
-                            targetPartIndices.Add(partIndex);
-                    }
-
-                    var outsideNodes = allNodes.Where(n =>
-                    {
-                        if (targetNodeIndices.Contains(n.Index)) return false;
-
-                        int partIndex;
-                        return !bodyToPartIndexMap.TryGetValue(n.Index, out partIndex) ||
-                               !targetPartIndices.Contains(partIndex);
-                    }).ToList();
-
-                    if (outsideNodes.Count > 0)
+                    var neighborCandidates = GetFabricationNeighborCandidates(allNodes, targetNodes);
+                    if (neighborCandidates.Count > 0)
                     {
                         VIZCore3D.NET.Data.ClashTest outsideClash = new VIZCore3D.NET.Data.ClashTest();
-                        outsideClash.Name = "제작도_주변부재_간섭검사";
+                        outsideClash.Name = FabricationNeighborClashTestName;
                         outsideClash.TestKind = VIZCore3D.NET.Data.ClashTest.ClashTestKind.GROUP_VS_GROUP;
                         outsideClash.UseClearanceValue = true;
-                        outsideClash.ClearanceValue = 3.0f;
+                        outsideClash.ClearanceValue = FabricationNeighborClearance;
                         outsideClash.UseRangeValue = true;
-                        outsideClash.RangeValue = 3.0f;
+                        outsideClash.RangeValue = FabricationNeighborClearance;
                         outsideClash.UsePenetrationTolerance = true;
                         outsideClash.PenetrationTolerance = 1.0f;
                         outsideClash.VisibleOnly = false;
                         outsideClash.BottomLevel = 0;
                         outsideClash.GroupA = targetNodes;
-                        outsideClash.GroupB = outsideNodes;
+                        outsideClash.GroupB = neighborCandidates;
 
                         if (vizcore3d.Clash.Add(outsideClash))
                         {
                             clashCount++;
-                            DiagLog($"제작도 주변 간섭검사 추가: inside={targetNodes.Count} outside={outsideNodes.Count}");
+                            DiagLog($"제작도 연결 간섭검사 추가: target={targetNodes.Count} " +
+                                    $"candidates={neighborCandidates.Count}");
                         }
                     }
                 }
@@ -482,6 +649,8 @@ namespace A2Z
                 System.Diagnostics.Debug.WriteLine($"현재 등록된 ClashTest 개수: {testCount}");
 
                 clashList.Clear();
+                fabricationNeighborClashList.Clear();
+                fabricationNeighborPartIndices.Clear();
                 lvClash.Items.Clear();
 
                 // 모든 ClashTest 결과 수집
@@ -490,6 +659,9 @@ namespace A2Z
                     VIZCore3D.NET.Data.ClashTest clashTest = vizcore3d.Clash.Items[i];
 
                     if (clashTest == null) continue;
+                    bool isFabricationNeighborTest =
+                        string.Equals(clashTest.Name, FabricationNeighborClashTestName,
+                            StringComparison.Ordinal);
 
                     // 결과 조회 (PART 레벨로 그룹화)
                     var results = vizcore3d.Clash.GetResultItem(
@@ -517,14 +689,28 @@ namespace A2Z
                                 clash.ZValue = result.HotPoint.Z;
                             }
 
+                            List<ClashData> destination = isFabricationNeighborTest
+                                ? fabricationNeighborClashList
+                                : clashList;
+
                             // 중복 검사 (A-B와 B-A 동일 처리)
-                            bool isDuplicate = clashList.Any(c =>
+                            bool isDuplicate = destination.Any(c =>
                                 (c.Index1 == clash.Index1 && c.Index2 == clash.Index2) ||
                                 (c.Index1 == clash.Index2 && c.Index2 == clash.Index1));
 
                             if (!isDuplicate)
                             {
-                                clashList.Add(clash);
+                                destination.Add(clash);
+                            }
+
+                            if (isFabricationNeighborTest)
+                            {
+                                bool firstIsTarget = fabricationTargetPartIndices.Contains(clash.Index1);
+                                bool secondIsTarget = fabricationTargetPartIndices.Contains(clash.Index2);
+                                if (firstIsTarget && !secondIsTarget)
+                                    fabricationNeighborPartIndices.Add(clash.Index2);
+                                else if (secondIsTarget && !firstIsTarget)
+                                    fabricationNeighborPartIndices.Add(clash.Index1);
                             }
                         }
                     }
@@ -545,6 +731,27 @@ namespace A2Z
                         lvClash.Items.Add(lvi);
                     }
                 }
+
+                if (fabricationNeighborClashList.Count > 0)
+                {
+                    fabricationNeighborClashList.Sort((a, b) => b.ZValue.CompareTo(a.ZValue));
+                    foreach (var clash in fabricationNeighborClashList)
+                    {
+                        ListViewItem lvi = new ListViewItem("[연결] " + clash.Name1);
+                        lvi.SubItems.Add(clash.Name2);
+                        lvi.SubItems.Add(clash.ZValue.ToString("F2"));
+                        lvi.Tag = clash;
+                        lvClash.Items.Add(lvi);
+                    }
+                }
+
+                string neighborNames = string.Join(", ", fabricationNeighborClashList
+                    .Select(c => fabricationTargetPartIndices.Contains(c.Index1) ? c.Name2 : c.Name1)
+                    .Distinct()
+                    .Take(50));
+                DiagLog($"제작도 연결 간섭검사 결과: raw={fabricationNeighborClashList.Count} " +
+                        $"parts={fabricationNeighborPartIndices.Count}" +
+                        (string.IsNullOrEmpty(neighborNames) ? "" : $" names=[{neighborNames}]"));
 
                 // T-023 v3: 연결성 판정 — bomList의 부재들이 Clash 인접 그래프 기준
                 // "한 덩어리(연결 성분 1개)"인가? 떨어진 부재가 하나라도 있으면 차단.
