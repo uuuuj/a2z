@@ -14,14 +14,17 @@
     --accent:#2563eb; --accent-ink:#1d4ed8;
     --fab:#64748b; --mfg:#2563eb;
     --warn:#b45309; --warn-bg:#fdf4e3; --warn-line:#f0d9a8;
-    --ok:#0f766e;
+    --ok:#0f766e; --ok-bg:#eafaf4; --ok-line:#bfe3d8;
   }
-  html,body{ height:100%; }
+  html{ scroll-behavior:smooth; }
   body{
     font-family:"Malgun Gothic","맑은 고딕","Segoe UI",system-ui,-apple-system,sans-serif;
     background:var(--bg); color:var(--ink);
-    display:flex; align-items:center; justify-content:center;
-    min-height:100vh; padding:16px;
+  }
+  .deck{ height:100vh; overflow-y:auto; scroll-snap-type:y mandatory; }
+  .page{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:16px; scroll-snap-align:start;
   }
   .slide{
     position:relative;
@@ -36,27 +39,33 @@
   }
   /* ---------- HEADER ---------- */
   header{
-    display:flex; align-items:flex-end; justify-content:space-between;
-    padding:3.4cqh 4cqw 2.2cqh;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    padding:3.2cqh 4cqw 2.1cqh;
     border-bottom:1px solid var(--line);
   }
   .kicker{
     font-size:1.9cqh; letter-spacing:.14em; font-weight:700;
     color:var(--accent-ink); text-transform:uppercase; margin-bottom:.7cqh;
   }
-  h1{ font-size:4.4cqh; font-weight:800; letter-spacing:-.01em; line-height:1.05; }
-  h1 .sub{ color:var(--muted); font-weight:600; }
-  .meta{ text-align:right; font-size:1.7cqh; color:var(--faint); line-height:1.5; white-space:nowrap; }
+  h1{ font-size:4.3cqh; font-weight:800; letter-spacing:-.01em; line-height:1.05; }
+  h1 .sub{ color:var(--muted); font-weight:600; font-size:.62em; }
+  .hr{ display:flex; flex-direction:column; align-items:flex-end; gap:.85cqh; text-align:right; }
+  .pgnum{ font-size:1.45cqh; font-weight:800; color:var(--faint); letter-spacing:.12em; border:1px solid var(--line); border-radius:20px; padding:.3cqh 1cqw; white-space:nowrap; }
+  .nav{ font-size:1.5cqh; font-weight:700; color:var(--accent-ink); text-decoration:none; border-bottom:1.5px dashed var(--accent); padding-bottom:1px; white-space:nowrap; }
+  .nav:hover{ color:#0f2f9e; }
+  .meta{ font-size:1.6cqh; color:var(--faint); line-height:1.5; white-space:nowrap; }
   .meta b{ color:var(--muted); font-weight:700; }
   /* ---------- MAIN ---------- */
-  main{
-    display:grid;
-    grid-template-columns:1.12fr 0.88fr;
-    grid-template-rows:auto 1fr;
+  main{ display:grid; min-height:0; }
+  main.m1{
+    grid-template-columns:1.12fr 0.88fr; grid-template-rows:auto 1fr;
     grid-template-areas:"diagram principle" "diagram numbers";
-    gap:2.4cqh 3cqw;
-    padding:2.6cqh 4cqw 1.4cqh;
-    min-height:0;
+    gap:2.3cqh 3cqw; padding:2.5cqh 4cqw 1.3cqh;
+  }
+  main.m2{
+    grid-template-columns:1.06fr 0.94fr; grid-template-rows:auto 1fr;
+    grid-template-areas:"flow reversal" "flow verdict";
+    gap:2cqh 3cqw; padding:2.5cqh 4cqw 1.3cqh;
   }
   .sect-label{
     font-size:1.7cqh; font-weight:800; letter-spacing:.02em;
@@ -64,182 +73,237 @@
     display:flex; align-items:center; gap:.6cqw;
   }
   .sect-label::before{ content:""; width:.9cqw; height:.9cqw; min-width:7px; min-height:7px; background:var(--accent); border-radius:2px; }
-  /* diagram */
+  /* diagram (slide 1) */
   .diagram{ grid-area:diagram; display:flex; flex-direction:column; min-height:0; }
   .diagram .frame{
     flex:1; min-height:0; background:var(--panel);
     border:1px solid var(--line); border-radius:10px;
-    padding:1.6cqh 1.4cqw; display:flex; align-items:center; justify-content:center;
+    padding:1.5cqh 1.4cqw; display:flex; align-items:center; justify-content:center;
   }
   .diagram svg{ width:100%; height:100%; display:block; }
-  .cap{ font-size:1.55cqh; color:var(--muted); margin-top:1.1cqh; line-height:1.45; }
+  .cap{ font-size:1.55cqh; color:var(--muted); margin-top:1cqh; line-height:1.45; }
   .cap b{ color:var(--ink); font-weight:700; }
-  /* principle */
+  /* principle (slide 1) */
   .principle{ grid-area:principle; display:flex; flex-direction:column; }
-  .formula{
-    background:var(--panel2); border:1px solid var(--line);
-    border-radius:10px; padding:1.7cqh 1.6cqw; margin-bottom:1.3cqh;
-  }
-  .formula .eq{ font-size:2.5cqh; font-weight:800; color:var(--accent-ink); letter-spacing:-.01em; }
+  .formula{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:1.6cqh 1.6cqw; margin-bottom:1.2cqh; }
+  .formula .eq{ font-size:2.4cqh; font-weight:800; color:var(--accent-ink); letter-spacing:-.01em; }
   .formula .eq .op{ color:var(--faint); font-weight:600; margin:0 .4cqw; }
-  .plist{ list-style:none; display:flex; flex-direction:column; gap:.85cqh; }
-  .plist li{ font-size:1.72cqh; color:var(--ink); line-height:1.35; padding-left:1.5cqw; position:relative; }
-  .plist li::before{ content:""; position:absolute; left:0; top:.62em; width:.7cqw; height:.7cqw; min-width:5px; min-height:5px; background:var(--accent); border-radius:50%; }
+  .plist{ list-style:none; display:flex; flex-direction:column; gap:.8cqh; }
+  .plist li{ font-size:1.7cqh; color:var(--ink); line-height:1.35; padding-left:1.5cqw; position:relative; }
+  .plist li::before{ content:""; position:absolute; left:0; top:.6em; width:.7cqw; height:.7cqw; min-width:5px; min-height:5px; background:var(--accent); border-radius:50%; }
   .plist .tag{ display:inline-block; font-weight:800; }
   .tag.fab{ color:var(--fab); } .tag.mfg{ color:var(--mfg); }
-  /* numbers */
+  .hint{ margin-top:auto; padding-top:1cqh; font-size:1.5cqh; color:var(--accent-ink); font-weight:700; }
+  .hint a{ color:inherit; }
+  /* numbers (slide 1) */
   .numbers{ grid-area:numbers; display:flex; flex-direction:column; min-height:0; }
-  table{ width:100%; border-collapse:collapse; font-size:1.72cqh; }
-  th,td{ text-align:center; padding:.72cqh .5cqw; border-bottom:1px solid var(--line2); }
+  table{ width:100%; border-collapse:collapse; font-size:1.7cqh; }
+  th,td{ text-align:center; padding:.68cqh .5cqw; border-bottom:1px solid var(--line2); }
   th:first-child,td:first-child{ text-align:left; color:var(--muted); font-weight:600; }
-  thead th{ font-size:1.62cqh; font-weight:800; border-bottom:1.5px solid var(--line); padding-bottom:.9cqh; }
+  thead th{ font-size:1.6cqh; font-weight:800; border-bottom:1.5px solid var(--line); padding-bottom:.85cqh; }
   thead th.fab{ color:var(--fab); } thead th.mfg{ color:var(--mfg); }
   tbody td{ font-variant-numeric:tabular-nums; font-weight:700; }
   tbody tr:last-child td{ border-bottom:none; }
   td.fabv{ color:var(--fab); } td.mfgv{ color:var(--mfg); }
-  .ncap{ font-size:1.42cqh; color:var(--faint); margin-top:.9cqh; line-height:1.4; }
+  .ncap{ font-size:1.4cqh; color:var(--faint); margin-top:.85cqh; line-height:1.4; }
   .ncap code{ font-family:"Consolas","Courier New",monospace; color:var(--muted); background:var(--line2); padding:.1cqh .5cqw; border-radius:3px; }
+  /* flow (slide 2) */
+  .flow{ grid-area:flow; display:flex; flex-direction:column; min-height:0; }
+  .flow-cols{ flex:1; display:grid; grid-template-columns:1fr 1fr; gap:1.3cqw; min-height:0; }
+  .track{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.2cqh 1cqw; display:flex; flex-direction:column; gap:.65cqh; }
+  .track .th{ font-weight:800; font-size:1.62cqh; text-align:center; padding-bottom:.6cqh; border-bottom:1px solid var(--line); }
+  .track.fab .th{ color:var(--fab); } .track.mfg .th{ color:var(--mfg); }
+  .step{ display:flex; align-items:center; gap:.7cqw; font-size:1.5cqh; padding:.5cqh .7cqw; background:#fff; border:1px solid var(--line2); border-radius:6px; }
+  .step .n{ width:2.3cqh; height:2.3cqh; min-width:15px; min-height:15px; border-radius:50%; background:var(--faint); color:#fff; font-size:1.15cqh; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .step .lab{ line-height:1.15; }
+  .step .badge{ margin-left:auto; font-size:1.2cqh; font-weight:800; white-space:nowrap; }
+  .step.est{ border-color:var(--warn-line); background:var(--warn-bg); }
+  .step.est .n{ background:var(--warn); } .step.est .badge{ color:var(--warn); }
+  .step.meas{ border-color:var(--ok-line); background:var(--ok-bg); }
+  .step.meas .n{ background:var(--ok); } .step.meas .badge{ color:var(--ok); }
+  .track .note{ font-size:1.35cqh; color:var(--muted); text-align:center; margin-top:auto; padding-top:.5cqh; line-height:1.35; }
+  .track .note b{ color:var(--ink); }
+  /* reversal + verdict (slide 2) */
+  .reversal{ grid-area:reversal; background:var(--panel2); border:1px solid #d5e0f7; border-radius:10px; padding:1.5cqh 1.5cqw; display:flex; flex-direction:column; }
+  .reversal .ft, .verdict .ft{ font-size:1.72cqh; font-weight:800; color:var(--accent-ink); margin-bottom:.9cqh; display:flex; align-items:center; gap:.6cqw; }
+  .reversal p{ font-size:1.62cqh; line-height:1.5; color:var(--ink); }
+  .reversal .em{ color:var(--accent-ink); font-weight:800; }
+  .reversal .rot{ color:var(--warn); font-weight:800; }
+  .verdict{ grid-area:verdict; display:flex; flex-direction:column; }
+  .verdict ul{ list-style:none; display:flex; flex-direction:column; gap:.65cqh; }
+  .verdict li{ font-size:1.55cqh; line-height:1.3; padding-left:2.4cqw; position:relative; color:var(--ink); }
+  .verdict li .ic{ position:absolute; left:0; top:.02em; font-size:1.6cqh; }
+  .verdict li.no{ color:var(--muted); }
   /* ---------- FOOTER ---------- */
-  footer{
-    display:grid; grid-template-columns:1fr 1.25fr 1.15fr; gap:2.4cqw;
-    padding:1.9cqh 4cqw 2.6cqh; border-top:1px solid var(--line);
-    background:linear-gradient(180deg,#fbfcfe,#f6f9fd);
-  }
+  footer{ border-top:1px solid var(--line); background:linear-gradient(180deg,#fbfcfe,#f6f9fd); }
+  footer.foot3{ display:grid; grid-template-columns:1fr 1.25fr 1.15fr; gap:2.4cqw; padding:1.8cqh 4cqw 2.5cqh; }
   .fcard{ font-size:1.5cqh; line-height:1.42; }
-  .fcard .ft{ font-size:1.5cqh; font-weight:800; color:var(--ink); margin-bottom:.55cqh; display:flex; align-items:center; gap:.5cqw; }
+  .fcard .ft{ font-size:1.5cqh; font-weight:800; color:var(--ink); margin-bottom:.5cqh; display:flex; align-items:center; gap:.5cqw; }
   .fcard .ft .ic{ font-size:1.7cqh; }
   .fcard p{ color:var(--muted); }
-  .fcard code{ font-family:"Consolas","Courier New",monospace; font-size:1.36cqh; color:var(--ink); }
-  .fcard.warn{ background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:8px; padding:1.1cqh 1.2cqw; margin:-.6cqh 0; }
-  .fcard.warn .ft{ color:var(--warn); }
-  .fcard.warn p{ color:#8a5a1c; }
-  .fcard.warn b{ color:var(--warn); }
-  /* diagram svg text */
+  .fcard code{ font-family:"Consolas","Courier New",monospace; font-size:1.34cqh; color:var(--ink); }
+  .fcard.warn{ background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:8px; padding:1cqh 1.2cqw; margin:-.5cqh 0; }
+  .fcard.warn .ft{ color:var(--warn); } .fcard.warn p{ color:#8a5a1c; } .fcard.warn b{ color:var(--warn); }
+  footer.foot1{ display:flex; align-items:center; justify-content:center; padding:2cqh 4cqw; }
+  .concl{ font-size:1.95cqh; font-weight:700; text-align:center; color:var(--ink); line-height:1.4; }
+  .concl b{ color:var(--accent-ink); }
   svg text{ font-family:"Malgun Gothic","Segoe UI",sans-serif; }
 </style>
 </head>
 <body>
-<div class="slide" role="img" aria-label="치수 보조선이 제작도·가공도 2D/PDF 출력에서 부재로부터 종이 절대 mm 기준으로 시작 갭과 오프셋만큼 띄워져 그려지는 규칙을 한 장으로 정리한 슬라이드">
+<div class="deck">
 
-  <header>
-    <div>
-      <div class="kicker">도면 표현 로직 · 2D View / PDF 출력</div>
-      <h1>치수 보조선은 어떻게 놓이는가 <span class="sub">— 제작도 · 가공도</span></h1>
-    </div>
-    <div class="meta"><b>기준일</b> 2026-07-21<br>값 출처: 코드 <b>const</b> 선언부</div>
-  </header>
-
-  <main>
-    <!-- ===== DIAGRAM ===== -->
-    <section class="diagram">
-      <div class="sect-label">구조 — 두 개의 거리로 규정</div>
-      <div class="frame">
-        <svg viewBox="0 0 580 400" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true">
-          <defs>
-            <marker id="arw" markerWidth="9" markerHeight="9" refX="7.5" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#3a4a63"/>
-            </marker>
-            <marker id="arwS" markerWidth="9" markerHeight="9" refX="1" refY="4" orient="auto">
-              <path d="M8,0 L0,4 L8,8 Z" fill="#3a4a63"/>
-            </marker>
-          </defs>
-
-          <!-- 부재(모델) -->
-          <rect x="80" y="300" width="420" height="62" rx="3" fill="#e3e9f2" stroke="#aab6c9" stroke-width="1.5"/>
-          <line x1="80" y1="300" x2="500" y2="300" stroke="#7d8aa0" stroke-width="2.5"/>
-          <text x="290" y="337" text-anchor="middle" font-size="16" font-weight="700" fill="#5c6a82">부재 (모델)</text>
-          <text x="290" y="300" text-anchor="middle" font-size="11" fill="#8a97ac" dy="-6">↑ 부재 외곽 = Osnap 기준선</text>
-
-          <!-- 오프셋 치수 (왼쪽 세로) -->
-          <line x1="118" y1="300" x2="52" y2="300" stroke="#c2ccdb" stroke-width="1" stroke-dasharray="3 3"/>
-          <line x1="200" y1="132" x2="52" y2="132" stroke="#c2ccdb" stroke-width="1" stroke-dasharray="3 3"/>
-          <line x1="62" y1="300" x2="62" y2="132" stroke="#3a4a63" stroke-width="1.3" marker-start="url(#arwS)" marker-end="url(#arw)"/>
-          <text x="46" y="220" text-anchor="middle" font-size="15" font-weight="800" fill="#3a4a63" transform="rotate(-90 46 220)">오프셋</text>
-          <text x="78" y="220" text-anchor="middle" font-size="11" fill="#8a97ac" transform="rotate(-90 78 220)">= 보조선 길이 결정</text>
-
-          <!-- 보조선 왼쪽 -->
-          <line x1="200" y1="278" x2="200" y2="132" stroke="#2563eb" stroke-width="2.4"/>
-          <circle cx="200" cy="278" r="4.5" fill="#2563eb"/>
-          <!-- 보조선 오른쪽 -->
-          <line x1="410" y1="278" x2="410" y2="132" stroke="#2563eb" stroke-width="2.4"/>
-          <circle cx="410" cy="278" r="4.5" fill="#2563eb"/>
-          <text x="424" y="210" font-size="15" font-weight="800" fill="#1d4ed8">보조선</text>
-          <text x="424" y="228" font-size="11" fill="#8a97ac">(실선 · SOLID)</text>
-
-          <!-- 시작 gap (오른쪽 확대 표기) -->
-          <line x1="410" y1="300" x2="410" y2="278" stroke="#b45309" stroke-width="3.2"/>
-          <path d="M436,300 L446,300 M436,278 L446,278 M441,300 L441,278" stroke="#b45309" stroke-width="1.1" fill="none"/>
-          <text x="452" y="286" font-size="14" font-weight="800" fill="#b45309">gap</text>
-          <text x="452" y="301" font-size="10.5" fill="#c88a3a">부재 표면에서 띄움</text>
-
-          <!-- 치수선 -->
-          <line x1="176" y1="132" x2="434" y2="132" stroke="#2f3d54" stroke-width="2.2" marker-start="url(#arwS)" marker-end="url(#arw)"/>
-          <text x="305" y="122" text-anchor="middle" font-size="15" font-weight="700" fill="#2f3d54">치수선</text>
-          <text x="305" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#6b7891" font-variant-numeric="tabular-nums">1 250</text>
-
-          <!-- 범례 -->
-          <g font-size="11.5" fill="#8a97ac">
-            <line x1="86" y1="384" x2="108" y2="384" stroke="#2563eb" stroke-width="2.4"/>
-            <text x="114" y="388">보조선</text>
-            <line x1="182" y1="384" x2="204" y2="384" stroke="#2f3d54" stroke-width="2.2"/>
-            <text x="210" y="388">치수선</text>
-            <rect x="278" y="379" width="20" height="10" fill="#e3e9f2" stroke="#aab6c9"/>
-            <text x="304" y="388">부재</text>
-            <circle cx="372" cy="384" r="4.5" fill="#2563eb"/>
-            <text x="382" y="388">보조선 시작점(gap 뒤)</text>
-          </g>
-        </svg>
+  <!-- ============ SLIDE 1 ============ -->
+  <section class="page" id="s1">
+  <div class="slide" role="img" aria-label="치수 보조선이 제작도·가공도 2D/PDF 출력에서 부재로부터 종이 절대 mm 기준으로 시작 갭과 오프셋만큼 띄워져 그려지는 규칙을 정리한 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">도면 표현 로직 · 2D View / PDF 출력</div>
+        <h1>치수 보조선은 어떻게 놓이는가 <span class="sub">— 제작도 · 가공도</span></h1>
       </div>
-      <div class="cap">보조선 = 부재에서 <b>gap</b>만큼 띄운 지점 → <b>치수선</b>까지. 길이 = 오프셋 − gap <b>(가변, 끝은 항상 치수선에 닿음)</b>.</div>
-    </section>
-
-    <!-- ===== PRINCIPLE ===== -->
-    <section class="principle">
-      <div class="sect-label">핵심 기준 — 왜 이렇게 띄우나</div>
-      <div class="formula">
-        <div class="eq">종이 절대 mm <span class="op">÷</span> 축척 <span class="op">=</span> 모델좌표</div>
+      <div class="hr">
+        <div class="pgnum">1 / 2</div>
+        <a class="nav" href="#s2">방식이 왜 다른지 ↓</a>
+        <div class="meta"><b>기준일</b> 2026-07-21</div>
       </div>
-      <ul class="plist">
-        <li>부재 크기·뷰·축척이 달라도 <b>PDF에선 항상 같은 크기</b>로 보이게 하는 원리.</li>
-        <li><span class="tag fab">제작도</span> — 축척을 <b>추정</b>(estScale)해서 역산.</li>
-        <li><span class="tag mfg">가공도</span> — 캡처 후 <b>실측</b>(newScale)해서 역산 <b>(더 정확)</b>.</li>
-      </ul>
-    </section>
+    </header>
+    <main class="m1">
+      <section class="diagram">
+        <div class="sect-label">구조 — 두 개의 거리로 규정</div>
+        <div class="frame">
+          <svg viewBox="0 0 580 400" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true">
+            <defs>
+              <marker id="arw" markerWidth="9" markerHeight="9" refX="7.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3a4a63"/></marker>
+              <marker id="arwS" markerWidth="9" markerHeight="9" refX="1" refY="4" orient="auto"><path d="M8,0 L0,4 L8,8 Z" fill="#3a4a63"/></marker>
+            </defs>
+            <rect x="80" y="300" width="420" height="62" rx="3" fill="#e3e9f2" stroke="#aab6c9" stroke-width="1.5"/>
+            <line x1="80" y1="300" x2="500" y2="300" stroke="#7d8aa0" stroke-width="2.5"/>
+            <text x="290" y="337" text-anchor="middle" font-size="16" font-weight="700" fill="#5c6a82">부재 (모델)</text>
+            <text x="290" y="294" text-anchor="middle" font-size="11" fill="#8a97ac">↑ 부재 외곽 = Osnap 기준선</text>
+            <line x1="118" y1="300" x2="52" y2="300" stroke="#c2ccdb" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="200" y1="132" x2="52" y2="132" stroke="#c2ccdb" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="62" y1="300" x2="62" y2="132" stroke="#3a4a63" stroke-width="1.3" marker-start="url(#arwS)" marker-end="url(#arw)"/>
+            <text x="46" y="216" text-anchor="middle" font-size="15" font-weight="800" fill="#3a4a63" transform="rotate(-90 46 216)">오프셋</text>
+            <text x="79" y="216" text-anchor="middle" font-size="11" fill="#8a97ac" transform="rotate(-90 79 216)">= 보조선 길이 결정</text>
+            <line x1="200" y1="278" x2="200" y2="132" stroke="#2563eb" stroke-width="2.4"/>
+            <circle cx="200" cy="278" r="4.5" fill="#2563eb"/>
+            <line x1="410" y1="278" x2="410" y2="132" stroke="#2563eb" stroke-width="2.4"/>
+            <circle cx="410" cy="278" r="4.5" fill="#2563eb"/>
+            <text x="424" y="208" font-size="15" font-weight="800" fill="#1d4ed8">보조선</text>
+            <text x="424" y="226" font-size="11" fill="#8a97ac">(실선 · SOLID)</text>
+            <line x1="410" y1="300" x2="410" y2="278" stroke="#b45309" stroke-width="3.2"/>
+            <path d="M436,300 L446,300 M436,278 L446,278 M441,300 L441,278" stroke="#b45309" stroke-width="1.1" fill="none"/>
+            <text x="452" y="286" font-size="14" font-weight="800" fill="#b45309">gap</text>
+            <text x="452" y="300" font-size="10.5" fill="#c88a3a">부재 표면에서 띄움</text>
+            <line x1="176" y1="132" x2="434" y2="132" stroke="#2f3d54" stroke-width="2.2" marker-start="url(#arwS)" marker-end="url(#arw)"/>
+            <text x="305" y="122" text-anchor="middle" font-size="15" font-weight="700" fill="#2f3d54">치수선</text>
+            <text x="305" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#6b7891" font-variant-numeric="tabular-nums">1 250</text>
+            <g font-size="11.5" fill="#8a97ac">
+              <line x1="86" y1="384" x2="108" y2="384" stroke="#2563eb" stroke-width="2.4"/><text x="114" y="388">보조선</text>
+              <line x1="182" y1="384" x2="204" y2="384" stroke="#2f3d54" stroke-width="2.2"/><text x="210" y="388">치수선</text>
+              <rect x="278" y="379" width="20" height="10" fill="#e3e9f2" stroke="#aab6c9"/><text x="304" y="388">부재</text>
+              <circle cx="372" cy="384" r="4.5" fill="#2563eb"/><text x="382" y="388">보조선 시작점(gap 뒤)</text>
+            </g>
+          </svg>
+        </div>
+        <div class="cap">보조선 = 부재에서 <b>gap</b>만큼 띄운 지점 → <b>치수선</b>까지. 길이 = 오프셋 − gap <b>(가변, 끝은 항상 치수선에 닿음)</b>.</div>
+      </section>
+      <section class="principle">
+        <div class="sect-label">핵심 기준 — 왜 이렇게 띄우나</div>
+        <div class="formula"><div class="eq">종이 절대 mm <span class="op">÷</span> 축척 <span class="op">=</span> 모델좌표</div></div>
+        <ul class="plist">
+          <li>부재 크기·뷰·축척이 달라도 <b>PDF에선 항상 같은 크기</b>로 보이게 하는 원리.</li>
+          <li><span class="tag fab">제작도</span> — 축척을 <b>추정</b>(estScale)해서 역산.</li>
+          <li><span class="tag mfg">가공도</span> — 캡처 후 <b>실측</b>(newScale)해서 역산.</li>
+        </ul>
+        <div class="hint"><a href="#s2">▸ 두 방식이 왜 다르고, 통일할 수 있는지는 2장에서</a></div>
+      </section>
+      <section class="numbers">
+        <div class="sect-label">확정 수치</div>
+        <table>
+          <thead><tr><th>항목</th><th class="fab">제작도</th><th class="mfg">가공도</th></tr></thead>
+          <tbody>
+            <tr><td>시작 gap (부재 → 시작점)</td><td class="fabv">2 mm <sup>*</sup></td><td class="mfgv">2 mm</td></tr>
+            <tr><td>오프셋 · 1단</td><td class="fabv">7.5 mm</td><td class="mfgv">9 mm</td></tr>
+            <tr><td>오프셋 · 2단</td><td class="fabv">15 mm</td><td class="mfgv">18 mm</td></tr>
+            <tr><td>오프셋 · 전체(최외곽)</td><td class="fabv">~22.5 mm</td><td class="mfgv">~27 mm</td></tr>
+            <tr><td>축척 산출</td><td class="fabv">추정 estScale</td><td class="mfgv">실측 newScale</td></tr>
+          </tbody>
+        </table>
+        <div class="ncap">모든 mm는 <b>종이(인쇄물) 절대</b> 기준. gap 실제값 = <code>min(2mm ÷ 축척, 보조선길이 × ½)</code> · <sup>*</sup> 제작도 3D 미리보기 경로만 10 mm.</div>
+      </section>
+    </main>
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🧭</span> 방향 기준</div>
+        <p>부재 중심 <b>4분면</b>에서 <b>가장 먼 Osnap 극점</b> 쪽(바깥)으로 보조선·치수를 뺀다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">📍</span> 정리 위치</div>
+        <p>개념: <code>기술 노트/치수 보조선 사양.md</code> · 최신 수치: <code>기능/가공도/가공도 단일.md §4</code>, <code>기능/도면시트/시트 2D 렌더.md</code>, <code>tracking/CHANGELOG.md</code> · 값 원본: <code>Form1.Dimensions.cs</code>, <code>Form1.MfgDrawing.cs</code></p>
+      </div>
+      <div class="fcard warn">
+        <div class="ft"><span class="ic">⚠️</span> 주의 — 옛 값 혼재</div>
+        <p>사양 문서·코드 주석엔 <b>옛 값</b>(gap 10 mm · 굵기 0.3 mm)이 남아 있음. 실제는 <b>코드 const 기준</b>(gap 2 mm · 굵기 0.1~0.15 mm).</p>
+      </div>
+    </footer>
+  </div>
+  </section>
 
-    <!-- ===== NUMBERS ===== -->
-    <section class="numbers">
-      <div class="sect-label">확정 수치</div>
-      <table>
-        <thead>
-          <tr><th>항목</th><th class="fab">제작도</th><th class="mfg">가공도</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>시작 gap (부재 → 시작점)</td><td class="fabv">2 mm <sup>*</sup></td><td class="mfgv">2 mm</td></tr>
-          <tr><td>오프셋 · 1단</td><td class="fabv">7.5 mm</td><td class="mfgv">9 mm</td></tr>
-          <tr><td>오프셋 · 2단</td><td class="fabv">15 mm</td><td class="mfgv">18 mm</td></tr>
-          <tr><td>오프셋 · 전체(최외곽)</td><td class="fabv">~22.5 mm</td><td class="mfgv">~27 mm</td></tr>
-          <tr><td>축척 산출</td><td class="fabv">추정 estScale</td><td class="mfgv">실측 newScale</td></tr>
-        </tbody>
-      </table>
-      <div class="ncap">모든 mm는 <b>종이(인쇄물) 절대</b> 기준. gap 실제값 = <code>min(2mm ÷ 축척, 보조선길이 × ½)</code> · <sup>*</sup> 제작도 3D 미리보기 경로만 10 mm.</div>
-    </section>
-  </main>
-
-  <!-- ===== FOOTER ===== -->
-  <footer>
-    <div class="fcard">
-      <div class="ft"><span class="ic">🧭</span> 방향 기준</div>
-      <p>부재 중심 <b>4분면</b>에서 <b>가장 먼 Osnap 극점</b> 쪽(바깥)으로 보조선·치수를 뺀다.</p>
-    </div>
-    <div class="fcard">
-      <div class="ft"><span class="ic">📍</span> 정리 위치</div>
-      <p>개념: <code>기술 노트/치수 보조선 사양.md</code> · 최신 수치: <code>기능/가공도/가공도 단일.md §4</code>, <code>기능/도면시트/시트 2D 렌더.md</code>, <code>tracking/CHANGELOG.md</code> · 값 원본: <code>Form1.Dimensions.cs</code>, <code>Form1.MfgDrawing.cs</code></p>
-    </div>
-    <div class="fcard warn">
-      <div class="ft"><span class="ic">⚠️</span> 주의 — 옛 값 혼재</div>
-      <p>사양 문서·코드 주석엔 <b>옛 값</b>(gap 10 mm · 굵기 0.3 mm)이 남아 있음. 실제는 <b>코드 const 기준</b>(gap 2 mm · 굵기 0.1~0.15 mm).</p>
-    </div>
-  </footer>
+  <!-- ============ SLIDE 2 ============ -->
+  <section class="page" id="s2">
+  <div class="slide" role="img" aria-label="제작도는 치수를 캡처 전에 그려 추정 배율을, 가공도는 캡처 후 그려 실측 배율을 쓰는 이유와, 가공도에만 있는 90도 회전 때문에 실측이 필요했다는 반전, 그리고 제작도 통일 가능성을 정리한 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">도면 표현 로직 · 심화</div>
+        <h1>왜 제작도와 가공도의 배율이 다른가 <span class="sub">— 추정 vs 실측</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">2 / 2</div>
+        <a class="nav" href="#s1">↑ 배치 규칙으로</a>
+        <div class="meta"><b>기준일</b> 2026-07-21</div>
+      </div>
+    </header>
+    <main class="m2">
+      <section class="flow">
+        <div class="sect-label">원인 ① 치수를 그리는 순서가 반대</div>
+        <div class="flow-cols">
+          <div class="track fab">
+            <div class="th">제작도 · 추정</div>
+            <div class="step"><span class="n">1</span><span class="lab">배율 <b>추정</b></span></div>
+            <div class="step est"><span class="n">2</span><span class="lab">치수·보조선 그림</span><span class="badge">← 추정</span></div>
+            <div class="step"><span class="n">3</span><span class="lab">모델 캡처</span></div>
+            <div class="step"><span class="n">4</span><span class="lab">실측 확정 <i>(치수엔 못 씀)</i></span></div>
+            <div class="note"><b>캡처보다 먼저</b> 그려서<br>추정값만 쓸 수 있음</div>
+          </div>
+          <div class="track mfg">
+            <div class="th">가공도 · 실측</div>
+            <div class="step"><span class="n">1</span><span class="lab">모델 캡처</span></div>
+            <div class="step"><span class="n">2</span><span class="lab">실측 배율 <b>확정</b></span></div>
+            <div class="step meas"><span class="n">3</span><span class="lab">치수·보조선 그림</span><span class="badge">← 실측</span></div>
+            <div class="note"><b>캡처 뒤에</b> 그려서<br>실측값을 쓸 수 있음</div>
+          </div>
+        </div>
+      </section>
+      <section class="reversal">
+        <div class="ft"><span>🔄</span> 반전 — 가공도가 실측을 쓴 진짜 이유</div>
+        <p>가공도는 긴 부재를 <span class="rot">90° 눕혀서</span> 배치한다. 추정은 <b>눕히기 전</b> 크기로 계산해 <span class="rot">크게 어긋나</span> → 실측이 <span class="em">필수</span>였다.<br><br>제작도엔 이 <span class="rot">90° 회전이 없어</span> 추정으로도 <span class="em">잘 맞는다</span>. 즉 제작도는 정확도에서 밀린 게 아니다.</p>
+      </section>
+      <section class="verdict">
+        <div class="ft"><span>🔧</span> 제작도도 실측으로 통일할 수 있나?</div>
+        <ul>
+          <li><span class="ic">✅</span> <b>구조상 가능</b> — 가공도가 이미 검증한 패턴 그대로 적용 가능</li>
+          <li><span class="ic">⚠️</span> 제작도 그리기 함수의 <b>‘수집 / 그리기’ 분리 리팩토링</b>이 선행돼야 함</li>
+          <li><span class="ic">⚠️</span> 잘 나오는 경로라 <b>회귀 리스크</b> + 오차가 작아 <b>실익이 작음</b></li>
+          <li class="no"><span class="ic">⏸️</span> 그래서 <b>지금은 보류</b> — 실기에서 어긋남이 보고되면 우선순위 ↑</li>
+        </ul>
+      </section>
+    </main>
+    <footer class="foot1">
+      <div class="concl">제작도는 정확도에서 밀려 추정을 쓰는 게 아니라 — <b>추정을 망칠 요인(90° 회전)이 없어 추정으로 충분한 것</b>.</div>
+    </footer>
+  </div>
+  </section>
 
 </div>
 </body>
