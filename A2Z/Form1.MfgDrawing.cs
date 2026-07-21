@@ -2027,7 +2027,7 @@ namespace A2Z
         /// 가공도 수동 통합 함수 v7. PDF 소유.
         /// 호출자:
         ///   - 수동: btnMfgDrawingSheet_Click → 결과 받아 단일 MessageBox로 표시
-        ///   - 자동(P4a): ProcessSingleStruFull §8, ExportAllSheetsToPdfCore → DiagLog만
+        ///   - 자동(P4a): ProcessSingleStruFull §8 → DiagLog만
         /// 사용자 사양:
         ///   - BOM 표·도면정보 = 제작도 방식 (CollectBOMInfo + lvDrawingBOMInfo 재사용)
         ///   - BOM 표 데이터 = 가공도 전체 부재 (모든 페이지에 동일)

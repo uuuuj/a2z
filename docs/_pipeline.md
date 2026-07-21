@@ -41,7 +41,7 @@ flowchart TD
 | 7 | 간섭 완료 콜백 | Event | `clashList` 정렬·완성 | [clash-finished-event](./기능/간섭검사/간섭검사 완료 이벤트.md) |
 | 8 | 시트 분할 | btnGenerateSheets | BFS로 `drawingSheets` 생성 | [generate-sheets](./기능/도면시트/시트 자동 생성.md) |
 | 9 | 시트별 2D | btnGenerateSheet2D | 2D 도면 렌더 | [generate-sheet-2d](./기능/도면시트/시트 2D 렌더.md) |
-| 10 | PDF 출력 | btnExportSheet2DPDF / btnExportAllPDF | 벡터 PDF 파일 | [export-sheet-2d-pdf](./기능/도면시트/시트 PDF 출력.md) |
+| 10 | PDF 출력 | btnExportSheet2DPDF / btnExtractDrawingList | 벡터 PDF 파일 | [export-sheet-2d-pdf](./기능/도면시트/시트 PDF 출력.md) |
 
 ---
 

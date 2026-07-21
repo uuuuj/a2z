@@ -52,7 +52,6 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF
 
 ## 8. 후행 기능 (Chained)
 - 다른 시트 반복
-- [전체 PDF 배치](./전체 PDF 출력.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.DrawingSheets.cs:L806](../../code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF_Click)

@@ -1106,140 +1106,6 @@ namespace A2Z
         }
 
         /// <summary>
-        /// ALL 버튼 — 도면시트목록을 순회하며 2D/가공도 생성 + PDF 자동 저장
-        /// </summary>
-        private void btnExportAllPDF_Click(object sender, EventArgs e)
-        {
-            // 옛 동작 그대로 — saveDir 하드코딩 c:\, 완료 메시지박스 표시, 가공도도 시트별 PDF (groupMfgSheets=false).
-            // T-064 P2 본진은 ExportAllSheetsToPdfCore(struSubDir, showSummary:false, groupMfgSheets:true)로 직접 호출.
-            ExportAllSheetsToPdfCore(@"c:\", showSummary: true, groupMfgSheets: false);
-        }
-
-        /// <summary>
-        /// lvDrawingSheet 모든 시트를 PDF로 일괄 출력 (공용 코어).
-        /// 사용자 평소 btnExportAllPDF 흐름 + T-064 P2 본진 STRU 일괄 처리에서 공용 사용.
-        /// </summary>
-        /// <param name="saveDir">PDF 저장 폴더</param>
-        /// <param name="showSummary">true면 완료/오류 메시지박스 표시 (옛 btnExportAllPDF 동작). false면 DiagLog만 (P2 본진).</param>
-        /// <param name="groupMfgSheets">
-        /// true면 가공도 시트 묶음 분기 진입 (btnMfgDrawingSheet 패턴). 단 현재 이 분기는 hard skip no-op이고,
-        ///   가공도 PDF는 GenerateMfgDrawingManual(btnMfgDrawingSheet_Click)이 담당한다 (P4 재배선 대기).
-        /// false면 가공도도 시트별로 분리 PDF (옛 btnExportAllPDF 동작 유지).
-        /// 사용자 지적: "가공도는 한 번에 뽑는 코드 기존에 있는데?" → P2 본진은 true로 호출.
-        /// </param>
-        /// <returns>PDF 출력 성공 개수</returns>
-        private int ExportAllSheetsToPdfCore(string saveDir, bool showSummary, bool groupMfgSheets = false)
-        {
-            if (!vizcore3d.Model.IsOpen())
-            {
-                if (showSummary) MessageBox.Show("먼저 모델을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return 0;
-            }
-
-            if (lvDrawingSheet.Items.Count == 0)
-            {
-                if (showSummary) MessageBox.Show("도면 시트가 없습니다. 먼저 '도면 생성'을 해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return 0;
-            }
-
-            int totalCount = lvDrawingSheet.Items.Count;
-            int successCount = 0;
-
-            try
-            {
-                for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
-                {
-                    ListViewItem lvi = lvDrawingSheet.Items[i];
-                    DrawingSheetData sheet = lvi.Tag as DrawingSheetData;
-                    if (sheet == null || sheet.MemberIndices.Count == 0)
-                        continue;
-
-                    string sheetLabel = lvi.Text; // "Sheet 1" 또는 "가공도_1"
-
-                    // P1 hard skip (refactor/dead-code, 2026-05-23)
-                    //   가공도는 selection 트리거 + export 모두 우회.
-                    //   옛 GenerateMfgDrawing2DAll 호출 제거 — P4에서 GenerateMfgDrawingManual로 재배선.
-                    if (sheetLabel.StartsWith("가공도"))
-                    {
-                        DiagLog($"[P1 no-op] ALL PDF 가공도 시트 hard skip: {sheetLabel}");
-                        continue;
-                    }
-
-                    // ListView에서 해당 항목 선택 (UI 동기화)
-                    foreach (ListViewItem sel in lvDrawingSheet.SelectedItems)
-                        sel.Selected = false;
-                    lvi.Selected = true;
-                    lvi.EnsureVisible();
-                    Application.DoEvents();
-
-                    string baseMemberName = sheet.BaseMemberName ?? "Unknown";
-                    // 파일명: 기준부재_도면번호_시분초
-                    string timeStamp = DateTime.Now.ToString("HHmmss");
-                    string safeBaseName = SanitizeFileName(baseMemberName);
-                    string safeSheetLabel = SanitizeFileName(sheetLabel);
-                    string pdfFileName = $"{safeBaseName}_{safeSheetLabel}_{timeStamp}.pdf";
-                    string pdfPath = System.IO.Path.Combine(saveDir, pdfFileName);
-
-                    // 일반 시트 2D 출력 (가공도는 위에서 skip됨)
-                    GenerateSheetDrawing2D(sheet);
-
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(200);
-
-                    // PDF 출력
-                    try
-                    {
-                        vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                        vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                        successCount++;
-                        DiagLog($"[ALL PDF] {i + 1}/{totalCount} 저장: {pdfPath}");
-                    }
-                    catch (Exception pdfEx)
-                    {
-                        DiagLog($"[ALL PDF] {i + 1}/{totalCount} 실패: {pdfEx.Message}");
-                    }
-
-                    // ── 메모리 정리 (매 시트 처리 후) ──
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); }
-                    catch { }
-
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
-
-                    Application.DoEvents();
-                    System.Threading.Thread.Sleep(100);
-                }
-
-                // P1 hard skip (refactor/dead-code, 2026-05-23)
-                //   옛 가공도 묶음 GenerateMfgDrawing2DAll + Export2PDFBy2DView 호출 제거.
-                //   수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 P4에서 재배선. successCount 증가 X.
-                if (groupMfgSheets)
-                {
-                    int mfgSkipCount = 0;
-                    foreach (ListViewItem lvi in lvDrawingSheet.Items)
-                        if (lvi.Text.StartsWith("가공도")) mfgSkipCount++;
-                    if (mfgSkipCount > 0)
-                        DiagLog($"[P1 no-op] ALL PDF 가공도 묶음 {mfgSkipCount}건 hard skip (P4에서 재활성)");
-                }
-
-                if (showSummary)
-                    MessageBox.Show($"PDF 일괄 출력 완료!\n\n총 {totalCount}개 중 {successCount}개 저장됨\n저장 경로: {saveDir}", "ALL PDF 출력 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"ExportAllSheetsToPdfCore ERROR: {ex.Message}\n{ex.StackTrace}");
-                if (showSummary)
-                    MessageBox.Show($"ALL PDF 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-            return successCount;
-        }
-
-        /// <summary>
         /// 파일명에 사용할 수 없는 문자 제거
         /// </summary>
         private string SanitizeFileName(string name)
@@ -1645,7 +1511,7 @@ namespace A2Z
                 // ── 1.5. 시트 부재 가시성 격리 (옛 GenerateSheetDrawing2D 1234~1252와 동일) ──
                 // T-064 P2 핫픽스 (2026-05-14): PoC는 사용자가 모델 전체 보이는 상태에서 호출 →
                 // Create2DViewObjectWithModelHiddenLine이 전체 모델로 4면도 생성.
-                // P2 자동 흐름은 ExportAllSheetsToPdfCore → 시트 선택 → 이 메서드 호출인데,
+                // 자동 흐름은 ProcessSingleStruFull → 시트 적용 → 이 메서드 호출인데,
                 // 가시성 격리·BOM·치수 단계가 없으면 빈 객체 4면도 → 캔버스에 엑셀 격자만 남음.
                 vizcore3d.BeginUpdate();
                 if (!vizcore3d.View.XRay.Enable)
