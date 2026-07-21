@@ -1839,7 +1839,7 @@ namespace A2Z
                     //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
                     //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선, 점선은 CropFit으로 시트 부재 영역+여백만 남김 — 프레임 = 시트 fit
                     //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
-                    List<int> isoDashedTargets = null;   // 점선 캡처 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
+                    List<int> isoDashedTargets = null;   // 점선 배경 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
                     List<int> isoSolidTargets = null;    // 실선 캡처 대상
                     bool isoFitByDashed = false;         // true = 점선(전체 배경) 기준 fit (조립도) / false = 실선 기준 (제작도)
                     if (viewDir == "ISO")
@@ -1953,9 +1953,20 @@ namespace A2Z
                     int dashedObjId = -1;
                     if (isoDashedTargets != null)
                     {
+                        // CropFit 예제 불변조건: Crop 기준 노드는 Crop 대상 2D 객체 안에도 들어 있어야 한다.
+                        // 제작도는 "시트 부재 + 연결 부재"를 함께 점선 배경으로 캡처한 뒤 시트 부재로 Crop하고,
+                        // 다음 캡처에서 시트 부재 실선을 위에 덮는다. 조립도는 기존 점선 대상만 캡처한다.
+                        var dashedCaptureTargets = new List<int>(isoDashedTargets);
+                        if (!isoFitByDashed && isoSolidTargets != null)
+                        {
+                            foreach (int targetIndex in isoSolidTargets)
+                                if (!dashedCaptureTargets.Contains(targetIndex))
+                                    dashedCaptureTargets.Add(targetIndex);
+                        }
+
                         vizcore3d.BeginUpdate();
                         vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
-                        vizcore3d.Object3D.Show(isoDashedTargets, true);
+                        vizcore3d.Object3D.Show(dashedCaptureTargets, true);
                         vizcore3d.EndUpdate();
 
                         dashedObjId = vizcore3d.Drawing2D.Object2D
@@ -1963,15 +1974,16 @@ namespace A2Z
                                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
                         if (dashedObjId >= 0)
                         {
-                            // 제작도: 이웃 점선을 시트 부재 노드 영역 + 여백만 남기고 잘라냄 (issue #7 — CropFit).
+                            // 제작도: 시트 부재를 포함한 점선 배경을 시트 부재 영역 + 여백만 남기고 잘라냄.
                             //   조립도는 전체 구조를 배경으로 보여줘야 하므로 Crop 안 함 (isoFitByDashed=true).
-                            //   3D 노드 투영 기준이라 스케일·Match 전(원점 캡처 상태)에 걸어도 남는 지오메트리에 유지됨.
+                            //   Crop 기준인 isoSolidTargets가 dashedObjId 안에 포함된 상태여야 SDK 예제처럼 동작한다.
                             if (!isoFitByDashed)
                             {
                                 vizcore3d.Drawing2D.Object2D.CropFit2DViewObjectByNodeIDs(
-                                    dashedObjId, sheet.MemberIndices, IsoNeighborCropOffset);
+                                    dashedObjId, isoSolidTargets, IsoNeighborCropOffset);
                                 DiagLog($"P2 ISO 제작도 이웃 점선 CropFit obj={dashedObjId} " +
-                                        $"nodes={sheet.MemberIndices.Count} offset={IsoNeighborCropOffset:F2}");
+                                        $"captured={dashedCaptureTargets.Count} cropNodes={isoSolidTargets.Count} " +
+                                        $"offset={IsoNeighborCropOffset:F2}");
                             }
 
                             // LONG_DASHED — 소프트힐스 예제 순서대로 CropFit 뒤에 선 종류를 정의한다.
