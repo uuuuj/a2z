@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisZ_Cli
 # 시트 Z축 뷰 + 치수
 
 ## 1. 개요
-선택 시트를 Z축 방향(XY 평면·평면도)으로 표시한다. 설치도는 선택 STRU+외부 연결 Assembly 전체와 Y 주축·X 보조축의 전체 범위·접합 위치 치수를 표시한다. 공통 가시성·치수 흐름은 [X축 뷰](./X축 도면.md) 참고.
+선택 시트를 Z축 방향(XY 평면·평면도)으로 표시한다. 설치도는 선택 STRU+외부 연결 Assembly 전체와 Y 주축·X 보조축의 전체 범위·접합 위치 치수를 표시한다. 공통 가시성·치수 흐름은 [X축 뷰](./X축%20도면.md) 참고.
 
 ## 2. 트리거
 | 항목 | 값 |
