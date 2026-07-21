@@ -1442,9 +1442,9 @@ namespace A2Z
 
                 // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
                 VIZCore3D.NET.Data.TemplateTableData tableInfo = new VIZCore3D.NET.Data.TemplateTableData(2, 2);
-                tableInfo.SetText(0, 0, string.Format("{0}\\Logo.png", GetSolutionPath()));
+                tableInfo.SetText(0, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
                 tableInfo.SetText(0, 1, "Project Name:\nProject No:");
-                tableInfo.SetText(1, 0, string.Format("{0}\\Logo.png", GetSolutionPath()));
+                tableInfo.SetText(1, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
                 tableInfo.SetText(1, 1, "Title:");
                 tableInfo.IsTextWrapped = true;
                 // 열 너비 합 77mm (흰선 내부 폭 추가 축소, 기존 81→77)
@@ -2013,7 +2013,7 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 빌드 출력 폴더의 도면 리소스를 우선 사용하고, 개발 환경에서는 솔루션 루트를 fallback으로 사용한다.
+        /// 빌드 출력 폴더의 도면 리소스를 우선 사용하고, 개발 환경에서는 솔루션 루트 assets\ 를 fallback으로 사용한다.
         /// </summary>
         private string ResolveDrawingAssetPath(string fileName)
         {
@@ -2023,7 +2023,7 @@ namespace A2Z
                 return outputPath;
 
             string solutionPath = Path.GetFullPath(
-                Path.Combine(GetSolutionPath(), fileName));
+                Path.Combine(GetSolutionPath(), "assets", fileName));
             return File.Exists(solutionPath) ? solutionPath : outputPath;
         }
 
