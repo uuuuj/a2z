@@ -2152,6 +2152,8 @@ namespace A2Z
                         vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, mfgImageMapping);
                         swTpl.Stop();
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
+                        // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 괘선 제거, 제작도와 동일 패턴.
+                        vizcore3d.Drawing2D.Object2D.RemoveEmptyTemplateBorders(0.1f, VIZCore3D.NET.Data.TemplateBorderRemoveMode.RowAndColumn);
                         EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
                         // 캔버스 선(先)렌더 — 제작도(정상 완주) 검증 시퀀스 정합 (격리 7단계 2026-07-21).
