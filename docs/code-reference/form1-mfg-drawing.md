@@ -18,9 +18,10 @@
 
 - **라인**: L1878
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
-- `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). 템플릿 적용 전 `Set2DViewTemplateMark(Logo.png)` 1회 등록({Image} 슬롯 치환).
+- `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). CONTRACTOR 로고는 `{Image_3}` + mfgImageMapping으로 Import 단계 처리(2026-07-21, 옛 `Set2DViewTemplateMark` 등록 폐기).
 - 템플릿 적용은 `ImportExcelWithData` 직행 — 소형 템플릿(~4천 셀)이라 수백 ms. JSON 사전변환·캐시는 2026-07-19 제거(변환 290초·태그 미보존·stale 좌표 버그). 템플릿은 엑셀에서만 수정(openpyxl 저장본은 네이티브 크래시).
 - 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자(SDK 1.0.26.716)로 Import 단계에서 배치 — 옛 View 기반 수동 배치 폐기 (2026-07-20). `EnsureViewAreasCache`는 중복 View 태그 방어(첫 위치 사용+경고). ⚠ **태그 번호 한계**: View 1~7·Input 1~199만 — 초과 시 import에서 SDK 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측).
+- Import 직후 `RemoveEmptyTemplateBorders(0.1f, RowAndColumn)`(SDK 1.0.26.716)로 내용 없는 공백 셀(미기재 BOM 행)의 괘선 제거 (2026-07-21, 제작도와 동일).
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 

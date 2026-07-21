@@ -1747,6 +1747,10 @@ namespace A2Z
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
 
+                // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 등 내용 없는 공백 셀의 테두리를 지운다.
+                //   ⚠ 전역 동작(BOM만 선별 불가) — Rev 표·NOTE 등 다른 빈 칸 괘선도 함께 사라질 수 있음 (실기 확인).
+                vizcore3d.Drawing2D.Object2D.RemoveEmptyTemplateBorders(0.1f, VIZCore3D.NET.Data.TemplateBorderRemoveMode.RowAndColumn);
+
                 // ── 5. {View_n} 영역 좌표 — 매 출력 파싱 (작은 템플릿 ~수 ms).
                 //   캐시 금지: 앱 켠 채 템플릿을 엑셀에서 고치면 옛 좌표를 재사용하는 버그가 있었음 (2026-07-19).
                 var viewAreas = vizcore3d.Drawing2D.Template.GetViewAreasFromExcel(xlsxPath);
