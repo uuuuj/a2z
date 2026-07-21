@@ -38,6 +38,35 @@ namespace A2Z
         /// </summary>
         private List<ClashData> clashList = new List<ClashData>();
 
+        private const string FabricationNeighborClashTestName = "제작도_근접후보_간섭검사";
+        private const float FabricationNeighborClearance = 3.0f;
+
+        /// <summary>
+        /// 제작도 점선용 연결 부재 검사 결과. 기존 대상 내부 연결성 검사 결과와 분리한다.
+        /// </summary>
+        private List<ClashData> fabricationNeighborClashList = new List<ClashData>();
+        private HashSet<int> fabricationNeighborPartIndices = new HashSet<int>();
+        private HashSet<int> fabricationTargetBodyIndices = new HashSet<int>();
+        private HashSet<int> fabricationTargetPartIndices = new HashSet<int>();
+
+        /// <summary>
+        /// 제작도 연결 후보 광역 필터용 모델 Body 캐시. 모델을 다시 열 때 초기화한다.
+        /// </summary>
+        private struct BodyBoundsData
+        {
+            public float MinX;
+            public float MinY;
+            public float MinZ;
+            public float MaxX;
+            public float MaxY;
+            public float MaxZ;
+        }
+
+        private Dictionary<int, BodyBoundsData> fabricationBodyBoundsCache =
+            new Dictionary<int, BodyBoundsData>();
+        private Dictionary<int, int> fabricationBodyToPartIndexCache = new Dictionary<int, int>();
+        private int fabricationNeighborCacheSourceBodyCount = -1;
+
         /// <summary>
         /// Osnap 좌표 리스트
         /// </summary>

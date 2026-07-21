@@ -38,6 +38,7 @@ namespace A2Z
         {
             bodyToPartNameMap.Clear();
             bodyToPartIndexMap.Clear();
+            ResetFabricationNeighborSearchCache();
 
             try
             {
