@@ -629,7 +629,7 @@ namespace A2Z
                 int promotedSmall = 0;
 
                 // 2단 텍스트 슬라이드 (사용자 사양 2026-07-06): 2단에 그려지는 치수(승격 작은 치수 + 기존 2단)는
-                //   텍스트를 가로=화면 오른쪽 / 세로=화면 위로 종이 절대 2.5mm 이동.
+                //   텍스트를 가로=화면 오른쪽 / 세로=화면 위로 종이 절대 5mm 이동.
                 //   실기 검증된 뷰 매핑(옛 시프트 v6~v12): X뷰 right=+Y·up=+Z / Y뷰 right=-X·up=+Z / Z뷰 right=+X·up=+Y
                 //   → 부호는 'Y뷰의 X축 치수'만 음(-X), 나머지 전부 양.
                 float lvl2SlideModel = canvasScaleOverride > 0f ? Lvl2TextSlideCanvas / canvasScaleOverride : 0f;
@@ -1212,7 +1212,7 @@ namespace A2Z
                 }
             }
 
-            // 2단 승격 치수 텍스트 슬라이드 (사용자 사양 2026-07-21): 치수선 방향으로 종이 절대 2.5mm.
+            // 2단 승격 치수 텍스트 슬라이드 (사용자 사양 2026-07-06): 치수선 방향으로 종이 절대 5mm.
             //   SetMeasureItemDistanceTextPos는 치수선 방향 성분만 반영(수직 성분은 투영·무시 — 실기 확정)이라
             //   가로 치수=화면 오른쪽, 세로 치수=화면 위로만 이동 가능. 부호·거리는 호출자가 결정해 전달.
             if (textSlideModel != 0f && measureId >= 0)
@@ -1305,7 +1305,7 @@ namespace A2Z
         /// 2단(작은 치수 단) 텍스트 슬라이드 종이 mm (2026-07-06 사용자 사양) — 2단에 그려지는 치수는
         /// 텍스트를 치수선 방향으로 일괄 이동: 가로 치수=화면 오른쪽, 세로 치수=화면 위 (SDK가 치수선 방향만 반영).
         /// </summary>
-        private const float Lvl2TextSlideCanvas = 2.5f;
+        private const float Lvl2TextSlideCanvas = 5.0f;
 
         /// <summary>
         /// from 점에서 to 점 방향으로 distance만큼 이동한 점을 반환.
