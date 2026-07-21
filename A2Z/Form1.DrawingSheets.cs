@@ -1979,8 +1979,10 @@ namespace A2Z
                                 VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
                             vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
 
-                            // 예제 순서: 점선 정의(Crop/LineType)와 배치를 끝낸 뒤 실선을 캡처한다.
-                            fitAndPlaceObject(dashedObjId);
+                            // 제작도만 예제 순서대로 점선 정의·배치를 끝낸 뒤 실선을 캡처한다.
+                            // 조립도는 이미 실기 정상인 기존 순서(두 객체 캡처 후 점선 배치)를 유지한다.
+                            if (!isoFitByDashed)
+                                fitAndPlaceObject(dashedObjId);
                         }
                         else
                         {
@@ -2004,9 +2006,12 @@ namespace A2Z
                         continue;
                     }
 
-                    // 단일 캡처는 여기서 영역 fit + 이동. 두 겹은 점선 캡처 직후 이미 배치 완료.
+                    // 단일 캡처와 조립도는 기존 시점에 fit + 이동.
+                    // 제작도 두 겹만 점선 캡처 직후 이미 배치 완료.
                     if (dashedObjId < 0)
                         fitAndPlaceObject(objId);
+                    else if (isoFitByDashed)
+                        fitAndPlaceObject(dashedObjId);
 
                     // ── 두 겹 정합 — 스케일 통일 후 Match2DObjectsTo3DObjectPosition (SDK 1.0.26.716, issue #7) ──
                     //   조립도·제작도 모두 예제 불변 순서인 Match(이동=실선, 기준=점선)를 사용한다.

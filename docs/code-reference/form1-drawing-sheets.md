@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,645 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,650 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, PDF 내보내기 (단일/배치), ISO 풍선 노트 생성.
 
@@ -51,11 +51,11 @@
 - **단계**: 엑셀(`제작도_도면_1.xlsx`) `{Input_N}` 치환 + `{Image_1~3}` 이미지 매핑(N·ISO 화살표, CONTRACTOR 로고 — 2026-07-20/21 Image_N 전환, 옛 `Set2DViewTemplateMark` 로고 등록·View 수동 배치 폐기) → 빈 칸 괘선 제거(`RemoveEmptyTemplateBorders`, 2026-07-21 — 슬롯 초기값으로 선별: BOM·Note·Rev 위 4행만 제거, PAINT/DP/TAG·Rev 첫 기재행은 공백 위장 보존) → `{View_1~4}` 영역 파싱(`View_6` CLIENT 예약) → 모델 4면도·치수·풍선 렌더. ISO는 두 겹 — 조립도: 전체−기준 LONG_DASHED 점선+기준부재 실선 / 제작도: 간섭 그룹검사에서 얻은 시트 밖 이웃을 캡처 후 CropFit하고 LONG_DASHED 지정 → 점선 fit → 실선 캡처 → `Match2DObjectsTo3DObjectPosition(실선, 점선)` 정합
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2168+
+- **라인**: L2173+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2184+
+- **라인**: L2189+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
