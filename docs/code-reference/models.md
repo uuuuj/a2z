@@ -8,7 +8,7 @@
 
 ## 데이터 클래스
 
-### ChainDimensionData (L9~L44)
+### ChainDimensionData (L9~L56)
 체인 치수 데이터. 축별 오프셋 표시, 우선순위 필터, 병합/표시 레벨 플래그.
 
 | 필드 | 타입 | 용도 |
@@ -25,7 +25,7 @@
 | `StartPoint` / `EndPoint` | Vector3D | 양 끝점 |
 | `StartPointStr` / `EndPointStr` | string | 포맷된 좌표 문자열 |
 
-### BOMData (L49~L77)
+### BOMData (L61~L89)
 부재 목록 단위. BBox, 홀 정보, 회전각 포함.
 
 | 필드 | 타입 | 용도 |
@@ -42,7 +42,7 @@
 | `SlotHoleSize` | string | 대표 슬롯홀 사이즈 |
 | `SlotHoles` | List&lt;SlotHoleInfo&gt; | 슬롯홀 리스트 |
 
-### HoleInfo (L82~L89)
+### HoleInfo (L94~L102)
 원형 홀.
 
 | 필드 | 타입 |
@@ -51,7 +51,7 @@
 | `CenterX/Y/Z` | float |
 | `CylinderBodyIndex` | int |
 
-### SlotHoleInfo (L94~L102)
+### SlotHoleInfo (L106~L114)
 슬롯(장공) 홀.
 
 | 필드 | 타입 |
@@ -61,7 +61,7 @@
 | `Depth` | float |
 | `CenterX/Y/Z` | float |
 
-### ClashData (L107~L114)
+### ClashData (L119~L126)
 간섭 쌍.
 
 | 필드 | 타입 | 용도 |
@@ -70,7 +70,7 @@
 | `Name1`, `Name2` | string | 간섭 부재명 |
 | `ZValue` | float | HotPoint Z (정렬 기준) |
 
-### DrawingSheetData (L119~L133)
+### DrawingSheetData (L131~L155)
 도면 시트.
 
 | 필드 | 타입 | 용도 |
@@ -81,6 +81,12 @@
 | `MemberIndices` | List&lt;int&gt; | 포함 부재 Index 리스트 |
 | `MemberNames` | List&lt;string&gt; | 포함 부재명 |
 | `MfgDrawingNo` | int | 가공도 번호 |
+| `PreparedDimensions` / `DimensionsPrepared` | List / bool | 목록 표시 전에 준비한 시트 치수와 준비 상태 |
+| `PreparedBomRows` / `BomPrepared` | List / bool | 목록 표시 전에 준비한 BOM 행과 준비 상태 |
+| `PreparedBomNodeGroupMap` | Dictionary | 시트 기준 Body→BOM 그룹 번호 |
+
+### DrawingBomRowData (L159~L169)
+도면정보 탭 BOM 한 행의 문자열 데이터. `ListViewItem`을 직접 보관하지 않고 시트 전환 때 안전하게 UI 행을 생성한다.
 
 ---
 

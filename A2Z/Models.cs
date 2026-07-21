@@ -136,11 +136,35 @@ namespace A2Z
         public List<int> MemberIndices { get; set; }
         public List<string> MemberNames { get; set; }
         public int MfgDrawingNo { get; set; }
+        public List<ChainDimensionData> PreparedDimensions { get; set; }
+        public bool DimensionsPrepared { get; set; }
+        public List<DrawingBomRowData> PreparedBomRows { get; set; }
+        public Dictionary<int, int> PreparedBomNodeGroupMap { get; set; }
+        public bool BomPrepared { get; set; }
 
         public DrawingSheetData()
         {
             MemberIndices = new List<int>();
             MemberNames = new List<string>();
+            PreparedDimensions = new List<ChainDimensionData>();
+            PreparedBomRows = new List<DrawingBomRowData>();
+            PreparedBomNodeGroupMap = new Dictionary<int, int>();
         }
+    }
+
+    /// <summary>
+    /// 도면정보 탭 BOM 한 행의 사전 준비 데이터.
+    /// ListViewItem 자체를 보관하지 않아 여러 시트 사이에서 안전하게 재사용한다.
+    /// </summary>
+    public class DrawingBomRowData
+    {
+        public string No { get; set; }
+        public string Item { get; set; }
+        public string Material { get; set; }
+        public string Size { get; set; }
+        public string Quantity { get; set; }
+        public string TotalWeight { get; set; }
+        public string Ma { get; set; }
+        public string Fa { get; set; }
     }
 }

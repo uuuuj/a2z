@@ -86,6 +86,20 @@
   tbody td{ font-weight:700; font-variant-numeric:tabular-nums; }
   .dedup{ margin-top:1cqh; font-size:1.42cqh; color:var(--muted); line-height:1.4; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:1cqh 1cqw; }
   .dedup b{ color:var(--ink); }
+  /* ---- slide 3 ---- */
+  main.m3{ grid-template-rows:auto 1fr; gap:1.8cqh; padding:2.4cqh 4cqw 1.3cqh; }
+  .rulebar{ display:grid; grid-template-columns:1fr 1fr 1.15fr; gap:1.6cqw; align-items:center; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:1.3cqh 1.5cqw; }
+  .rule{ font-size:1.5cqh; line-height:1.4; } .rule .k{ font-weight:800; }
+  .rule.pri .k{ color:var(--keep); } .rule.sec .k{ color:var(--accent-ink); }
+  .rule .big{ color:var(--warn); font-weight:800; }
+  .rlegend{ font-size:1.38cqh; line-height:1.7; padding-left:1.4cqw; border-left:2px solid var(--line); }
+  .rlegend .dot{ display:inline-block; width:1.2cqh; height:1.2cqh; min-width:9px; min-height:9px; border-radius:50%; margin-right:.4cqw; vertical-align:middle; }
+  .shapes{ display:grid; grid-template-columns:repeat(3,1fr); gap:1.6cqw; min-height:0; }
+  .shape{ background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:1cqh 1cqw .9cqh; display:flex; flex-direction:column; min-height:0; }
+  .shape .stitle{ font-size:1.55cqh; font-weight:800; text-align:center; margin-bottom:.3cqh; }
+  .shape svg{ width:100%; flex:1; min-height:0; display:block; }
+  .shape .sdesc{ font-size:1.3cqh; color:var(--muted); line-height:1.34; margin-top:.4cqh; }
+  .shape .sdesc b{ color:var(--ink); }
   /* ---- footer ---- */
   footer{ border-top:1px solid var(--line); background:linear-gradient(180deg,#fbfcfe,#f6f9fd); }
   footer.foot3{ display:grid; grid-template-columns:1.35fr 1.3fr 1.05fr; gap:2.2cqw; padding:1.7cqh 4cqw 2.3cqh; }
@@ -110,7 +124,7 @@
         <h1>도면별 Osnap을 남기는 기준 <span class="sub">— 제작도 · 조립도 · 가공도 · 설치도</span></h1>
       </div>
       <div class="hr">
-        <div class="pgnum">1 / 2</div>
+        <div class="pgnum">1 / 3</div>
         <a class="nav" href="#s2">선별 엔진 상세 ↓</a>
         <div class="meta"><b>기준일</b> 2026-07-21</div>
       </div>
@@ -197,8 +211,8 @@
         <h1>선별 엔진 — 무엇을 남기고 버리나 <span class="sub">— 4극점 규칙</span></h1>
       </div>
       <div class="hr">
-        <div class="pgnum">2 / 2</div>
-        <a class="nav" href="#s1">↑ 도면별 기준으로</a>
+        <div class="pgnum">2 / 3</div>
+        <a class="nav" href="#s3">동률·형상 예시 ↓</a>
         <div class="meta"><b>기준일</b> 2026-07-21</div>
       </div>
     </header>
@@ -274,6 +288,86 @@
       <div class="fcard warn">
         <div class="ft"><span class="ic">⏳</span> 미구현</div>
         <p><b>홀 중심</b>을 치수 기준점에 포함하는 것은 향후 과제. Osnap <b>생성</b> 조건은 SDK 벤더 확인 대기.</p>
+      </div>
+    </footer>
+  </div>
+  </section>
+
+  <!-- ============ SLIDE 3 ============ -->
+  <section class="page" id="s3">
+  <div class="slide" role="img" aria-label="주축 또는 보조축 극점이 동률일 때 보조축 최대(오른쪽) 또는 주축 최대(위)를 고르는 규칙과, 직사각형·마름모·L자 형상에서 4극점이 어디에 찍히는지 예시로 보여주는 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">도면 표현 로직 · 심화</div>
+        <h1>동률일 땐 무엇을 고르나 <span class="sub">— 형상별 예시</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">3 / 3</div>
+        <a class="nav" href="#s1">↑ 처음으로</a>
+        <div class="meta"><b>기준일</b> 2026-07-21</div>
+      </div>
+    </header>
+    <main class="m3">
+      <section class="rulebar">
+        <div class="rule pri"><span class="k">주축 극점(A 위·B 아래)</span>이 여러 개면<br>→ 그 중 <span class="big">보조축 MAX = 오른쪽</span></div>
+        <div class="rule sec"><span class="k">보조축 극점(C 오른쪽·D 왼쪽)</span>이 여러 개면<br>→ 그 중 <span class="big">주축 MAX = 위</span></div>
+        <div class="rlegend">
+          <span class="dot" style="background:#0f766e"></span>주축 극점(A·B)&nbsp;&nbsp;
+          <span class="dot" style="background:#1d4ed8"></span>보조축 극점(C·D)<br>
+          <span class="dot" style="background:#7c3aed"></span>둘 겸함(A=C)&nbsp;&nbsp;
+          <span class="dot" style="background:#c2ccdb"></span>미선택
+        </div>
+      </section>
+      <section class="shapes">
+        <div class="shape">
+          <div class="stitle">① 직사각형 (축 정렬)</div>
+          <svg viewBox="0 0 180 150" preserveAspectRatio="xMidYMid meet">
+            <rect x="35" y="35" width="110" height="80" rx="2" fill="#eef2f8" stroke="#c2ccdb" stroke-width="1.4"/>
+            <circle cx="35" cy="115" r="5" fill="none" stroke="#c2ccdb" stroke-width="1.6"/>
+            <text x="35" y="132" text-anchor="middle" font-size="9.5" fill="#aab6c9">미선택</text>
+            <circle cx="35" cy="35" r="7" fill="#1d4ed8"/><text x="27" y="31" text-anchor="end" font-size="12.5" font-weight="800" fill="#1d4ed8">D</text>
+            <circle cx="145" cy="115" r="7" fill="#0f766e"/><text x="154" y="119" font-size="12.5" font-weight="800" fill="#0f766e">B</text>
+            <circle cx="145" cy="35" r="8.5" fill="#7c3aed"/><text x="155" y="32" font-size="12.5" font-weight="800" fill="#7c3aed">A·C</text>
+          </svg>
+          <div class="sdesc">위·아래 변이 동률 → <b>오른쪽</b> 선택. <b>A·C 겹침</b>, 좌하단 미선택.</div>
+        </div>
+        <div class="shape">
+          <div class="stitle">② 마름모 (경사변)</div>
+          <svg viewBox="0 0 180 150" preserveAspectRatio="xMidYMid meet">
+            <polygon points="90,32 148,75 90,118 32,75" fill="#eef2f8" stroke="#c2ccdb" stroke-width="1.4"/>
+            <circle cx="90" cy="32" r="7" fill="#0f766e"/><text x="90" y="26" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0f766e">A</text>
+            <circle cx="90" cy="118" r="7" fill="#0f766e"/><text x="90" y="135" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0f766e">B</text>
+            <circle cx="148" cy="75" r="7" fill="#1d4ed8"/><text x="157" y="79" font-size="12.5" font-weight="800" fill="#1d4ed8">C</text>
+            <circle cx="32" cy="75" r="7" fill="#1d4ed8"/><text x="23" y="79" text-anchor="end" font-size="12.5" font-weight="800" fill="#1d4ed8">D</text>
+          </svg>
+          <div class="sdesc">꼭짓점이 뾰족해 <b>동률 없음</b>. 4극점이 각 꼭짓점에 단독으로.</div>
+        </div>
+        <div class="shape">
+          <div class="stitle">③ L자 (돌출)</div>
+          <svg viewBox="0 0 180 150" preserveAspectRatio="xMidYMid meet">
+            <polygon points="35,35 80,35 80,80 145,80 145,115 35,115" fill="#eef2f8" stroke="#c2ccdb" stroke-width="1.4"/>
+            <circle cx="80" cy="80" r="5" fill="none" stroke="#c2ccdb" stroke-width="1.6"/><text x="88" y="76" font-size="9" fill="#aab6c9">꺾임=제외</text>
+            <circle cx="80" cy="35" r="7" fill="#0f766e"/><text x="80" y="29" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0f766e">A</text>
+            <circle cx="145" cy="115" r="7" fill="#0f766e"/><text x="154" y="119" font-size="12.5" font-weight="800" fill="#0f766e">B</text>
+            <circle cx="145" cy="80" r="7" fill="#1d4ed8"/><text x="154" y="76" font-size="12.5" font-weight="800" fill="#1d4ed8">C</text>
+            <circle cx="35" cy="35" r="7" fill="#1d4ed8"/><text x="27" y="31" text-anchor="end" font-size="12.5" font-weight="800" fill="#1d4ed8">D</text>
+          </svg>
+          <div class="sdesc">각 변에서 <b>MAX 방향 끝</b> 선택. 안쪽 꺾임점은 극점 아님.</div>
+        </div>
+      </section>
+    </main>
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🎯</span> 한마디</div>
+        <p>동률이면 항상 <b>위·오른쪽(MAX 방향)</b> 우선. 그래서 뽑히는 꼭짓점이 정해진다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">🔎</span> 좌하단이 빠져도 되나</div>
+        <p>축정렬 부재는 A=C(우상)로 겹쳐 유효 3점. 그래도 <b>상하·좌우 범위</b>는 그 점들로 이미 커버돼 치수엔 문제없음.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">📍</span> 값 원본</div>
+        <p><code>Form1.Dimensions.cs</code> — <code>FilterOsnapForDimAxis</code> 필수점 결정부(A/B/C/D 정렬 tiebreak).</p>
       </div>
     </footer>
   </div>

@@ -17,314 +17,441 @@ namespace A2Z
             CollectBOMInfo(true);
         }
 
+        private sealed class DrawingBomPartData
+        {
+            public int PartIndex;
+            public string Item;
+            public string Size;
+            public string Material;
+            public string WeightDisplay;
+            public double Weight;
+        }
+
+        private sealed class DrawingBomPreparationContext
+        {
+            public Dictionary<int, DrawingBomPartData> PartByIndex = new Dictionary<int, DrawingBomPartData>();
+            public Dictionary<int, List<int>> PartToBodyIndices = new Dictionary<int, List<int>>();
+            public Dictionary<int, int> PartToBomNo = new Dictionary<int, int>();
+        }
+
+        private sealed class DrawingBomSnapshot
+        {
+            public List<DrawingBomRowData> Rows = new List<DrawingBomRowData>();
+            public Dictionary<int, int> NodeGroupMap = new Dictionary<int, int>();
+        }
+
         private void CollectBOMInfo(bool showAlert = true, DrawingSheetData sheetOverride = null)
         {
+            DrawingSheetData targetSheet = sheetOverride;
+            if (targetSheet == null && lvDrawingSheet.SelectedItems.Count > 0)
+                targetSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+
             try
             {
-                lvDrawingBOMInfo.Items.Clear();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                bool cacheHit = targetSheet != null && targetSheet.BomPrepared;
 
-                // Part 노드 가져오기 (Part 레벨에서 UDA 조회)
-                List<VIZCore3D.NET.Data.Node> partNodes = vizcore3d.Object3D.GetPartialNode(false, true, false);
-                if (partNodes == null || partNodes.Count == 0)
+                if (!cacheHit)
                 {
-                    // Part가 없으면 Body 노드로 시도
-                    partNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                }
-
-                if (partNodes == null || partNodes.Count == 0)
-                {
-                    if (showAlert) MessageBox.Show("로드된 모델이 없거나 노드를 찾을 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // ★ 도면시트 부재만 필터링 (sheetOverride 우선, 없으면 ListView 선택)
-                DrawingSheetData targetSheet = sheetOverride;
-                if (targetSheet == null && lvDrawingSheet.SelectedItems.Count > 0)
-                    targetSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
-
-                if (targetSheet != null && targetSheet.MemberIndices.Count > 0)
-                {
-                    var sheetBodySet = new HashSet<int>(targetSheet.MemberIndices);
-                        List<VIZCore3D.NET.Data.Node> bodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                        var partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
-                        var allowedPartIndices = new HashSet<int>();
-
-                        if (bodyNodes != null)
-                        {
-                            foreach (var body in bodyNodes)
-                            {
-                                if (!sheetBodySet.Contains(body.Index)) continue;
-                                int lo = 0, hi = partIdxSorted.Count - 1;
-                                int parentPart = -1;
-                                while (lo <= hi)
-                                {
-                                    int mid = (lo + hi) / 2;
-                                    if (partIdxSorted[mid] <= body.Index)
-                                    {
-                                        parentPart = partIdxSorted[mid];
-                                        lo = mid + 1;
-                                    }
-                                    else hi = mid - 1;
-                                }
-                                if (parentPart >= 0) allowedPartIndices.Add(parentPart);
-                            }
-                        }
-
-                        partNodes = partNodes.Where(p => allowedPartIndices.Contains(p.Index)).ToList();
-                    }
-
-                // UDA 키 목록 한번만 조회
-                List<string> udaKeyList = null;
-                try
-                {
-                    var keys = vizcore3d.Object3D.UDA.Keys;
-                    if (keys != null && keys.Count > 0)
-                        udaKeyList = new List<string>(keys);
-                }
-                catch { }
-
-                // 각 Part 노드에서 SPREF/MATREF/GWEI 값 수집 (현재 노드에 없으면 부모로 올라가며 재조회)
-                var rawBomItems = new List<Tuple<string, string, string, string, int>>();  // Item, Size, Material, Weight, NodeIndex
-                double totalWeight = 0;
-
-                foreach (var node in partNodes)
-                {
-                    string sprefVal = "";
-                    string matrefVal = "";
-                    string gweiVal = "";
-                    string posStartVal = "";  // T-061: POSSTART UDA — 길이 계산용
-                    string posEndVal = "";    // T-061: POSEND UDA
-
-                    // 현재 노드부터 부모로 올라가며 UDA 조회 (최대 10단계)
-                    int currentIdx = node.Index;
-                    for (int depth = 0; depth < 10; depth++)
+                    IEnumerable<int> targetBodies = targetSheet?.MemberIndices;
+                    DrawingBomPreparationContext context = BuildDrawingBomPreparationContext(targetBodies);
+                    if (context.PartByIndex.Count == 0)
                     {
-                        if (currentIdx < 0) break;
-
-                        if (udaKeyList != null)
-                        {
-                            foreach (string key in udaKeyList)
-                            {
-                                string keyUpper = key.Trim().ToUpper();
-                                try
-                                {
-                                    var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
-                                    string valStr = (val != null) ? val.ToString().Trim() : "";
-
-                                    if (keyUpper == "SPREF" && string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(valStr))
-                                        sprefVal = valStr;
-                                    else if (keyUpper == "MATREF" && string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(valStr))
-                                        matrefVal = valStr;
-                                    else if (keyUpper == "GWEI" && string.IsNullOrEmpty(gweiVal) && !string.IsNullOrEmpty(valStr))
-                                        gweiVal = valStr;
-                                    else if (keyUpper == "POSSTART" && string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(valStr))
-                                        posStartVal = valStr;
-                                    else if (keyUpper == "POSEND" && string.IsNullOrEmpty(posEndVal) && !string.IsNullOrEmpty(valStr))
-                                        posEndVal = valStr;
-                                }
-                                catch { }
-                            }
-                        }
-
-                        // 5개 값 모두 찾으면 중단
-                        if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal)
-                            && !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
-                            break;
-
-                        // 부모 노드로 이동
-                        try
-                        {
-                            VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
-                            if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
-                            currentIdx = parentNode.ParentIndex;
-                        }
-                        catch { break; }
+                        lvDrawingBOMInfo.Items.Clear();
+                        if (showAlert)
+                            MessageBox.Show("로드된 모델이 없거나 노드를 찾을 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
                     }
 
-                    // SPREF 파싱 (T-061): 첫 글자 "/" 제거 후 "/" 또는 ":" 중 먼저 나오는 위치에서 split
-                    // 예: "/H300x250:SIZE" → ITEM="H300x250", rest="SIZE"
-                    // 예: "/PART/ITEM/REST" → ITEM="PART", rest="ITEM/REST"
-                    string itemVal = "";
-                    string sizeVal = "";
-                    if (!string.IsNullOrEmpty(sprefVal))
-                    {
-                        string sprefClean = sprefVal.StartsWith("/") ? sprefVal.Substring(1) : sprefVal;
-                        int slashIdx = sprefClean.IndexOf('/');
-                        int colonIdx = sprefClean.IndexOf(':');
-                        int splitIdx;
-                        if (slashIdx < 0 && colonIdx < 0) splitIdx = sprefClean.Length;
-                        else if (slashIdx < 0) splitIdx = colonIdx;
-                        else if (colonIdx < 0) splitIdx = slashIdx;
-                        else splitIdx = Math.Min(slashIdx, colonIdx);
-
-                        itemVal = sprefClean.Substring(0, splitIdx).Trim();
-                        if (splitIdx < sprefClean.Length)
-                            sizeVal = sprefClean.Substring(splitIdx + 1).Trim();
-                    }
-
-                    // T-061: POSSTART/POSEND로 길이 계산 → SIZE 뒤에 "xLENGTH" 형태로 추가
-                    // 한 축만 다른 경우든 두/세 축 다른 경우든 일률 3D 거리 공식 (sqrt(dx²+dy²+dz²))
-                    // POSSTART/POSEND가 비어 있으면 길이 추가 안 함 (SIZE 그대로)
-                    if (!string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
-                    {
-                        float[] s = ParsePosString(posStartVal);
-                        float[] e = ParsePosString(posEndVal);
-                        float dxL = e[0] - s[0], dyL = e[1] - s[1], dzL = e[2] - s[2];
-                        float length = (float)Math.Sqrt(dxL * dxL + dyL * dyL + dzL * dzL);
-                        string lengthStr = length.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-                        sizeVal = string.IsNullOrEmpty(sizeVal) ? lengthStr : $"{sizeVal}x{lengthStr}";
-                    }
-
-                    // UDA에 SPREF가 없으면 노드 이름을 Item으로 사용
-                    if (string.IsNullOrEmpty(itemVal))
-                        itemVal = node.NodeName ?? "";
-
-                    // MATREF 파싱: 첫 글자 "/" 제거 → MATERIAL 값
-                    string materialVal = matrefVal;
-                    if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
-                        materialVal = materialVal.Substring(1);
-
-                    // T/W 합계 계산 + 소수점 둘째자리 반올림
-                    double w = 0;
-                    string gweiDisplay = gweiVal;
-                    if (!string.IsNullOrEmpty(gweiVal))
-                    {
-                        // 숫자 외 문자 제거 (단위 등), 소수점/부호/숫자만 남김
-                        string numStr = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray());
-                        // 쉼표를 소수점으로 변환 (로케일 대응)
-                        numStr = numStr.Replace(',', '.');
-                        if (double.TryParse(numStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out w))
-                            gweiDisplay = Math.Round(w, 2).ToString("F2");
-                    }
-                    totalWeight += w;
-
-                    rawBomItems.Add(Tuple.Create(itemVal, sizeVal, materialVal, gweiDisplay, node.Index));
-                }
-
-                // bomInfoNodeGroupMap 구축: Body nodeIndex → groupNo 매핑
-                bomInfoNodeGroupMap.Clear();
-                List<VIZCore3D.NET.Data.Node> bodyNodesForMap = vizcore3d.Object3D.GetPartialNode(false, false, true);
-                if (bodyNodesForMap != null && bodyNodesForMap.Count > 0)
-                {
-                    List<int> partIdxSorted = partNodes.Select(p => p.Index).OrderBy(x => x).ToList();
-
-                    // 각 Part에 순차적으로 groupNo 부여 (Row 0은 요약행이므로 1부터)
-                    var partToGroup = new Dictionary<int, int>();
-                    int groupNo = 1;
-                    foreach (var bomItem in rawBomItems)
-                    {
-                        partToGroup[bomItem.Item5] = groupNo;
-                        groupNo++;
-                    }
-
-                    foreach (var body in bodyNodesForMap)
-                    {
-                        int parentPartIndex = -1;
-                        int lo = 0, hi = partIdxSorted.Count - 1;
-                        while (lo <= hi)
-                        {
-                            int mid = (lo + hi) / 2;
-                            if (partIdxSorted[mid] <= body.Index)
-                            {
-                                parentPartIndex = partIdxSorted[mid];
-                                lo = mid + 1;
-                            }
-                            else
-                            {
-                                hi = mid - 1;
-                            }
-                        }
-                        if (parentPartIndex >= 0 && partToGroup.ContainsKey(parentPartIndex))
-                        {
-                            bomInfoNodeGroupMap[body.Index] = partToGroup[parentPartIndex];
-                        }
-                    }
-                }
-
-                // ListView에 채우기 (BOM정보 탭)
-                lvDrawingBOMInfo.BeginUpdate();
-
-                // Row 0: 요약행
-                ListViewItem summaryRow = new ListViewItem("");                      // No.
-                summaryRow.SubItems.Add("Support&Seat");                             // ITEM
-                summaryRow.SubItems.Add("");                                         // MATERIAL
-                summaryRow.SubItems.Add("");                                         // SIZE
-                summaryRow.SubItems.Add("");                                         // Q'TY
-                summaryRow.SubItems.Add(totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : ""); // T/W
-                summaryRow.SubItems.Add("F");                                        // MA
-                summaryRow.SubItems.Add("F");                                        // FA
-                lvDrawingBOMInfo.Items.Add(summaryRow);
-
-                // bomList Body index → Part index → No 매핑 (인덱스 기반, 이름 불일치 방지)
-                var partIndexToBomNo = new Dictionary<int, int>();
-                for (int bi = 0; bi < bomList.Count; bi++)
-                {
-                    int partIdx = bodyToPartIndexMap.ContainsKey(bomList[bi].Index)
-                        ? bodyToPartIndexMap[bomList[bi].Index]
-                        : bomList[bi].Index;
-                    if (!partIndexToBomNo.ContainsKey(partIdx))
-                        partIndexToBomNo[partIdx] = bi + 1;
-                }
-
-                // Row 1~N: 개별 파트 행 (No.는 작업/데이터 BOM의 Part Index 기준)
-                int fallbackNo = bomList.Count + 1;
-                foreach (var bomItem in rawBomItems)
-                {
-                    int partIndex = bomItem.Item5; // Part index
-
-                    // 작업/데이터 BOM에서 같은 Part Index의 No. 찾기
-                    int matchedNo;
-                    if (partIndexToBomNo.ContainsKey(partIndex))
-                    {
-                        matchedNo = partIndexToBomNo[partIndex];
-                    }
+                    DrawingBomSnapshot snapshot = BuildDrawingBomSnapshot(context, targetBodies);
+                    if (targetSheet != null)
+                        StorePreparedBomSnapshot(targetSheet, snapshot);
                     else
-                    {
-                        matchedNo = fallbackNo++;
-                    }
-
-                    // BOM정보 탭
-                    ListViewItem lvi = new ListViewItem(matchedNo.ToString()); // No. (작업/데이터 BOM 기준)
-                    lvi.SubItems.Add(bomItem.Item1);                      // ITEM
-                    lvi.SubItems.Add(bomItem.Item3);                      // MATERIAL
-                    lvi.SubItems.Add(bomItem.Item2);                      // SIZE
-                    lvi.SubItems.Add("1");                                // Q'TY
-                    lvi.SubItems.Add(bomItem.Item4);                      // T/W
-                    lvi.SubItems.Add("L");                                // MA
-                    lvi.SubItems.Add("F");                                // FA
-                    lvDrawingBOMInfo.Items.Add(lvi);
+                        ApplyBomSnapshot(snapshot);
                 }
 
-                // No. 기준 오름차순 정렬 (첫 번째 요약행 제외, 1행부터 정렬)
-                if (lvDrawingBOMInfo.Items.Count > 1)
-                {
-                    var dataRows = new List<ListViewItem>();
-                    for (int ri = 1; ri < lvDrawingBOMInfo.Items.Count; ri++)
-                        dataRows.Add((ListViewItem)lvDrawingBOMInfo.Items[ri].Clone());
+                if (targetSheet != null)
+                    ApplyPreparedBomInfo(targetSheet);
 
-                    dataRows.Sort((a, b) =>
-                    {
-                        int na = 0, nb = 0;
-                        int.TryParse(a.Text, out na);
-                        int.TryParse(b.Text, out nb);
-                        return na.CompareTo(nb);
-                    });
+                sw.Stop();
+                DiagLog($"BOM 정보 적용: sheet#={targetSheet?.SheetNumber ?? 0} " +
+                    $"cacheHit={cacheHit} rows={lvDrawingBOMInfo.Items.Count} elapsed={sw.ElapsedMilliseconds}ms");
 
-                    // 정렬된 행으로 교체 (요약행 유지)
-                    while (lvDrawingBOMInfo.Items.Count > 1)
-                        lvDrawingBOMInfo.Items.RemoveAt(lvDrawingBOMInfo.Items.Count - 1);
-
-                    foreach (var row in dataRows)
-                        lvDrawingBOMInfo.Items.Add(row);
-                }
-
-                lvDrawingBOMInfo.EndUpdate();
-
-                if (showAlert) MessageBox.Show(string.Format("BOM 정보 {0}개 항목 수집 완료", rawBomItems.Count), "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (showAlert)
+                    MessageBox.Show($"BOM 정보 {Math.Max(0, lvDrawingBOMInfo.Items.Count - 1)}개 항목 수집 완료", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
+                DiagLog($"CollectBOMInfo FAIL {ex.Message}\n{ex.StackTrace}");
                 if (showAlert) MessageBox.Show("BOM 정보 수집 오류:\n" + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 도면 리스트를 표시하기 전에 모든 시트의 BOM 행을 한 번에 준비한다.
+        /// Body→Part 매핑은 모델 로드 때 만든 bodyToPartIndexMap을 재사용하고 UDA는 Part별 한 번만 읽는다.
+        /// </summary>
+        private void PrepareDrawingSheetBomCaches()
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var allSheetBodies = new HashSet<int>(drawingSheetList.SelectMany(s => s.MemberIndices));
+            DrawingBomPreparationContext context = BuildDrawingBomPreparationContext(allSheetBodies);
+
+            foreach (DrawingSheetData sheet in drawingSheetList)
+            {
+                DrawingBomSnapshot snapshot = BuildDrawingBomSnapshot(context, sheet.MemberIndices);
+                StorePreparedBomSnapshot(sheet, snapshot);
+            }
+
+            if (drawingSheetList.Count > 0)
+                ApplyPreparedBomInfo(drawingSheetList[0]);
+
+            sw.Stop();
+            DiagLog($"도면 시트 BOM 사전 준비: sheets={drawingSheetList.Count} " +
+                $"parts={context.PartByIndex.Count} bodies={allSheetBodies.Count} elapsed={sw.ElapsedMilliseconds}ms");
+        }
+
+        private DrawingBomPreparationContext BuildDrawingBomPreparationContext(IEnumerable<int> targetBodyIndices)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var context = new DrawingBomPreparationContext();
+            HashSet<int> targetBodySet = targetBodyIndices != null
+                ? new HashSet<int>(targetBodyIndices)
+                : null;
+
+            var relevantPartIndices = new HashSet<int>();
+            if (targetBodySet != null)
+            {
+                foreach (int bodyIndex in targetBodySet)
+                {
+                    int partIndex;
+                    if (!bodyToPartIndexMap.TryGetValue(bodyIndex, out partIndex))
+                        partIndex = bodyIndex;
+                    relevantPartIndices.Add(partIndex);
+                }
+            }
+            else
+            {
+                List<VIZCore3D.NET.Data.Node> allParts = vizcore3d.Object3D.GetPartialNode(false, true, false);
+                if (allParts == null || allParts.Count == 0)
+                    allParts = vizcore3d.Object3D.GetPartialNode(false, false, true);
+                if (allParts != null)
+                    foreach (var node in allParts) relevantPartIndices.Add(node.Index);
+            }
+
+            var wantedUdaKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var keys = vizcore3d.Object3D.UDA.Keys;
+                if (keys != null)
+                {
+                    foreach (string key in keys)
+                    {
+                        string normalized = (key ?? "").Trim();
+                        if (normalized.Equals("SPREF", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("MATREF", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("GWEI", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("POSSTART", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("POSEND", StringComparison.OrdinalIgnoreCase))
+                        {
+                            wantedUdaKeys[normalized] = key;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            foreach (int partIndex in relevantPartIndices.OrderBy(x => x))
+            {
+                VIZCore3D.NET.Data.Node node = null;
+                try { node = vizcore3d.Object3D.FromIndex(partIndex); }
+                catch { }
+                if (node == null) continue;
+
+                context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys);
+            }
+
+            foreach (var pair in bodyToPartIndexMap)
+            {
+                if (!relevantPartIndices.Contains(pair.Value)) continue;
+                List<int> bodies;
+                if (!context.PartToBodyIndices.TryGetValue(pair.Value, out bodies))
+                {
+                    bodies = new List<int>();
+                    context.PartToBodyIndices[pair.Value] = bodies;
+                }
+                bodies.Add(pair.Key);
+            }
+
+            if (targetBodySet != null)
+            {
+                foreach (int bodyIndex in targetBodySet)
+                {
+                    int partIndex;
+                    if (!bodyToPartIndexMap.TryGetValue(bodyIndex, out partIndex))
+                        partIndex = bodyIndex;
+                    List<int> bodies;
+                    if (!context.PartToBodyIndices.TryGetValue(partIndex, out bodies))
+                    {
+                        bodies = new List<int>();
+                        context.PartToBodyIndices[partIndex] = bodies;
+                    }
+                    if (!bodies.Contains(bodyIndex)) bodies.Add(bodyIndex);
+                }
+            }
+
+            for (int i = 0; i < bomList.Count; i++)
+            {
+                int partIndex;
+                if (!bodyToPartIndexMap.TryGetValue(bomList[i].Index, out partIndex))
+                    partIndex = bomList[i].Index;
+                if (!context.PartToBomNo.ContainsKey(partIndex))
+                    context.PartToBomNo[partIndex] = i + 1;
+            }
+
+            sw.Stop();
+            DiagLog($"BOM 준비 컨텍스트: targetBodies={targetBodySet?.Count ?? -1} " +
+                $"parts={context.PartByIndex.Count} udaKeys={wantedUdaKeys.Count} elapsed={sw.ElapsedMilliseconds}ms");
+            return context;
+        }
+
+        private DrawingBomPartData ReadDrawingBomPartData(
+            VIZCore3D.NET.Data.Node node,
+            Dictionary<string, string> udaKeys)
+        {
+            string sprefVal = "";
+            string matrefVal = "";
+            string gweiVal = "";
+            string posStartVal = "";
+            string posEndVal = "";
+
+            int currentIdx = node.Index;
+            for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
+            {
+                sprefVal = ReadDrawingBomUdaValue(currentIdx, "SPREF", sprefVal, udaKeys);
+                matrefVal = ReadDrawingBomUdaValue(currentIdx, "MATREF", matrefVal, udaKeys);
+                gweiVal = ReadDrawingBomUdaValue(currentIdx, "GWEI", gweiVal, udaKeys);
+                posStartVal = ReadDrawingBomUdaValue(currentIdx, "POSSTART", posStartVal, udaKeys);
+                posEndVal = ReadDrawingBomUdaValue(currentIdx, "POSEND", posEndVal, udaKeys);
+
+                if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal) &&
+                    !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
+                    break;
+
+                try
+                {
+                    VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                    if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
+                    currentIdx = parentNode.ParentIndex;
+                }
+                catch { break; }
+            }
+
+            string itemVal = "";
+            string sizeVal = "";
+            if (!string.IsNullOrEmpty(sprefVal))
+            {
+                string sprefClean = sprefVal.StartsWith("/") ? sprefVal.Substring(1) : sprefVal;
+                int slashIdx = sprefClean.IndexOf('/');
+                int colonIdx = sprefClean.IndexOf(':');
+                int splitIdx;
+                if (slashIdx < 0 && colonIdx < 0) splitIdx = sprefClean.Length;
+                else if (slashIdx < 0) splitIdx = colonIdx;
+                else if (colonIdx < 0) splitIdx = slashIdx;
+                else splitIdx = Math.Min(slashIdx, colonIdx);
+
+                itemVal = sprefClean.Substring(0, splitIdx).Trim();
+                if (splitIdx < sprefClean.Length)
+                    sizeVal = sprefClean.Substring(splitIdx + 1).Trim();
+            }
+
+            if (!string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
+            {
+                float[] start = ParsePosString(posStartVal);
+                float[] end = ParsePosString(posEndVal);
+                float dx = end[0] - start[0], dy = end[1] - start[1], dz = end[2] - start[2];
+                float length = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                string lengthText = length.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                sizeVal = string.IsNullOrEmpty(sizeVal) ? lengthText : $"{sizeVal}x{lengthText}";
+            }
+
+            if (string.IsNullOrEmpty(itemVal)) itemVal = node.NodeName ?? "";
+            string materialVal = matrefVal;
+            if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
+                materialVal = materialVal.Substring(1);
+
+            double weight = 0;
+            string weightDisplay = gweiVal;
+            if (!string.IsNullOrEmpty(gweiVal))
+            {
+                string number = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray()).Replace(',', '.');
+                if (double.TryParse(number, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out weight))
+                {
+                    weightDisplay = Math.Round(weight, 2).ToString("F2");
+                }
+            }
+
+            return new DrawingBomPartData
+            {
+                PartIndex = node.Index,
+                Item = itemVal,
+                Size = sizeVal,
+                Material = materialVal,
+                WeightDisplay = weightDisplay,
+                Weight = weight
+            };
+        }
+
+        private string ReadDrawingBomUdaValue(
+            int nodeIndex,
+            string normalizedKey,
+            string currentValue,
+            Dictionary<string, string> udaKeys)
+        {
+            if (!string.IsNullOrEmpty(currentValue)) return currentValue;
+            string actualKey;
+            if (!udaKeys.TryGetValue(normalizedKey, out actualKey)) return currentValue;
+            try
+            {
+                var value = vizcore3d.Object3D.UDA.FromIndex(nodeIndex, actualKey);
+                return value != null ? value.ToString().Trim() : currentValue;
+            }
+            catch
+            {
+                return currentValue;
+            }
+        }
+
+        private DrawingBomSnapshot BuildDrawingBomSnapshot(
+            DrawingBomPreparationContext context,
+            IEnumerable<int> bodyIndices)
+        {
+            var relevantParts = new HashSet<int>();
+            if (bodyIndices == null)
+            {
+                relevantParts.UnionWith(context.PartByIndex.Keys);
+            }
+            else
+            {
+                foreach (int bodyIndex in bodyIndices)
+                {
+                    int partIndex;
+                    if (!bodyToPartIndexMap.TryGetValue(bodyIndex, out partIndex))
+                        partIndex = bodyIndex;
+                    if (context.PartByIndex.ContainsKey(partIndex))
+                        relevantParts.Add(partIndex);
+                }
+            }
+
+            List<DrawingBomPartData> parts = relevantParts
+                .OrderBy(x => x)
+                .Select(x => context.PartByIndex[x])
+                .ToList();
+
+            var snapshot = new DrawingBomSnapshot();
+            double totalWeight = parts.Sum(p => p.Weight);
+            snapshot.Rows.Add(new DrawingBomRowData
+            {
+                No = "",
+                Item = "Support&Seat",
+                Material = "",
+                Size = "",
+                Quantity = "",
+                TotalWeight = totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "",
+                Ma = "F",
+                Fa = "F"
+            });
+
+            var partToGroup = new Dictionary<int, int>();
+            for (int i = 0; i < parts.Count; i++)
+                partToGroup[parts[i].PartIndex] = i + 1;
+
+            foreach (var pair in partToGroup)
+            {
+                List<int> bodies;
+                if (!context.PartToBodyIndices.TryGetValue(pair.Key, out bodies)) continue;
+                foreach (int bodyIndex in bodies)
+                    snapshot.NodeGroupMap[bodyIndex] = pair.Value;
+            }
+
+            int fallbackNo = bomList.Count + 1;
+            var dataRows = new List<DrawingBomRowData>();
+            foreach (DrawingBomPartData part in parts)
+            {
+                int no;
+                if (!context.PartToBomNo.TryGetValue(part.PartIndex, out no))
+                    no = fallbackNo++;
+                dataRows.Add(new DrawingBomRowData
+                {
+                    No = no.ToString(),
+                    Item = part.Item,
+                    Material = part.Material,
+                    Size = part.Size,
+                    Quantity = "1",
+                    TotalWeight = part.WeightDisplay,
+                    Ma = "L",
+                    Fa = "F"
+                });
+            }
+
+            dataRows.Sort((a, b) =>
+            {
+                int na = 0, nb = 0;
+                int.TryParse(a.No, out na);
+                int.TryParse(b.No, out nb);
+                return na.CompareTo(nb);
+            });
+            snapshot.Rows.AddRange(dataRows);
+            return snapshot;
+        }
+
+        private void StorePreparedBomSnapshot(DrawingSheetData sheet, DrawingBomSnapshot snapshot)
+        {
+            sheet.PreparedBomRows.Clear();
+            sheet.PreparedBomRows.AddRange(snapshot.Rows);
+            sheet.PreparedBomNodeGroupMap.Clear();
+            foreach (var pair in snapshot.NodeGroupMap)
+                sheet.PreparedBomNodeGroupMap[pair.Key] = pair.Value;
+            sheet.BomPrepared = true;
+        }
+
+        private void ApplyPreparedBomInfo(DrawingSheetData sheet)
+        {
+            if (sheet == null || !sheet.BomPrepared) return;
+            var snapshot = new DrawingBomSnapshot();
+            snapshot.Rows.AddRange(sheet.PreparedBomRows);
+            foreach (var pair in sheet.PreparedBomNodeGroupMap)
+                snapshot.NodeGroupMap[pair.Key] = pair.Value;
+            ApplyBomSnapshot(snapshot);
+        }
+
+        private void ApplyBomSnapshot(DrawingBomSnapshot snapshot)
+        {
+            bomInfoNodeGroupMap.Clear();
+            foreach (var pair in snapshot.NodeGroupMap)
+                bomInfoNodeGroupMap[pair.Key] = pair.Value;
+
+            lvDrawingBOMInfo.BeginUpdate();
+            try
+            {
+                lvDrawingBOMInfo.Items.Clear();
+                foreach (DrawingBomRowData row in snapshot.Rows)
+                {
+                    var item = new ListViewItem(row.No ?? "");
+                    item.SubItems.Add(row.Item ?? "");
+                    item.SubItems.Add(row.Material ?? "");
+                    item.SubItems.Add(row.Size ?? "");
+                    item.SubItems.Add(row.Quantity ?? "");
+                    item.SubItems.Add(row.TotalWeight ?? "");
+                    item.SubItems.Add(row.Ma ?? "");
+                    item.SubItems.Add(row.Fa ?? "");
+                    lvDrawingBOMInfo.Items.Add(item);
+                }
+            }
+            finally
+            {
+                lvDrawingBOMInfo.EndUpdate();
             }
         }
 

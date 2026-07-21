@@ -4,7 +4,7 @@ feature_name: BOM 정보 행 선택 시 부재 카메라 fit
 category: DrawingSheets
 trigger_type: Event Callback
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-22 (T-022 선택상태 하이라이트)
+last_updated: 2026-07-21 (시트 생성 단계 BOM 사전 준비 반영)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingBOMInfo_SelectedIndexChanged
 ---
 
@@ -22,7 +22,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#LvDrawingBOMInfo_Se
 
 ## 3. 사전 조건
 - [ ] `bomList.Count > 0`
-- [ ] `lvDrawingBOMInfo`에 행이 채워져 있음 (시트 선택 → `CollectBOMInfo` 수행 후)
+- [ ] `lvDrawingBOMInfo`에 행이 채워져 있음 (시트 생성 완료 또는 시트 선택 시 준비된 BOM 행 적용 후)
 
 ## 4. 전체 동작 흐름 (Happy Path)
 
@@ -88,5 +88,6 @@ flowchart TD
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-21 | BOM 표 선행 조건을 시트 클릭 시 재수집 방식에서 시트 생성 단계 사전 준비·적용 방식으로 갱신 | Codex |
 | 2026-04-21 | 초안 작성 — T-021 BOM 행 선택 카메라 fit 기능 신설 | Claude |
 | 2026-04-22 | T-022: `Object3D.Select` 호출로 3D View 빨간 하이라이트 동기화. `DESELECT_ALL` 선행으로 이전 선택 해제, `pivot=false`로 회전 피봇 간섭 방지. 단계 6(선택상태) 추가, 상태 변화 2행 추가 | Claude |
