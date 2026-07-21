@@ -184,6 +184,7 @@ namespace A2Z
                     installSheet.MemberNames.Add(bom.Name);
                 }
             }
+            PrepareInstallationConnectionData(installSheet);
             drawingSheetList.Add(installSheet);
             sheetNumber++;
 
@@ -508,7 +509,7 @@ namespace A2Z
                     }
                     else if (sheet.BaseMemberIndex == -2)
                     {
-                        prepared = ComputeInstallationDimensions(sheet.MemberIndices);
+                        prepared = ComputeInstallationDimensions(sheet);
                     }
                     else
                     {
@@ -617,22 +618,19 @@ namespace A2Z
                     vizcore3d.View.XRay.Enable = false;
                 }
 
-                // 모든 부재 숨기기
-                List<int> allIndices = new List<int>();
-                foreach (BOMData b in bomList)
-                    allIndices.Add(b.Index);
-                if (allIndices.Count > 0)
-                    vizcore3d.Object3D.Show(allIndices, false);
+                // 이전 설치도에서 표시한 외부 Assembly까지 포함해 장면을 완전히 초기화한다.
+                vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
 
-                // 선택된 시트의 부재만 표시
-                vizcore3d.Object3D.Show(sheet.MemberIndices, true);
+                // 설치도는 선택 STRU와 직접 연결된 외부 Assembly까지 함께 표시한다.
+                List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
+                vizcore3d.Object3D.Show(displayIndices, true);
 
                 // 모서리(SilhouetteEdge) 표시
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
 
                 // 선택된 노드 인덱스 저장 (글로벌 뷰 버튼용)
-                xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                xraySelectedNodeIndices = displayIndices;
 
                 // T-036 (2026-04-23): 가공도 시트는 ExecuteMfgDrawing이 자체 MoveCamera(X_PLUS/Y_PLUS/Z_PLUS)로
                 // 카메라를 정면 뷰로 세팅하기 때문에, 여기서 FlyToObject3d를 먼저 호출하면 이전 ISO_PLUS 등의
@@ -640,7 +638,7 @@ namespace A2Z
                 // 가공도일 때 FlyToObject3d 스킵 → ExecuteMfgDrawing의 카메라/FitToView에 맡김.
                 if (sheet.BaseMemberIndex != -3)
                 {
-                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                    vizcore3d.View.FlyToObject3d(displayIndices, 1.2f);
                 }
 
                 // 이전 심볼 제거
@@ -666,7 +664,7 @@ namespace A2Z
 
                 // T-028: 시트 유형별 치수 분기
                 //   가공도(-3): ExecuteMfgDrawing (기존 유지 — 단일 부재 가공도)
-                //   설치도(-2): ExtractInstallationDimensions (BBox 기반, 부재 간 간격·전체 조립 치수)
+                //   설치도(-2): 선택/연결 Assembly Osnap 범위 + 실제 BODY 접합 영역 치수
                 //   그 외(Sheet 1, Sheet 2+): ComputeViewDimensionsForMembers (Osnap 기반, 2D 출력과 동일 엔진)
                 var swDimension = System.Diagnostics.Stopwatch.StartNew();
                 if (sheet.BaseMemberIndex == -3)
@@ -678,7 +676,7 @@ namespace A2Z
                     if (sheet.DimensionsPrepared)
                         ApplyPreparedDimensionsToUi(sheet);
                     else
-                        ExtractInstallationDimensions(sheet.MemberIndices);
+                        ExtractInstallationDimensions(sheet);
                 }
                 else
                 {
@@ -819,6 +817,8 @@ namespace A2Z
             if (sheet == null || sheet.MemberIndices.Count == 0)
                 return;
 
+            List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
+
             try
             {
                 if (viewDirection == "ISO")
@@ -836,22 +836,25 @@ namespace A2Z
 
                     vizcore3d.View.XRay.Clear();
                     vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                    xraySelectedNodeIndices = displayIndices;
 
-                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.2f);
+                    vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                    vizcore3d.Object3D.Show(displayIndices, true);
+
+                    vizcore3d.View.FlyToObject3d(displayIndices, 1.2f);
                     vizcore3d.Clash.ClearResultSymbol();
 
                     vizcore3d.EndUpdate();
 
-                    // 설치도 개념: 부재 바운딩박스 기반 설치 치수 추출
-                    ExtractInstallationDimensions(sheet.MemberIndices);
+                    if (sheet.BaseMemberIndex == -2)
+                        ExtractInstallationDimensions(sheet);
 
                     // T-034 후속 (2026-04-23): BOM 테이블 행 선택 → 글로벌 ISO 버튼 경로에서
                     // 여기 분기 탐 → 실선으로 부재가 잘 보이도록 SMOOTH 모드로 교체
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     // 선택된 부재에 맞춰 화면 조정 (반복 호출 시 줌 누적 방지)
-                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.0f);
+                    vizcore3d.View.FlyToObject3d(displayIndices, 1.0f);
 
                     // 2D 출력과 동일한 ISO 풍선 로직 사용
                     vizcore3d.Review.Note.Clear();
@@ -874,7 +877,10 @@ namespace A2Z
 
                     vizcore3d.View.XRay.Clear();
                     vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                    xraySelectedNodeIndices = displayIndices;
+
+                    vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                    vizcore3d.Object3D.Show(displayIndices, true);
 
                     vizcore3d.EndUpdate();
 
@@ -893,7 +899,7 @@ namespace A2Z
                     }
 
                     // 선택된 부재에 맞춰 화면 조정
-                    vizcore3d.View.FlyToObject3d(sheet.MemberIndices, 1.0f);
+                    vizcore3d.View.FlyToObject3d(displayIndices, 1.0f);
                     ShowAllDimensions(viewDirection);
                 }
             }
@@ -1659,6 +1665,12 @@ namespace A2Z
                 data[2] = "SN2688";
                 // 시트 종류 라벨 — 제작도/조립도/설치도/가공도 (GetSheetKindLabel: Form1.Stru.cs)
                 data[3] = GetSheetKindLabel(sheet);
+                // TAG NO(169) = STRU 단위 UDA "STRU" 값 (사용자 2026-07-21). 기준부재에서 조상 STRU까지 walk-up.
+                //   값 없으면 초기 " "(공백, 괘선 보존) 유지.
+                string struTag = GetStruUdaValue(sheet.BaseMemberIndex);
+                if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
+                // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
+                data[168] = "Test";
 
                 // BOM 8컬럼 × 20행 — lvDrawingBOMInfo Row 0(요약행) 제외
                 int bomMapped = 0;
@@ -1760,6 +1772,8 @@ namespace A2Z
                         default: continue;
                     }
 
+                    List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
+
                     // 매 뷰마다 3D 어노테이션 초기화 (옛 RenderSheetViewForDrawing L1903~1905)
                     vizcore3d.Review.Note.Clear();
                     vizcore3d.Review.Measure.Clear();
@@ -1772,7 +1786,7 @@ namespace A2Z
                     if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                     vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                     vizcore3d.Object3D.Show(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                    xraySelectedNodeIndices = displayIndices;
                     vizcore3d.EndUpdate();
 
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
@@ -1781,14 +1795,21 @@ namespace A2Z
                     if (viewDir != "ISO" && sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
                         ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
 
-                    // ── ISO 두 겹 표현 대상 산출 (issue #7, 2026-07-21) ──
+                    // ── 두 겹 표현 대상 산출 ──
+                    //   설치도(전 뷰): 선택 STRU 실선 + 직접 연결된 외부 Assembly 전체 점선 — 프레임 = 양쪽 전체 fit
                     //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
                     //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선, 점선은 CropFit으로 시트 부재 영역+여백만 남김 — 프레임 = 시트 fit
                     //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
                     List<int> isoDashedTargets = null;   // 점선 배경 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
                     List<int> isoSolidTargets = null;    // 실선 캡처 대상
                     bool isoFitByDashed = false;         // true = 점선(전체 배경) 기준 fit (조립도) / false = 실선 기준 (제작도)
-                    if (viewDir == "ISO")
+                    if (sheet.BaseMemberIndex == -2 && sheet.InstallationContextIndices.Count > 0)
+                    {
+                        isoSolidTargets = new List<int>(sheet.MemberIndices);
+                        isoDashedTargets = new List<int>(displayIndices);
+                        isoFitByDashed = true;
+                    }
+                    else if (viewDir == "ISO")
                     {
                         if (sheet.BaseMemberIndex >= 0 && bomList != null && bomList.Count > 1)   // 조립도
                         {
@@ -1866,7 +1887,7 @@ namespace A2Z
                         // X/Y/Z 치수 — 옛 RenderSheetViewForDrawing L1995~2002
                         float availW = p.Width - 2f * margin;
                         float availH = p.Height - 2f * margin;
-                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, sheet.MemberIndices);
+                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, displayIndices);
                         shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
                         // 부재-부재 접합 각도 표시 — 수직·수평이 아닌 접합부 각도를 같은 측정→2D 파이프라인에 누적 (2026-06-23)
                         MarkNonRightAngles(sheet.MemberIndices, viewDir);
@@ -2060,6 +2081,46 @@ namespace A2Z
                         DiagLog($"P2 ISO 제작도 연결 이름 노트 obj={dashedObjId} " +
                                 $"candidates={neighborNotes.Count} created={createdNeighborNotes}");
                     }
+
+                    // 설치도: ISO는 Assembly/Part 이름, X/Y/Z는 A·A1 같은 접합영역 기호를 실제 위치에 표시한다.
+                    if (sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
+                        sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
+                    {
+                        int createdConnectionNotes = 0;
+                        try
+                        {
+                            vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                            vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
+                            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+
+                            foreach (InstallationConnectionData connection in sheet.InstallationConnections)
+                            {
+                                VIZCore3D.NET.Data.Vector3D target = GetContactCenter(connection);
+                                VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
+                                    target, viewDir, IsoNeighborNoteWorldOffset);
+                                string text = viewDir == "ISO"
+                                    ? $"{connection.Label}. {connection.ConnectedAssemblyName} / {connection.ConnectedPartName}"
+                                    : connection.Label;
+                                try
+                                {
+                                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
+                                        text, target, label);
+                                    if (noteIndex >= 0) createdConnectionNotes++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    DiagLog($"설치도 접합영역 노트 실패 label={connection.Label} view={viewDir} {ex.Message}");
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
+                            catch { }
+                        }
+                        DiagLog($"설치도 접합영역 노트 view={viewDir} " +
+                                $"candidates={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
+                    }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
                     // ── 치수(Measure) → 2D (X/Y/Z만) ──
@@ -2088,6 +2149,31 @@ namespace A2Z
             {
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate ERROR: {ex.Message}\n{ex.StackTrace}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 시트의 실제 표시 대상. 설치도는 선택 STRU에 직접 연결된 외부 Assembly 전체를 추가한다.
+        /// </summary>
+        private List<int> GetDrawingSheetDisplayIndices(DrawingSheetData sheet)
+        {
+            var result = new List<int>();
+            if (sheet == null) return result;
+            if (sheet.MemberIndices != null) result.AddRange(sheet.MemberIndices);
+            if (sheet.BaseMemberIndex == -2 && sheet.InstallationContextIndices != null)
+                result.AddRange(sheet.InstallationContextIndices);
+            return result.Where(index => index >= 0).Distinct().ToList();
+        }
+
+        private VIZCore3D.NET.Data.Vector3D GetInstallationNoteLabelPoint(
+            VIZCore3D.NET.Data.Vector3D target, string viewDirection, float offset)
+        {
+            switch (viewDirection)
+            {
+                case "X": return new VIZCore3D.NET.Data.Vector3D(target.X, target.Y + offset, target.Z);
+                case "Y": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
+                case "Z": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
+                default: return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
             }
         }
 
@@ -2251,6 +2337,53 @@ namespace A2Z
         /// <summary>
         /// 빌드 출력 폴더의 도면 리소스를 우선 사용하고, 개발 환경에서는 솔루션 루트 assets\ 를 fallback으로 사용한다.
         /// </summary>
+        /// <summary>
+        /// STRU 단위 UDA "STRU" 값 조회 (TAG NO용, 사용자 2026-07-21).
+        /// 기준부재에서 부모로 최대 10단계 walk-up하며 "STRU" 키를 찾는다 (GetSprefValue와 동일 패턴).
+        /// STRU 노드는 기준부재의 조상 어셈블리이므로 walk-up으로 도달한다. 없으면 "".
+        /// </summary>
+        private string GetStruUdaValue(int nodeIndex)
+        {
+            List<string> udaKeyList = null;
+            try
+            {
+                var keys = vizcore3d.Object3D.UDA.Keys;
+                if (keys != null && keys.Count > 0)
+                    udaKeyList = new List<string>(keys);
+            }
+            catch { }
+
+            if (udaKeyList == null) return "";
+
+            int currentIdx = nodeIndex;
+            for (int depth = 0; depth < 10; depth++)
+            {
+                if (currentIdx < 0) break;
+
+                foreach (string key in udaKeyList)
+                {
+                    if (key.Trim().ToUpper() != "STRU") continue;
+                    try
+                    {
+                        var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
+                        string valStr = (val != null) ? val.ToString().Trim() : "";
+                        if (!string.IsNullOrEmpty(valStr))
+                            return valStr;
+                    }
+                    catch { }
+                }
+
+                try
+                {
+                    VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                    if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
+                    currentIdx = parentNode.ParentIndex;
+                }
+                catch { break; }
+            }
+            return "";
+        }
+
         private string ResolveDrawingAssetPath(string fileName)
         {
             string outputPath = Path.GetFullPath(
@@ -2357,19 +2490,19 @@ namespace A2Z
             float minX = float.MaxValue, maxX = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
             float minZ = float.MaxValue, maxZ = float.MinValue;
-            if (bomList != null && memberIndices != null && memberIndices.Count > 0)
+            if (memberIndices != null && memberIndices.Count > 0)
             {
-                var idxSet = new HashSet<int>(memberIndices);
-                foreach (var b in bomList)
+                try
                 {
-                    if (!idxSet.Contains(b.Index)) continue;
-                    if (b.MinX < minX) minX = b.MinX;
-                    if (b.MaxX > maxX) maxX = b.MaxX;
-                    if (b.MinY < minY) minY = b.MinY;
-                    if (b.MaxY > maxY) maxY = b.MaxY;
-                    if (b.MinZ < minZ) minZ = b.MinZ;
-                    if (b.MaxZ > maxZ) maxZ = b.MaxZ;
+                    var bounds = vizcore3d.Object3D.GetBoundBox(memberIndices, false);
+                    if (bounds != null)
+                    {
+                        minX = bounds.MinX; maxX = bounds.MaxX;
+                        minY = bounds.MinY; maxY = bounds.MaxY;
+                        minZ = bounds.MinZ; maxZ = bounds.MaxZ;
+                    }
                 }
+                catch { }
             }
             if (maxX == float.MinValue) return 1f;
 

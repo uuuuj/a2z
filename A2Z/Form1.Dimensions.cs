@@ -472,19 +472,20 @@ namespace A2Z
                 float globalMaxX = float.MinValue, globalMaxY = float.MinValue, globalMaxZ = float.MinValue;
                 if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
                 {
-                    foreach (int nodeIdx in xraySelectedNodeIndices)
+                    try
                     {
-                        BOMData bom = bomList.FirstOrDefault(b => b.Index == nodeIdx);
-                        if (bom != null)
+                        var bounds = vizcore3d.Object3D.GetBoundBox(xraySelectedNodeIndices, false);
+                        if (bounds != null)
                         {
-                            globalMinX = Math.Min(globalMinX, bom.MinX);
-                            globalMinY = Math.Min(globalMinY, bom.MinY);
-                            globalMinZ = Math.Min(globalMinZ, bom.MinZ);
-                            globalMaxX = Math.Max(globalMaxX, bom.MaxX);
-                            globalMaxY = Math.Max(globalMaxY, bom.MaxY);
-                            globalMaxZ = Math.Max(globalMaxZ, bom.MaxZ);
+                            globalMinX = bounds.MinX;
+                            globalMinY = bounds.MinY;
+                            globalMinZ = bounds.MinZ;
+                            globalMaxX = bounds.MaxX;
+                            globalMaxY = bounds.MaxY;
+                            globalMaxZ = bounds.MaxZ;
                         }
                     }
+                    catch { }
                 }
                 if (globalMinX == float.MaxValue)
                 {
@@ -1359,7 +1360,12 @@ namespace A2Z
 
                 foreach (var dim in axisDims)
                 {
-                    if (dim.IsTotal)
+                    if (dim.IsRequired)
+                    {
+                        // 설치 위치/접합 영역 치수는 거리 크기와 무관하게 항상 우선한다.
+                        dim.Priority = 10;
+                    }
+                    else if (dim.IsTotal)
                     {
                         // 전체 길이: 최고 우선순위
                         dim.Priority = 10;
@@ -1430,9 +1436,13 @@ namespace A2Z
                 var totalDims = axisDims.Where(d => d.IsTotal).ToList();
                 selectedDims.AddRange(totalDims);
 
+                // 설치 접합 위치 같은 필수 체인치수는 개수·겹침 필터보다 먼저 포함한다.
+                var requiredDims = axisDims.Where(d => !d.IsTotal && d.IsRequired).ToList();
+                selectedDims.AddRange(requiredDims);
+
                 // 2단계: 나머지 치수를 우선순위 순으로 정렬
                 var sequentialDims = axisDims
-                    .Where(d => !d.IsTotal)
+                    .Where(d => !d.IsTotal && !d.IsRequired)
                     .OrderByDescending(d => d.Priority)
                     .ThenByDescending(d => d.Distance)
                     .ToList();

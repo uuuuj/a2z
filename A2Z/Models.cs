@@ -48,6 +48,11 @@ namespace A2Z
         public bool IsMerged { get; set; } = false;
 
         /// <summary>
+        /// 설치 위치를 설명하는 필수 치수. 스마트 필터의 개수 제한과 겹침 제거보다 우선한다.
+        /// </summary>
+        public bool IsRequired { get; set; } = false;
+
+        /// <summary>
         /// 이 치수의 두 점에 해당하는 부재 인덱스 (REQ-005, 2026-05-11)
         /// lvDimension 행 선택 시 3D 강조 + fit에 사용. ExtractInstallationDimensions에서 정확히 채움,
         /// ComputeViewDimensionsForMembers에서는 좌표↔nodeIdx 사후 매핑으로 채움. 비어있으면 핸들러 skip
@@ -129,6 +134,29 @@ namespace A2Z
     }
 
     /// <summary>
+    /// 설치도에서 선택 STRU와 외부 연결 Assembly 사이의 실제 접합 영역.
+    /// ContactPoints는 GeometryUtility 접합선의 시작/끝점이며, 접합선이 없는 근접 결과는 HotPoint 1개를 담는다.
+    /// </summary>
+    public class InstallationConnectionData
+    {
+        public int TargetPartIndex { get; set; }
+        public int TargetBodyIndex { get; set; }
+        public int ConnectedPartIndex { get; set; }
+        public int ConnectedBodyIndex { get; set; }
+        public int ConnectedAssemblyIndex { get; set; }
+        public string ConnectedPartName { get; set; }
+        public string ConnectedAssemblyName { get; set; }
+        public string Label { get; set; }
+        public bool IsProximityFallback { get; set; }
+        public List<VIZCore3D.NET.Data.Vector3D> ContactPoints { get; set; }
+
+        public InstallationConnectionData()
+        {
+            ContactPoints = new List<VIZCore3D.NET.Data.Vector3D>();
+        }
+    }
+
+    /// <summary>
     /// 도면 시트 데이터 구조체
     /// </summary>
     public class DrawingSheetData
@@ -144,6 +172,8 @@ namespace A2Z
         public List<DrawingBomRowData> PreparedBomRows { get; set; }
         public Dictionary<int, int> PreparedBomNodeGroupMap { get; set; }
         public bool BomPrepared { get; set; }
+        public List<int> InstallationContextIndices { get; set; }
+        public List<InstallationConnectionData> InstallationConnections { get; set; }
 
         public DrawingSheetData()
         {
@@ -152,6 +182,8 @@ namespace A2Z
             PreparedDimensions = new List<ChainDimensionData>();
             PreparedBomRows = new List<DrawingBomRowData>();
             PreparedBomNodeGroupMap = new Dictionary<int, int>();
+            InstallationContextIndices = new List<int>();
+            InstallationConnections = new List<InstallationConnectionData>();
         }
     }
 
