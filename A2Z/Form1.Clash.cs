@@ -810,10 +810,13 @@ namespace A2Z
                             clash.Name1 = !string.IsNullOrEmpty(result.NodeNameA) ? result.NodeNameA : "Unknown";
                             clash.Name2 = !string.IsNullOrEmpty(result.NodeNameB) ? result.NodeNameB : "Unknown";
 
-                            // 간섭 위치 (HotPoint의 Z 값)
+                            // 간섭 위치 — 제작도 연결 부재 이름을 월드 좌표로 투영할 수 있도록 XYZ 전체를 보존한다.
                             if (result.HotPoint != null)
                             {
+                                clash.XValue = result.HotPoint.X;
+                                clash.YValue = result.HotPoint.Y;
                                 clash.ZValue = result.HotPoint.Z;
+                                clash.HasHotPoint = true;
                             }
 
                             List<ClashData> destination = isFabricationNeighborTest

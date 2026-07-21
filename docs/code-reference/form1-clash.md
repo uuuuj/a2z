@@ -42,9 +42,9 @@
 - **흐름 문서**: [기능/간섭검사/간섭검사 실행.md](../기능/간섭검사/간섭검사 실행.md)
 
 ### <a id="Clash_OnClashTestFinishedEvent"></a>Clash_OnClashTestFinishedEvent
-- **라인**: L765~L919
+- **라인**: L765~L922
 - **트리거**: `vizcore3d.Clash.OnClashTestFinishedEvent`
-- **핵심**: `GetResultItem(test, ResultGroupingOptions.PART)` → 대상 내부 `clashList`와 제작도 연결 전용 리스트·Part 집합으로 분리 → 각각 중복 제거·Z값 정렬 → 연결 결과는 `lvClash`에 `[연결]` 접두어 표시 → 내부 연결성 판정 후 자동 파이프라인 계속
+- **핵심**: `GetResultItem(test, ResultGroupingOptions.PART)` → HotPoint XYZ·유효 여부를 `ClashData`에 보존 → 대상 내부 `clashList`와 제작도 연결 전용 리스트·Part 집합으로 분리 → 각각 중복 제거·Z값 정렬 → 연결 결과는 `lvClash`에 `[연결]` 접두어 표시 → 내부 연결성 판정 후 자동 파이프라인 계속
 - **흐름 문서**: [기능/간섭검사/간섭검사 완료 이벤트.md](../기능/간섭검사/간섭검사 완료 이벤트.md)
 
 ---

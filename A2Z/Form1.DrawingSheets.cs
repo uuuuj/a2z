@@ -1191,6 +1191,19 @@ namespace A2Z
         //   CropFit2DViewObjectByNodeIDs의 cropOffset로 전달. 실기 튜닝값 — "붙은 부위가 적당히 보이는" 값으로 조정.
         private const float IsoNeighborCropOffset = 0.5f;
 
+        // 제작도 ISO 연결 부재 이름의 지시선 길이(모델 월드 좌표, mm).
+        // Target은 Clash HotPoint 그대로 두고 Label만 X축 방향으로 이동한다.
+        private const float IsoNeighborNoteWorldOffset = 100f;
+
+        private sealed class FabricationNeighborAssemblyNote
+        {
+            public int AssemblyIndex { get; set; }
+            public string AssemblyName { get; set; }
+            public float X { get; set; }
+            public float Y { get; set; }
+            public float Z { get; set; }
+        }
+
         /// <summary>
         /// 선택된 시트 부재만 대상으로 2D 도면 생성
         /// (ISO 풍선번호 + X/Y/Z 치수선 + BOM 테이블 + 도면정보)
@@ -1672,7 +1685,8 @@ namespace A2Z
 
                 // ── 4. ImportExcelWithData — 엑셀 자동 그리기 + 데이터 치환 ──
                 // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_N} 태그에 파일 직접 매핑.
-                //   1 = N 화살표(BOM 왼쪽 상단, AT3), 2 = ISO 화살표(프레임 좌상단, C3), 3 = CONTRACTOR 로고(AW53).
+                //   1 = N 화살표(BOM 왼쪽 상단, AT3), 2 = ISO 화살표(프레임 좌상단, C3), 3 = CONTRACTOR 로고(AW53),
+                //   4 = CLIENT 이미지(AW49, 옛 {View_6} 자리 — 2026-07-21 이미지로 전환).
                 //   Value = [일반, 배경반전]. 옛 {Image}+Set2DViewTemplateMark는 신 SDK에서 무력화 확인(로고 미표시)되어
                 //   {Image_3}로 통합 (2026-07-21). 옛 RenderTemplate 수동 배치(캘리브레이션)도 이 방식이 대체.
                 var imageMapping = new Dictionary<int, string[]>
@@ -1680,6 +1694,7 @@ namespace A2Z
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
                     { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
                     { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
+                    { 4, new[] { ResolveDrawingAssetPath("Client Test Image.png"), ResolveDrawingAssetPath("Client Test Image.png") } },
                 };
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, imageMapping);
@@ -1990,6 +2005,61 @@ namespace A2Z
                         try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
                         catch { }
                     }
+
+                    // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
+                    // Add2DNoteFromWorldCoordinate는 objectID를 받지 않으므로 연결 부재가 들어 있는 점선 객체를
+                    // 명시적으로 단독 선택한 뒤, 모든 2D 변환(Crop/fit/Match)이 끝난 현재 시점에 투영한다.
+                    if (viewDir == "ISO" && !isoFitByDashed && dashedObjId >= 0)
+                    {
+                        List<FabricationNeighborAssemblyNote> neighborNotes =
+                            GetFabricationNeighborAssemblyNotes(sheet.MemberIndices);
+                        int createdNeighborNotes = 0;
+
+                        if (neighborNotes.Count > 0)
+                        {
+                            try
+                            {
+                                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                                vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
+                                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+
+                                for (int noteOrder = 0; noteOrder < neighborNotes.Count; noteOrder++)
+                                {
+                                    FabricationNeighborAssemblyNote note = neighborNotes[noteOrder];
+                                    float offsetDirection = (noteOrder % 2 == 0) ? 1f : -1f;
+                                    var target = new VIZCore3D.NET.Data.Vector3D(note.X, note.Y, note.Z);
+                                    var label = new VIZCore3D.NET.Data.Vector3D(
+                                        note.X + IsoNeighborNoteWorldOffset * offsetDirection,
+                                        note.Y,
+                                        note.Z);
+
+                                    try
+                                    {
+                                        int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
+                                            note.AssemblyName, target, label);
+                                        if (noteIndex >= 0) createdNeighborNotes++;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DiagLog($"P2 ISO 제작도 연결 이름 노트 실패 assembly='{note.AssemblyName}' " +
+                                                $"point=({note.X:F1},{note.Y:F1},{note.Z:F1}) {ex.Message}");
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                DiagLog($"P2 ISO 제작도 연결 이름 노트 준비 실패 obj={dashedObjId} {ex.Message}");
+                            }
+                            finally
+                            {
+                                try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
+                                catch { }
+                            }
+                        }
+
+                        DiagLog($"P2 ISO 제작도 연결 이름 노트 obj={dashedObjId} " +
+                                $"candidates={neighborNotes.Count} created={createdNeighborNotes}");
+                    }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
                     // ── 치수(Measure) → 2D (X/Y/Z만) ──
@@ -2041,6 +2111,87 @@ namespace A2Z
             }
 
             return fabricationNeighborPartIndices.OrderBy(index => index).ToList();
+        }
+
+        /// <summary>
+        /// 제작도 연결 Clash 결과를 가장 가까운 상위 Assembly 단위로 묶어 이름과 대표 HotPoint를 반환한다.
+        /// 같은 Assembly의 여러 Part가 닿아도 도면에는 이름을 한 번만 표시한다.
+        /// </summary>
+        private List<FabricationNeighborAssemblyNote> GetFabricationNeighborAssemblyNotes(
+            List<int> sheetMemberIndices)
+        {
+            var notes = new List<FabricationNeighborAssemblyNote>();
+            if (sheetMemberIndices == null || sheetMemberIndices.Count == 0 ||
+                fabricationNeighborClashList == null || fabricationTargetBodyIndices == null ||
+                fabricationTargetPartIndices == null || fabricationNeighborPartIndices == null)
+                return notes;
+
+            var sheetBodies = new HashSet<int>(sheetMemberIndices);
+            if (!fabricationTargetBodyIndices.SetEquals(sheetBodies)) return notes;
+
+            var addedAssemblyIndices = new HashSet<int>();
+            foreach (ClashData clash in fabricationNeighborClashList)
+            {
+                if (clash == null || !clash.HasHotPoint) continue;
+
+                bool firstIsTarget = fabricationTargetPartIndices.Contains(clash.Index1);
+                bool secondIsTarget = fabricationTargetPartIndices.Contains(clash.Index2);
+                if (firstIsTarget == secondIsTarget) continue;
+
+                int neighborPartIndex = firstIsTarget ? clash.Index2 : clash.Index1;
+                if (!fabricationNeighborPartIndices.Contains(neighborPartIndex)) continue;
+
+                VIZCore3D.NET.Data.Node neighborPart = null;
+                try { neighborPart = vizcore3d.Object3D.FromIndex(neighborPartIndex); }
+                catch { }
+
+                VIZCore3D.NET.Data.Node assembly = FindNearestParentAssembly(neighborPart);
+                int assemblyIndex = assembly != null ? assembly.Index : neighborPartIndex;
+                if (!addedAssemblyIndices.Add(assemblyIndex)) continue;
+
+                string fallbackName = firstIsTarget ? clash.Name2 : clash.Name1;
+                string assemblyName = assembly != null ? assembly.NodeName : null;
+                if (string.IsNullOrWhiteSpace(assemblyName) && neighborPart != null)
+                    assemblyName = neighborPart.NodeName;
+                if (string.IsNullOrWhiteSpace(assemblyName))
+                    assemblyName = string.IsNullOrWhiteSpace(fallbackName) ? $"Node_{neighborPartIndex}" : fallbackName;
+
+                notes.Add(new FabricationNeighborAssemblyNote
+                {
+                    AssemblyIndex = assemblyIndex,
+                    AssemblyName = assemblyName,
+                    X = clash.XValue,
+                    Y = clash.YValue,
+                    Z = clash.ZValue
+                });
+            }
+
+            return notes;
+        }
+
+        /// <summary>
+        /// Part에서 부모 방향으로 올라가며 가장 가까운 Assembly 노드를 찾는다.
+        /// </summary>
+        private VIZCore3D.NET.Data.Node FindNearestParentAssembly(VIZCore3D.NET.Data.Node part)
+        {
+            if (part == null || part.Kind != VIZCore3D.NET.Data.NodeKind.PART) return null;
+
+            int currentIndex = part.ParentIndex;
+            var visited = new HashSet<int>();
+            while (currentIndex >= 0 && visited.Add(currentIndex))
+            {
+                VIZCore3D.NET.Data.Node current;
+                try { current = vizcore3d.Object3D.FromIndex(currentIndex); }
+                catch { return null; }
+
+                if (current == null) return null;
+                if (current.Kind == VIZCore3D.NET.Data.NodeKind.ASSEMBLY) return current;
+                if (current.ParentIndex == currentIndex) return null;
+
+                currentIndex = current.ParentIndex;
+            }
+
+            return null;
         }
 
         /// <summary>
