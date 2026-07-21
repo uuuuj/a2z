@@ -15,7 +15,7 @@ flowchart TD
     E --> F[btnMainDimension_Click<br/>체인 치수 계산]
     F --> G[btnClashDetection_Click<br/>간섭 검사]
     G --> H{{Clash_OnClashTestFinishedEvent}}
-    H --> I[btnGenerateSheets_Click<br/>시트 자동 분할 BFS]
+    H --> I[GenerateDrawingSheets<br/>시트 자동 분할 BFS]
     I --> J[btnGenerateSheet2D_Click<br/>시트별 2D 생성]
     J --> K[btnExportSheet2DPDF_Click<br/>PDF 출력]
 
@@ -39,7 +39,7 @@ flowchart TD
 | 5 | 체인 치수 | btnMainDimension | `chainDimensionList` 생성 | [main-dimension](./기능/BOM/메인 치수 추출.md) |
 | 6 | 간섭 검사 | btnClashDetection | 비동기 검사 시작 | [detect-clash](./기능/간섭검사/간섭검사 실행.md) |
 | 7 | 간섭 완료 콜백 | Event | `clashList` 정렬·완성 | [clash-finished-event](./기능/간섭검사/간섭검사 완료 이벤트.md) |
-| 8 | 시트 분할 | btnGenerateSheets | BFS로 `drawingSheets` 생성 | [generate-sheets](./기능/도면시트/시트 자동 생성.md) |
+| 8 | 시트 분할 | GenerateDrawingSheets | BFS로 `drawingSheets` 자동 생성 | [generate-sheets](./기능/도면시트/시트 자동 생성.md) |
 | 9 | 시트별 2D | btnGenerateSheet2D | 2D 도면 렌더 | [generate-sheet-2d](./기능/도면시트/시트 2D 렌더.md) |
 | 10 | PDF 출력 | btnExportSheet2DPDF / btnExtractDrawingList | 벡터 PDF 파일 | [export-sheet-2d-pdf](./기능/도면시트/시트 PDF 출력.md) |
 
