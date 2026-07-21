@@ -296,6 +296,7 @@ namespace A2Z
                 {
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
                     { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
+                    { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
                 };
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, probeImageMapping);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
@@ -2120,20 +2121,14 @@ namespace A2Z
                 if (bomSnapshotInsufficient)
                     DiagLog($"[GenMfgManual] WARN BOM 부족: {bomSnapshot.Count} < {expectedBomRows} (PDF 계속 생성)");
 
-                // 신 템플릿의 {Image} 슬롯(CONTRACTOR 로고) 치환용 로고 1회 등록 —
-                //   미등록이면 ImportExcelWithData가 {Image} 태그를 글자 그대로 남긴다 (제작도와 동일 처리).
-                string mfgLogoPath = Path.Combine(GetSolutionPath(), "Logo.png");
-                if (File.Exists(mfgLogoPath))
-                    vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(mfgLogoPath, mfgLogoPath);
-                else
-                    DiagLog($"[GenMfgManual] Logo.png 없음 — {{Image}} 슬롯 미치환 위험: {mfgLogoPath}");
-
-                // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_1}=N 화살표(AT3), {Image_2}=ISO 화살표(C3).
-                //   Value = [일반, 배경반전]. 옛 View_6/7 수동 배치(PlaceImageInTemplateArea)를 대체.
+                // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_1}=N 화살표(AT3), {Image_2}=ISO 화살표(C3),
+                //   {Image_3}=CONTRACTOR 로고(AW53). Value = [일반, 배경반전].
+                //   옛 {Image}+Set2DViewTemplateMark는 신 SDK에서 무력화 확인(로고 미표시) → {Image_3} 통합 (2026-07-21).
                 var mfgImageMapping = new Dictionary<int, string[]>
                 {
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
                     { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
+                    { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
                 };
 
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
