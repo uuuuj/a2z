@@ -10,13 +10,13 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L571 | [lv-sheet-selected](../기능/도면시트/시트 선택.md) |
-| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1090 | [drawing-iso](../기능/도면시트/ISO 도면.md) |
-| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1095 | [drawing-axis-x](../기능/도면시트/X축 도면.md) |
-| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1100 | [drawing-axis-y](../기능/도면시트/Y축 도면.md) |
-| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1105 | [drawing-axis-z](../기능/도면시트/Z축 도면.md) |
-| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1113 | [generate-sheet-2d](../기능/도면시트/시트 2D 렌더.md) |
-| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1141 | [export-sheet-2d-pdf](../기능/도면시트/시트 PDF 출력.md) |
+| <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L571 | [lv-sheet-selected](../기능/도면시트/시트%20선택.md) |
+| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1090 | [drawing-iso](../기능/도면시트/ISO%20도면.md) |
+| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1095 | [drawing-axis-x](../기능/도면시트/X축%20도면.md) |
+| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1100 | [drawing-axis-y](../기능/도면시트/Y축%20도면.md) |
+| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1105 | [drawing-axis-z](../기능/도면시트/Z축%20도면.md) |
+| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1113 | [generate-sheet-2d](../기능/도면시트/시트%202D%20렌더.md) |
+| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1141 | [export-sheet-2d-pdf](../기능/도면시트/시트%20PDF%20출력.md) |
 
 ---
 

@@ -10,15 +10,15 @@
 
 | 핸들러 | 라인 | 트리거 | 흐름 문서 |
 |---|---|---|---|
-| <a id="btnDimensionShowSelected_Click"></a>`btnDimensionShowSelected_Click` | L17 | 버튼 | [show-selected](../기능/치수/선택 치수 표시.md) |
-| <a id="btnDimensionDelete_Click"></a>`btnDimensionDelete_Click` | L133 | 버튼 | [delete](../기능/치수/치수 삭제.md) |
-| <a id="btnShowAxisX_Click"></a>`btnShowAxisX_Click` | L205 | 버튼 | [show-axis-x](../기능/치수/X축 치수 표시.md) |
-| <a id="btnShowAxisY_Click"></a>`btnShowAxisY_Click` | L213 | 버튼 | [show-axis-y](../기능/치수/Y축 치수 표시.md) |
-| <a id="btnShowAxisZ_Click"></a>`btnShowAxisZ_Click` | L221 | 버튼 | [show-axis-z](../기능/치수/Z축 치수 표시.md) |
-| <a id="btnShowISO_Click"></a>`btnShowISO_Click` | L229 | 버튼 | [show-iso](../기능/치수/ISO 풍선 표시.md) |
-| <a id="btnBalloonAdjust_Click"></a>`btnBalloonAdjust_Click` | L237 | 버튼 | [balloon-adjust](../기능/치수/풍선 위치 조정.md) |
-| <a id="LvClash_SelectedIndexChanged"></a>`LvClash_SelectedIndexChanged` | L1748 | 이벤트 | [lvclash-selected](../기능/치수/Clash 선택 시 치수 필터.md) |
-| <a id="btnExtractDimension_Click"></a>`btnExtractDimension_Click` | L1955 | 버튼 | [extract-dimension](../기능/치수/현재 뷰 기반 체인 치수 추출.md) |
+| <a id="btnDimensionShowSelected_Click"></a>`btnDimensionShowSelected_Click` | L17 | 버튼 | [show-selected](../기능/치수/선택%20치수%20표시.md) |
+| <a id="btnDimensionDelete_Click"></a>`btnDimensionDelete_Click` | L133 | 버튼 | [delete](../기능/치수/치수%20삭제.md) |
+| <a id="btnShowAxisX_Click"></a>`btnShowAxisX_Click` | L205 | 버튼 | [show-axis-x](../기능/치수/X축%20치수%20표시.md) |
+| <a id="btnShowAxisY_Click"></a>`btnShowAxisY_Click` | L213 | 버튼 | [show-axis-y](../기능/치수/Y축%20치수%20표시.md) |
+| <a id="btnShowAxisZ_Click"></a>`btnShowAxisZ_Click` | L221 | 버튼 | [show-axis-z](../기능/치수/Z축%20치수%20표시.md) |
+| <a id="btnShowISO_Click"></a>`btnShowISO_Click` | L229 | 버튼 | [show-iso](../기능/치수/ISO%20풍선%20표시.md) |
+| <a id="btnBalloonAdjust_Click"></a>`btnBalloonAdjust_Click` | L237 | 버튼 | [balloon-adjust](../기능/치수/풍선%20위치%20조정.md) |
+| <a id="LvClash_SelectedIndexChanged"></a>`LvClash_SelectedIndexChanged` | L1748 | 이벤트 | [lvclash-selected](../기능/치수/Clash%20선택%20시%20치수%20필터.md) |
+| <a id="btnExtractDimension_Click"></a>`btnExtractDimension_Click` | L1955 | 버튼 | [extract-dimension](../기능/치수/현재%20뷰%20기반%20체인%20치수%20추출.md) |
 
 ---
 
