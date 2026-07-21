@@ -1256,6 +1256,10 @@ namespace A2Z
         // false: 옛 직접 그리기 흐름 (안전 fallback, P4 정리 시 결정).
         private bool UseExcelTemplate = true;
 
+        // issue #7 — 제작도 ISO 이웃 점선 Crop 여백 비율 (0=시트 부재 영역에 딱 맞춤, 클수록 붙은 주변 맥락이 더 보임).
+        //   CropFit2DViewObjectByNodeIDs의 cropOffset로 전달. 실기 튜닝값 — "붙은 부위가 적당히 보이는" 값으로 조정.
+        private const float IsoNeighborCropOffset = 0.5f;
+
         /// <summary>
         /// 선택된 시트 부재만 대상으로 2D 도면 생성
         /// (ISO 풍선번호 + X/Y/Z 치수선 + BOM 테이블 + 도면정보)
@@ -1833,7 +1837,7 @@ namespace A2Z
 
                     // ── ISO 두 겹 표현 대상 산출 (issue #7, 2026-07-21) ──
                     //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
-                    //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선 — 프레임 = 시트 fit (이웃 잘림 허용)
+                    //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선, 점선은 CropFit으로 시트 부재 영역+여백만 남김 — 프레임 = 시트 fit
                     //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
                     List<int> isoDashedTargets = null;   // 점선 캡처 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
                     List<int> isoSolidTargets = null;    // 실선 캡처 대상
@@ -1940,6 +1944,17 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineType(dashedObjId,
                                 VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
                             vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
+
+                            // 제작도: 이웃 점선을 시트 부재 노드 영역 + 여백만 남기고 잘라냄 (issue #7 — CropFit).
+                            //   조립도는 전체 구조를 배경으로 보여줘야 하므로 Crop 안 함 (isoFitByDashed=true).
+                            //   3D 노드 투영 기준이라 스케일·Match 전(원점 캡처 상태)에 걸어도 남는 지오메트리에 유지됨.
+                            if (!isoFitByDashed)
+                            {
+                                vizcore3d.Drawing2D.Object2D.CropFit2DViewObjectByNodeIDs(
+                                    dashedObjId, sheet.MemberIndices, IsoNeighborCropOffset);
+                                DiagLog($"P2 ISO 제작도 이웃 점선 CropFit obj={dashedObjId} " +
+                                        $"nodes={sheet.MemberIndices.Count} offset={IsoNeighborCropOffset:F2}");
+                            }
                         }
                         else
                         {
