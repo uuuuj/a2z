@@ -337,20 +337,6 @@
   - [ ] 위 가설 검증 위해 `_mfgDrawingCameraSnapshot`을 **Dictionary<int, CameraData>** (가공도 번호 키)로 확장 검토
 - **영향 파일**: A2Z/Form1.MfgDrawing.cs, A2Z/Form1.DrawingSheets.cs, docs/기능/가공도/가공도 단일.md, docs/기능/도면시트/시트 선택.md
 
-### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
-- **생성일**: 2026-04-15
-- **상태**: TODO
-- **관련**: FB-001
-- **세부**:
-  - [ ] ALL 일괄 출력이 만든 PDF 파일 경로를 시트별로 매핑(DrawingSheetData에 저장 or 별도 Dict)
-  - [ ] `LvDrawingSheet_SelectedIndexChanged`에서 해당 시트의 저장된 PDF가 있으면 2D 뷰에 로드·표시
-  - [ ] PDF가 없는 시트는 기존 동작(X-Ray + 치수) 유지
-  - [ ] docs/기능/도면시트/시트 선택.md + 전체 PDF 출력.md 동기화
-  - [ ] 사용자-매뉴얼/5.목록 조작/시트 선택 시 화면 전환.md + 4.도면정보 탭/ALL 일괄 출력.md 동기화
-- **영향 파일**:
-  - `A2Z/Form1.DrawingSheets.cs` (LvDrawingSheet_SelectedIndexChanged, btnExportAllPDF_Click)
-  - `A2Z/Models.cs` (DrawingSheetData에 PdfPath 필드 추가 가능)
-
 ### T-005 — 치수 배치를 Osnap 외곽 방향으로
 - **생성일**: 2026-04-15
 - **착수일**: 2026-05-12
@@ -676,6 +662,12 @@
 ---
 
 ## DONE (최근 20개)
+
+### T-004 — ALL 출력 후 시트별 도면 즉시 미리보기
+- **완료일**: 2026-07-21
+- **커밋**: `pending`
+- **관련**: FB-001
+- **결과**: 사용자 결정으로 `ALL` 버튼과 현재 시트 목록 전용 PDF 일괄 출력 기능을 삭제해 요청 대상이 소멸. 정식 `도면 일괄 출력`과 개별 `PDF 출력`은 유지.
 
 ### T-068 — 홀/슬롯홀 검출 휴리스틱 제거 → API 단일화
 - **완료일**: 2026-06-23 (커밋 `pending`)

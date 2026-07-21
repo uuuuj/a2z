@@ -118,7 +118,6 @@ namespace A2Z
             this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
             this.btnGenerateSheet2D = new System.Windows.Forms.Button();
             this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
-            this.btnExportAllPDF = new System.Windows.Forms.Button();
             this.btnGenerateSheets = new System.Windows.Forms.Button();
             this.btnExtractDrawingList = new System.Windows.Forms.Button();
             this.groupBoxStru = new System.Windows.Forms.GroupBox();
@@ -990,7 +989,6 @@ namespace A2Z
             // panelDrawingButtons
             //
             this.panelDrawingButtons.Controls.Add(this.btnExtractDrawingList);
-            this.panelDrawingButtons.Controls.Add(this.btnExportAllPDF);
             this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
             this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
@@ -1085,16 +1083,6 @@ namespace A2Z
             this.btnExportSheet2DPDF.Text = "PDF 출력";
             this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
             this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
-            //
-            // btnExportAllPDF
-            //
-            this.btnExportAllPDF.Location = new System.Drawing.Point(403, 5);
-            this.btnExportAllPDF.Name = "btnExportAllPDF";
-            this.btnExportAllPDF.Size = new System.Drawing.Size(40, 30);
-            this.btnExportAllPDF.TabIndex = 4;
-            this.btnExportAllPDF.Text = "ALL";
-            this.btnExportAllPDF.UseVisualStyleBackColor = true;
-            this.btnExportAllPDF.Click += new System.EventHandler(this.btnExportAllPDF_Click);
             //
             // btnExtractDrawingList — T-064 P2a 도면 일괄 출력 (라벨 변경 2026-05-19)
             //
@@ -1446,7 +1434,6 @@ namespace A2Z
         private System.Windows.Forms.Button btnMfgDrawingSheet;
         private System.Windows.Forms.Button btnGenerateSheet2D;
         private System.Windows.Forms.Button btnExportSheet2DPDF;
-        private System.Windows.Forms.Button btnExportAllPDF;
         private System.Windows.Forms.SplitContainer splitContainerDrawing;
         private System.Windows.Forms.Panel panelDrawingBOMHeader;
         private System.Windows.Forms.Label lblDrawingBOMTitle;
