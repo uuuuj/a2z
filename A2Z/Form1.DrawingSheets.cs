@@ -618,10 +618,10 @@ namespace A2Z
                     vizcore3d.View.XRay.Enable = false;
                 }
 
-                // 이전 설치도에서 표시한 외부 Assembly까지 포함해 장면을 완전히 초기화한다.
+                // 이전 설치도에서 표시한 외부 연결 Part까지 포함해 장면을 완전히 초기화한다.
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
 
-                // 설치도는 선택 STRU와 직접 연결된 외부 Assembly까지 함께 표시한다.
+                // 설치도는 선택 STRU와 직접 연결된 외부 Part까지 함께 표시한다.
                 List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
                 vizcore3d.Object3D.Show(displayIndices, true);
 
@@ -664,7 +664,7 @@ namespace A2Z
 
                 // T-028: 시트 유형별 치수 분기
                 //   가공도(-3): ExecuteMfgDrawing (기존 유지 — 단일 부재 가공도)
-                //   설치도(-2): 선택/연결 Assembly Osnap 범위 + 실제 BODY 접합 영역 치수
+                //   설치도(-2): 선택 STRU 범위 + 연결 Part 끝단·실제 BODY 접합 영역 치수
                 //   그 외(Sheet 1, Sheet 2+): ComputeViewDimensionsForMembers (Osnap 기반, 2D 출력과 동일 엔진)
                 var swDimension = System.Diagnostics.Stopwatch.StartNew();
                 if (sheet.BaseMemberIndex == -3)
@@ -815,7 +815,11 @@ namespace A2Z
 
                     vizcore3d.View.XRay.Clear();
                     vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = displayIndices;
+                    // 설치도 2D의 fit·치수 기준은 선택 STRU로 고정한다.
+                    // 연결 Part는 점선 맥락으로만 캡처하고 기준 BBox에는 포함하지 않는다.
+                    xraySelectedNodeIndices = sheet.BaseMemberIndex == -2
+                        ? new List<int>(sheet.MemberIndices)
+                        : displayIndices;
 
                     vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                     vizcore3d.Object3D.Show(displayIndices, true);
@@ -1807,18 +1811,23 @@ namespace A2Z
                         ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
 
                     // ── 두 겹 표현 대상 산출 ──
-                    //   설치도(전 뷰): 선택 STRU 실선 + 직접 연결된 외부 Assembly 전체 점선 — 프레임 = 양쪽 전체 fit
+                    //   설치도(전 뷰): 선택 STRU 실선 + 직접 연결된 외부 Part만 점선, STRU 기준 CropFit
                     //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
                     //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선, 점선은 CropFit으로 시트 부재 영역+여백만 남김 — 프레임 = 시트 fit
                     //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
-                    List<int> isoDashedTargets = null;   // 점선 배경 대상 (조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
+                    List<int> isoDashedTargets = null;   // 점선 배경 대상 (설치도: 연결 Part / 조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
                     List<int> isoSolidTargets = null;    // 실선 캡처 대상
                     bool isoFitByDashed = false;         // true = 점선(전체 배경) 기준 fit (조립도) / false = 실선 기준 (제작도)
                     if (sheet.BaseMemberIndex == -2 && sheet.InstallationContextIndices.Count > 0)
                     {
                         isoSolidTargets = new List<int>(sheet.MemberIndices);
-                        isoDashedTargets = new List<int>(displayIndices);
-                        isoFitByDashed = true;
+                        isoDashedTargets = sheet.InstallationContextIndices
+                            .Where(index => !sheet.MemberIndices.Contains(index))
+                            .Distinct()
+                            .ToList();
+                        if (isoDashedTargets.Count == 0)
+                            isoDashedTargets = null;
+                        isoFitByDashed = false;
                     }
                     else if (viewDir == "ISO")
                     {
@@ -1843,7 +1852,7 @@ namespace A2Z
                         }
                     }
 
-                    // 카메라 fit — 조립도 두 겹은 전체(점선+실선) 기준, 그 외 시트 부재 기준
+                    // 카메라 fit — 조립도 두 겹만 전체(점선+실선) 기준. 설치도·제작도는 실선 시트 부재 기준.
                     if (isoDashedTargets != null && isoFitByDashed)
                     {
                         var flyAll = new List<int>(isoDashedTargets);
@@ -1898,7 +1907,10 @@ namespace A2Z
                         // X/Y/Z 치수 — 옛 RenderSheetViewForDrawing L1995~2002
                         float availW = p.Width - 2f * margin;
                         float availH = p.Height - 2f * margin;
-                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, displayIndices);
+                        List<int> scaleReferenceIndices = sheet.BaseMemberIndex == -2
+                            ? sheet.MemberIndices
+                            : displayIndices;
+                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, scaleReferenceIndices);
                         shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
                         // 부재-부재 접합 각도 표시 — 수직·수평이 아닌 접합부 각도를 같은 측정→2D 파이프라인에 누적 (2026-06-23)
                         MarkNonRightAngles(sheet.MemberIndices, viewDir);
@@ -1932,7 +1944,7 @@ namespace A2Z
                     if (isoDashedTargets != null)
                     {
                         // CropFit 예제 불변조건: Crop 기준 노드는 Crop 대상 2D 객체 안에도 들어 있어야 한다.
-                        // 제작도는 "시트 부재 + 연결 부재"를 함께 점선 배경으로 캡처한 뒤 시트 부재로 Crop하고,
+                        // 설치도·제작도는 "시트 부재 + 연결 Part"를 함께 점선 배경으로 캡처한 뒤 시트 부재로 Crop하고,
                         // 다음 캡처에서 시트 부재 실선을 위에 덮는다. 조립도는 기존 점선 대상만 캡처한다.
                         var dashedCaptureTargets = new List<int>(isoDashedTargets);
                         if (!isoFitByDashed && isoSolidTargets != null)
@@ -1952,14 +1964,15 @@ namespace A2Z
                                 VIZCore3D.NET.Data.Drawing2D_ModelViewKind.CURRENT);
                         if (dashedObjId >= 0)
                         {
-                            // 제작도: 시트 부재를 포함한 점선 배경을 시트 부재 영역 + 여백만 남기고 잘라냄.
+                            // 설치도·제작도: 시트 부재를 포함한 점선 배경을 시트 부재 영역 + 여백만 남기고 잘라냄.
                             //   조립도는 전체 구조를 배경으로 보여줘야 하므로 Crop 안 함 (isoFitByDashed=true).
                             //   Crop 기준인 isoSolidTargets가 dashedObjId 안에 포함된 상태여야 SDK 예제처럼 동작한다.
                             if (!isoFitByDashed)
                             {
                                 vizcore3d.Drawing2D.Object2D.CropFit2DViewObjectByNodeIDs(
                                     dashedObjId, isoSolidTargets, IsoNeighborCropOffset);
-                                DiagLog($"P2 ISO 제작도 이웃 점선 CropFit obj={dashedObjId} " +
+                                string cropKind = sheet.BaseMemberIndex == -2 ? "설치도 연결 Part" : "제작도 이웃";
+                                DiagLog($"P2 {viewDir} {cropKind} 점선 CropFit obj={dashedObjId} " +
                                         $"captured={dashedCaptureTargets.Count} cropNodes={isoSolidTargets.Count} " +
                                         $"offset={IsoNeighborCropOffset:F2}");
                             }
@@ -1969,7 +1982,7 @@ namespace A2Z
                                 VIZCore3D.NET.Data.Object2D_LineTypes.LONG_DASHED);
                             vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
 
-                            // 제작도만 예제 순서대로 점선 정의·배치를 끝낸 뒤 실선을 캡처한다.
+                            // 설치도·제작도는 예제 순서대로 점선 정의·배치를 끝낸 뒤 실선을 캡처한다.
                             // 조립도는 이미 실기 정상인 기존 순서(두 객체 캡처 후 점선 배치)를 유지한다.
                             if (!isoFitByDashed)
                                 fitAndPlaceObject(dashedObjId);
@@ -1997,14 +2010,14 @@ namespace A2Z
                     }
 
                     // 단일 캡처와 조립도는 기존 시점에 fit + 이동.
-                    // 제작도 두 겹만 점선 캡처 직후 이미 배치 완료.
+                    // 설치도·제작도 두 겹은 점선 캡처 직후 이미 배치 완료.
                     if (dashedObjId < 0)
                         fitAndPlaceObject(objId);
                     else if (isoFitByDashed)
                         fitAndPlaceObject(dashedObjId);
 
                     // ── 두 겹 정합 — 스케일 통일 후 Match2DObjectsTo3DObjectPosition (SDK 1.0.26.716, issue #7) ──
-                    //   조립도·제작도 모두 예제 불변 순서인 Match(이동=실선, 기준=점선)를 사용한다.
+                    //   설치도·조립도·제작도 모두 예제 불변 순서인 Match(이동=실선, 기준=점선)를 사용한다.
                     if (dashedObjId >= 0)
                     {
                         float refScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(dashedObjId);
@@ -2012,7 +2025,8 @@ namespace A2Z
                         bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(objId, dashedObjId);
                         float dashW = 0f, dashH = 0f;
                         vizcore3d.Drawing2D.Object2D.GetObjectSize(dashedObjId, ref dashW, ref dashH);
-                        DiagLog($"P2 ISO 두겹 {(isoFitByDashed ? "조립도" : "제작도")} dash={dashedObjId} solid={objId} " +
+                        string layeredKind = sheet.BaseMemberIndex == -2 ? "설치도" : (isoFitByDashed ? "조립도" : "제작도");
+                        DiagLog($"P2 {viewDir} 두겹 {layeredKind} dash={dashedObjId} solid={objId} " +
                                 $"move={objId} ref={dashedObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
                     }
 
@@ -2041,7 +2055,8 @@ namespace A2Z
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
                     // Add2DNoteFromWorldCoordinate는 objectID를 받지 않으므로 연결 부재가 들어 있는 점선 객체를
                     // 명시적으로 단독 선택한 뒤, 모든 2D 변환(Crop/fit/Match)이 끝난 현재 시점에 투영한다.
-                    if (viewDir == "ISO" && !isoFitByDashed && dashedObjId >= 0)
+                    if (viewDir == "ISO" && sheet.BaseMemberIndex == -1 &&
+                        !isoFitByDashed && dashedObjId >= 0)
                     {
                         List<FabricationNeighborAssemblyNote> neighborNotes =
                             GetFabricationNeighborAssemblyNotes(sheet.MemberIndices);
@@ -2164,7 +2179,7 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 시트의 실제 표시 대상. 설치도는 선택 STRU에 직접 연결된 외부 Assembly 전체를 추가한다.
+        /// 시트의 실제 표시 대상. 설치도는 선택 STRU에 직접 연결된 외부 Part만 추가한다.
         /// </summary>
         private List<int> GetDrawingSheetDisplayIndices(DrawingSheetData sheet)
         {

@@ -134,7 +134,8 @@ namespace A2Z
     }
 
     /// <summary>
-    /// 설치도에서 선택 STRU와 외부 연결 Assembly 사이의 실제 접합 영역.
+    /// 설치도에서 선택 STRU와 외부 연결 Part 사이의 실제 접합 영역.
+    /// Assembly 정보는 접합 노트의 문맥 이름으로만 보존한다.
     /// ContactPoints는 GeometryUtility 접합선의 시작/끝점이며, 접합선이 없는 근접 결과는 HotPoint 1개를 담는다.
     /// </summary>
     public class InstallationConnectionData
@@ -172,6 +173,7 @@ namespace A2Z
         public List<DrawingBomRowData> PreparedBomRows { get; set; }
         public Dictionary<int, int> PreparedBomNodeGroupMap { get; set; }
         public bool BomPrepared { get; set; }
+        /// <summary>설치도에 점선으로 표시할 직접 연결 외부 Part 인덱스.</summary>
         public List<int> InstallationContextIndices { get; set; }
         public List<InstallationConnectionData> InstallationConnections { get; set; }
 

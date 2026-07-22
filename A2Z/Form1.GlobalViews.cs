@@ -198,7 +198,7 @@ namespace A2Z
         private const float InstallationContactSnapTolerance = 3.0f;
 
         /// <summary>
-        /// 설치도용 치수 추출. 선택 STRU와 연결 Assembly의 전체 Osnap 범위 및 실제 접합 영역을 표시한다.
+        /// 설치도용 치수 추출. 선택 STRU 전체 Osnap 범위와 연결 Part의 실제 접합 영역을 표시한다.
         /// </summary>
         private void ExtractInstallationDimensions(DrawingSheetData sheet)
         {
@@ -349,24 +349,20 @@ namespace A2Z
             }
 
             AssignInstallationConnectionLabels(sheet.InstallationConnections);
-            var contextAssemblyIndices = new HashSet<int>(sheet.InstallationConnections
-                .Select(c => c.ConnectedAssemblyIndex)
+            var contextPartIndices = new HashSet<int>(sheet.InstallationConnections
+                .Select(c => c.ConnectedPartIndex)
                 .Where(index => index >= 0));
-            foreach (int neighborPartIndex in fabricationNeighborPartIndices)
+            if (fabricationNeighborPartIndices != null)
             {
-                try
+                foreach (int neighborPartIndex in fabricationNeighborPartIndices)
                 {
-                    var neighborPart = vizcore3d.Object3D.FromIndex(neighborPartIndex);
-                    var neighborAssembly = FindNearestParentAssembly(neighborPart);
-                    contextAssemblyIndices.Add(neighborAssembly != null
-                        ? neighborAssembly.Index
-                        : neighborPartIndex);
+                    if (neighborPartIndex >= 0 && !fabricationTargetPartIndices.Contains(neighborPartIndex))
+                        contextPartIndices.Add(neighborPartIndex);
                 }
-                catch { }
             }
-            sheet.InstallationContextIndices.AddRange(contextAssemblyIndices.OrderBy(index => index));
+            sheet.InstallationContextIndices.AddRange(contextPartIndices.OrderBy(index => index));
 
-            DiagLog($"설치도 연결 영역 준비 완료: assemblies={sheet.InstallationContextIndices.Count} " +
+            DiagLog($"설치도 연결 영역 준비 완료: connectedParts={sheet.InstallationContextIndices.Count} " +
                     $"areas={sheet.InstallationConnections.Count} " +
                     $"fallback={sheet.InstallationConnections.Count(c => c.IsProximityFallback)}");
         }
@@ -656,7 +652,8 @@ namespace A2Z
 
         /// <summary>
         /// 설치도 치수를 UI 상태 변경 없이 계산한다.
-        /// 각 Assembly의 주축/보조축 전체 범위와 연결 Part 끝단→접합 영역→끝단 체인을 함께 만든다.
+        /// 선택 STRU의 주축/보조축 전체 범위와 연결 Part 끝단→접합 영역→끝단 체인을 함께 만든다.
+        /// 연결 Assembly 전체 범위 치수는 표시 형상과 맞지 않아 생성하지 않는다.
         /// </summary>
         private List<ChainDimensionData> ComputeInstallationDimensions(DrawingSheetData sheet)
         {
@@ -666,12 +663,6 @@ namespace A2Z
 
             var referenceGroups = new List<(string name, List<int> bodies)>();
             referenceGroups.Add(("선택 STRU", new List<int>(sheet.MemberIndices)));
-            foreach (int assemblyIndex in sheet.InstallationContextIndices)
-            {
-                var assembly = vizcore3d.Object3D.FromIndex(assemblyIndex);
-                string name = assembly != null ? assembly.NodeName : $"Assembly_{assemblyIndex}";
-                referenceGroups.Add((name, GetDescendantBodyIndices(assemblyIndex)));
-            }
 
             var viewAxes = new Dictionary<string, string[]>
             {

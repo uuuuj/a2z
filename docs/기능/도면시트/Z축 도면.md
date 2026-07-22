@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisZ_Cli
 # 시트 Z축 뷰 + 치수
 
 ## 1. 개요
-선택 시트를 Z축 방향(XY 평면·평면도)으로 표시한다. 설치도는 선택 STRU+외부 연결 Assembly 전체와 Y 주축·X 보조축의 전체 범위·접합 위치 치수를 표시한다. 3D 미리보기와 2D 도면은 같은 시트 치수 목록을 사용하며, 공통 가시성·치수 흐름은 [X축 뷰](./X축%20도면.md) 참고.
+선택 시트를 Z축 방향(XY 평면·평면도)으로 표시한다. 설치도는 선택 STRU+직접 연결 외부 Part와 Y 주축·X 보조축의 선택 STRU 전체 범위·Part 접합 위치 치수를 표시한다. PDF는 선택 STRU 기준으로 맞추고 연결 Part만 점선으로 남긴다. 3D 미리보기와 2D 도면은 같은 시트 치수 목록을 사용하며, 공통 가시성·치수 흐름은 [X축 뷰](./X축%20도면.md) 참고.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -51,6 +51,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisZ_Cli
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-22 | 설치도 연결 Assembly 전체 대신 직접 연결 Part만 표시하고, 선택 STRU 기준 fit·Crop 및 STRU/Part 접합 치수로 변경 | Codex |
 | 2026-07-22 | 3D 미리보기와 2D 도면의 치수 원본·뷰 필터가 동일함을 명시 | Codex |
 | 2026-07-21 | 설치도 평면도에 외부 연결 Assembly 전체와 Y/X 접합 위치 치수 기준 반영 | Codex |
 | 2026-04-13 | 초안 작성 | — |
