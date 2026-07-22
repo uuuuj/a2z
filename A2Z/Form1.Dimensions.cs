@@ -734,30 +734,43 @@ namespace A2Z
                     }
                     if (purposeKey != null)
                     {
-                        var allNodes = vizcore3d.Object3D.GetPartialNode(true, true, true);
-                        if (allNodes != null)
+                        // [freeze 수정 2026-07-22] 옛 코드는 GetPartialNode(true,true,true)로 모델 전체 노드
+                        //   (조선 모델=수십만)를 순회하며 노드마다 UDA를 조회 → X/Y/Z 뷰 클릭 시 사실상 멈춤
+                        //   (치수는 다 그린 뒤라 로그가 여기서 끊김). 옛 코드도 xraySelectedSet로 결국 선택 부재만
+                        //   남겼으므로, 선택 부재만 직접 순회한다 (결과 동일, O(선택부재)).
+                        //   선택 없는 전체 모델 뷰(xraySelectedSet=null)만 옛 전체 순회 유지.
+                        List<int> ebosCandidates;
+                        if (xraySelectedSet != null)
                         {
-                            foreach (var node in allNodes)
-                            {
-                                try
-                                {
-                                    // 선택된 시트 부재만 필터링
-                                    if (xraySelectedSet != null && !xraySelectedSet.Contains(node.Index)) continue;
-
-                                    var val = vizcore3d.Object3D.UDA.FromIndex(node.Index, purposeKey);
-                                    if (val == null || val.ToString().Trim().ToUpper() != "EBOS") continue;
-                                    var bboxI = new List<int> { node.Index };
-                                    var bbox = vizcore3d.Object3D.GetBoundBox(bboxI, false);
-                                    if (bbox == null) continue;
-                                    balloonEntries.Add((
-                                        (bbox.MinX + bbox.MaxX) / 2f,
-                                        (bbox.MinY + bbox.MaxY) / 2f,
-                                        (bbox.MinZ + bbox.MaxZ) / 2f,
-                                        "EarthBoss", Color.Blue));
-                                }
-                                catch { }
-                            }
+                            ebosCandidates = xraySelectedNodeIndices;
                         }
+                        else
+                        {
+                            ebosCandidates = new List<int>();
+                            var allNodes = vizcore3d.Object3D.GetPartialNode(true, true, true);
+                            if (allNodes != null)
+                                foreach (var n in allNodes) ebosCandidates.Add(n.Index);
+                        }
+
+                        int ebosFound = 0;
+                        foreach (int nodeIndex in ebosCandidates)
+                        {
+                            try
+                            {
+                                var val = vizcore3d.Object3D.UDA.FromIndex(nodeIndex, purposeKey);
+                                if (val == null || val.ToString().Trim().ToUpper() != "EBOS") continue;
+                                var bbox = vizcore3d.Object3D.GetBoundBox(new List<int> { nodeIndex }, false);
+                                if (bbox == null) continue;
+                                balloonEntries.Add((
+                                    (bbox.MinX + bbox.MaxX) / 2f,
+                                    (bbox.MinY + bbox.MaxY) / 2f,
+                                    (bbox.MinZ + bbox.MaxZ) / 2f,
+                                    "EarthBoss", Color.Blue));
+                                ebosFound++;
+                            }
+                            catch { }
+                        }
+                        DiagLog($"[EBOS] view={viewDirection} 후보={ebosCandidates.Count} 찾음={ebosFound}");
                     }
                 }
                 catch { }
