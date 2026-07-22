@@ -9,7 +9,7 @@
 ## 2026-07-22 — 설치도 기준 Part 끝단→연결 Part 모서리 치수
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `0eeaba3`
 **관련 TASK**: T-075 (설치도 기준 Part 끝단→연결 Part 모서리 위치 치수)
 **관련 ISSUE**: GitHub issue #12
 **변경 사항**:
