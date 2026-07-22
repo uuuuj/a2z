@@ -1,0 +1,42 @@
+name: 개발 요청
+description: 요구사항이 정리되어 바로 구현할 수 있는 항목을 등록합니다.
+title: "[개발 대기] "
+labels:
+  - "상태: 개발 대기"
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: 요구사항이 확정되지 않았거나 API 확인이 먼저 필요한 경우에는 해당 전용 양식을 사용하세요.
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: 이슈 종류
+      options:
+        - 기능 추가
+        - 버그 수정
+        - 문서·산출물
+        - 기타
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: 요청 내용
+      description: 무엇을 어떻게 바꿔야 하는지 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 결과
+      description: 완료 후 사용자가 확인할 수 있는 결과를 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 완료 조건
+      description: 체크리스트 형식으로 작성해도 됩니다.
+    validations:
+      required: false

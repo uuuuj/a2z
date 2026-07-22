@@ -1,0 +1,30 @@
+name: API 확인
+description: 원하는 기능을 지원하는 API가 있는지 먼저 확인해야 하는 항목입니다.
+title: "[API 확인] "
+labels:
+  - "상태: API 확인"
+body:
+  - type: markdown
+    attributes:
+      value: API 확인 후 기존 API로 가능하면 개발 대기, 새 API나 SDK 수정이 필요하면 API 개발로 상태를 변경합니다.
+  - type: textarea
+    id: needed_capability
+    attributes:
+      label: 필요한 기능
+      description: 도면 자동화에서 어떤 동작을 API로 제어해야 하는지 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: current_limit
+    attributes:
+      label: 현재 제약 또는 증상
+      description: 현재 API로 해결되지 않는 현상과 재현 조건을 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: checked_sources
+    attributes:
+      label: 확인한 자료
+      description: SDK XML, 데모, 기존 코드 등 이미 확인한 내용을 작성합니다.
+    validations:
+      required: false
