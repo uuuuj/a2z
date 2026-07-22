@@ -24,11 +24,13 @@ description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱�
 
 판단 애매하면 사용자에게 물어봐라.
 
-### 3. TASKS.md 갱신
-- 이번 커밋으로 완료된 작업이 있으면 TASKS.md의 해당 `T-xxx` 항목을:
-  - `IN_PROGRESS` 또는 `TODO` → `DONE` 섹션으로 이동
+### 3. TASKS 갱신 (상태별 파일 — `docs/tracking/tasks/`)
+- 작업은 상태별 파일로 분리됨: `tasks/TODO.md` · `tasks/IN_PROGRESS.md` · `tasks/BLOCKED.md` · `tasks/DONE.md`. 인덱스는 `docs/tracking/TASKS.md`.
+- 이번 커밋으로 완료된 작업이 있으면 해당 `T-xxx` 항목 **블록 전체**를:
+  - `tasks/IN_PROGRESS.md` 또는 `tasks/TODO.md`에서 **잘라내** `tasks/DONE.md` 최상단으로 이동
   - 완료일 + 커밋 해시(일단 `pending`, 커밋 후 실제 해시로 업데이트) 기입
-- 부분 완료면 체크박스만 업데이트하고 섹션 이동 안 함
+  - 이동으로 파일별 작업 수가 바뀌면 인덱스 `TASKS.md`의 "작업 수" 표도 갱신
+- 부분 완료면 원래 파일에서 체크박스만 업데이트하고 이동 안 함
 - 커밋과 무관한 TASK는 건드리지 마라
 
 ### 4. FEEDBACK.md / REQUESTS.md 갱신 (해당 시)
@@ -75,7 +77,7 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 ### 8. 커밋 해시 반영
 커밋 성공 직후:
 - CHANGELOG.md의 `pending` 부분을 실제 짧은 해시(`git rev-parse --short HEAD`)로 교체
-- TASKS.md의 DONE 항목 커밋 해시도 마찬가지로 교체
+- `tasks/DONE.md`의 해당 항목 커밋 해시도 마찬가지로 교체
 - **이 수정분은 다음 커밋에 포함시키지 말고**, 사용자에게 보고 후 다음 `/commit` 호출 시 함께 반영되도록 둔다 (누적 방지)
 
 ### 9. 자동 push (CLAUDE.md R5)
