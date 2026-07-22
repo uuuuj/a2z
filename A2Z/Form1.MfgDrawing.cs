@@ -2388,9 +2388,18 @@ namespace A2Z
         }
 
         /// <summary>
-        /// UDA에서 SPREF 값을 조회 (현재 노드 → 부모 10단계까지 탐색)
+        /// UDA에서 SPREF 값을 조회 (현재 노드 → 부모 10단계까지 탐색). 결과를 _udaValueCache에 캐시.
         /// </summary>
         private string GetSprefValue(int nodeIndex)
+        {
+            var cacheKey = (nodeIndex, "SPREF");
+            if (_udaValueCache.TryGetValue(cacheKey, out string cached)) return cached;
+            string result = GetSprefValueUncached(nodeIndex);
+            _udaValueCache[cacheKey] = result;
+            return result;
+        }
+
+        private string GetSprefValueUncached(int nodeIndex)
         {
             List<string> udaKeyList = null;
             try
@@ -2538,9 +2547,18 @@ namespace A2Z
         }
 
         /// <summary>
-        /// UDA에서 특정 Key 값을 조회 (현재 노드 → 부모 10단계까지 탐색)
+        /// UDA에서 특정 Key 값을 조회 (현재 노드 → 부모 10단계까지 탐색). 결과를 _udaValueCache에 캐시.
         /// </summary>
         private string GetUdaValue(int nodeIndex, string keyName)
+        {
+            var cacheKey = (nodeIndex, keyName.Trim().ToUpper());
+            if (_udaValueCache.TryGetValue(cacheKey, out string cached)) return cached;
+            string result = GetUdaValueUncached(nodeIndex, keyName);
+            _udaValueCache[cacheKey] = result;
+            return result;
+        }
+
+        private string GetUdaValueUncached(int nodeIndex, string keyName)
         {
             List<string> udaKeyList = null;
             try

@@ -517,6 +517,7 @@ namespace A2Z
             osnapPointsWithNames.Clear();
             lvOsnap.Items.Clear();
             _lastCollectedNodeOsnapMap.Clear();
+            _udaValueCache.Clear();   // SPREF/ORIENTATION 캐시도 재수집 시 초기화 (2026-07-22)
 
             try
             {

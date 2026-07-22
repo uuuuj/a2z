@@ -143,6 +143,15 @@ namespace A2Z
             = new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D, string)>>();
 
         /// <summary>
+        /// UDA 값 캐시 ((노드, 키) → 값). SPREF·ORIENTATION은 세션 내 불변인데,
+        /// 조회 헬퍼(GetSprefValue/GetUdaValue)가 매번 UDA.Keys + 부모 10단계 트리 walk를 돌아 무거웠다.
+        /// 가공도 미리보기는 한 부재당 이 walk를 5회(PAD·EA 판정 + ORIENTATION 3회) 반복 → 캐시로 1회로 축소.
+        /// 도면 리스트 추출(모델/STRU 전환 지점) 시 osnap 맵과 함께 초기화. (2026-07-22 미리보기 지연 단축)
+        /// </summary>
+        private readonly Dictionary<(int nodeIndex, string key), string> _udaValueCache
+            = new Dictionary<(int, string), string>();
+
+        /// <summary>
         /// T-038+039 v4 (2026-05-12 사용자 사양): ShowAllDimensions가 계산한 *모델 이동량* (2D 캔버스 mm).
         /// "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동" — 화면 H/V 외곽 반대.
         /// RenderSheetViewForDrawing이 RescaleObject 후 `Drawing2D.Object2D.MoveObject(objId, dx, dy)` 호출에 사용.
