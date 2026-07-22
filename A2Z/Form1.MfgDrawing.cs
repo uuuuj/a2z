@@ -1965,6 +1965,17 @@ namespace A2Z
                 if (vizcore3d.View.XRay.Enable)
                     vizcore3d.View.XRay.Enable = false;
 
+                // ── 직전 미리보기가 건 화면축 회전 원복 (누적 차단) ──
+                //   RotateCameraByScreenAxis는 상대(누적) 회전 — 미리보기는 PDF 경로처럼 되돌리는 곳이 없어
+                //   Z-최장축(90°)·EA(180°) 부재를 연속 클릭할수록 카메라가 점점 틀어졌음 (2026-07-22 수정).
+                //   MoveCamera(코어) '앞'에서 되돌리므로, MoveCamera가 자체 리셋해도 안전(덮어씀)·안 하면 여기서 상쇄.
+                if (_mfgPreviewNetRoll != 0f)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, -_mfgPreviewNetRoll);
+                    _mfgPreviewNetRoll = 0f;
+                }
+
                 // ── 공통 코어 호출 ──
                 //   부재 격리·BBox·축·카메라·ORIENTATION·Osnap·EA·치수·풍선 모두 코어가 수행.
                 pose = BuildMfgSceneCore(bomIndex);
@@ -1978,21 +1989,24 @@ namespace A2Z
                 List<int> targetIndices = new List<int> { bom.Index };
                 vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
 
-                // pose.ApplyZ90 적용 (Z 최장축이면 90° 회전)
+                // pose.ApplyZ90 / ApplyR180 적용 (Z 최장축 90° / EA L자 열린 방향 180°).
+                //   이번에 건 총량을 기록 → 다음 미리보기 진입 때 음수로 되돌려 누적 차단 (2026-07-22).
+                float appliedRoll = 0f;
                 if (pose.ApplyZ90)
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    appliedRoll += 90f;
                 }
-
-                // pose.ApplyR180 적용 (EA L자 열린 방향 정렬)
                 if (pose.ApplyR180)
                 {
                     vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                    appliedRoll += 180f;
                 }
+                _mfgPreviewNetRoll = appliedRoll;
 
-                // pose 저장 — 시트 선택 후처리 회전이 참조
+                // pose 저장 (진단·향후 참조용)
                 _lastMfgViewPose = pose;
                 shouldSnapshotCamera = pose.ApplyZ90 || pose.ApplyR180 || pose.UsedMinusCamera;
 

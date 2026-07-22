@@ -154,9 +154,15 @@ namespace A2Z
         /// Step B2 (2026-05-19): 가공도 공통 코어 결과 보존.
         /// 옛 _mfgDrawingZ90Applied / _mfgDrawingR180Applied / _mfgDrawingCameraSnapshot 3 필드 통합.
         /// ExecuteMfgDrawing(수동)이 BuildMfgSceneCore 결과로 채움.
-        /// LvDrawingSheet_SelectedIndexChanged 말미 후처리 회전이 pose.ApplyZ90 / ApplyR180 / CameraData 참조.
         /// </summary>
         private MfgViewPose _lastMfgViewPose = null;
+
+        /// <summary>
+        /// 직전 가공도 미리보기(ExecuteMfgDrawing)가 건 화면축 회전 총량(도).
+        /// RotateCameraByScreenAxis는 상대(누적) 회전이라, 다음 미리보기 진입 때 이 값을 음수로 되돌려
+        /// 클릭 간 카메라 누적 틀어짐을 차단한다 (2026-07-22 가공도 fit 수정).
+        /// </summary>
+        private float _mfgPreviewNetRoll = 0f;
 
         /// <summary>
         /// Osnap 자동 처리 성공 여부
