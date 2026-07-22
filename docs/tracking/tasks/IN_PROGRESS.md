@@ -12,7 +12,7 @@
 - **관련**: 사용자 직접 지시, GitHub issue #21·#22
 - **확인 결과**:
   - [x] ISO/X/Y/Z 버튼 중 X/Y/Z와 2D 도면은 동일한 `chainDimensionList`·`ShowAllDimensions(viewDirection)` 경로 사용
-  - [x] 설치도 준비 목록에는 선택 STRU↔외부 연결 Assembly 접합 위치 필수 치수가 포함돼 X/Y/Z 미리보기와 2D 도면에 함께 표시
+  - [x] 설치도 준비 목록에는 선택 STRU↔직접 연결 Part 접합 위치 필수 치수가 포함돼 X/Y/Z 미리보기와 2D 도면에 함께 표시
   - [x] ISO 분기는 `Review.Note`만 지워 직전 X/Y/Z의 `Review.Measure`·`ShapeDrawing`이 남는 원인 확인
   - [x] 2D 생성은 마지막 축 치수를 2D로 복사한 뒤 3D 임시 측정·보조선을 정리하지 않는 원인 확인
 - **구현**:
@@ -39,20 +39,24 @@
   - [ ] 가공도 PDF의 Hole·SlotHole·EarthBoss 풍선 유지 확인
 - **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, 가공도 미리보기/PDF 흐름 문서, 가공도 코드 레퍼런스
 
-### T-075 — 설치도 외부 연결 Assembly·실제 접합영역 위치 치수
+### T-075 — 설치도 직접 연결 Part·실제 접합영역 위치 치수
 - **생성일/착수일**: 2026-07-21
 - **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #12
-- **배경**: 설치도에서 선택 STRU와 직접 연결된 외부 Assembly의 부착 위치를 보여줘야 한다. Clash HotPoint 하나만으로는 면접촉의 양 끝과 같은 Part/Body의 분리된 접합 영역을 표현할 수 없다.
+- **배경**: 설치도에서 선택 STRU와 직접 연결된 외부 Part의 부착 위치를 보여줘야 한다. Clash HotPoint 하나만으로는 면접촉의 양 끝과 같은 Part/Body의 분리된 접합 영역을 표현할 수 없다. 연결 Assembly 전체를 점선·치수 범위에 포함하면 선택 STRU가 지나치게 작아진다.
 - **구현**:
-  - [x] 선택 STRU 실선 + 직접 연결 외부 Assembly 전체 점선을 ISO/Z/X/Y 전 뷰에 적용
+  - [x] 설치 문맥을 부모 Assembly 인덱스가 아니라 직접 연결 외부 Part 인덱스로 저장. 부모 Assembly는 ISO 이름 노트 문맥으로만 유지
+  - [x] ISO/Z/X/Y에서 선택 STRU 실선 + 직접 연결 외부 Part만 점선으로 적용
+  - [x] 설치도 4개 뷰를 선택 STRU 기준으로 fit하고, STRU 기준 CropFit으로 긴 연결 부재의 접합 주변만 남김
   - [x] Clash PART 쌍 하위 BODY 조합에서 `GetObjectCollisionLine`, `GetJunctionMesh`로 실제 접합 영역 산출
   - [x] 이어진 선분 1mm 영역화, 분리 영역 A1/A2 라벨, LINE/POINT Osnap 3mm 스냅
-  - [x] 선택 STRU·연결 Assembly 주축/보조축 전체 Osnap 범위 치수
+  - [x] 선택 STRU 주축/보조축 전체 Osnap 범위 치수 유지, 연결 Assembly 전체 범위 치수 제거
   - [x] 연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX 필수 체인 치수
   - [x] 접합 형상 없는 Clearance/Proximity는 HotPoint fallback + 로그
   - [x] Debug 별도 출력 폴더 빌드 통과
-  - [ ] 사내 모델로 접합선/면접촉 A1/A2·4개 뷰 점선·치수 PDF 확인
+  - [ ] 사내 모델로 접합선/면접촉 A1/A2와 ISO/Z/X/Y 직접 연결 Part 점선 확인
+  - [ ] 긴 외부 Assembly가 있어도 선택 STRU가 충분히 크게 나오고 접합 주변만 남는지 확인
+  - [ ] 연결 Assembly 전체 범위 치수가 사라지고 선택 STRU 전체 범위·Part 접합 위치 치수만 남는지 확인
 - **영향 파일**: `A2Z/Form1.GlobalViews.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.Dimensions.cs`, `A2Z/Models.cs`, 설치도/Osnap 문서
 
 ### T-013 — ISO 뷰 점선·실선 분리와 3D 위치 정합

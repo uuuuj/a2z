@@ -46,7 +46,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Cli
 - 다른 축/ISO로 전환
 
 ## 9. 관련 링크
-- 코드 구현: [Form1.DrawingSheets.cs:L1077](../../code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Click)
+- 코드 구현: [Form1.DrawingSheets.cs:L1081](../../code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Click)
 
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |

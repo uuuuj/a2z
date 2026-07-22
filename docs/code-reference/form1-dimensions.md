@@ -28,7 +28,7 @@
 |---|---|
 | `AddChainDimensionByAxis` | 축별 체인 치수 생성 |
 | `MergeCoordinates` | tolerance 내 Osnap 좌표 병합 |
-| `ShowAllDimensions(axis?)` | `chainDimensionList`를 뷰별 필터링한 뒤 SDK Measure에 추가. 설치도 표시 대상은 STRU+외부 연결 Assembly 전체 BBox로 기준선을 계산 |
+| `ShowAllDimensions(axis?)` | `chainDimensionList`를 뷰별 필터링한 뒤 SDK Measure에 추가. 설치도 2D 출력은 선택 STRU BBox를 기준선·축척 기준으로 사용하고 연결 Part는 점선 맥락으로만 처리 |
 | `AssignDimensionPriorities` / `ApplySmartFiltering` | 전체 치수 우선순위·겹침 필터. `IsRequired` 설치 접합 치수는 개수·겹침 제한보다 먼저 보존 |
 | `SelectRelatedOsnapItems` | Clash 기반 관련 Osnap ListView 자동 선택 |
 | `SelectRelatedDimensionItems` | Clash BBox 기반 관련 치수 ListView 자동 선택 |
