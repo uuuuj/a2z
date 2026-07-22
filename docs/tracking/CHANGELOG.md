@@ -6,10 +6,23 @@
 
 ---
 
+## 2026-07-22 — 간섭검사 무창 실행 실기 검증 완료
+
+**유형**: docs
+**커밋**: `pending`
+**관련 TASK**: T-076 (간섭검사 SDK 진행창 숨기기)
+**관련 ISSUE**: GitHub issue #17
+**변경 사항**:
+- 사용자 사내 모델에서 SDK progress form 미노출 확인
+- 후속 ClashTest 전환과 마지막 결과·치수·시트 생성 정상 동작 확인
+- 작업을 IN_PROGRESS에서 DONE으로 이동하고 GitHub issue 종료
+
+**영향 범위**: 작업 추적 문서와 이슈 상태
+
 ## 2026-07-22 — 간섭검사 후속 ID Busy race 수정
 
 **유형**: fix
-**커밋**: `PENDING`
+**커밋**: `2e61e46`
 **관련 TASK**: T-076 (간섭검사 SDK 진행창 숨기기)
 **관련 ISSUE**: GitHub issue #17
 **변경 사항**:
