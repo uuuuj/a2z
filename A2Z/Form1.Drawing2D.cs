@@ -970,44 +970,21 @@ namespace A2Z
         /// </summary>
         private void Clear2DView()
         {
+            // [깜빡임 제거 2026-07-22] 기존엔 2D 뷰 "완전 리셋"을 위해 ViewMode를 Model3D↔Both로
+            //   2회 왕복 토글(+각 150ms sleep)했는데, 2D 패널을 껐다 켰다 반복시켜 출력 시 화면이
+            //   페이지·시트마다 깜빡였다. 토글·sleep 제거하고 객체·캔버스 삭제 API만으로 리셋한다.
+            //   ⚠ 잔상(이전 도면 2D 객체 잔존)이 재발하면 롤백(뷰 토글 복원).
             try
             {
-                // 1) 3D 모드로 전환하여 2D 뷰를 완전히 닫음
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
-                Application.DoEvents();
-                System.Threading.Thread.Sleep(150);
+                // 2D 뷰 열림 보장 (이미 Both면 no-op → 깜빡임 없음)
+                if (vizcore3d.ViewMode != VIZCore3D.NET.Data.ViewKind.Both)
+                    vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
 
-                // 2) Both 모드로 전환 (새로운 2D 뷰 패널 생성)
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
-                Application.DoEvents();
-                System.Threading.Thread.Sleep(150);
-
-                // 3) 모든 2D 객체 삭제
+                // 뷰 패널 파괴·재생성 없이 2D 객체·캔버스만 전체 삭제
                 try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
                 try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-
-                // 4) 모든 캔버스 제거 (파라미터 없는 오버로드: 전체 삭제)
-                try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); }
-                catch { }
-
-                // 5) 렌더링 갱신
+                try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
                 try { vizcore3d.Drawing2D.Render(); } catch { }
-                Application.DoEvents();
-
-                // 6) 다시 3D로 전환 → Both로 전환 (완전 리셋)
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Model3D;
-                Application.DoEvents();
-                System.Threading.Thread.Sleep(150);
-
-                vizcore3d.ViewMode = VIZCore3D.NET.Data.ViewKind.Both;
-                Application.DoEvents();
-                System.Threading.Thread.Sleep(150);
-
-                // 7) 새 캔버스에서 다시 한번 전체 삭제
-                try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                try { vizcore3d.Drawing2D.Render(); } catch { }
-                Application.DoEvents();
             }
             catch (Exception ex)
             {
