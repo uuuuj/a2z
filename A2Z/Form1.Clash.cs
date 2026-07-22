@@ -9,6 +9,12 @@ namespace A2Z
 {
     public partial class Form1
     {
+        private readonly Queue<int> _silentClashPendingTestIds = new Queue<int>();
+        private bool _silentClashSequenceActive;
+        private int _silentClashActiveTestId = -1;
+        private int _silentClashSequenceTotal;
+        private int _silentClashCompletedCount;
+
         /// <summary>
         /// BOM 정보 수집 버튼 클릭 - UDA에서 Item, Size, Matl, Weight를 가져와 그룹핑
         /// </summary>
@@ -637,6 +643,100 @@ namespace A2Z
             return candidates;
         }
 
+        private void ResetSilentClashSequence()
+        {
+            _silentClashPendingTestIds.Clear();
+            _silentClashSequenceActive = false;
+            _silentClashActiveTestId = -1;
+            _silentClashSequenceTotal = 0;
+            _silentClashCompletedCount = 0;
+        }
+
+        private bool StartSilentClashSequence(IEnumerable<int> testIds)
+        {
+            ResetSilentClashSequence();
+
+            foreach (int testId in testIds.Where(id => id >= 0).Distinct())
+                _silentClashPendingTestIds.Enqueue(testId);
+
+            if (_silentClashPendingTestIds.Count == 0)
+                return false;
+
+            _silentClashSequenceTotal = _silentClashPendingTestIds.Count;
+            _silentClashSequenceActive = true;
+
+            if (StartNextSilentClashTest())
+                return true;
+
+            ResetSilentClashSequence();
+            return false;
+        }
+
+        private bool StartNextSilentClashTest()
+        {
+            if (!_silentClashSequenceActive || _silentClashPendingTestIds.Count == 0)
+                return false;
+
+            _silentClashActiveTestId = _silentClashPendingTestIds.Dequeue();
+            bool started = vizcore3d.Clash.PerformInterferenceCheck(
+                _silentClashActiveTestId,
+                false);
+
+            DiagLog($"간섭검사 무창 실행: id={_silentClashActiveTestId} " +
+                    $"started={started} completed={_silentClashCompletedCount}/" +
+                    $"{_silentClashSequenceTotal} pending={_silentClashPendingTestIds.Count}");
+            return started;
+        }
+
+        /// <summary>
+        /// 단일 검사 완료 이벤트마다 다음 ID를 시작하고, 마지막 완료 때만 기존 결과 처리로 진입한다.
+        /// </summary>
+        private bool AdvanceSilentClashSequence(int finishedTestId)
+        {
+            if (!_silentClashSequenceActive)
+                return true;
+
+            if (finishedTestId != _silentClashActiveTestId)
+            {
+                DiagLog($"간섭검사 무창 완료 이벤트 무시: expected={_silentClashActiveTestId} " +
+                        $"actual={finishedTestId}");
+                return false;
+            }
+
+            _silentClashCompletedCount++;
+            if (_silentClashPendingTestIds.Count == 0)
+            {
+                DiagLog($"간섭검사 무창 전체 완료: {_silentClashCompletedCount}/" +
+                        $"{_silentClashSequenceTotal}");
+                _silentClashSequenceActive = false;
+                _silentClashActiveTestId = -1;
+                return true;
+            }
+
+            int nextTestId = _silentClashPendingTestIds.Peek();
+            if (StartNextSilentClashTest())
+                return false;
+
+            DiagLog($"간섭검사 무창 후속 시작 실패: id={nextTestId}");
+            ResetSilentClashSequence();
+            HideBusyOverlay();
+
+            if (_p2aInProgress)
+            {
+                // STRU 일괄 경로의 초기 시작 실패 처리와 동일하게 최소 시트 생성을 시도한다.
+                GenerateDrawingSheets();
+            }
+            else
+            {
+                MessageBox.Show(
+                    "간섭검사 후속 항목을 시작하지 못했습니다. 다시 실행해주세요.",
+                    "간섭검사",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            return false;
+        }
+
         /// <summary>
         /// Clash Detection 수행 (ClashManager API 사용)
         /// </summary>
@@ -674,6 +774,7 @@ namespace A2Z
 
                 vizcore3d.Clash.Clear();
                 int clashCount = 0;
+                var registeredTestIds = new List<int>();
 
                 for (int i = 0; i < targetNodes.Count; i++)
                 {
@@ -696,6 +797,7 @@ namespace A2Z
                         if (vizcore3d.Clash.Add(pairClash))
                         {
                             clashCount++;
+                            registeredTestIds.Add(pairClash.ID);
                         }
                     }
                 }
@@ -725,6 +827,7 @@ namespace A2Z
                         if (vizcore3d.Clash.Add(outsideClash))
                         {
                             clashCount++;
+                            registeredTestIds.Add(outsideClash.ID);
                             DiagLog($"제작도 연결 간섭검사 추가: target={targetNodes.Count} " +
                                     $"candidates={neighborCandidates.Count}");
                         }
@@ -733,11 +836,11 @@ namespace A2Z
 
                 if (clashCount == 0) return false;
 
-                bool startResult = vizcore3d.Clash.PerformInterferenceCheck();
-                return startResult;
+                return StartSilentClashSequence(registeredTestIds);
             }
             catch (Exception ex)
             {
+                ResetSilentClashSequence();
                 System.Diagnostics.Debug.WriteLine($"Clash 검사 오류: {ex.Message}");
                 return false;
             }
@@ -770,6 +873,11 @@ namespace A2Z
             try
             {
                 System.Diagnostics.Debug.WriteLine($"[Clash Finished] 이벤트 발생! ID: {e.ID}");
+
+                // 진행창 없는 단일-ID 실행은 테스트마다 완료 이벤트가 온다.
+                // 다음 테스트를 이어서 실행하고, 마지막 이벤트에서만 아래 전체 결과를 한 번 처리한다.
+                if (!AdvanceSilentClashSequence(e.ID))
+                    return;
 
                 // ClashTest 개수 확인
                 int testCount = vizcore3d.Clash.ClashTestCount;
@@ -911,6 +1019,7 @@ namespace A2Z
             }
             catch (Exception ex)
             {
+                ResetSilentClashSequence();
                 HideBusyOverlay();
                 MessageBox.Show($"간섭검사 결과 처리 중 오류:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
