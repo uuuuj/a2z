@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,860 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 2,870 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -11,12 +11,12 @@
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
 | <a id="LvDrawingSheet_SelectedIndexChanged"></a>`LvDrawingSheet_SelectedIndexChanged` | L571 | [lv-sheet-selected](../기능/도면시트/시트%20선택.md) |
-| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1090 | [drawing-iso](../기능/도면시트/ISO%20도면.md) |
-| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1095 | [drawing-axis-x](../기능/도면시트/X축%20도면.md) |
-| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1100 | [drawing-axis-y](../기능/도면시트/Y축%20도면.md) |
-| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1105 | [drawing-axis-z](../기능/도면시트/Z축%20도면.md) |
-| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1113 | [generate-sheet-2d](../기능/도면시트/시트%202D%20렌더.md) |
-| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1141 | [export-sheet-2d-pdf](../기능/도면시트/시트%20PDF%20출력.md) |
+| <a id="btnDrawingISO_Click"></a>`btnDrawingISO_Click` | L1067 | [drawing-iso](../기능/도면시트/ISO%20도면.md) |
+| <a id="btnDrawingAxisX_Click"></a>`btnDrawingAxisX_Click` | L1072 | [drawing-axis-x](../기능/도면시트/X축%20도면.md) |
+| <a id="btnDrawingAxisY_Click"></a>`btnDrawingAxisY_Click` | L1077 | [drawing-axis-y](../기능/도면시트/Y축%20도면.md) |
+| <a id="btnDrawingAxisZ_Click"></a>`btnDrawingAxisZ_Click` | L1082 | [drawing-axis-z](../기능/도면시트/Z축%20도면.md) |
+| <a id="btnGenerateSheet2D_Click"></a>`btnGenerateSheet2D_Click` | L1090 | [generate-sheet-2d](../기능/도면시트/시트%202D%20렌더.md) |
+| <a id="btnExportSheet2DPDF_Click"></a>`btnExportSheet2DPDF_Click` | L1118 | [export-sheet-2d-pdf](../기능/도면시트/시트%20PDF%20출력.md) |
 
 ---
 
@@ -40,41 +40,42 @@
 - **핵심**: 애니메이션 없는 모델 전환 → 일반 시트는 MemberIndices, 설치도는 STRU+외부 연결 Assembly 표시 → 준비 치수·BOM 적용. 로그에 장면·치수·BOM·전체 시간을 분리 기록
 
 ### <a id="ApplyDrawingSheetView"></a>ApplyDrawingSheetView(string viewDirection)
-- **라인**: L808~L906
-- **ISO 경로**: 설치도 표시 대상(STRU+외부 연결 Assembly) 활성 → 설치 준비 치수 적용 → ISO 카메라 → 선택 STRU 풍선
-- **X/Y/Z 경로**: X-Ray 유지 → 측정/노트 Clear → 해당 축 카메라 → `ShowAllDimensions(axis)`
+- **라인**: L784~L887
+- **공통 진입**: `Clear3DDimensionAnnotations()`로 직전 3D 측정선·보조선을 제거
+- **ISO 경로**: 설치도 표시 대상(STRU+외부 연결 Assembly) 활성 → 설치 준비 치수 데이터 적용 → ISO 카메라 → 선택 STRU 풍선만 표시
+- **X/Y/Z 경로**: X-Ray 유지 → 노트 Clear → 해당 축 카메라 → 2D 도면과 같은 `chainDimensionList`를 `ShowAllDimensions(axis)`로 표시. 설치도 연결 위치 필수 치수 포함
 
 ### <a id="CreateIsoBalloonNotes"></a>CreateIsoBalloonNotes(memberIndices, forDrawing2D=false)
-- **라인**: L916+
+- **라인**: L893+
 - **핵심**: ISO_PLUS 등각 투영 2D 근사 (0.707f, 0.408f, 0.816f) → 3D 방향 계산 → 2D AABB 겹침 검사 → 36회 회전 시도 → `Review.Note.AddNoteSurface`
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L1217+
-- **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블
+- **라인**: L1194+
+- **단계**: Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블 → 공통 `finally`에서 3D `Review.Measure`·`ShapeDrawing` 제거
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
-- **라인**: L1567+
+- **라인**: L1557+
 - **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Assembly 전체 LONG_DASHED 점선으로 두 겹 캡처·Match하고, 접합 중심에 ISO 이름 또는 A/A1 기호를 투영한다.
 
 ### GetDrawingSheetDisplayIndices
-- **라인**: L2158~L2168
+- **라인**: L2169+
 - **역할**: 일반 시트는 `MemberIndices`, 설치도는 `MemberIndices + InstallationContextIndices`를 반환해 선택·카메라 fit·2D 축척의 단일 표시 기준으로 사용
 
 ### GetFabricationNeighborAssemblyNotes / FindNearestParentAssembly
-- **라인**: L2206~L2283
+- **라인**: L2217~L2295
 - **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2254+
+- **라인**: L2398+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2270+
+- **라인**: L2414+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
-- **라인**: L1176
+- **라인**: L1159
 - **역할**: `Path.GetInvalidFileNameChars()`의 문자를 `_`로 치환
 
 ---

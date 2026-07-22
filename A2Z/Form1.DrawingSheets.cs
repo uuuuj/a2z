@@ -770,7 +770,16 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 도면정보 탭 - 선택된 시트의 포함부재를 X-Ray 선택 + Osnap/치수 추출 + 방향 보기
+        /// 2D 도면에 복사하기 위해 3D View에 임시 생성한 치수와 보조선을 제거한다.
+        /// </summary>
+        private void Clear3DDimensionAnnotations()
+        {
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+        }
+
+        /// <summary>
+        /// 도면정보 탭 — 선택된 시트의 포함부재를 X-Ray 선택 + Osnap/치수 추출 + 방향 보기
         /// </summary>
         private void ApplyDrawingSheetView(string viewDirection)
         {
@@ -788,6 +797,9 @@ namespace A2Z
 
             try
             {
+                // ISO는 풍선만 보여야 하고, X/Y/Z도 직전 뷰의 치수를 먼저 비운 뒤 다시 그린다.
+                Clear3DDimensionAnnotations();
+
                 if (viewDirection == "ISO")
                 {
                     // ISO: 전체 X-Ray 설정 + Osnap/치수 수집 + 풍선 표시
@@ -852,8 +864,6 @@ namespace A2Z
                     vizcore3d.EndUpdate();
 
                     vizcore3d.Review.Note.Clear();
-                    vizcore3d.Review.Measure.Clear();
-                    vizcore3d.ShapeDrawing.Clear();
                     // T-034 후속 (2026-04-23): X/Y/Z 뷰 경로도 SMOOTH 실선으로 통일
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
 
@@ -1182,6 +1192,19 @@ namespace A2Z
         /// (ISO 풍선번호 + X/Y/Z 치수선 + BOM 테이블 + 도면정보)
         /// </summary>
         private void GenerateSheetDrawing2D(DrawingSheetData sheet)
+        {
+            try
+            {
+                GenerateSheetDrawing2DCore(sheet);
+            }
+            finally
+            {
+                // 2D 객체로 복사한 치수는 유지하고, 렌더링에 사용한 임시 3D 치수·보조선만 제거한다.
+                Clear3DDimensionAnnotations();
+            }
+        }
+
+        private void GenerateSheetDrawing2DCore(DrawingSheetData sheet)
         {
             // 사전 조건: 히든라인 모델 투영용 엣지 데이터 갱신 (ISO 방향 튀어나온 모서리 누락 방지)
             // 자동(ProcessSingleStruFull)·수동(btnGenerateSheet2D_Click) 모두 이 함수 통과 → 단일 지점에서 보장

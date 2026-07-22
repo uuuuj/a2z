@@ -6,6 +6,26 @@
 
 ---
 
+### T-078 — 도면 시트 3D 임시 치수 잔류 제거
+- **생성일/착수일**: 2026-07-22
+- **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 연속 출력 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #21·#22
+- **확인 결과**:
+  - [x] ISO/X/Y/Z 버튼 중 X/Y/Z와 2D 도면은 동일한 `chainDimensionList`·`ShowAllDimensions(viewDirection)` 경로 사용
+  - [x] 설치도 준비 목록에는 선택 STRU↔외부 연결 Assembly 접합 위치 필수 치수가 포함돼 X/Y/Z 미리보기와 2D 도면에 함께 표시
+  - [x] ISO 분기는 `Review.Note`만 지워 직전 X/Y/Z의 `Review.Measure`·`ShapeDrawing`이 남는 원인 확인
+  - [x] 2D 생성은 마지막 축 치수를 2D로 복사한 뒤 3D 임시 측정·보조선을 정리하지 않는 원인 확인
+- **구현**:
+  - [x] `Clear3DDimensionAnnotations()` 공통 헬퍼 추가
+  - [x] ISO/X/Y/Z 공통 진입에서 직전 3D 치수·보조선 제거 — ISO는 풍선만 표시
+  - [x] `GenerateSheetDrawing2D` 전체를 `try/finally`로 감싸 엑셀·fallback·예외 경로 모두 3D 임시 치수 제거
+  - [x] 실행 중 A2Z가 기본 출력 EXE를 잠근 상태에서 별도 출력 폴더 Debug 빌드 오류 0건
+- **사용자 확인 필요**:
+  - [ ] X/Y/Z → ISO 전환 시 ISO에 풍선만 남는지
+  - [ ] 설치도 X/Y/Z와 2D 도면의 연결 위치 치수가 동일하게 유지되는지
+  - [ ] 2D 도면 생성 직후 3D 치수가 비고, 다른 모델을 연속 출력해도 이전 치수가 이월되지 않는지
+- **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, ISO/X/Y/Z·시트 2D 렌더 흐름 문서, 도면시트 코드 레퍼런스
+
 ### T-077 — 가공도 3D 미리보기 형상 풍선 제거
 - **생성일/착수일**: 2026-07-22
 - **상태**: IN_PROGRESS (구현·컴파일 후 사내 미리보기/PDF 실기 검증 대기)

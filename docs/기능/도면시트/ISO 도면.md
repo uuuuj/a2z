@@ -4,14 +4,14 @@ feature_name: 시트 ISO 뷰 + 풍선 노트
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-07-21
+last_updated: 2026-07-22
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ---
 
 # 시트 ISO 뷰 + 풍선 노트
 
 ## 1. 개요
-선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)를 생성한다. 설치도는 선택 STRU와 직접 연결된 외부 Assembly 전체를 함께 fit하고, 준비된 접합 영역 치수를 적용한다.
+선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)만 생성한다. 설치도는 선택 STRU와 직접 연결된 외부 Assembly 전체를 함께 fit한다. 설치도 접합 영역 치수 데이터는 X/Y/Z와 2D 도면용으로 유지하지만 ISO 3D 화면에는 그리지 않는다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -30,20 +30,21 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 
 ### ApplyDrawingSheetView("ISO") 내부
 1. 시트 선택 확인 → [E01]
-2. X-Ray 활성화 + 선택 STRU 부재 Select
-3. 표시 대상 구성: 일반=`MemberIndices`, 설치도=`MemberIndices + InstallationContextIndices`
-4. 표시 대상 Show + `xraySelectedNodeIndices` 갱신 + 전체 대상 fit
-5. 심볼 제거
-6. 설치도이면 `ExtractInstallationDimensions(sheet)`로 준비 치수 적용
-7. `SetRenderMode(SMOOTH)`
-8. `MoveCamera(ISO_PLUS)` + 표시 대상 전체 `FlyToObject3d`
-9. 풍선 Clear → `CreateIsoBalloonNotes(members)`
+2. `Clear3DDimensionAnnotations()`로 직전 X/Y/Z의 `Review.Measure`·`ShapeDrawing` 제거
+3. X-Ray 활성화 + 선택 STRU 부재 Select
+4. 표시 대상 구성: 일반=`MemberIndices`, 설치도=`MemberIndices + InstallationContextIndices`
+5. 표시 대상 Show + `xraySelectedNodeIndices` 갱신 + 전체 대상 fit
+6. 심볼 제거
+7. 설치도이면 `ExtractInstallationDimensions(sheet)`로 X/Y/Z·2D용 준비 치수 데이터 적용
+8. `SetRenderMode(SMOOTH)`
+9. `MoveCamera(ISO_PLUS)` + 표시 대상 전체 `FlyToObject3d`
+10. 풍선 Clear → `CreateIsoBalloonNotes(members)`
 
 ## 5. 주요 분기 처리
 | 조건 | 처리 |
 |---|---|
 | 일반/제작/조립 시트 | `MemberIndices`만 표시하고 기존 풍선 생성 |
-| 설치도 | 선택 STRU와 직접 연결된 외부 Assembly 전체를 표시하고 접합 영역 준비 치수 적용. 풍선 번호는 선택 STRU 부재 기준 |
+| 설치도 | 선택 STRU와 직접 연결된 외부 Assembly 전체를 표시하고 접합 영역 치수 데이터만 준비. ISO 화면은 선택 STRU 풍선만 표시 |
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |
@@ -59,10 +60,11 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 | `xraySelectedNodeIndices` | 이전 | 실제 표시 대상(설치도는 STRU+외부 연결 Assembly) |
 | `chainDimensionList` | 이전 | 설치도일 때 접합 영역·Assembly Osnap 치수 적용 |
 | `Review.Note` | 이전 | 풍선 노트 |
+| `Review.Measure` / `ShapeDrawing` | 이전 X/Y/Z 치수 | 비움(ISO에는 치수 없음) |
 | RenderMode | 이전 | SMOOTH |
 
 ## 8. 후행 기능 (Chained)
-- [시트 2D 생성](./시트 2D 렌더.md)
+- [시트 2D 생성](./시트%202D%20렌더.md)
 - 다른 축 뷰로 전환
 
 ## 9. 관련 링크
@@ -71,5 +73,6 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-22 | ISO 진입 시 직전 X/Y/Z의 3D 측정선·보조선을 먼저 제거해 풍선만 표시하도록 명시. 설치도 접합 치수 데이터는 X/Y/Z·2D용으로 유지 | Codex |
 | 2026-07-21 | 설치도 ISO 미리보기 대상을 선택 STRU+직접 연결 외부 Assembly 전체로 확장하고, 실제 접합 영역·Osnap 기반 준비 치수를 적용하도록 변경 | Codex |
 | 2026-04-13 | 초안 작성 | — |
