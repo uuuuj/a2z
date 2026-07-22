@@ -6,6 +6,19 @@
 
 ---
 
+### T-077 — 가공도 3D 미리보기 형상 풍선 제거
+- **생성일/착수일**: 2026-07-22
+- **상태**: IN_PROGRESS (구현·컴파일 후 사내 미리보기/PDF 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #18
+- **배경**: 도면번호 목록에서 가공도 부재를 선택할 때 3D 화면에 Hole·SlotHole·EarthBoss 풍선이 표시돼 형상 확인을 방해한다. PDF에는 기존 가공 정보 풍선이 계속 필요하다.
+- **구현**:
+  - [x] 공통 `BuildMfgSceneCore`의 풍선 생성 유지
+  - [x] 3D 미리보기 전용 `ExecuteMfgDrawing`에서 코어 호출 직후 Review Note 제거
+  - [x] PDF `RenderMfgRowToViewArea` 경로 무변경으로 풍선 유지
+  - [ ] 사내 모델에서 일반/EA 3D 미리보기 풍선 미표시 확인
+  - [ ] 가공도 PDF의 Hole·SlotHole·EarthBoss 풍선 유지 확인
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, 가공도 미리보기/PDF 흐름 문서, 가공도 코드 레퍼런스
+
 ### T-075 — 설치도 외부 연결 Assembly·실제 접합영역 위치 치수
 - **생성일/착수일**: 2026-07-21
 - **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 PDF 실기 검증 대기)

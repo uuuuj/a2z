@@ -1958,13 +1958,13 @@ namespace A2Z
         ///   - 코어 호출 → pose 받음
         ///   - 3D 뷰용 RenderMode = SMOOTH (코어는 미지정)
         ///   - SilhouetteEdge = Green
-        ///   - FlyToObject3d (카메라 fit)
+        ///   - EndUpdate 후 FitToView (카메라 fit)
         ///   - pose.ApplyZ90 / pose.ApplyR180 적용
         ///   - _lastMfgViewPose 저장 (시트 선택 후처리 회전이 참조)
         ///   - EndUpdate 후 카메라 스냅샷 (ScreenAxisRotation commit 후)
         ///
-        /// 사용자 사양 (2026-05-19): Note.Clear() 제거 — 3D 뷰에도 풍선 표시.
-        /// 옛 T-064 사양 폐기 (memory/feedback_mfg_balloon_2026-05-19.md).
+        /// 사용자 사양 (2026-07-22): 3D 미리보기에서는 형상 풍선을 제거한다.
+        /// PDF 어댑터는 공통 코어가 생성한 Note를 그대로 2D 변환하므로 출력 풍선은 유지한다.
         /// </summary>
         private void ExecuteMfgDrawing(int bomIndex)
         {
@@ -2019,6 +2019,10 @@ namespace A2Z
                 pose = BuildMfgSceneCore(bomIndex);
                 CamLog("core");
 
+                // 3D 미리보기에서는 Hole/SlotHole/EarthBoss 풍선을 표시하지 않는다.
+                // PDF 경로(RenderMfgRowToViewArea)는 이 어댑터를 거치지 않아 풍선을 그대로 유지한다.
+                vizcore3d.Review.Note.Clear();
+
                 // ── 수동 어댑터 후처리: 3D 뷰용 SMOOTH 실선 + Silhouette ──
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                 vizcore3d.View.SilhouetteEdge = true;
@@ -2027,10 +2031,6 @@ namespace A2Z
                 // pose 저장 (진단·향후 참조용)
                 _lastMfgViewPose = pose;
                 shouldSnapshotCamera = pose.ApplyZ90 || pose.ApplyR180 || pose.UsedMinusCamera;
-
-                // ⚠️ Note.Clear() 제거 (사용자 사양 2026-05-19)
-                //   옛 T-064: vizcore3d.Review.Note.Clear() 호출했음. 사양 변경으로 제거.
-                //   3D 뷰에도 풍선 표시.
 
                 DiagLog($"B2 ExecuteMfgDrawing bom={bom.Index} name=\"{bom.Name}\" " +
                     $"viewDir={pose.ViewDirection} longestAxis={pose.LongestAxis} " +
