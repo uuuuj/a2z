@@ -416,9 +416,14 @@ namespace A2Z
 
             List<int> shapeDrawingIds = new List<int>();
 
+            // [freeze 진단 2026-07-22] BeginUpdate 열림 추적 — 예외로 EndUpdate가 누락되면
+            //   화면 갱신이 영구 중단(앱이 멈춘 듯)되므로 catch에서 짝을 복구한다.
+            bool updateOpen = false;
+
             try
             {
                 vizcore3d.BeginUpdate();
+                updateOpen = true;
 
                 // 기존 측정 항목 및 보조선 제거
                 vizcore3d.Review.Measure.Clear();
@@ -442,6 +447,7 @@ namespace A2Z
                 if (filteredDims.Count == 0)
                 {
                     vizcore3d.EndUpdate();
+                    updateOpen = false;
                     return new List<int>();
                 }
 
@@ -692,6 +698,7 @@ namespace A2Z
                         vizcore3d.ShapeDrawing.AddLine(extensionLines, -1, System.Drawing.Color.FromArgb(120, 120, 200), 0.5f, true);
                     }
                 }
+                DiagLog($"[XYZ뷰] 보조선 OK lines={extensionLines.Count}");
 
                 // ========== 풍선 통합 배치 (겹침 방지: 동일 기점 5° 회전 + 보조선 연장) ==========
                 float dimBaseline_OuterOffset = baseOffset + (levelSpacing * maxLevelUsed);
@@ -771,6 +778,10 @@ namespace A2Z
                             catch { }
                         }
                         DiagLog($"[EBOS] view={viewDirection} 후보={ebosCandidates.Count} 찾음={ebosFound}");
+                    }
+                    else
+                    {
+                        DiagLog($"[EBOS] view={viewDirection} PURPOSE 키 없음 — 스킵");
                     }
                 }
                 catch { }
@@ -861,6 +872,8 @@ namespace A2Z
                     }
                 }
                 catch { }
+
+                DiagLog($"[XYZ뷰] 풍선 수집 통과 entries={balloonEntries.Count}");
 
                 // --- 풍선 일괄 배치 (가상 사각형 경계선 방식: 4분면, 체인치수 겹침 방지) ---
                 try
@@ -1099,14 +1112,24 @@ namespace A2Z
                 }
                 catch (Exception balloonEx)
                 {
-                    System.Diagnostics.Debug.WriteLine($"풍선 배치 오류: {balloonEx.Message}");
+                    DiagLog($"[XYZ뷰] 풍선 배치 오류: {balloonEx.Message}");
                 }
 
+                DiagLog($"[XYZ뷰] EndUpdate 직전 view={viewDirection}");
                 vizcore3d.EndUpdate();
+                updateOpen = false;
+                DiagLog($"[XYZ뷰] EndUpdate 완료 view={viewDirection}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"치수 표시 오류: {ex.Message}");
+                // [freeze 수정 2026-07-22] 옛 코드는 Debug.WriteLine만 하고 EndUpdate를 안 불러
+                //   예외 발생 시 BeginUpdate가 열린 채 남음 → 화면 갱신 영구 중단(멈춘 듯). 짝 복구 + 진단 로그.
+                DiagLog($"[XYZ뷰] 치수 표시 예외: {ex.GetType().Name} {ex.Message}\n{ex.StackTrace}");
+                if (updateOpen)
+                {
+                    try { vizcore3d.EndUpdate(); } catch { }
+                    updateOpen = false;
+                }
             }
 
             return shapeDrawingIds;
@@ -1225,6 +1248,9 @@ namespace A2Z
                         break;
                 }
             }
+            // [freeze 진단 2026-07-22] AddCustomAxisDistance 통과 확인 — 위 [DrawDimension] 로그는 SDK 호출 '전'이라
+            //   마지막 로그 후 멈추면 이 호출이 용의. 통과 로그로 소거.
+            DiagLog($"[DimAdd] {axis} id={measureId}");
 
             // 2단 승격 치수 텍스트 슬라이드 (사용자 사양 2026-07-21): 치수선 방향으로 종이 절대 2.5mm.
             //   SetMeasureItemDistanceTextPos는 치수선 방향 성분만 반영(수직 성분은 투영·무시 — 실기 확정)이라
