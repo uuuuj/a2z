@@ -1,6 +1,6 @@
 # Form1.Clash.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.Clash.cs` (약 1,140 라인)
+**경로**: `A2Z/Form1.Clash.cs` (약 1,170 라인)
 
 **책임**: Clash 탭용 BOM 정보 수집(UDA 그룹화), 간섭 검사 수행(ClashManager), 완료 이벤트 처리.
 
@@ -25,14 +25,14 @@
 - **핵심**: 모델 로드 때 만든 Body→Part 매핑 재사용 → 관련 Part의 SPREF/MATREF/GWEI/POSSTART/POSEND를 Part별 1회 조회 → 시트별 행·Body 그룹 맵 메모리 생성
 
 ### <a id="DetectClash"></a>DetectClash (내부)
-- **라인**: L743~L846
+- **라인**: L783~L886
 - **시그니처**: `bool DetectClash(bool includeOutsideNeighbors = false)`
 - **핵심**: 대상 Body 수집 → `Clash.Clear()` → N×(N-1)/2 내부 쌍 `ClashTest` 생성. 옵션이 켜지면 전체 Body BBox 캐시에서 대상과 3mm 이내인 후보만 선별해 제작도 점선용 `대상 vs 근접 후보` 그룹 검사 1건 추가 → 등록 ID 큐를 `PerformInterferenceCheck(id, false)`로 무창 직렬 실행
 - **파라미터**: ClearanceValue=3.0, RangeValue=3.0, PenetrationTolerance=1.0 (mm)
 
 ### 무창 Clash ID 큐
-- **라인**: L646~L737
-- **핵심**: `StartSilentClashSequence`가 등록된 검사 ID를 큐에 저장하고 첫 항목을 progress form 없이 시작. `AdvanceSilentClashSequence`가 개별 완료 이벤트마다 다음 ID를 실행하며 마지막 완료일 때만 전체 결과 처리 허용
+- **라인**: L646~L777
+- **핵심**: `StartSilentClashSequence`가 등록된 검사 ID를 큐에 저장하고 첫 항목을 progress form 없이 시작. `AdvanceSilentClashSequence`는 개별 완료 이벤트에서 다음 실행을 UI 메시지 큐로 넘기고, `StartNextSilentClashTestAfterEvent`가 SDK Busy 해제와 후속 시작 성공을 50ms 간격·최대 2초 재시도. 마지막 완료일 때만 전체 결과 처리 허용
 - **실패 정책**: 후속 ID 시작 실패 시 큐·오버레이를 정리하고 일반 경로는 재실행 안내, STRU 일괄 경로는 기존 최소 시트 fallback 적용
 
 ### 제작도 연결 후보 광역 필터
@@ -41,15 +41,15 @@
 - **캐시**: 같은 모델에서는 재사용하고 `BuildBodyToPartNameMap` 호출(모델 열기·재로드) 시 초기화
 
 ### <a id="btnClashDetection_Click"></a>btnClashDetection_Click
-- **라인**: L852~L866
+- **라인**: L892~L906
 - **트리거**: `btnClashDetection` 버튼 클릭
 - **핵심**: `DetectClash()` 위임 + 시작 알림
 - **흐름 문서**: [기능/간섭검사/간섭검사 실행.md](../기능/간섭검사/간섭검사 실행.md)
 
 ### <a id="Clash_OnClashTestFinishedEvent"></a>Clash_OnClashTestFinishedEvent
-- **라인**: L868~L1027
+- **라인**: L908~L1067
 - **트리거**: `vizcore3d.Clash.OnClashTestFinishedEvent`
-- **핵심**: 무창 큐의 중간 완료 이벤트는 다음 ID만 시작하고 반환 → 마지막 완료에서 `GetResultItem(test, ResultGroupingOptions.PART)` → HotPoint XYZ·유효 여부를 `ClashData`에 보존 → 대상 내부 `clashList`와 제작도 연결 전용 리스트·Part 집합으로 분리 → 각각 중복 제거·Z값 정렬 → 연결 결과는 `lvClash`에 `[연결]` 접두어 표시 → 내부 연결성 판정 후 자동 파이프라인 계속
+- **핵심**: 무창 큐의 중간 완료 이벤트는 다음 실행을 예약하고 즉시 반환 → SDK Busy 해제 후 다음 ID 시작 → 마지막 완료에서 `GetResultItem(test, ResultGroupingOptions.PART)` → HotPoint XYZ·유효 여부를 `ClashData`에 보존 → 대상 내부 `clashList`와 제작도 연결 전용 리스트·Part 집합으로 분리 → 각각 중복 제거·Z값 정렬 → 연결 결과는 `lvClash`에 `[연결]` 접두어 표시 → 내부 연결성 판정 후 자동 파이프라인 계속
 - **흐름 문서**: [기능/간섭검사/간섭검사 완료 이벤트.md](../기능/간섭검사/간섭검사 완료 이벤트.md)
 
 ---
