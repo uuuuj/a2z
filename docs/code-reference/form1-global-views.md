@@ -1,6 +1,6 @@
 # Form1.GlobalViews.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.GlobalViews.cs` (약 780 라인)
+**경로**: `A2Z/Form1.GlobalViews.cs` (약 1,030 라인)
 
 **책임**: 글로벌 뷰(ISO/X/Y/Z) 버튼 핸들러, 3가지 경로(시트/X-Ray/전체) 공용 분기 함수, 설치도 치수 추출.
 
@@ -39,23 +39,31 @@
 - **ISO 분기**: 전체 `bomList` 인덱스로 `CreateIsoBalloonNotes`
 
 ### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L203~L238
+- **라인**: L225~L260
 - **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상을 STRU+직접 연결 외부 Part로 갱신
 
 ### PrepareInstallationConnectionData(DrawingSheetData sheet)
-- **라인**: L244~L367
+- **라인**: L266~L389
 - **알고리즘**:
   1. 제작 대상과 설치 시트 BODY 집합 일치 확인
   2. 외부 연결 Clash의 Part 쌍별 하위 BODY 조합 생성
   3. BBox 0.5mm 필터 후 `GeometryUtility.GetObjectCollisionLine(bodyA, bodyB)` 조회
   4. 이어진 선분은 1mm tolerance로 한 접합 영역, 떨어진 선분은 별도 영역으로 분리
   5. 접합선이 없으면 `GetJunctionMesh`, 그마저 없으면 HotPoint 근접 fallback
-  6. 접합점은 BODY LINE/POINT Osnap 3mm 이내 스냅, Assembly별 A/B/C 및 A1/A2 라벨 부여
+  6. 접합점은 BODY LINE/POINT Osnap 3mm 이내 스냅하고, 최종 표시는 연결 Part별 A/B/C 라벨 부여
   7. 점선 문맥은 부모 Assembly 전체가 아니라 직접 연결된 외부 Part 인덱스만 저장. Assembly는 이름 노트용 메타데이터로 유지
 
+### BuildInstallationPlacementAnchor
+- **라인**: L755~L894
+- **핵심**:
+  1. 같은 Target Body↔Connected Body의 여러 접합영역을 하나로 병합
+  2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축으로 선택
+  3. Target 끝단면 MIN/MAX 중 연결 모서리에 가까운 쪽과, Connected Body에서 접합영역에 가장 가까운 LINE/POINT Osnap을 선택
+  4. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
+
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L658~L739
-- **핵심**: X뷰=Z/Y, Y뷰=Z/X, Z뷰=Y/X 순으로 선택 STRU 전체 Osnap MIN/MAX 치수와 `연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX` 필수 체인 치수를 생성. 연결 Assembly 전체 범위 치수는 제외
+- **라인**: L909~L989
+- **핵심**: 선택 STRU 전체 Osnap MIN/MAX 치수를 유지하고, 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수를 길이축이 보이는 두 직교 뷰에 생성. 접합 중심·A1/A2·연결 Assembly 전체 범위는 치수 끝점에서 제외
 - **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---

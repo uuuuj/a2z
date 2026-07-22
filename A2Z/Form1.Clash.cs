@@ -392,12 +392,12 @@ namespace A2Z
                 {
                     No = no.ToString(),
                     Item = part.Item,
-                    Material = part.Material,
-                    Size = part.Size,
-                    Quantity = "1",
-                    TotalWeight = part.WeightDisplay,
-                    Ma = "L",
-                    Fa = "F"
+                    Material = part.Item == "unset" ? "-" : part.Material,
+                    Size = part.Item == "unset" ? "-" : part.Size,
+                    Quantity = part.Item == "unset" ? "-" : "1",
+                    TotalWeight = part.Item == "unset" ? "-" : part.WeightDisplay,
+                    Ma = part.Item == "unset" ? "-" : "L",
+                    Fa = part.Item == "unset" ? "-" : "F"
                 });
             }
 

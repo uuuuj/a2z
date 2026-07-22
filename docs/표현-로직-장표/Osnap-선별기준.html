@@ -117,7 +117,7 @@
 
   <!-- ============ SLIDE 1 ============ -->
   <section class="page" id="s1">
-  <div class="slide" role="img" aria-label="제작도·조립도·가공도의 4극점 Osnap 선별과 설치도의 선택 STRU 전체 극점 및 연결 Part 실제 접합영역 Osnap 선별을 정리한 슬라이드">
+  <div class="slide" role="img" aria-label="제작도·조립도·가공도의 4극점 Osnap 선별과 설치도의 실제 연결 Body 끝단 및 접합측 모서리 Osnap 선별을 정리한 슬라이드">
     <header>
       <div>
         <div class="kicker">도면 표현 로직 · Osnap 선별</div>
@@ -158,7 +158,7 @@
         <div class="pipe-alt">
           <span class="albl">설치도 전용</span>
           <span class="aarr">→</span>
-          <span class="abox"><b>선택 STRU 전체 Osnap MIN/MAX</b> + 연결 Part 끝단 및 실제 BODY 접합선 양 끝 Osnap</span>
+          <span class="abox"><b>선택 STRU 전체 Osnap MIN/MAX</b> + Target Body 가까운 끝단 → Connected Body 접합측 모서리</span>
         </div>
       </section>
       <section class="dcards">
@@ -180,15 +180,15 @@
         </div>
         <div class="dcard d-ins">
           <h4>설치도</h4><div class="id">선택 STRU + 직접 연결 외부 Part</div>
-          <div class="how">전체 극점 + 접합영역</div>
-          <div class="note"><b>LINE·POINT Osnap</b>만 사용. Part 끝단→접합 시작→접합 끝→끝단.</div>
+          <div class="how">전체 극점 + 끝단→모서리</div>
+          <div class="note"><b>LINE·POINT Osnap</b>만 사용. 접합영역은 Body 쌍·접합측 모서리 판정에만 사용.</div>
         </div>
       </section>
     </main>
     <footer class="foot3">
       <div class="fcard">
         <div class="ft"><span class="ic">🎯</span> 핵심</div>
-        <p>제작·조립·가공은 <b>“코너 4극점 + 부재당 1점”</b>을 공유. 설치도는 선택 STRU 전체 극점과 <b>연결 Part 끝단·실제 접합 영역 양 끝</b>을 함께 남기며, 연결 Assembly 전체 범위는 남기지 않는다.</p>
+        <p>제작·조립·가공은 <b>“코너 4극점 + 부재당 1점”</b>을 공유. 설치도는 선택 STRU 전체 극점과 <b>실제 접촉 Target Body의 가까운 끝단·Connected Body의 접합측 모서리</b>를 남긴다. 접합 중심·A1/A2·연결 Assembly 전체 범위는 치수점으로 쓰지 않는다.</p>
       </div>
       <div class="fcard">
         <div class="ft"><span class="ic">📍</span> 정리 위치</div>

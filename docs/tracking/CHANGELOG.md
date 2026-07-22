@@ -6,18 +6,33 @@
 
 ---
 
+## 2026-07-22 — 설치도 기준 Part 끝단→연결 Part 모서리 치수
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-075 (설치도 기준 Part 끝단→연결 Part 모서리 위치 치수)
+**관련 ISSUE**: GitHub issue #12
+**변경 사항**:
+- 접합 중심·A1/A2 체인을 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 위치 치수로 교체
+- LINE Osnap 5도 방향군·길이 합 최대 기준으로 길이축을 판정하고 같은 Body 쌍의 여러 접합영역을 하나로 병합
+- 직교 뷰 접합점 기호를 제거하고 ISO 이름을 연결 Part당 하나로 통합
+- 설치도 3D 미리보기와 옛/엑셀 2D 출력이 같은 `PreparedDimensions`를 사용하도록 공용 치수 덮어쓰기 제거
+
+**영향 범위**: 설치도 치수 사전 준비, X/Y/Z 위치 치수, ISO 연결 Part 이름, 2D/PDF 치수 데이터 배선
+
 ## 2026-07-22 — BOM ITEM SPREF 미설정값 unset 통일
 
 **유형**: fix
-**커밋**: `pending`
+**커밋**: `23271c6`
 **관련 TASK**: T-081 (BOM ITEM SPREF 미설정 시 unset 출력)
 **관련 ISSUE**: GitHub issue #24
 **변경 사항**:
 - SPREF 키 없음·null·빈 문자열·공백 또는 파싱 후 빈 ITEM을 `unset`으로 표시
-- 기존 노드명 fallback을 제거하고 정상 SPREF의 ITEM·SIZE 파싱과 다른 BOM 열은 유지
+- ITEM이 `unset`인 행은 No·ITEM 뒤의 MATERIAL·SIZE·Q'TY·T/W·MA·FA를 모두 `-`로 표시
+- 기존 노드명 fallback을 제거하고 정상 SPREF 행의 ITEM·SIZE 파싱과 다른 BOM 열은 유지
 - 공통 시트 BOM 스냅샷을 사용하는 제작도·조립도·설치도·가공도에 동일 적용
 
-**영향 범위**: 도면정보 탭과 모든 도면 PDF의 BOM ITEM 열
+**영향 범위**: 도면정보 탭과 모든 도면 PDF의 BOM 데이터 행
 
 ## 2026-07-22 — GitHub Issue 상태 접두사 자동 관리
 
