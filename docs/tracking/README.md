@@ -10,7 +10,7 @@
 |---|---|---|---|
 | [FEEDBACK.md](./FEEDBACK.md) | **입력(외부)** — 담당자 피드백 원문 보존 | Claude가 사용자로부터 전달받아 기록 | `OPEN` / `IN_REVIEW` / `ACCEPTED` / `REJECTED` / `DONE` |
 | [REQUESTS.md](./REQUESTS.md) | **입력(내부)** — 본인 수정 요청 + 결정 맥락 | Claude가 사용자 아이디어를 기록 | `OPEN` / `IN_REVIEW` / `ACCEPTED` / `REJECTED` / `DONE` |
-| [TASKS.md](./TASKS.md) | **처리** — 실행 가능한 작업 단위로 분해 | 개발자 + Claude | `TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE` |
+| [TASKS.md](./TASKS.md) (인덱스) + [tasks/](./tasks/) | **처리** — 실행 가능한 작업 단위로 분해. 2026-07-22부터 상태별 파일(`tasks/{TODO,IN_PROGRESS,BLOCKED,DONE}.md`)로 분리, `TASKS.md`는 인덱스 | 개발자 + Claude | `TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE` |
 | [CHANGELOG.md](./CHANGELOG.md) | **출력** — 커밋/릴리즈 완료 이력 (날짜 역순) | Claude가 `/commit` 시 자동 추가 | — |
 | [sessions/](./sessions/) | **맥락** — 세션별 "무엇을 왜 했는지" + 이어갈 지점 | Claude가 `/checkpoint` 시 저장 | — |
 
