@@ -45,7 +45,7 @@
 | 메서드 | 라인 | 역할 |
 |---|---|---|
 | `ResetToInitialState` | L272~L330 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
-| `CollectAllOsnap` | (후행 라인) | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영 |
+| `CollectAllOsnap` | L514 | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영, 같은 원본으로 가공도 주축 판정 캐시 적재 |
 | `CollectBOMInfo` | L20 (Clash.cs) | 도면정보 탭용 그룹 수집 |
 | `CollectBOMData` | (BOM 수집 내부) | bomList 채우는 핵심 로직 |
 | `DetectHoles` | (홀 감지 내부) | 원형/슬롯형 홀 자동 인식 |
