@@ -6,6 +6,20 @@
 
 ---
 
+### T-076 — 간섭검사 SDK 진행창 숨기기
+- **생성일/착수일**: 2026-07-22
+- **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 모델 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #17
+- **배경**: 자동 치수 추출과 STRU 일괄 도면 처리에서 간섭검사를 여러 번 실행할 때 SDK progress form이 반복 노출된다. 로컬 SDK에는 전체 검사+progressForm 옵션이 없고 단일 ID 오버로드만 `false`를 지원한다.
+- **구현**:
+  - [x] 로컬 VIZCore3D+.NET 1.0.26.716의 `PerformInterferenceCheck` 5개 public 오버로드 검증
+  - [x] 등록된 ClashTest ID 큐를 `PerformInterferenceCheck(id, false)`로 직렬 실행
+  - [x] 개별 완료 이벤트에서는 다음 ID만 실행하고 마지막 완료 때 전체 결과를 한 번 집계
+  - [x] 첫/후속 ID 시작 실패 시 큐 정리와 경로별 fallback 추가
+  - [x] Debug 별도 출력 폴더 빌드 통과
+  - [ ] 사내 모델에서 SDK progress form 미노출, 마지막 완료 후 결과·치수·시트 정상 생성 확인
+- **영향 파일**: `A2Z/Form1.Clash.cs`, 간섭검사 실행·완료 이벤트·코드 레퍼런스 문서
+
 
 ### T-075 — 설치도 외부 연결 Assembly·실제 접합영역 위치 치수
 - **생성일/착수일**: 2026-07-21
