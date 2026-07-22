@@ -15,6 +15,7 @@
   - [x] 로컬 VIZCore3D+.NET 1.0.26.716의 `PerformInterferenceCheck` 5개 public 오버로드 검증
   - [x] 등록된 ClashTest ID 큐를 `PerformInterferenceCheck(id, false)`로 직렬 실행
   - [x] 개별 완료 이벤트에서는 다음 ID만 실행하고 마지막 완료 때 전체 결과를 한 번 집계
+  - [x] 실기 오류 수정: 완료 이벤트 반환 후 SDK Busy 해제를 최대 2초 기다리고 다음 ID 실행
   - [x] 첫/후속 ID 시작 실패 시 큐 정리와 경로별 fallback 추가
   - [x] Debug 별도 출력 폴더 빌드 통과
   - [ ] 사내 모델에서 SDK progress form 미노출, 마지막 완료 후 결과·치수·시트 정상 생성 확인

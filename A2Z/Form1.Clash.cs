@@ -677,15 +677,73 @@ namespace A2Z
             if (!_silentClashSequenceActive || _silentClashPendingTestIds.Count == 0)
                 return false;
 
-            _silentClashActiveTestId = _silentClashPendingTestIds.Dequeue();
+            int nextTestId = _silentClashPendingTestIds.Peek();
+            _silentClashActiveTestId = nextTestId;
             bool started = vizcore3d.Clash.PerformInterferenceCheck(
                 _silentClashActiveTestId,
                 false);
 
-            DiagLog($"간섭검사 무창 실행: id={_silentClashActiveTestId} " +
+            if (started)
+                _silentClashPendingTestIds.Dequeue();
+            else
+                _silentClashActiveTestId = -1;
+
+            DiagLog($"간섭검사 무창 실행: id={nextTestId} " +
                     $"started={started} completed={_silentClashCompletedCount}/" +
                     $"{_silentClashSequenceTotal} pending={_silentClashPendingTestIds.Count}");
             return started;
+        }
+
+        /// <summary>
+        /// 완료 이벤트 콜백이 반환된 뒤 SDK Busy 해제를 기다리고 다음 검사를 시작한다.
+        /// </summary>
+        private async void StartNextSilentClashTestAfterEvent()
+        {
+            int nextTestId = _silentClashPendingTestIds.Count > 0
+                ? _silentClashPendingTestIds.Peek()
+                : -1;
+
+            try
+            {
+                const int maxBusyWaitCount = 40;
+                for (int attempt = 0; attempt < maxBusyWaitCount; attempt++)
+                {
+                    if (!_silentClashSequenceActive || _silentClashPendingTestIds.Count == 0)
+                        return;
+
+                    if (!vizcore3d.Clash.IsBusy && StartNextSilentClashTest())
+                        return;
+
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"간섭검사 무창 후속 실행 예외: id={nextTestId} {ex.Message}");
+            }
+
+            HandleSilentClashStartFailure(nextTestId);
+        }
+
+        private void HandleSilentClashStartFailure(int nextTestId)
+        {
+            DiagLog($"간섭검사 무창 후속 시작 실패: id={nextTestId}");
+            ResetSilentClashSequence();
+            HideBusyOverlay();
+
+            if (_p2aInProgress)
+            {
+                // STRU 일괄 경로의 초기 시작 실패 처리와 동일하게 최소 시트 생성을 시도한다.
+                GenerateDrawingSheets();
+            }
+            else
+            {
+                MessageBox.Show(
+                    "간섭검사 후속 항목을 시작하지 못했습니다. 다시 실행해주세요.",
+                    "간섭검사",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
         }
 
         /// <summary>
@@ -713,27 +771,9 @@ namespace A2Z
                 return true;
             }
 
-            int nextTestId = _silentClashPendingTestIds.Peek();
-            if (StartNextSilentClashTest())
-                return false;
-
-            DiagLog($"간섭검사 무창 후속 시작 실패: id={nextTestId}");
-            ResetSilentClashSequence();
-            HideBusyOverlay();
-
-            if (_p2aInProgress)
-            {
-                // STRU 일괄 경로의 초기 시작 실패 처리와 동일하게 최소 시트 생성을 시도한다.
-                GenerateDrawingSheets();
-            }
-            else
-            {
-                MessageBox.Show(
-                    "간섭검사 후속 항목을 시작하지 못했습니다. 다시 실행해주세요.",
-                    "간섭검사",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
+            // 이벤트 콜백 안에서는 SDK IsBusy가 아직 true일 수 있으므로 UI 메시지 큐로 넘긴다.
+            _silentClashActiveTestId = -1;
+            BeginInvoke(new Action(StartNextSilentClashTestAfterEvent));
             return false;
         }
 
