@@ -23,7 +23,7 @@ jobs:
           script: |
             const statuses = [
               { label: '상태: API 확인', prefix: '[API 확인]' },
-              { label: '상태: API 개발', prefix: '[API 개발]' },
+              { label: '상태: API 요청 필요', prefix: '[API 요청 필요]' },
               { label: '상태: API 대기', prefix: '[API 대기]' },
               { label: '상태: 분석 필요', prefix: '[분석 필요]' },
               { label: '상태: 개발 대기', prefix: '[개발 대기]' },
