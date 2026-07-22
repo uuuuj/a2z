@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Cli
 # 시트 X축 뷰 + 치수
 
 ## 1. 개요
-선택 시트를 X축 방향(YZ 평면)으로 보여주고 치수를 표시한다. 3D 미리보기와 2D 도면은 모두 현재 시트의 `chainDimensionList`를 `ShowAllDimensions("X")`로 필터링하는 동일 경로를 사용한다. 설치도는 선택 STRU와 직접 연결된 외부 Assembly 전체를 함께 표시하고 Z 주축·Y 보조축 설치 치수를 사용한다.
+선택 시트를 X축 방향(YZ 평면)으로 보여주고 치수를 표시한다. 3D 미리보기와 2D 도면은 모두 현재 시트의 `chainDimensionList`를 `ShowAllDimensions("X")`로 필터링하는 동일 경로를 사용한다. 설치도는 선택 STRU와 직접 연결된 외부 Part를 함께 표시하고, Z 주축·Y 보조축의 선택 STRU 전체 범위 및 연결 Part 접합 위치 치수를 사용한다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -35,12 +35,12 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Cli
 4. `SetRenderMode(SMOOTH)`
 5. `MoveCamera(X_PLUS)`
 6. 표시 대상 전체 `FlyToObject3d(..., 1.0f)`
-7. `ShowAllDimensions("X")` — Y/Z 축 치수 표시. 설치도는 Assembly 전체 범위와 Part 끝단↔접합 영역 치수
+7. `ShowAllDimensions("X")` — Y/Z 축 치수 표시. 설치도는 선택 STRU 전체 범위와 Part 끝단↔접합 영역 치수
 
 ## 5. 주요 분기 처리
 | 조건 | 처리 |
 |---|---|
-| 설치도 | 선택 STRU+외부 연결 Assembly 전체 표시, Z/Y 설치 치수 |
+| 설치도 | 선택 STRU+직접 연결 Part 표시, Z/Y 설치 치수. PDF는 선택 STRU 기준 fit·Crop |
 | 그 외 | 시트 MemberIndices와 기존 준비 치수 표시 |
 
 ## 6. 예외 / 에러 처리
@@ -65,6 +65,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Cli
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-22 | 설치도 연결 Assembly 전체 표시·범위 치수를 제거하고 직접 연결 Part 점선, 선택 STRU 기준 fit·Crop 및 STRU/Part 접합 치수로 변경 | Codex |
 | 2026-07-22 | X/Y/Z 3D 미리보기와 2D 도면이 같은 `chainDimensionList`·`ShowAllDimensions` 경로를 사용하며 설치도 연결 위치 필수 치수도 포함함을 명시 | Codex |
 | 2026-07-21 | 설치도 X뷰를 선택 STRU+외부 연결 Assembly 전체 표시와 Z/Y 접합 위치 치수 기준으로 갱신 | Codex |
 | 2026-04-13 | 초안 작성 | — |
