@@ -1,20 +1,20 @@
-name: API 개발 필요
-description: 새 API 추가 또는 기존 SDK 수정 필요가 확인된 항목입니다.
-title: "[API 개발] "
+name: API 요청 필요
+description: 새 API 추가 또는 기존 SDK 수정 요청이 필요하지만 아직 전달하지 않은 항목입니다.
+title: "[API 요청 필요] "
 labels:
-  - "상태: API 개발"
+  - "상태: API 요청 필요"
 body:
   - type: textarea
     id: requirement
     attributes:
-      label: 필요한 API 개발 내용
+      label: 요청할 API 내용
       description: 필요한 메서드·옵션·동작 또는 수정해야 할 SDK 현상을 작성합니다.
     validations:
       required: true
   - type: textarea
     id: evidence
     attributes:
-      label: API 개발이 필요하다고 판단한 근거
+      label: API 요청이 필요하다고 판단한 근거
       description: 기존 API 확인 결과, 재현 로그, 샘플 등을 작성합니다.
     validations:
       required: true
