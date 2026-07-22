@@ -2007,29 +2007,6 @@ namespace A2Z
                 vizcore3d.View.SilhouetteEdge = true;
                 vizcore3d.View.SilhouetteEdgeColor = Color.Green;
 
-                // FlyToObject3d
-                List<int> targetIndices = new List<int> { bom.Index };
-                vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
-                CamLog("fly");
-
-                // pose.ApplyZ90 / ApplyR180 적용 (Z 최장축 90° / EA L자 열린 방향 180°).
-                //   이번에 건 총량을 기록 → 다음 미리보기 진입 때 음수로 되돌려 누적 차단 (2026-07-22).
-                float appliedRoll = 0f;
-                if (pose.ApplyZ90)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    appliedRoll += 90f;
-                }
-                if (pose.ApplyR180)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                    appliedRoll += 180f;
-                }
-                _mfgPreviewNetRoll = appliedRoll;
-                CamLog("rot");
-
                 // pose 저장 (진단·향후 참조용)
                 _lastMfgViewPose = pose;
                 shouldSnapshotCamera = pose.ApplyZ90 || pose.ApplyR180 || pose.UsedMinusCamera;
@@ -2053,7 +2030,32 @@ namespace A2Z
                 vizcore3d.EndUpdate();
             }
 
-            CamLog("final");   // EndUpdate 후 commit된 실제 상태
+            // ── 카메라 프레이밍 — EndUpdate 후(커밋된 상태)에서 수행 (2026-07-22 fit 수정 2차) ──
+            //   실측([MfgCam] fly 체크포인트): BeginUpdate 안에서 MoveCamera 직후 FlyToObject3d를 부르면
+            //   회전 피벗만 부재로 옮겨지고 camZoom=0(퇴화 프레임) — 줌·거리를 못 잡아 부재 일부만 극단 확대됐음.
+            //   부재만 격리된 상태이므로 커밋 후 FitToView(보이는 모델 화면 맞춤, 기본 여백 0.2)로 프레이밍.
+            //   Z90/R180 회전도 커밋 후 적용 (총량은 _mfgPreviewNetRoll — 다음 진입 때 음수 원복, 누적 차단).
+            if (pose != null)
+            {
+                vizcore3d.View.FitToView();
+                CamLog("fit");
+
+                float appliedRoll = 0f;
+                if (pose.ApplyZ90)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
+                    appliedRoll += 90f;
+                }
+                if (pose.ApplyR180)
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
+                    appliedRoll += 180f;
+                }
+                _mfgPreviewNetRoll = appliedRoll;
+                CamLog("rot");
+            }
 
             // EndUpdate 이후 카메라 스냅샷 — ScreenAxisRotation commit 후
             //   (BeginUpdate 스코프 내에서는 회전이 commit 전 상태일 수 있음 — click-order 의존 버그 회피)
