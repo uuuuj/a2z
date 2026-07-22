@@ -1725,7 +1725,7 @@ namespace A2Z
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
                     { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
                     { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
-                    { 4, new[] { ResolveDrawingAssetPath("Client Test Image.png"), ResolveDrawingAssetPath("Client Test Image.png") } },
+                    { 4, new[] { ResolveDrawingAssetPath("ClientTestImage.png"), ResolveDrawingAssetPath("ClientTestImage.png") } },
                 };
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, imageMapping);
