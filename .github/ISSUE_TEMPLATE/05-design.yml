@@ -1,0 +1,29 @@
+name: 디자인 개선
+description: 화면·탭·테이블·도면의 시각 디자인 개선 항목을 등록합니다.
+title: "[개발 대기] "
+labels:
+  - "상태: 개발 대기"
+  - enhancement
+  - design
+body:
+  - type: textarea
+    id: target
+    attributes:
+      label: 디자인 대상
+      description: 수정할 화면, 탭, 테이블 또는 도면 영역을 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: 개선이 필요한 이유
+      description: 가독성, 정보 구분, 선택 상태 등 현재 불편을 작성합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: direction
+    attributes:
+      label: 디자인 방향
+      description: 확정된 시안이나 참고 화면이 있으면 작성합니다.
+    validations:
+      required: false
