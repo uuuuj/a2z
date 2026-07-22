@@ -1252,7 +1252,9 @@ namespace A2Z
             }
             else
             {
-                var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+                var osnapListMfg = CacheMfgAxisDetection(
+                    bom.Index,
+                    vizcore3d.Object3D.GetOsnapPoint(bom.Index));
 
                 // P3 #3 진단 (2026-05-23): Osnap 수집 결과 추적 — 외곽 끝점이 잡혔는지 확인
                 int rawLineCount = 0, rawPointCount = 0, rawCircleCount = 0;
@@ -1295,6 +1297,9 @@ namespace A2Z
                     }
                 }
             }
+
+            // 참조축 자동 정렬 1단계: 실제 카메라는 바꾸지 않고 LINE Osnap 기반 판정만 기록한다.
+            LogMfgAxisDetection(bom);
 
             // 수집된 Osnap 점 좌표 로그 (X/Y/Z 별로 min/max 추적)
             if (mfgOsnapWithNames.Count > 0)
