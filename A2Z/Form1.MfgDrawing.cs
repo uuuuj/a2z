@@ -1235,46 +1235,63 @@ namespace A2Z
 
             // ── 5. Osnap 수집 (LINE/POINT만, CIRCLE 제외 — T-064 사양) ──
             //   B1b1b 추가 (2026-05-19): 자동 함수 본체 L1004~L1027 추출.
+            //   [캐시 2026-07-22] 도면 리스트 뽑기 때 채운 부재별 Osnap 맵(T-032 E1) 재사용 — GetOsnapPoint가
+            //   미리보기 클릭당 ~0.8s를 먹는 병목이라 hit면 생략. 맵도 CollectAllOsnap에서 LINE 양끝+POINT만
+            //   담고 CIRCLE 제외라 결과 동일. 점은 복사해 캐시 원본 오염 방지, 이름은 bom.Name 재태깅.
+            //   miss(맵 미수집·부재 없음)면 기존 GetOsnapPoint 직행 — 안전 폴백.
             var mfgOsnapWithNames = new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
-            var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
-
-            // P3 #3 진단 (2026-05-23): Osnap 수집 결과 추적 — 외곽 끝점이 잡혔는지 확인
-            int rawLineCount = 0, rawPointCount = 0, rawCircleCount = 0;
-            if (osnapListMfg != null)
+            List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)> cachedOsnap = null;
+            bool osnapCacheHit = _lastCollectedNodeOsnapMap != null &&
+                                 _lastCollectedNodeOsnapMap.TryGetValue(bom.Index, out cachedOsnap) &&
+                                 cachedOsnap.Count > 0;
+            if (osnapCacheHit)
             {
-                foreach (var o in osnapListMfg)
+                foreach (var (pt, _) in cachedOsnap)
+                    mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(pt.X, pt.Y, pt.Z), bom.Name));
+                DiagLog($"[Osnap] bom={bom.Index} name='{bom.Name}' 캐시 hit {mfgOsnapWithNames.Count}점 (GetOsnapPoint 생략)");
+            }
+            else
+            {
+                var osnapListMfg = vizcore3d.Object3D.GetOsnapPoint(bom.Index);
+
+                // P3 #3 진단 (2026-05-23): Osnap 수집 결과 추적 — 외곽 끝점이 잡혔는지 확인
+                int rawLineCount = 0, rawPointCount = 0, rawCircleCount = 0;
+                if (osnapListMfg != null)
                 {
-                    switch (o.Kind)
+                    foreach (var o in osnapListMfg)
                     {
-                        case VIZCore3D.NET.Data.OsnapKind.LINE: rawLineCount++; break;
-                        case VIZCore3D.NET.Data.OsnapKind.POINT: rawPointCount++; break;
-                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE: rawCircleCount++; break;
+                        switch (o.Kind)
+                        {
+                            case VIZCore3D.NET.Data.OsnapKind.LINE: rawLineCount++; break;
+                            case VIZCore3D.NET.Data.OsnapKind.POINT: rawPointCount++; break;
+                            case VIZCore3D.NET.Data.OsnapKind.CIRCLE: rawCircleCount++; break;
+                        }
                     }
                 }
-            }
-            DiagLog($"[Osnap] bom={bom.Index} name='{bom.Name}' BBox X[{bom.MinX:F2}~{bom.MaxX:F2}] Y[{bom.MinY:F2}~{bom.MaxY:F2}] Z[{bom.MinZ:F2}~{bom.MaxZ:F2}] " +
-                $"sizeX={bom.MaxX - bom.MinX:F2} sizeY={bom.MaxY - bom.MinY:F2} sizeZ={bom.MaxZ - bom.MinZ:F2} " +
-                $"rawOsnap LINE={rawLineCount} POINT={rawPointCount} CIRCLE={rawCircleCount}");
+                DiagLog($"[Osnap] bom={bom.Index} name='{bom.Name}' BBox X[{bom.MinX:F2}~{bom.MaxX:F2}] Y[{bom.MinY:F2}~{bom.MaxY:F2}] Z[{bom.MinZ:F2}~{bom.MaxZ:F2}] " +
+                    $"sizeX={bom.MaxX - bom.MinX:F2} sizeY={bom.MaxY - bom.MinY:F2} sizeZ={bom.MaxZ - bom.MinZ:F2} " +
+                    $"rawOsnap LINE={rawLineCount} POINT={rawPointCount} CIRCLE={rawCircleCount} (캐시 miss)");
 
-            if (osnapListMfg != null)
-            {
-                foreach (var osnap in osnapListMfg)
+                if (osnapListMfg != null)
                 {
-                    switch (osnap.Kind)
+                    foreach (var osnap in osnapListMfg)
                     {
-                        case VIZCore3D.NET.Data.OsnapKind.LINE:
-                            if (osnap.Start != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), bom.Name));
-                            if (osnap.End != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
-                            break;
-                        case VIZCore3D.NET.Data.OsnapKind.POINT:
-                            if (osnap.Center != null)
-                                mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
-                            break;
-                        // T-064 (2026-05-14): CIRCLE Osnap 치수 추출 제외 (홀 과다 치수 회피)
-                        case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
-                            break;
+                        switch (osnap.Kind)
+                        {
+                            case VIZCore3D.NET.Data.OsnapKind.LINE:
+                                if (osnap.Start != null)
+                                    mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Start.X, osnap.Start.Y, osnap.Start.Z), bom.Name));
+                                if (osnap.End != null)
+                                    mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.End.X, osnap.End.Y, osnap.End.Z), bom.Name));
+                                break;
+                            case VIZCore3D.NET.Data.OsnapKind.POINT:
+                                if (osnap.Center != null)
+                                    mfgOsnapWithNames.Add((new VIZCore3D.NET.Data.Vertex3D(osnap.Center.X, osnap.Center.Y, osnap.Center.Z), bom.Name));
+                                break;
+                            // T-064 (2026-05-14): CIRCLE Osnap 치수 추출 제외 (홀 과다 치수 회피)
+                            case VIZCore3D.NET.Data.OsnapKind.CIRCLE:
+                                break;
+                        }
                     }
                 }
             }
