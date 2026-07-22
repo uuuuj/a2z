@@ -2687,6 +2687,287 @@ namespace A2Z
                 return $"Looking \"{viewDirection}\"";
         }
 
+        // 참조축 자동 정렬 1단계 진단값. 이 단계에서는 카메라·모델 좌표계를 변경하지 않는다.
+        private const double MfgAxisDirectionToleranceDegrees = 5.0;
+        private const double MfgAxisTiltToleranceDegrees = 1.0;
+        private const double MfgAxisMinimumLineLength = 0.001;
+
+        private readonly Dictionary<int, MfgAxisDetectionResult> _mfgAxisDetectionCache
+            = new Dictionary<int, MfgAxisDetectionResult>();
+
+        private struct MfgAxisVector
+        {
+            public double X;
+            public double Y;
+            public double Z;
+
+            public MfgAxisVector(double x, double y, double z)
+            {
+                X = x;
+                Y = y;
+                Z = z;
+            }
+        }
+
+        private sealed class MfgAxisDirectionBin
+        {
+            public double WeightedX;
+            public double WeightedY;
+            public double WeightedZ;
+            public double TotalLength;
+            public int LineCount;
+
+            public MfgAxisVector Direction
+            {
+                get { return NormalizeMfgAxisVector(new MfgAxisVector(WeightedX, WeightedY, WeightedZ)); }
+            }
+
+            public void Add(MfgAxisVector direction, double length)
+            {
+                if (LineCount > 0 && DotMfgAxisVector(Direction, direction) < 0.0)
+                    direction = new MfgAxisVector(-direction.X, -direction.Y, -direction.Z);
+
+                WeightedX += direction.X * length;
+                WeightedY += direction.Y * length;
+                WeightedZ += direction.Z * length;
+                TotalLength += length;
+                LineCount++;
+            }
+        }
+
+        private sealed class MfgAxisDetectionResult
+        {
+            public bool Success;
+            public string FailureReason = "";
+            public int LineCount;
+            public int DirectionGroupCount;
+            public MfgAxisVector MainAxis;
+            public double MainDirectionTotalLength;
+            public double SecondDirectionTotalLength;
+            public MfgAxisVector LongestLineAxis;
+            public double LongestLineLength;
+            public string NearestWorldAxis = "";
+            public double DeviationDegrees;
+            public double MainVsLongestDegrees;
+
+            public bool IsTilted
+            {
+                get { return Success && DeviationDegrees > MfgAxisTiltToleranceDegrees; }
+            }
+        }
+
+        /// <summary>
+        /// 전체 Osnap 수집 때 이미 받은 원본으로 가공도 주축 판정을 함께 캐시한다.
+        /// 반환값은 호출자가 기존 수집 흐름을 그대로 이어가도록 입력 목록을 그대로 돌려준다.
+        /// </summary>
+        private List<VIZCore3D.NET.Data.OsnapVertex3D> CacheMfgAxisDetection(
+            int nodeIndex,
+            List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList)
+        {
+            _mfgAxisDetectionCache[nodeIndex] = DetectMfgAxis(osnapList);
+            return osnapList;
+        }
+
+        private MfgAxisDetectionResult GetMfgAxisDetection(int nodeIndex, out bool cacheHit)
+        {
+            MfgAxisDetectionResult cached;
+            if (_mfgAxisDetectionCache.TryGetValue(nodeIndex, out cached))
+            {
+                cacheHit = true;
+                return cached;
+            }
+
+            cacheHit = false;
+            List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = vizcore3d.Object3D.GetOsnapPoint(nodeIndex);
+            MfgAxisDetectionResult detected = DetectMfgAxis(osnapList);
+            _mfgAxisDetectionCache[nodeIndex] = detected;
+            return detected;
+        }
+
+        /// <summary>
+        /// LINE Osnap 방향을 5도 허용 범위로 군집화하고, 군집별 선 길이 합이 가장 큰 방향을 주축으로 판정한다.
+        /// 단일 최장선 방향도 별도로 보존해 실제 모델 로그에서 두 기준을 비교할 수 있게 한다.
+        /// </summary>
+        private MfgAxisDetectionResult DetectMfgAxis(
+            IEnumerable<VIZCore3D.NET.Data.OsnapVertex3D> osnapList)
+        {
+            var result = new MfgAxisDetectionResult();
+            var bins = new List<MfgAxisDirectionBin>();
+            double directionCosTolerance = Math.Cos(MfgAxisDirectionToleranceDegrees * Math.PI / 180.0);
+
+            if (osnapList != null)
+            {
+                foreach (var osnap in osnapList)
+                {
+                    if (osnap == null ||
+                        osnap.Kind != VIZCore3D.NET.Data.OsnapKind.LINE ||
+                        osnap.Start == null || osnap.End == null)
+                        continue;
+
+                    var line = new MfgAxisVector(
+                        osnap.End.X - osnap.Start.X,
+                        osnap.End.Y - osnap.Start.Y,
+                        osnap.End.Z - osnap.Start.Z);
+                    double length = LengthMfgAxisVector(line);
+                    if (length < MfgAxisMinimumLineLength) continue;
+
+                    MfgAxisVector direction = CanonicalizeMfgAxisVector(
+                        new MfgAxisVector(line.X / length, line.Y / length, line.Z / length));
+                    result.LineCount++;
+
+                    if (length > result.LongestLineLength)
+                    {
+                        result.LongestLineLength = length;
+                        result.LongestLineAxis = direction;
+                    }
+
+                    MfgAxisDirectionBin targetBin = null;
+                    foreach (MfgAxisDirectionBin bin in bins)
+                    {
+                        if (Math.Abs(DotMfgAxisVector(bin.Direction, direction)) >= directionCosTolerance)
+                        {
+                            targetBin = bin;
+                            break;
+                        }
+                    }
+
+                    if (targetBin == null)
+                    {
+                        targetBin = new MfgAxisDirectionBin();
+                        bins.Add(targetBin);
+                    }
+                    targetBin.Add(direction, length);
+                }
+            }
+
+            result.DirectionGroupCount = bins.Count;
+            if (bins.Count == 0)
+            {
+                result.FailureReason = "유효한 LINE Osnap 없음";
+                return result;
+            }
+
+            List<MfgAxisDirectionBin> orderedBins = bins
+                .OrderByDescending(bin => bin.TotalLength)
+                .ToList();
+            MfgAxisDirectionBin mainBin = orderedBins[0];
+            result.MainAxis = CanonicalizeMfgAxisVector(mainBin.Direction);
+            result.MainDirectionTotalLength = mainBin.TotalLength;
+            result.SecondDirectionTotalLength = orderedBins.Count > 1 ? orderedBins[1].TotalLength : 0.0;
+
+            double absX = Math.Abs(result.MainAxis.X);
+            double absY = Math.Abs(result.MainAxis.Y);
+            double absZ = Math.Abs(result.MainAxis.Z);
+            double nearestDot;
+            if (absX >= absY && absX >= absZ)
+            {
+                result.NearestWorldAxis = "X";
+                nearestDot = absX;
+            }
+            else if (absY >= absX && absY >= absZ)
+            {
+                result.NearestWorldAxis = "Y";
+                nearestDot = absY;
+            }
+            else
+            {
+                result.NearestWorldAxis = "Z";
+                nearestDot = absZ;
+            }
+
+            result.DeviationDegrees = RadiansToDegrees(Math.Acos(ClampMfgAxisDot(nearestDot)));
+            result.MainVsLongestDegrees = RadiansToDegrees(Math.Acos(ClampMfgAxisDot(
+                Math.Abs(DotMfgAxisVector(result.MainAxis, result.LongestLineAxis)))));
+            result.Success = true;
+            return result;
+        }
+
+        private void LogMfgAxisDetection(BOMData bom)
+        {
+            bool cacheHit;
+            MfgAxisDetectionResult result = GetMfgAxisDetection(bom.Index, out cacheHit);
+            string orientationRaw = GetUdaValue(bom.Index, "ORIENTATION");
+            var (orientationAxis, orientationAngle) = ParseOrientation(bom.Index);
+
+            if (!result.Success)
+            {
+                DiagLog($"[참조축판정] bom={bom.Index} name='{bom.Name}' source={(cacheHit ? "cache" : "sdk")} " +
+                    $"실패={result.FailureReason} ORIENTATION='{orientationRaw}' parsed={orientationAxis}/{orientationAngle:F1}°");
+                return;
+            }
+
+            string message = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "[참조축판정] bom={0} name='{1}' source={2} LINE={3} groups={4} " +
+                "main=({5:F5},{6:F5},{7:F5}) sumLen={8:F2} secondLen={9:F2} " +
+                "nearest={10} deviation={11:F3}° threshold={12:F1}° result={13} " +
+                "longest=({14:F5},{15:F5},{16:F5}) length={17:F2} mainVsLongest={18:F3}° " +
+                "ORIENTATION='{19}' parsed={20}/{21:F1}°",
+                bom.Index,
+                bom.Name,
+                cacheHit ? "cache" : "sdk",
+                result.LineCount,
+                result.DirectionGroupCount,
+                result.MainAxis.X,
+                result.MainAxis.Y,
+                result.MainAxis.Z,
+                result.MainDirectionTotalLength,
+                result.SecondDirectionTotalLength,
+                result.NearestWorldAxis,
+                result.DeviationDegrees,
+                MfgAxisTiltToleranceDegrees,
+                result.IsTilted ? "틀어짐" : "정상",
+                result.LongestLineAxis.X,
+                result.LongestLineAxis.Y,
+                result.LongestLineAxis.Z,
+                result.LongestLineLength,
+                result.MainVsLongestDegrees,
+                orientationRaw,
+                orientationAxis,
+                orientationAngle);
+            DiagLog(message);
+        }
+
+        private static MfgAxisVector NormalizeMfgAxisVector(MfgAxisVector vector)
+        {
+            double length = LengthMfgAxisVector(vector);
+            if (length <= 0.0) return new MfgAxisVector();
+            return new MfgAxisVector(vector.X / length, vector.Y / length, vector.Z / length);
+        }
+
+        private static MfgAxisVector CanonicalizeMfgAxisVector(MfgAxisVector vector)
+        {
+            double absX = Math.Abs(vector.X);
+            double absY = Math.Abs(vector.Y);
+            double absZ = Math.Abs(vector.Z);
+            bool invert = (absX >= absY && absX >= absZ && vector.X < 0.0) ||
+                          (absY > absX && absY >= absZ && vector.Y < 0.0) ||
+                          (absZ > absX && absZ > absY && vector.Z < 0.0);
+            return invert
+                ? new MfgAxisVector(-vector.X, -vector.Y, -vector.Z)
+                : vector;
+        }
+
+        private static double LengthMfgAxisVector(MfgAxisVector vector)
+        {
+            return Math.Sqrt(vector.X * vector.X + vector.Y * vector.Y + vector.Z * vector.Z);
+        }
+
+        private static double DotMfgAxisVector(MfgAxisVector left, MfgAxisVector right)
+        {
+            return left.X * right.X + left.Y * right.Y + left.Z * right.Z;
+        }
+
+        private static double ClampMfgAxisDot(double value)
+        {
+            return Math.Max(-1.0, Math.Min(1.0, value));
+        }
+
+        private static double RadiansToDegrees(double radians)
+        {
+            return radians * 180.0 / Math.PI;
+        }
+
         #endregion
     }
 }
