@@ -28,29 +28,7 @@ namespace A2Z
             }
 
             // Sheet 1: 전체 BOM 부재
-            DrawingSheetData sheet1 = new DrawingSheetData();
-            sheet1.SheetNumber = 1;
-
-            // 선택한 노드 이름 사용, 없으면 파일명 사용
-            if (selectedAttributeNodeIndex != -1)
-            {
-                var selectedNode = vizcore3d.Object3D.FromIndex(selectedAttributeNodeIndex);
-                sheet1.BaseMemberName = (selectedNode != null && !string.IsNullOrEmpty(selectedNode.NodeName))
-                    ? selectedNode.NodeName
-                    : System.IO.Path.GetFileNameWithoutExtension(currentFilePath);
-            }
-            else
-            {
-                sheet1.BaseMemberName = !string.IsNullOrEmpty(currentFilePath)
-                    ? System.IO.Path.GetFileNameWithoutExtension(currentFilePath)
-                    : "전체";
-            }
-            sheet1.BaseMemberIndex = -1;
-            foreach (var bom in bomList)
-            {
-                sheet1.MemberIndices.Add(bom.Index);
-                sheet1.MemberNames.Add(bom.Name);
-            }
+            DrawingSheetData sheet1 = CreateFullDrawingSheetData();
             drawingSheetList.Add(sheet1);
 
             // BOM 인덱스 → BOM 이름 매핑
@@ -479,6 +457,38 @@ namespace A2Z
                 lvi.Tag = sheet;
                 lvDrawingSheet.Items.Add(lvi);
             }
+        }
+
+        private DrawingSheetData CreateFullDrawingSheetData()
+        {
+            DrawingSheetData sheet = new DrawingSheetData
+            {
+                SheetNumber = 1,
+                BaseMemberIndex = -1
+            };
+
+            // 선택한 노드 이름 사용, 없으면 파일명 사용
+            if (selectedAttributeNodeIndex != -1)
+            {
+                var selectedNode = vizcore3d.Object3D.FromIndex(selectedAttributeNodeIndex);
+                sheet.BaseMemberName = (selectedNode != null && !string.IsNullOrEmpty(selectedNode.NodeName))
+                    ? selectedNode.NodeName
+                    : Path.GetFileNameWithoutExtension(currentFilePath);
+            }
+            else
+            {
+                sheet.BaseMemberName = !string.IsNullOrEmpty(currentFilePath)
+                    ? Path.GetFileNameWithoutExtension(currentFilePath)
+                    : "전체";
+            }
+
+            foreach (var bom in bomList)
+            {
+                sheet.MemberIndices.Add(bom.Index);
+                sheet.MemberNames.Add(bom.Name);
+            }
+
+            return sheet;
         }
 
         private void PrepareDrawingSheetDimensionCaches(List<ChainDimensionData> initiallyComputedDimensions)
@@ -1089,7 +1099,7 @@ namespace A2Z
         }
 
         /// <summary>
-        /// "2D 출력" 버튼 클릭 — 선택된 도면시트의 3D 뷰 상태를 2D 도면으로 생성
+        /// "2D 출력" 버튼 클릭 — 선택된 도면시트 또는 전체 제작도의 3D 뷰 상태를 2D 도면으로 생성
         /// </summary>
         private void btnGenerateSheet2D_Click(object sender, EventArgs e)
         {
@@ -1099,13 +1109,45 @@ namespace A2Z
                 return;
             }
 
-            if (lvDrawingSheet.SelectedItems.Count == 0)
+            if (bomList.Count == 0)
             {
-                MessageBox.Show("도면 시트를 선택해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("BOM 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            DrawingSheetData sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            DrawingSheetData sheet = null;
+            if (lvDrawingSheet.SelectedItems.Count > 0)
+            {
+                sheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
+            }
+            else
+            {
+                ListViewItem fullSheetItem = null;
+                foreach (ListViewItem item in lvDrawingSheet.Items)
+                {
+                    DrawingSheetData candidate = item.Tag as DrawingSheetData;
+                    if (candidate != null && candidate.BaseMemberIndex == -1)
+                    {
+                        fullSheetItem = item;
+                        sheet = candidate;
+                        break;
+                    }
+                }
+
+                if (fullSheetItem != null)
+                {
+                    fullSheetItem.Selected = true;
+                    fullSheetItem.Focused = true;
+                    fullSheetItem.EnsureVisible();
+                    DiagLog($"2D 출력 기본 대상: 전체 제작도 자동 선택 (members={sheet.MemberIndices.Count})");
+                }
+                else
+                {
+                    sheet = CreateFullDrawingSheetData();
+                    DiagLog($"2D 출력 기본 대상: 임시 전체 제작도 생성 (members={sheet.MemberIndices.Count})");
+                }
+            }
+
             if (sheet == null || sheet.MemberIndices.Count == 0)
             {
                 MessageBox.Show("유효한 시트 데이터가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
