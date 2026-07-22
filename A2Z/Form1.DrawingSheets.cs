@@ -1653,17 +1653,18 @@ namespace A2Z
                 //   84..103 = Q'TY, 104..123 = T/W, 124..143 = MA, 144..163 = FA
                 Dictionary<int, string> data = new Dictionary<int, string>();
                 // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
-                //   신 템플릿은 Input_199까지 사용: 164=Note, 165~168=PAINT/DP, 169=TAG NO, 170~199=Rev 표.
+                //   신 템플릿 Input 사용: 4~163=BOM 1~20행, 164=Note내용, 165~168=PAINT/DP, 169=TAG NO,
+                //   170~199=Rev 표, 200=Note 라벨(AW33), 201~240=BOM 21~25행 (2026-07-22 Input 200+ 확장).
                 //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
                 //   사용자 사양(2026-07-21): BOM(4~163)·Note(164)·Rev 위 4행(170~193)은 비면 지우고,
                 //   PAINT/DP/TAG(165~169)·Rev 첫 기재행(194~199, 헤더 바로 위 1행)은 빈칸으로 남긴다.
                 //   Note 라벨("Note : ")은 템플릿에서 제거됨 — 향후 Note 실데이터를 채울 땐 코드가 "Note : " 접두어까지 포함할 것.
-                for (int k = 1; k <= 200; k++)
-                    data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193)) ? "" : " ";
-                // [Input 200 상한 테스트 2026-07-22] Note 라벨칸(AW33)을 {Input_200}으로 넣고,
-                //   SDK가 200번 태그를 크래시 없이 렌더하는지 확인한다(가공도는 200+에서 AccessViolation났으나
-                //   제작도는 200 초과를 시험한 적 없음). 임시로 항상 "Note" 표시 → 정상 출력되면 통과.
-                //   통과 시: 조건부(노트 있을 때만)로 교체 + BOM 25행 확장 진행. 크래시 시: 이 태그+코드 롤백, 소프트힐스 확장판 대기.
+                for (int k = 1; k <= 240; k++)
+                    data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 201 && k <= 240)) ? "" : " ";
+                // [Input 200+ 확장 테스트 2026-07-22] 제작도가 200 초과 태그를 크래시 없이 렌더하는지 확인
+                //   (가공도는 200+에서 AccessViolation났으나 제작도는 200 초과 미시험. 소프트힐스가 상한 확장 예정).
+                //   이번에 200(Note 라벨) + 201~240(BOM 21~25행) 동시 투입. 정상 출력되면 통과.
+                //   Note 라벨은 임시로 항상 "Note" 표시 → 통과 후 조건부(노트 있을 때만)로 교체. 크래시 시 200~240 전부 롤백.
                 data[200] = "Note";
                 // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
                 data[1] = "CEDAR FLNG";
@@ -1677,26 +1678,39 @@ namespace A2Z
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
 
-                // BOM 8컬럼 × 20행 — lvDrawingBOMInfo Row 0(요약행) 제외
+                // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행) 제외.
+                //   1~20행: 기존 태그(열별 20연속, 4~163). 21~25행: 신규 태그(201~240, 열별 5연속) — 2026-07-22 Input 200+ 확장.
                 int bomMapped = 0;
                 if (lvDrawingBOMInfo.Items.Count > 1)
                 {
-                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 20);
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 25);
                     for (int i = 0; i < n; i++)
                     {
                         ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
-                        data[4 + i]   = item.Text;                              // NO
-                        data[24 + i]  = SafeSubItem(item, 1);                   // ITEM
-                        data[44 + i]  = SafeSubItem(item, 2);                   // MATERIAL
-                        data[64 + i]  = SafeSubItem(item, 3);                   // SIZE
-                        data[84 + i]  = SafeSubItem(item, 4);                   // Q'TY
-                        data[104 + i] = SafeSubItem(item, 5);                   // T/W
-                        data[124 + i] = SafeSubItem(item, 6);                   // MA
-                        data[144 + i] = SafeSubItem(item, 7);                   // FA
+                        int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
+                        if (i < 20)
+                        {
+                            cNo = 4 + i;   cItem = 24 + i;  cMat = 44 + i;  cSize = 64 + i;
+                            cQty = 84 + i; cTw = 104 + i;   cMa = 124 + i;  cFa = 144 + i;
+                        }
+                        else
+                        {
+                            int j = i - 20;   // 0~4 (BOM 21~25행)
+                            cNo = 201 + j;  cItem = 206 + j; cMat = 211 + j; cSize = 216 + j;
+                            cQty = 221 + j; cTw = 226 + j;   cMa = 231 + j;  cFa = 236 + j;
+                        }
+                        data[cNo]   = item.Text;                              // NO
+                        data[cItem] = SafeSubItem(item, 1);                   // ITEM
+                        data[cMat]  = SafeSubItem(item, 2);                   // MATERIAL
+                        data[cSize] = SafeSubItem(item, 3);                   // SIZE
+                        data[cQty]  = SafeSubItem(item, 4);                   // Q'TY
+                        data[cTw]   = SafeSubItem(item, 5);                   // T/W
+                        data[cMa]   = SafeSubItem(item, 6);                   // MA
+                        data[cFa]   = SafeSubItem(item, 7);                   // FA
                     }
                     bomMapped = n;
-                    if (lvDrawingBOMInfo.Items.Count - 1 > 20)
-                        DiagLog($"P2 BOM {lvDrawingBOMInfo.Items.Count - 1}행 중 20행만 표시 (템플릿 한도)");
+                    if (lvDrawingBOMInfo.Items.Count - 1 > 25)
+                        DiagLog($"P2 BOM {lvDrawingBOMInfo.Items.Count - 1}행 중 25행만 표시 (템플릿 한도)");
                 }
                 DiagLog($"P2 data 구성: kind='{data[3]}' BOM {bomMapped}행 (Input 총 {data.Count}개)");
 
