@@ -1957,6 +1957,26 @@ namespace A2Z
             MfgViewPose pose = null;
             bool shouldSnapshotCamera = false;
 
+            // [MfgCam] 카메라 fit 격리 진단 (2026-07-22) — 도면번호 클릭 시 "엄청 가까이" 원인 특정용. 원인 확정 후 제거.
+            //   entry(원복 후)→core(카메라 세팅 후)→fly(FlyTo 후)→rot(회전 후)→final(EndUpdate 후) 사이
+            //   zoomRatio/depth/pivot이 어느 단계에서 무너지는지 본다. BeginUpdate 안 값은 commit 전일 수 있어 상대 변화로 판단.
+            void CamLog(string tag)
+            {
+                try
+                {
+                    Func<VIZCore3D.NET.Data.Vertex3D, string> fmt =
+                        v => v == null ? "null" : $"({v.X:F0},{v.Y:F0},{v.Z:F0})";
+                    var cd = vizcore3d.View.GetCameraData();
+                    string cam = cd == null
+                        ? "cd=null"
+                        : $"camZoom={cd.Zoom:F4} depth={cd.Depth:F1} pivot={fmt(cd.RotatePivot)} mc={fmt(cd.ModelCenter)}";
+                    DiagLog($"[MfgCam:{tag}] zoomRatio={vizcore3d.View.ZoomRatio:F4} {cam} " +
+                            $"split={(vizcore3d.SplitContainer != null ? vizcore3d.SplitContainer.SplitterDistance : -1)}/" +
+                            $"{(vizcore3d.SplitContainer != null ? vizcore3d.SplitContainer.Width : -1)}");
+                }
+                catch (Exception ex) { DiagLog($"[MfgCam:{tag}] FAIL {ex.Message}"); }
+            }
+
             vizcore3d.BeginUpdate();
             try
             {
@@ -1975,10 +1995,12 @@ namespace A2Z
                     vizcore3d.View.RotateCameraByScreenAxis(0, 0, -_mfgPreviewNetRoll);
                     _mfgPreviewNetRoll = 0f;
                 }
+                CamLog("entry");
 
                 // ── 공통 코어 호출 ──
                 //   부재 격리·BBox·축·카메라·ORIENTATION·Osnap·EA·치수·풍선 모두 코어가 수행.
                 pose = BuildMfgSceneCore(bomIndex);
+                CamLog("core");
 
                 // ── 수동 어댑터 후처리: 3D 뷰용 SMOOTH 실선 + Silhouette ──
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
@@ -1988,6 +2010,7 @@ namespace A2Z
                 // FlyToObject3d
                 List<int> targetIndices = new List<int> { bom.Index };
                 vizcore3d.View.FlyToObject3d(targetIndices, 1.25f);
+                CamLog("fly");
 
                 // pose.ApplyZ90 / ApplyR180 적용 (Z 최장축 90° / EA L자 열린 방향 180°).
                 //   이번에 건 총량을 기록 → 다음 미리보기 진입 때 음수로 되돌려 누적 차단 (2026-07-22).
@@ -2005,6 +2028,7 @@ namespace A2Z
                     appliedRoll += 180f;
                 }
                 _mfgPreviewNetRoll = appliedRoll;
+                CamLog("rot");
 
                 // pose 저장 (진단·향후 참조용)
                 _lastMfgViewPose = pose;
@@ -2017,7 +2041,8 @@ namespace A2Z
                 DiagLog($"B2 ExecuteMfgDrawing bom={bom.Index} name=\"{bom.Name}\" " +
                     $"viewDir={pose.ViewDirection} longestAxis={pose.LongestAxis} " +
                     $"ApplyZ90={pose.ApplyZ90} ApplyR180={pose.ApplyR180} " +
-                    $"UsedMinusCamera={pose.UsedMinusCamera}");
+                    $"UsedMinusCamera={pose.UsedMinusCamera} " +
+                    $"orient={pose.OrientationAxis}/{pose.OrientationAngle:F0}");
             }
             catch (Exception ex)
             {
@@ -2028,12 +2053,15 @@ namespace A2Z
                 vizcore3d.EndUpdate();
             }
 
+            CamLog("final");   // EndUpdate 후 commit된 실제 상태
+
             // EndUpdate 이후 카메라 스냅샷 — ScreenAxisRotation commit 후
             //   (BeginUpdate 스코프 내에서는 회전이 commit 전 상태일 수 있음 — click-order 의존 버그 회피)
             if (shouldSnapshotCamera && pose != null)
             {
                 System.Windows.Forms.Application.DoEvents();
                 pose.CameraData = vizcore3d.View.GetCameraData();
+                CamLog("afterDoEvents");
             }
         }
 
