@@ -721,44 +721,11 @@ namespace A2Z
             swBom.Stop();
             bomMs = swBom.ElapsedMilliseconds;
 
-            // T-036 (2026-04-23 3차 → 2026-04-24 4차 3·4단계 → 5단계): 가공도 시트 카메라 복원.
-            //   진화 경로:
-            //     - 3차: SetCameraData(snapshot)로 카메라 복원
-            //     - 4차 3단계: SetCameraData + Rotate 재적용 (ScreenAxisRotation은 CameraData에 미포함)
-            //     - 4차 4단계: BeginUpdate/EndUpdate로 감쌌으나 사용자 "카메라 이동 후 회전" 2단계 시각 잔존 보고
-            //     - **4차 5단계 (현재)**: SetCameraData가 ScreenAxisRotation을 리셋하면서 paint를 동기 트리거 →
-            //       BeginUpdate가 막지 못함. ExecuteMfgDrawing 이후 외부 FitToView가 모두 제거됐으므로
-            //       카메라 위치는 변하지 않음 → **SetCameraData 호출 불필요**. ScreenAxisRotation만 재적용.
-            //       (만약 회전이 ExecuteMfgDrawing 직후 그대로 유지된다면 이 블록 자체도 no-op)
-            if (sheet.BaseMemberIndex == -3 && (_lastMfgViewPose?.ApplyZ90 == true || _lastMfgViewPose?.ApplyR180 == true))
-            {
-                try
-                {
-                    // BeginUpdate로 감싸 회전 적용 시점을 1회 paint로 통합
-                    vizcore3d.BeginUpdate();
-
-                    if (_lastMfgViewPose?.ApplyZ90 == true)
-                    {
-                        vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 90);
-                    }
-                    if (_lastMfgViewPose?.ApplyR180 == true)
-                    {
-                        vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                        vizcore3d.View.RotateCameraByScreenAxis(0, 0, 180);
-                    }
-
-                    vizcore3d.EndUpdate();
-
-                    DiagLog($"T-036 카메라 회전 재적용: sheet#={sheet.SheetNumber} " +
-                        $"Z90={_lastMfgViewPose?.ApplyZ90} R180={_lastMfgViewPose?.ApplyR180}");
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"T-036 카메라 회전 재적용 FAIL {ex.Message}");
-                    try { vizcore3d.EndUpdate(); } catch { }
-                }
-            }
+            // (제거 2026-07-22) 가공도 시트 카메라 회전 재적용 블록 — 이중 적용 버그였음.
+            //   ExecuteMfgDrawing이 이미 Z90/R180을 한 번 걸어두는데, 여기서 같은 회전을 또 걸어(상대 회전이라)
+            //   Z-최장축·EA 부재가 두 배(90→180, 180→360)로 돌아갔음. 옛 SetCameraData(회전 리셋)와 짝이던
+            //   재적용만 남아 발생. 카메라 방향은 코어의 MoveCamera가 잡고, 회전은 ExecuteMfgDrawing이 1회만 담당.
+            //   누적 원복은 ExecuteMfgDrawing 진입부(_mfgPreviewNetRoll)가 처리.
 
             swTotal.Stop();
             DiagLog($"LvDrawingSheet_SelectedIndexChanged EXIT " +
