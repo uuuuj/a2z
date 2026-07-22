@@ -1,6 +1,6 @@
 # Form1.GlobalViews.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.GlobalViews.cs` (약 790 라인)
+**경로**: `A2Z/Form1.GlobalViews.cs` (약 780 라인)
 
 **책임**: 글로벌 뷰(ISO/X/Y/Z) 버튼 핸들러, 3가지 경로(시트/X-Ray/전체) 공용 분기 함수, 설치도 치수 추출.
 
@@ -40,10 +40,10 @@
 
 ### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(DrawingSheetData sheet)
 - **라인**: L203~L238
-- **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상을 STRU+외부 연결 Assembly로 갱신
+- **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상을 STRU+직접 연결 외부 Part로 갱신
 
 ### PrepareInstallationConnectionData(DrawingSheetData sheet)
-- **라인**: L244~L371
+- **라인**: L244~L367
 - **알고리즘**:
   1. 제작 대상과 설치 시트 BODY 집합 일치 확인
   2. 외부 연결 Clash의 Part 쌍별 하위 BODY 조합 생성
@@ -51,10 +51,11 @@
   4. 이어진 선분은 1mm tolerance로 한 접합 영역, 떨어진 선분은 별도 영역으로 분리
   5. 접합선이 없으면 `GetJunctionMesh`, 그마저 없으면 HotPoint 근접 fallback
   6. 접합점은 BODY LINE/POINT Osnap 3mm 이내 스냅, Assembly별 A/B/C 및 A1/A2 라벨 부여
+  7. 점선 문맥은 부모 Assembly 전체가 아니라 직접 연결된 외부 Part 인덱스만 저장. Assembly는 이름 노트용 메타데이터로 유지
 
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L661~L747
-- **핵심**: X뷰=Z/Y, Y뷰=Z/X, Z뷰=Y/X 순으로 선택 STRU·연결 Assembly 전체 Osnap MIN/MAX 치수와 `연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX` 필수 체인 치수 생성
+- **라인**: L658~L739
+- **핵심**: X뷰=Z/Y, Y뷰=Z/X, Z뷰=Y/X 순으로 선택 STRU 전체 Osnap MIN/MAX 치수와 `연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX` 필수 체인 치수를 생성. 연결 Assembly 전체 범위 치수는 제외
 - **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---

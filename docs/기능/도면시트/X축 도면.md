@@ -60,7 +60,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Cli
 - Y/Z/ISO 뷰로 전환
 
 ## 9. 관련 링크
-- 코드 구현: [Form1.DrawingSheets.cs:L1072](../../code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Click)
+- 코드 구현: [Form1.DrawingSheets.cs:L1076](../../code-reference/form1-drawing-sheets.md#btnDrawingAxisX_Click)
 
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
