@@ -517,6 +517,7 @@ namespace A2Z
             osnapPointsWithNames.Clear();
             lvOsnap.Items.Clear();
             _lastCollectedNodeOsnapMap.Clear();
+            _mfgAxisDetectionCache.Clear();
             _udaValueCache.Clear();   // SPREF/ORIENTATION 캐시도 재수집 시 초기화 (2026-07-22)
 
             try
@@ -552,7 +553,9 @@ namespace A2Z
                 foreach (var node in bodyNodes)
                 {
                     string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
-                    List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = vizcore3d.Object3D.GetOsnapPoint(node.Index);
+                    List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = CacheMfgAxisDetection(
+                        node.Index,
+                        vizcore3d.Object3D.GetOsnapPoint(node.Index));
 
                     if (osnapList != null && osnapList.Count > 0)
                     {
