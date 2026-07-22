@@ -196,9 +196,31 @@ namespace A2Z
 
         private const float InstallationContactClusterTolerance = 1.0f;
         private const float InstallationContactSnapTolerance = 3.0f;
+        private const float InstallationPlacementTieTolerance = 0.5f;
 
         /// <summary>
-        /// 설치도용 치수 추출. 선택 STRU 전체 Osnap 범위와 연결 Part의 실제 접합 영역을 표시한다.
+        /// 설치 위치 치수의 최종 기준점.
+        /// 접합영역은 이 두 점을 고르는 내부 판정 자료로만 사용한다.
+        /// </summary>
+        private sealed class InstallationPlacementAnchor
+        {
+            public int TargetPartIndex;
+            public int TargetBodyIndex;
+            public int ConnectedPartIndex;
+            public int ConnectedBodyIndex;
+            public string Axis;
+            public VIZCore3D.NET.Data.Vector3D TargetEndPoint;
+            public VIZCore3D.NET.Data.Vector3D ConnectedCornerPoint;
+            public bool TargetBoundsFallback;
+            public bool ConnectedBoundsFallback;
+            public double MainDirectionTotalLength;
+            public double SecondDirectionTotalLength;
+            public int MergedAreaCount;
+        }
+
+        /// <summary>
+        /// 설치도용 치수 추출. 선택 STRU 전체 범위와
+        /// 기준 STRU측 연결 Body 끝단→외부 연결 Body 접합측 모서리 위치를 표시한다.
         /// </summary>
         private void ExtractInstallationDimensions(DrawingSheetData sheet)
         {
@@ -498,26 +520,22 @@ namespace A2Z
 
         private void AssignInstallationConnectionLabels(List<InstallationConnectionData> connections)
         {
-            int assemblyOrder = 0;
-            foreach (var assemblyGroup in connections
+            int partOrder = 0;
+            foreach (var partGroup in connections
                 .GroupBy(connection => new
                 {
                     connection.ConnectedAssemblyIndex,
-                    connection.ConnectedAssemblyName
+                    connection.ConnectedAssemblyName,
+                    connection.ConnectedPartIndex,
+                    connection.ConnectedPartName
                 })
                 .OrderBy(group => group.Key.ConnectedAssemblyName)
-                .ThenBy(group => group.Key.ConnectedAssemblyIndex))
+                .ThenBy(group => group.Key.ConnectedPartName)
+                .ThenBy(group => group.Key.ConnectedPartIndex))
             {
-                string assemblyLabel = ToAlphabeticLabel(assemblyOrder++);
-                var orderedAreas = assemblyGroup
-                    .OrderByDescending(connection => GetContactCenter(connection).Z)
-                    .ThenBy(connection => GetContactCenter(connection).Y)
-                    .ThenBy(connection => GetContactCenter(connection).X)
-                    .ToList();
-                for (int i = 0; i < orderedAreas.Count; i++)
-                    orderedAreas[i].Label = orderedAreas.Count == 1
-                        ? assemblyLabel
-                        : assemblyLabel + (i + 1);
+                string partLabel = ToAlphabeticLabel(partOrder++);
+                foreach (InstallationConnectionData connection in partGroup)
+                    connection.Label = partLabel;
             }
         }
 
@@ -532,16 +550,6 @@ namespace A2Z
                 value /= 26;
             }
             return label;
-        }
-
-        private VIZCore3D.NET.Data.Vector3D GetContactCenter(InstallationConnectionData connection)
-        {
-            if (connection == null || connection.ContactPoints == null || connection.ContactPoints.Count == 0)
-                return new VIZCore3D.NET.Data.Vector3D();
-            return new VIZCore3D.NET.Data.Vector3D(
-                connection.ContactPoints.Average(point => point.X),
-                connection.ContactPoints.Average(point => point.Y),
-                connection.ContactPoints.Average(point => point.Z));
         }
 
         private int FindClosestBodyToPoint(List<int> bodyIndices, VIZCore3D.NET.Data.Vector3D point)
@@ -621,6 +629,248 @@ namespace A2Z
             return points;
         }
 
+        private List<VIZCore3D.NET.Data.Vector3D> GetInstallationBodyPoints(
+            int bodyIndex, out bool boundsFallback)
+        {
+            boundsFallback = false;
+            var points = GetLinePointOsnaps(new[] { bodyIndex })
+                .GroupBy(point => $"{point.X:F3}|{point.Y:F3}|{point.Z:F3}")
+                .Select(group => group.First())
+                .ToList();
+            if (points.Count > 0) return points;
+
+            boundsFallback = true;
+            try
+            {
+                var bounds = vizcore3d.Object3D.GetBoundBox(new List<int> { bodyIndex }, false);
+                if (bounds == null) return points;
+                float[] xs = { bounds.MinX, bounds.MaxX };
+                float[] ys = { bounds.MinY, bounds.MaxY };
+                float[] zs = { bounds.MinZ, bounds.MaxZ };
+                foreach (float x in xs)
+                    foreach (float y in ys)
+                        foreach (float z in zs)
+                            points.Add(new VIZCore3D.NET.Data.Vector3D(x, y, z));
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"설치 위치 Body BBox fallback 실패: body={bodyIndex} {ex.Message}");
+            }
+            return points;
+        }
+
+        /// <summary>
+        /// 실제 접촉 Body의 길이축을 구한다.
+        /// 가공도·비직각 접합에서 검증한 LINE 방향 5도 군집/길이 합 최대 기준을 재사용하고,
+        /// LINE Osnap이 없을 때만 Body BBox 최장축으로 폴백한다.
+        /// </summary>
+        private bool TryGetInstallationMainAxis(
+            int bodyIndex,
+            out MfgAxisVector direction,
+            out string worldAxis,
+            out double mainDirectionTotalLength,
+            out double secondDirectionTotalLength,
+            out bool boundsFallback)
+        {
+            direction = new MfgAxisVector(0.0, 0.0, 0.0);
+            worldAxis = "";
+            mainDirectionTotalLength = 0.0;
+            secondDirectionTotalLength = 0.0;
+            boundsFallback = false;
+
+            try
+            {
+                bool cacheHit;
+                MfgAxisDetectionResult detected = GetMfgAxisDetection(bodyIndex, out cacheHit);
+                if (detected != null && detected.Success)
+                {
+                    direction = detected.MainAxis;
+                    worldAxis = detected.NearestWorldAxis;
+                    mainDirectionTotalLength = detected.MainDirectionTotalLength;
+                    secondDirectionTotalLength = detected.SecondDirectionTotalLength;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"설치 위치 길이축 Osnap 판정 실패: body={bodyIndex} {ex.Message}");
+            }
+
+            boundsFallback = true;
+            try
+            {
+                var bounds = vizcore3d.Object3D.GetBoundBox(new List<int> { bodyIndex }, false);
+                if (bounds == null) return false;
+                double sizeX = bounds.MaxX - bounds.MinX;
+                double sizeY = bounds.MaxY - bounds.MinY;
+                double sizeZ = bounds.MaxZ - bounds.MinZ;
+                if (sizeX >= sizeY && sizeX >= sizeZ)
+                {
+                    direction = new MfgAxisVector(1.0, 0.0, 0.0);
+                    worldAxis = "X";
+                    mainDirectionTotalLength = sizeX;
+                }
+                else if (sizeY >= sizeX && sizeY >= sizeZ)
+                {
+                    direction = new MfgAxisVector(0.0, 1.0, 0.0);
+                    worldAxis = "Y";
+                    mainDirectionTotalLength = sizeY;
+                }
+                else
+                {
+                    direction = new MfgAxisVector(0.0, 0.0, 1.0);
+                    worldAxis = "Z";
+                    mainDirectionTotalLength = sizeZ;
+                }
+                return mainDirectionTotalLength > 0.0;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"설치 위치 길이축 BBox 판정 실패: body={bodyIndex} {ex.Message}");
+                return false;
+            }
+        }
+
+        private double ProjectInstallationPoint(
+            VIZCore3D.NET.Data.Vector3D point, MfgAxisVector direction)
+        {
+            return point.X * direction.X + point.Y * direction.Y + point.Z * direction.Z;
+        }
+
+        private double GetInstallationPerpendicularDistance(
+            VIZCore3D.NET.Data.Vector3D first,
+            VIZCore3D.NET.Data.Vector3D second,
+            MfgAxisVector direction)
+        {
+            double dx = first.X - second.X;
+            double dy = first.Y - second.Y;
+            double dz = first.Z - second.Z;
+            double along = dx * direction.X + dy * direction.Y + dz * direction.Z;
+            double px = dx - along * direction.X;
+            double py = dy - along * direction.Y;
+            double pz = dz - along * direction.Z;
+            return Math.Sqrt(px * px + py * py + pz * pz);
+        }
+
+        private InstallationPlacementAnchor BuildInstallationPlacementAnchor(
+            IEnumerable<InstallationConnectionData> sourceConnections)
+        {
+            List<InstallationConnectionData> connections = sourceConnections?
+                .Where(connection => connection != null)
+                .ToList() ?? new List<InstallationConnectionData>();
+            if (connections.Count == 0) return null;
+
+            InstallationConnectionData first = connections[0];
+            bool targetBoundsFallback;
+            bool connectedBoundsFallback;
+            List<VIZCore3D.NET.Data.Vector3D> targetPoints =
+                GetInstallationBodyPoints(first.TargetBodyIndex, out targetBoundsFallback);
+            List<VIZCore3D.NET.Data.Vector3D> connectedPoints =
+                GetInstallationBodyPoints(first.ConnectedBodyIndex, out connectedBoundsFallback);
+            if (targetPoints.Count == 0 || connectedPoints.Count == 0) return null;
+
+            MfgAxisVector direction;
+            string worldAxis;
+            double mainDirectionTotalLength;
+            double secondDirectionTotalLength;
+            bool axisBoundsFallback;
+            if (!TryGetInstallationMainAxis(
+                    first.TargetBodyIndex,
+                    out direction,
+                    out worldAxis,
+                    out mainDirectionTotalLength,
+                    out secondDirectionTotalLength,
+                    out axisBoundsFallback))
+                return null;
+            targetBoundsFallback = targetBoundsFallback || axisBoundsFallback;
+
+            List<VIZCore3D.NET.Data.Vector3D> contactPoints = connections
+                .SelectMany(connection => connection.ContactPoints ?? new List<VIZCore3D.NET.Data.Vector3D>())
+                .GroupBy(point => $"{point.X:F3}|{point.Y:F3}|{point.Z:F3}")
+                .Select(group => group.First())
+                .ToList();
+
+            Func<VIZCore3D.NET.Data.Vector3D, double> contactDistance = point =>
+            {
+                if (contactPoints.Count > 0)
+                    return contactPoints.Min(contact => Distance3D(point, contact));
+                return targetPoints.Min(target => Distance3D(point, target));
+            };
+            double nearestContactDistance = connectedPoints.Min(contactDistance);
+            List<VIZCore3D.NET.Data.Vector3D> cornerCandidates = connectedPoints
+                .Where(point => contactDistance(point) <= nearestContactDistance + InstallationPlacementTieTolerance)
+                .ToList();
+            if (cornerCandidates.Count == 0) return null;
+
+            double minProjection = targetPoints.Min(point => ProjectInstallationPoint(point, direction));
+            double maxProjection = targetPoints.Max(point => ProjectInstallationPoint(point, direction));
+            InstallationPlacementAnchor best = null;
+            double bestAxisDistance = double.MaxValue;
+            double bestPerpendicularDistance = double.MaxValue;
+
+            foreach (VIZCore3D.NET.Data.Vector3D connectedCorner in cornerCandidates)
+            {
+                double cornerProjection = ProjectInstallationPoint(connectedCorner, direction);
+                double endProjection = Math.Abs(cornerProjection - minProjection) <=
+                                       Math.Abs(cornerProjection - maxProjection)
+                    ? minProjection
+                    : maxProjection;
+                double nearestEndPlaneDistance = targetPoints.Min(point =>
+                    Math.Abs(ProjectInstallationPoint(point, direction) - endProjection));
+                List<VIZCore3D.NET.Data.Vector3D> endCandidates = targetPoints
+                    .Where(point => Math.Abs(ProjectInstallationPoint(point, direction) - endProjection) <=
+                                    nearestEndPlaneDistance + InstallationPlacementTieTolerance)
+                    .ToList();
+                VIZCore3D.NET.Data.Vector3D targetEnd = endCandidates
+                    .OrderBy(point => GetInstallationPerpendicularDistance(point, connectedCorner, direction))
+                    .ThenBy(point => Distance3D(point, connectedCorner))
+                    .First();
+
+                double axisDistance = Math.Abs(
+                    GetVectorAxisValue(connectedCorner, worldAxis) -
+                    GetVectorAxisValue(targetEnd, worldAxis));
+                double perpendicularDistance =
+                    GetInstallationPerpendicularDistance(targetEnd, connectedCorner, direction);
+                if (best != null &&
+                    (axisDistance > bestAxisDistance + 0.001 ||
+                     (Math.Abs(axisDistance - bestAxisDistance) <= 0.001 &&
+                      perpendicularDistance >= bestPerpendicularDistance)))
+                    continue;
+
+                bestAxisDistance = axisDistance;
+                bestPerpendicularDistance = perpendicularDistance;
+                best = new InstallationPlacementAnchor
+                {
+                    TargetPartIndex = first.TargetPartIndex,
+                    TargetBodyIndex = first.TargetBodyIndex,
+                    ConnectedPartIndex = first.ConnectedPartIndex,
+                    ConnectedBodyIndex = first.ConnectedBodyIndex,
+                    Axis = worldAxis,
+                    TargetEndPoint = targetEnd,
+                    ConnectedCornerPoint = connectedCorner,
+                    TargetBoundsFallback = targetBoundsFallback,
+                    ConnectedBoundsFallback = connectedBoundsFallback,
+                    MainDirectionTotalLength = mainDirectionTotalLength,
+                    SecondDirectionTotalLength = secondDirectionTotalLength,
+                    MergedAreaCount = connections.Count
+                };
+            }
+
+            if (best != null)
+            {
+                DiagLog($"[설치위치] targetPart={best.TargetPartIndex} targetBody={best.TargetBodyIndex} " +
+                        $"connectedPart={best.ConnectedPartIndex} connectedBody={best.ConnectedBodyIndex} " +
+                        $"axis={best.Axis} mainDir=({direction.X:F3},{direction.Y:F3},{direction.Z:F3}) " +
+                        $"mainSum={best.MainDirectionTotalLength:F1} " +
+                        $"secondSum={best.SecondDirectionTotalLength:F1} areas={best.MergedAreaCount} " +
+                        $"targetEnd=({best.TargetEndPoint.X:F1},{best.TargetEndPoint.Y:F1},{best.TargetEndPoint.Z:F1}) " +
+                        $"connectedCorner=({best.ConnectedCornerPoint.X:F1},{best.ConnectedCornerPoint.Y:F1},{best.ConnectedCornerPoint.Z:F1}) " +
+                        $"distance={bestAxisDistance:F1} targetBBox={best.TargetBoundsFallback} " +
+                        $"connectedBBox={best.ConnectedBoundsFallback}");
+            }
+            return best;
+        }
+
         private VIZCore3D.NET.Data.Vector3D SnapToNearestOsnap(
             VIZCore3D.NET.Data.Vector3D point,
             List<VIZCore3D.NET.Data.Vector3D> osnaps,
@@ -652,8 +902,9 @@ namespace A2Z
 
         /// <summary>
         /// 설치도 치수를 UI 상태 변경 없이 계산한다.
-        /// 선택 STRU의 주축/보조축 전체 범위와 연결 Part 끝단→접합 영역→끝단 체인을 함께 만든다.
-        /// 연결 Assembly 전체 범위 치수는 표시 형상과 맞지 않아 생성하지 않는다.
+        /// 선택 STRU 전체 범위와 실제 접촉한 STRU측 Body의 가까운 끝단→
+        /// 외부 연결 Body 접합측 모서리 위치 치수를 만든다.
+        /// 접합영역 A1/A2와 연결 Assembly 전체 범위는 치수 끝점으로 사용하지 않는다.
         /// </summary>
         private List<ChainDimensionData> ComputeInstallationDimensions(DrawingSheetData sheet)
         {
@@ -687,44 +938,40 @@ namespace A2Z
                 }
             }
 
-            foreach (InstallationConnectionData connection in sheet.InstallationConnections)
-            {
-                var partBodies = GetBodyIndicesForPart(connection.ConnectedPartIndex);
-                var partPoints = GetInstallationReferencePoints(partBodies);
-                var contactPoints = connection.ContactPoints ?? new List<VIZCore3D.NET.Data.Vector3D>();
-                if (partPoints.Count < 2 || contactPoints.Count == 0) continue;
-
-                foreach (var view in viewAxes)
+            var connectionGroups = sheet.InstallationConnections
+                .Where(connection => connection != null)
+                .GroupBy(connection => new
                 {
-                    foreach (string axis in view.Value)
-                    {
-                        var entries = new List<(float value, VIZCore3D.NET.Data.Vector3D point)>();
-                        var partMin = partPoints.OrderBy(point => GetVectorAxisValue(point, axis)).First();
-                        var partMax = partPoints.OrderByDescending(point => GetVectorAxisValue(point, axis)).First();
-                        var contactMin = contactPoints.OrderBy(point => GetVectorAxisValue(point, axis)).First();
-                        var contactMax = contactPoints.OrderByDescending(point => GetVectorAxisValue(point, axis)).First();
-                        entries.Add((GetVectorAxisValue(partMin, axis), partMin));
-                        entries.Add((GetVectorAxisValue(contactMin, axis), contactMin));
-                        entries.Add((GetVectorAxisValue(contactMax, axis), contactMax));
-                        entries.Add((GetVectorAxisValue(partMax, axis), partMax));
+                    connection.TargetPartIndex,
+                    connection.TargetBodyIndex,
+                    connection.ConnectedPartIndex,
+                    connection.ConnectedBodyIndex
+                });
+            foreach (var connectionGroup in connectionGroups)
+            {
+                InstallationPlacementAnchor anchor = BuildInstallationPlacementAnchor(connectionGroup);
+                if (anchor == null || string.IsNullOrEmpty(anchor.Axis)) continue;
+                InstallationConnectionData connection = connectionGroup.First();
+                string targetName = $"Part_{anchor.TargetPartIndex}";
+                try
+                {
+                    var targetPart = vizcore3d.Object3D.FromIndex(anchor.TargetPartIndex);
+                    if (targetPart != null && !string.IsNullOrWhiteSpace(targetPart.NodeName))
+                        targetName = targetPart.NodeName;
+                }
+                catch { }
 
-                        entries = entries.OrderBy(entry => entry.value).ToList();
-                        var unique = new List<(float value, VIZCore3D.NET.Data.Vector3D point)>();
-                        foreach (var entry in entries)
-                        {
-                            if (unique.Count == 0 || Math.Abs(entry.value - unique[unique.Count - 1].value) > 0.5f)
-                                unique.Add(entry);
-                        }
-
-                        for (int i = 0; i < unique.Count - 1; i++)
-                        {
-                            AddInstallationDimension(result, unique[i].point, unique[i + 1].point,
-                                axis, view.Key,
-                                $"설치 {connection.Label} - {connection.ConnectedPartName}",
-                                false, true,
-                                new[] { connection.TargetBodyIndex, connection.ConnectedBodyIndex });
-                        }
-                    }
+                foreach (var view in viewAxes.Where(item => item.Value.Contains(anchor.Axis)))
+                {
+                    AddInstallationDimension(result,
+                        anchor.TargetEndPoint,
+                        anchor.ConnectedCornerPoint,
+                        anchor.Axis,
+                        view.Key,
+                        $"설치 {connection.Label} - {targetName} 끝단 → {connection.ConnectedPartName} 모서리",
+                        false,
+                        true,
+                        new[] { anchor.TargetBodyIndex, anchor.ConnectedBodyIndex });
                 }
             }
 

@@ -65,7 +65,7 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 | SPREF 키 없음·null·빈 문자열·공백 | ITEM에 `unset` 표시 |
 | SPREF를 파싱했지만 ITEM 부분이 비어 있음 | ITEM에 `unset` 표시 |
 
-SPREF가 정상인 경우의 SIZE 파싱과 MATERIAL·Q'TY·T/W·MA·FA 등 다른 BOM 열은 변경하지 않는다. 이 값은 시트별 BOM 스냅샷에 저장되므로 제작도·조립도·설치도·가공도 출력이 같은 규칙을 사용한다.
+SPREF가 정상인 행은 기존 SIZE 파싱과 MATERIAL·Q'TY·T/W·MA·FA 값을 유지한다. ITEM이 `unset`인 행은 No와 ITEM은 유지하고, 그 뒤의 MATERIAL·SIZE·Q'TY·T/W·MA·FA를 모두 `-`로 표시한다. 별도의 `Support&Seat` 합계 행은 변경하지 않는다. 이 값은 시트별 BOM 스냅샷에 저장되므로 제작도·조립도·설치도·가공도 출력이 같은 규칙을 사용한다.
 
 ## 6. 예외 / 에러 처리
 
@@ -91,6 +91,6 @@ SPREF가 정상인 경우의 SIZE 파싱과 MATERIAL·Q'TY·T/W·MA·FA 등 다�
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
-| 2026-07-22 | 관련: T-081 (BOM ITEM SPREF 미설정 표시) — 유효한 SPREF ITEM은 기존대로 유지하고, 키 없음·null·빈 문자열·공백·빈 ITEM 파싱 결과는 노드명 대신 `unset`으로 통일. 모든 시트 BOM 스냅샷과 출력 경로에 공통 적용 | Codex |
+| 2026-07-22 | 관련: T-081 (BOM ITEM SPREF 미설정 표시) — 유효한 SPREF ITEM은 기존대로 유지하고, 키 없음·null·빈 문자열·공백·빈 ITEM 파싱 결과는 노드명 대신 `unset`으로 통일. 후속 요청으로 `unset` 행의 MATERIAL·SIZE·Q'TY·T/W·MA·FA는 모두 `-`로 표시. 모든 시트 BOM 스냅샷과 출력 경로에 공통 적용 | Codex |
 | 2026-07-21 | 시트별 BOM 캐시 추가. 모델 로드 때 만든 Body→Part 매핑을 재사용하고 관련 Part의 UDA 5개를 한 번만 읽어 모든 시트 행을 준비. 시트 선택·2D 출력의 `CollectBOMInfo`는 준비 데이터 즉시 적용 경로로 전환 | Codex |
 | 2026-04-13 | 초안 작성 | — |

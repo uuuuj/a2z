@@ -14,12 +14,14 @@
   - [x] 정상 SPREF의 기존 ITEM·SIZE 파싱 유지
   - [x] SPREF 키 없음·null·빈 문자열·공백을 ITEM `unset`으로 통일
   - [x] `/`, `:SIZE`처럼 파싱 후 ITEM 부분이 빈 경우도 `unset` 처리
-  - [x] 노드명 fallback 제거, 다른 BOM 열 무변경
+  - [x] 노드명 fallback 제거
+  - [x] ITEM이 `unset`인 행의 MATERIAL·SIZE·Q'TY·T/W·MA·FA를 모두 `-`로 표시
   - [x] 공통 `DrawingBomSnapshot` 경로로 제작도·조립도·설치도·가공도에 동일 적용
   - [x] 별도 출력 폴더 Debug 빌드 오류 0건
 - **사용자 확인 필요**:
   - [ ] 정상 SPREF 부재의 ITEM이 이전과 동일한지
   - [ ] SPREF 미설정·공백 부재가 도면정보 탭과 각 PDF에서 `unset`인지
+  - [ ] ITEM이 `unset`인 행에서 No·ITEM 뒤의 모든 열이 `-`인지
 - **영향 파일**: `A2Z/Form1.Clash.cs`, BOM 정보 수집 흐름·Clash 코드 레퍼런스
 
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
@@ -72,24 +74,30 @@
   - [ ] 가공도 PDF의 Hole·SlotHole·EarthBoss 풍선 유지 확인
 - **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, 가공도 미리보기/PDF 흐름 문서, 가공도 코드 레퍼런스
 
-### T-075 — 설치도 직접 연결 Part·실제 접합영역 위치 치수
+### T-075 — 설치도 기준 Part 끝단→연결 Part 모서리 위치 치수
 - **생성일/착수일**: 2026-07-21
 - **상태**: IN_PROGRESS (구현·컴파일 완료, 사내 PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #12
-- **배경**: 설치도에서 선택 STRU와 직접 연결된 외부 Part의 부착 위치를 보여줘야 한다. Clash HotPoint 하나만으로는 면접촉의 양 끝과 같은 Part/Body의 분리된 접합 영역을 표현할 수 없다. 연결 Assembly 전체를 점선·치수 범위에 포함하면 선택 STRU가 지나치게 작아진다.
+- **배경**: 설치도 목적은 외부 연결 Part가 선택 STRU측 실제 연결 Part의 끝에서 얼마나 떨어져 설치되는지 확인하는 것이다. 접합 중심·A1/A2는 이 위치 판단에 직접 쓸 수 없으므로, 실제 접촉 Body의 끝단과 접합측 모서리 Osnap을 치수 기준으로 사용한다.
 - **구현**:
   - [x] 설치 문맥을 부모 Assembly 인덱스가 아니라 직접 연결 외부 Part 인덱스로 저장. 부모 Assembly는 ISO 이름 노트 문맥으로만 유지
   - [x] ISO/Z/X/Y에서 선택 STRU 실선 + 직접 연결 외부 Part만 점선으로 적용
   - [x] 설치도 4개 뷰를 선택 STRU 기준으로 fit하고, STRU 기준 CropFit으로 긴 연결 부재의 접합 주변만 남김
   - [x] Clash PART 쌍 하위 BODY 조합에서 `GetObjectCollisionLine`, `GetJunctionMesh`로 실제 접합 영역 산출
-  - [x] 이어진 선분 1mm 영역화, 분리 영역 A1/A2 라벨, LINE/POINT Osnap 3mm 스냅
+  - [x] 접합선·Mesh·HotPoint는 Target/Connected Body 쌍과 접합측 모서리 판정용 내부 자료로 유지
   - [x] 선택 STRU 주축/보조축 전체 Osnap 범위 치수 유지, 연결 Assembly 전체 범위 치수 제거
-  - [x] 연결 Part MIN → 접합 시작 → 접합 끝 → Part MAX 필수 체인 치수
+  - [x] Target Body LINE 방향 5도 군집·길이 합 최대 기준으로 길이축 판정, 가까운 끝단 Osnap 선별
+  - [x] Connected Body LINE/POINT 중 접합영역과 가장 가까운 실제 모서리 선별
+  - [x] 같은 Target/Connected Body 쌍의 A1/A2를 병합하고 `Target 끝단 → Connected 모서리` 필수 위치 치수 생성
+  - [x] X/Y/Z의 A/A1/A2 접합점 기호 제거, ISO 이름은 연결 Part당 접합측 모서리에 1개
+  - [x] 설치도 3D 미리보기·옛 2D·엑셀 2D 모두 같은 `PreparedDimensions` 사용 — 공용 Osnap 치수 덮어쓰기 제거
   - [x] 접합 형상 없는 Clearance/Proximity는 HotPoint fallback + 로그
   - [x] Debug 별도 출력 폴더 빌드 통과
-  - [ ] 사내 모델로 접합선/면접촉 A1/A2와 ISO/Z/X/Y 직접 연결 Part 점선 확인
+  - [ ] 사내 모델에서 치수가 선택 STRU측 실제 접촉 Body의 가까운 끝단에서 시작하는지 확인
+  - [ ] 연결 Part의 접합측 실제 모서리에서 치수가 끝나고 같은 Body 쌍 치수가 중복되지 않는지 확인
+  - [ ] 직교 뷰 A/A1/A2가 사라지고 ISO Assembly/Part 이름은 연결 Part당 하나인지 확인
   - [ ] 긴 외부 Assembly가 있어도 선택 STRU가 충분히 크게 나오고 접합 주변만 남는지 확인
-  - [ ] 연결 Assembly 전체 범위 치수가 사라지고 선택 STRU 전체 범위·Part 접합 위치 치수만 남는지 확인
+  - [ ] 3D 미리보기와 PDF의 설치 위치 치수가 동일한지 확인
 - **영향 파일**: `A2Z/Form1.GlobalViews.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.Dimensions.cs`, `A2Z/Models.cs`, 설치도/Osnap 문서
 
 ### T-013 — ISO 뷰 점선·실선 분리와 3D 위치 정합

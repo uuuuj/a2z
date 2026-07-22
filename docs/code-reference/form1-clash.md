@@ -27,7 +27,7 @@
 ### ReadDrawingBomPartData
 - **라인**: L224~L310
 - **핵심**: 현재 Part부터 부모 10단계까지 UDA를 조회해 BOM 문자열을 구성. SPREF의 유효한 ITEM은 기존 파싱을 유지하고, SPREF 키 없음·null·빈 문자열·공백 또는 빈 ITEM은 `unset`으로 저장
-- **공통 적용**: 결과가 `DrawingBomSnapshot`을 거쳐 제작도·조립도·설치도·가공도 BOM 표에 동일하게 사용됨
+- **공통 적용**: 결과가 `DrawingBomSnapshot`을 거쳐 제작도·조립도·설치도·가공도 BOM 표에 동일하게 사용됨. 스냅샷 행 생성 시 ITEM이 `unset`이면 No·ITEM을 제외한 뒤쪽 열은 모두 `-`로 마스킹
 
 ### <a id="DetectClash"></a>DetectClash (내부)
 - **라인**: L783~L886

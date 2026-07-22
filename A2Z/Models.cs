@@ -137,6 +137,7 @@ namespace A2Z
     /// 설치도에서 선택 STRU와 외부 연결 Part 사이의 실제 접합 영역.
     /// Assembly 정보는 접합 노트의 문맥 이름으로만 보존한다.
     /// ContactPoints는 GeometryUtility 접합선의 시작/끝점이며, 접합선이 없는 근접 결과는 HotPoint 1개를 담는다.
+    /// 이 점들은 화면 치수점이 아니라 접합측 Connected Body 모서리를 고르는 내부 판정 자료다.
     /// </summary>
     public class InstallationConnectionData
     {
@@ -147,6 +148,7 @@ namespace A2Z
         public int ConnectedAssemblyIndex { get; set; }
         public string ConnectedPartName { get; set; }
         public string ConnectedAssemblyName { get; set; }
+        /// <summary>직접 연결 Part 단위 A/B/C 라벨. 같은 Body 쌍의 여러 접합영역은 같은 라벨을 공유한다.</summary>
         public string Label { get; set; }
         public bool IsProximityFallback { get; set; }
         public List<VIZCore3D.NET.Data.Vector3D> ContactPoints { get; set; }

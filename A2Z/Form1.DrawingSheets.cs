@@ -576,6 +576,33 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 2D 출력용 치수 원본을 시트 유형에 맞게 반환한다.
+        /// 설치도는 사전 준비한 전용 끝단→모서리 위치 치수를 유지하고,
+        /// 일반 제작·조립도만 공용 Osnap 치수 엔진을 사용한다.
+        /// </summary>
+        private List<ChainDimensionData> GetDrawingSheetDimensionsFor2D(DrawingSheetData sheet)
+        {
+            if (sheet == null) return new List<ChainDimensionData>();
+            if (sheet.BaseMemberIndex != -2)
+            {
+                return ComputeViewDimensionsForMembers(
+                    sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap);
+            }
+
+            if (!sheet.DimensionsPrepared)
+            {
+                sheet.PreparedDimensions.Clear();
+                sheet.PreparedDimensions.AddRange(ComputeInstallationDimensions(sheet));
+                for (int i = 0; i < sheet.PreparedDimensions.Count; i++)
+                    sheet.PreparedDimensions[i].No = i + 1;
+                sheet.DimensionsPrepared = true;
+                DiagLog($"설치도 2D 치수 fallback 계산: sheet#={sheet.SheetNumber} " +
+                        $"chain={sheet.PreparedDimensions.Count}");
+            }
+            return sheet.PreparedDimensions.ToList();
+        }
+
+        /// <summary>
         /// 도면 시트 선택 시 X-Ray + 치수 표시 (UI 이벤트 → ApplySheetSelection 위임)
         /// </summary>
         private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)
@@ -674,7 +701,7 @@ namespace A2Z
 
                 // T-028: 시트 유형별 치수 분기
                 //   가공도(-3): ExecuteMfgDrawing (기존 유지 — 단일 부재 가공도)
-                //   설치도(-2): 선택 STRU 범위 + 연결 Part 끝단·실제 BODY 접합 영역 치수
+                //   설치도(-2): 선택 STRU 범위 + STRU측 Body 끝단→외부 연결 Body 접합측 모서리 치수
                 //   그 외(Sheet 1, Sheet 2+): ComputeViewDimensionsForMembers (Osnap 기반, 2D 출력과 동일 엔진)
                 var swDimension = System.Diagnostics.Stopwatch.StartNew();
                 if (sheet.BaseMemberIndex == -3)
@@ -1308,15 +1335,13 @@ namespace A2Z
 
                 vizcore3d.EndUpdate();
 
-                // 2026-05-11: 작업데이터 탭 체인치수 = 도면 표시 치수 통일 (사용자 요청)
-                //   이전: ExtractInstallationDimensions (BBox 기반) → 작업데이터 탭과 도면 측 데이터 불일치
-                //   현재: ComputeViewDimensionsForMembers (Osnap 기반, 도면 측과 동일 엔진 — 3뷰×2축 6조합 합집합)
+                // 작업데이터 탭 체인치수 = 도면 표시 치수 통일.
+                // 설치도는 PreparedDimensions의 전용 끝단→모서리 위치 치수, 그 외는 공용 Osnap 치수를 사용한다.
                 {
                     // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
                     chainDimensionList.Clear();
                     lvDimension.Items.Clear();
-                    chainDimensionList.AddRange(
-                        ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
+                    chainDimensionList.AddRange(GetDrawingSheetDimensionsFor2D(sheet));
                     int dimNo = 1;
                     foreach (var dim in chainDimensionList)
                     {
@@ -1647,12 +1672,11 @@ namespace A2Z
                 vizcore3d.Clash.ClearResultSymbol();
                 vizcore3d.EndUpdate();
 
-                // ── 1.6. 치수 데이터 계산 (옛 본문 1257~1276 동일 — Osnap 기반 6조합 합집합) ──
-                // E1 (2026-05-18): _lastCollectedNodeOsnapMap 전달 — 본체 fallback으로 안전 보장
+                // ── 1.6. 치수 데이터 적용 ──
+                // 설치도는 PreparedDimensions, 그 외 시트는 공용 Osnap 6조합 합집합을 사용한다.
                 chainDimensionList.Clear();
                 lvDimension.Items.Clear();
-                chainDimensionList.AddRange(
-                    ComputeViewDimensionsForMembers(sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap));
+                chainDimensionList.AddRange(GetDrawingSheetDimensionsFor2D(sheet));
                 int dimNo = 1;
                 foreach (var dim in chainDimensionList)
                 {
@@ -2150,25 +2174,61 @@ namespace A2Z
                                 $"candidates={neighborNotes.Count} created={createdNeighborNotes}");
                     }
 
-                    // 설치도: ISO는 Assembly/Part 이름, X/Y/Z는 A·A1 같은 접합영역 기호를 실제 위치에 표시한다.
-                    if (sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
+                    // 설치도: 접합 중심 A1/A2는 표시하지 않는다.
+                    // ISO에만 연결 Part당 Assembly/Part 이름을 접합측 실제 모서리에 한 번 표시한다.
+                    if (viewDir == "ISO" && sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
                         sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
                     {
                         int createdConnectionNotes = 0;
+                        var noteGroups = sheet.InstallationConnections
+                            .Where(connection => connection != null)
+                            .GroupBy(connection => new
+                            {
+                                connection.ConnectedAssemblyIndex,
+                                connection.ConnectedPartIndex,
+                                connection.ConnectedAssemblyName,
+                                connection.ConnectedPartName
+                            })
+                            .OrderBy(group => group.Key.ConnectedAssemblyName)
+                            .ThenBy(group => group.Key.ConnectedPartName)
+                            .ToList();
                         try
                         {
                             vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                             vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
                             vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
-                            foreach (InstallationConnectionData connection in sheet.InstallationConnections)
+                            for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
                             {
-                                VIZCore3D.NET.Data.Vector3D target = GetContactCenter(connection);
+                                var noteGroup = noteGroups[noteOrder];
+                                InstallationConnectionData connection = noteGroup.First();
+                                InstallationPlacementAnchor anchor = noteGroup
+                                    .GroupBy(item => new
+                                    {
+                                        item.TargetPartIndex,
+                                        item.TargetBodyIndex,
+                                        item.ConnectedPartIndex,
+                                        item.ConnectedBodyIndex
+                                    })
+                                    .Select(bodyGroup => BuildInstallationPlacementAnchor(bodyGroup))
+                                    .Where(candidate => candidate != null)
+                                    .OrderByDescending(candidate => candidate.MergedAreaCount)
+                                    .ThenBy(candidate => candidate.ConnectedBodyIndex)
+                                    .FirstOrDefault();
+                                if (anchor == null)
+                                {
+                                    DiagLog($"설치도 ISO 연결 이름 생략 — 모서리 선별 실패 " +
+                                            $"connectedPart={connection.ConnectedPartIndex}");
+                                    continue;
+                                }
+
+                                VIZCore3D.NET.Data.Vector3D target = anchor.ConnectedCornerPoint;
+                                float offset = IsoNeighborNoteWorldOffset *
+                                    (noteOrder % 2 == 0 ? 1f : -1f);
                                 VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
-                                    target, viewDir, IsoNeighborNoteWorldOffset);
-                                string text = viewDir == "ISO"
-                                    ? $"{connection.Label}. {connection.ConnectedAssemblyName} / {connection.ConnectedPartName}"
-                                    : connection.Label;
+                                    target, viewDir, offset);
+                                string text = $"{connection.Label}. " +
+                                              $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}";
                                 try
                                 {
                                     int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
@@ -2186,8 +2246,8 @@ namespace A2Z
                             try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
                             catch { }
                         }
-                        DiagLog($"설치도 접합영역 노트 view={viewDir} " +
-                                $"candidates={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
+                        DiagLog($"설치도 ISO 연결 이름 노트 parts={noteGroups.Count} " +
+                                $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
                     }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
