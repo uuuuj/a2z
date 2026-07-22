@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-07-22 — BOM ITEM SPREF 미설정값 unset 통일
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-081 (BOM ITEM SPREF 미설정 시 unset 출력)
+**관련 ISSUE**: GitHub issue #24
+**변경 사항**:
+- SPREF 키 없음·null·빈 문자열·공백 또는 파싱 후 빈 ITEM을 `unset`으로 표시
+- 기존 노드명 fallback을 제거하고 정상 SPREF의 ITEM·SIZE 파싱과 다른 BOM 열은 유지
+- 공통 시트 BOM 스냅샷을 사용하는 제작도·조립도·설치도·가공도에 동일 적용
+
+**영향 범위**: 도면정보 탭과 모든 도면 PDF의 BOM ITEM 열
+
 ## 2026-07-22 — GitHub Issue 상태 접두사 자동 관리
 
 **유형**: chore
