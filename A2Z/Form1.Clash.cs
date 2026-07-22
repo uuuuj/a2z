@@ -281,7 +281,7 @@ namespace A2Z
                 sizeVal = string.IsNullOrEmpty(sizeVal) ? lengthText : $"{sizeVal}x{lengthText}";
             }
 
-            if (string.IsNullOrEmpty(itemVal)) itemVal = node.NodeName ?? "";
+            if (string.IsNullOrWhiteSpace(itemVal)) itemVal = "unset";
             string materialVal = matrefVal;
             if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
                 materialVal = materialVal.Substring(1);

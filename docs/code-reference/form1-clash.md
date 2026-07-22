@@ -24,6 +24,11 @@
 - **라인**: L100~L243
 - **핵심**: 모델 로드 때 만든 Body→Part 매핑 재사용 → 관련 Part의 SPREF/MATREF/GWEI/POSSTART/POSEND를 Part별 1회 조회 → 시트별 행·Body 그룹 맵 메모리 생성
 
+### ReadDrawingBomPartData
+- **라인**: L224~L310
+- **핵심**: 현재 Part부터 부모 10단계까지 UDA를 조회해 BOM 문자열을 구성. SPREF의 유효한 ITEM은 기존 파싱을 유지하고, SPREF 키 없음·null·빈 문자열·공백 또는 빈 ITEM은 `unset`으로 저장
+- **공통 적용**: 결과가 `DrawingBomSnapshot`을 거쳐 제작도·조립도·설치도·가공도 BOM 표에 동일하게 사용됨
+
 ### <a id="DetectClash"></a>DetectClash (내부)
 - **라인**: L783~L886
 - **시그니처**: `bool DetectClash(bool includeOutsideNeighbors = false)`
