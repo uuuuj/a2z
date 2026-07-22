@@ -427,6 +427,7 @@ namespace A2Z
 
                 // (8) Osnap 캐시 — STRU 전환 시 부재 다르므로 fresh 시작 (E1 fallback이 보충하지만 명시 초기화)
                 if (_lastCollectedNodeOsnapMap != null) _lastCollectedNodeOsnapMap.Clear();
+                if (_udaValueCache != null) _udaValueCache.Clear();   // SPREF/ORIENTATION 캐시도 STRU 전환 시 초기화 (2026-07-22)
 
                 DiagLog("자동 출력 진입 사전 초기화 완료 (모델 전체 표시 + 2D/3D 잔재 제거)");
             }
