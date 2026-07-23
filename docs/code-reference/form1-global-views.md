@@ -66,6 +66,8 @@
 - **라인**: L764~L791 부근
 - **핵심**: 주축 끝단 선정 로직을 임의 월드 축으로 일반화. 축 좌표 MIN/MAX 중 연결 모서리에 가까운 끝단면을 잡고, 동률 허용오차(`InstallationPlacementTieTolerance`) 내 후보 중 축 직교 평면 거리(`PerpendicularDistanceInPlane`)가 최소인 점 반환
 
+**뷰 배정** (`viewAxes`, 2026-07-23 실기 PDF): 위치 성분을 세 직교 뷰 모두에 배정한다(`{X:[X,Z,Y], Y:[Y,Z,X], Z:[Z,Y,X]}`). 설치도는 형강을 각 뷰에서 가로로 눕혀 -X 뷰에서도 길이축(X)이 화면에 보이는데, 옛 월드축 필터(-X는 Z·Y만)가 그런 뷰에서 길이 치수를 빠뜨렸다. 성분 축정렬 투영으로 안 보이는 뷰에선 점으로 접혀 부작용 없음.
+
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
 - **라인**: L955~L1030 부근
 - **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 축별 끝단→Connected Body 접합측 모서리 필수 치수를 생성. 앵커의 `AxisComponents`(축 게이트가 채택한 긴 축들)만 순회하고 각 직교 뷰는 그 축이 보이는 뷰에만 성분 치수 표시 (2026-07-23 — 판 두께·법선 축·가는 부재 단면축을 배제해 1mm 틈 치수·연결부재 옆거리 성분 제거, 판형 평면도 폭 방향 치수는 유지. 성분별 `[설치치수]` 로그). 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
