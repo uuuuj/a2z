@@ -9,7 +9,7 @@
 ### T-083 — ISO 부재번호 풍선 View 영역 자동 정렬
 - **생성일/착수일**: 2026-07-23
 - **상태**: IN_PROGRESS (SDK 1.0.26.723 적용·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
-- **구현 커밋**: `2664b8e`, `9f13789`, `70a6da3`, `d139ef8`
+- **구현 커밋**: `2664b8e`, `9f13789`, `70a6da3`, `d139ef8`, `2d6726f`
 - **관련**: 사용자 직접 지시, GitHub issue #4, Softhills SDK 1.0.26.723 배포 예제
 - **구현**:
   - [x] SDK XML·DLL에서 `Set2DViewAlignAreaReviewsPositionByOffset(Vertex3D, Vertex3D, float)` 존재·void 반환·예제 순서 검증
