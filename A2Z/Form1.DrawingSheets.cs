@@ -2206,8 +2206,7 @@ namespace A2Z
                     int createdIsoConnectionNameNotes = 0;
 
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
-                    // Add2DNoteFromWorldCoordinate는 objectID를 받지 않으므로 연결 부재가 들어 있는 점선 객체를
-                    // 명시적으로 단독 선택한 뒤, 모든 2D 변환(Crop/fit/Match)이 끝난 현재 시점에 투영한다.
+                    // 부재번호 풍선과 같은 3D 표면 노트 경로로 만든 뒤 점선 객체에 투영해야 영역 정렬에 포함된다.
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -1 &&
                         !isoFitByDashed && dashedObjId >= 0)
                     {
@@ -2227,18 +2226,19 @@ namespace A2Z
                                 {
                                     FabricationNeighborAssemblyNote note = neighborNotes[noteOrder];
                                     float offsetDirection = (noteOrder % 2 == 0) ? 1f : -1f;
-                                    var target = new VIZCore3D.NET.Data.Vector3D(note.X, note.Y, note.Z);
-                                    var label = new VIZCore3D.NET.Data.Vector3D(
+                                    var target = new VIZCore3D.NET.Data.Vertex3D(note.X, note.Y, note.Z);
+                                    var label = new VIZCore3D.NET.Data.Vertex3D(
                                         note.X + IsoNeighborNoteWorldOffset * offsetDirection,
                                         note.Y,
                                         note.Z);
 
                                     try
                                     {
-                                        int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
-                                            note.AssemblyName, target, label);
-                                        if (noteIndex >= 0)
+                                        int noteId = vizcore3d.Review.Note.AddNoteSurface(
+                                            note.AssemblyName, label, target);
+                                        if (noteId >= 0)
                                         {
+                                            vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
                                             createdNeighborNotes++;
                                             createdIsoConnectionNameNotes++;
                                         }
@@ -2322,10 +2322,15 @@ namespace A2Z
                                               $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}";
                                 try
                                 {
-                                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
-                                        text, target, label);
-                                    if (noteIndex >= 0)
+                                    var targetVertex = new VIZCore3D.NET.Data.Vertex3D(
+                                        target.X, target.Y, target.Z);
+                                    var labelVertex = new VIZCore3D.NET.Data.Vertex3D(
+                                        label.X, label.Y, label.Z);
+                                    int noteId = vizcore3d.Review.Note.AddNoteSurface(
+                                        text, labelVertex, targetVertex);
+                                    if (noteId >= 0)
                                     {
+                                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
                                         createdConnectionNotes++;
                                         createdIsoConnectionNameNotes++;
                                     }
@@ -2346,36 +2351,58 @@ namespace A2Z
                     }
 
                     // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
-                    // 이름 노트의 Target은 실제 접합점에 유지되고 Label 위치만 다른 리뷰와 함께 재배치된다.
+                    // 실제 표시 객체의 외곽은 기준점으로만 쓰고, 외곽과 라벨 사이 거리는 도면 고정 5mm로 둔다.
                     int isoReviewCount = convertedNoteIndices.Count + createdIsoConnectionNameNotes;
                     if (viewDir == "ISO" && isoReviewCount > 0)
                     {
-                        const float balloonAlignOffset = 10f;
-
-                        // 전체 View_1을 기준으로 주면 SDK가 라벨을 셀 바깥으로 밀어 템플릿을 벗어난다.
-                        // 실제 모델 배치 중심과 70% fit envelope를 기준으로 잡아 라벨은 모델 밖,
-                        // View_1 안쪽 여백에 남도록 한다.
-                        float alignCenterX = p.X + p.Width / 2f + isoModelXOffset;
-                        float alignCenterY = p.Y + p.Height / 2f + templateYOffset;
-                        float alignWidth = Math.Max(1f, (p.Width - 2f * margin) * isoShrinkFactor);
-                        float alignHeight = Math.Max(1f, (p.Height - 2f * margin) * isoShrinkFactor);
-                        var rectMin = new VIZCore3D.NET.Data.Vertex3D(
-                            alignCenterX - alignWidth / 2f,
-                            alignCenterY - alignHeight / 2f,
-                            0f);
-                        var rectMax = new VIZCore3D.NET.Data.Vertex3D(
-                            alignCenterX + alignWidth / 2f,
-                            alignCenterY + alignHeight / 2f,
-                            0f);
+                        const float isoReviewGapCanvas = 5f;
+                        const float sdkAlignOffset = 0f;
 
                         try
                         {
-                            vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
-                                rectMin, rectMax, balloonAlignOffset);
-                            DiagLog($"P2 ISO 리뷰 영역 정렬 sheet={sheet.SheetNumber} " +
-                                    $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
-                                    $"basis=modelFit70% rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
-                                    $"offsetPx={balloonAlignOffset:F1}");
+                            int alignObjectId = isoFitByDashed && dashedObjId >= 0
+                                ? dashedObjId
+                                : objId;
+                            float objectWidth = 0f;
+                            float objectHeight = 0f;
+                            float objectCenterX = p.X + p.Width / 2f + isoModelXOffset;
+                            float objectCenterY = p.Y + p.Height / 2f + templateYOffset;
+                            vizcore3d.Drawing2D.Object2D.GetObjectSize(
+                                alignObjectId, ref objectWidth, ref objectHeight);
+                            vizcore3d.Drawing2D.Object2D.GetObjectCenter(
+                                alignObjectId, ref objectCenterX, ref objectCenterY);
+
+                            bool validObjectBounds =
+                                objectWidth > 0f && objectHeight > 0f &&
+                                !float.IsNaN(objectWidth) && !float.IsInfinity(objectWidth) &&
+                                !float.IsNaN(objectHeight) && !float.IsInfinity(objectHeight) &&
+                                !float.IsNaN(objectCenterX) && !float.IsInfinity(objectCenterX) &&
+                                !float.IsNaN(objectCenterY) && !float.IsInfinity(objectCenterY);
+                            if (validObjectBounds)
+                            {
+                                var rectMin = new VIZCore3D.NET.Data.Vertex3D(
+                                    objectCenterX - objectWidth / 2f - isoReviewGapCanvas,
+                                    objectCenterY - objectHeight / 2f - isoReviewGapCanvas,
+                                    0f);
+                                var rectMax = new VIZCore3D.NET.Data.Vertex3D(
+                                    objectCenterX + objectWidth / 2f + isoReviewGapCanvas,
+                                    objectCenterY + objectHeight / 2f + isoReviewGapCanvas,
+                                    0f);
+
+                                vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
+                                    rectMin, rectMax, sdkAlignOffset);
+                                DiagLog($"P2 ISO 리뷰 영역 정렬 sheet={sheet.SheetNumber} " +
+                                        $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
+                                        $"basis=objectBounds obj={alignObjectId} size=({objectWidth:F1}x{objectHeight:F1}) " +
+                                        $"rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
+                                        $"gapCanvas={isoReviewGapCanvas:F1} sdkOffset={sdkAlignOffset:F1}");
+                            }
+                            else
+                            {
+                                DiagLog($"P2 ISO 리뷰 영역 정렬 WARN sheet={sheet.SheetNumber} " +
+                                        $"invalidObjectBounds obj={alignObjectId} " +
+                                        $"center=({objectCenterX:F1},{objectCenterY:F1}) size=({objectWidth:F1}x{objectHeight:F1})");
+                            }
                         }
                         catch (Exception ex)
                         {
