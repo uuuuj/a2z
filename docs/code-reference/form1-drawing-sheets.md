@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 3,030 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 3,117 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -60,22 +60,26 @@
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
 - **라인**: L1633+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. ISO 이름은 연결 Part당 접합측 모서리에 한 번, 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영한다. 설치도 직교 뷰는 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → STRU PNT 계열 UDA를 PAINT CODE `Input_166`에 적용 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. ISO 이름은 연결 Part당 접합측 모서리에 한 번, 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영한다. 설치도 직교 뷰는 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
 
 ### GetDrawingSheetDisplayIndices
-- **라인**: L2315+
+- **라인**: L2322+
 - **역할**: 일반 시트는 `MemberIndices`, 설치도는 `MemberIndices + InstallationContextIndices`를 반환한다. 설치도 3D 미리보기 가시성에는 양쪽을 쓰지만, 2D fit·Crop·보조선 축척은 선택 STRU `MemberIndices`만 기준으로 사용
 
 ### GetFabricationNeighborAssemblyNotes / FindNearestParentAssembly
-- **라인**: L2363~L2445
+- **라인**: L2370~L2452
 - **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
+### GetStruPntUdaValue
+- **라인**: L2556~L2627
+- **역할**: 기준부재에서 부모로 최대 10단계 이동하며 이름에 `PNT`가 포함된 UDA 키를 조회. 한 노드의 복수 후보 키·값을 모두 로그에 남기고 첫 비어 있지 않은 값을 PAINT CODE로 반환
+
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2544+
+- **라인**: L2629+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2560+
+- **라인**: L2645+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
