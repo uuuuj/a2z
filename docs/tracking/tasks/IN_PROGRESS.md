@@ -6,6 +6,27 @@
 
 ---
 
+### T-086 — 가공도 홀·슬롯 최종 화면 하단 배치
+- **생성일/착수일**: 2026-07-23
+- **상태**: IN_PROGRESS (구현·Release 빌드 완료, 사내 PDF 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #39
+- **원인 확인**:
+  - [x] Hole/SlotHole Note를 `BuildMfgSceneCore`에서 회전 전 하단에 만든 뒤 `ProbeAndRollLandscape`가 화면축 90도를 추가해 회전 전 아래쪽이 최종 화면 왼쪽이 되는 순서 확인
+  - [x] Z 최장축 자체가 아니라 임시 투영 결과 `probeH > probeW`가 실제 가로 전환 조건임을 코드·로그로 확인
+  - [x] `LockZAxis=false`는 월드 Z축 해제가 아니라 카메라 화면축 회전 허용 설정임을 이슈 본문에 정정
+- **구현**:
+  - [x] Hole/SlotHole을 즉시 Review Note로 만들지 않고 `MfgViewPose.PendingHoleNotes`에 수집
+  - [x] `ProbeAndRollLandscape` 완료 후 `AddMfgPendingHoleNotes`에서 최종 화면 하단에 생성
+  - [x] ReferenceAxis 로컬축, ReferenceAxis 실패 폴백 ORIENTATION roll, 추가 90도 가로화 roll을 최종 화면 기저에 반영
+  - [x] 월드 BBox 8개 꼭짓점을 최종 화면 수직축에 투영해 하단을 구하고 홀 중심의 화면 수평 위치를 유지
+  - [x] 회전 없는 정상 부재는 기존 하단 배치 공식과 동일한 결과 유지
+  - [x] Release 빌드 오류 0개 (기존 경고 7개)
+- **사용자 확인 필요**:
+  - [ ] `가로전환(90°)` 로그가 나오는 홀·슬롯 부재에서 표시가 최종 도면 하단에 나오는지
+  - [ ] ORIENTATION/ReferenceAxis 부재에서도 리더가 수직이고 텍스트가 하단에 나오는지
+  - [ ] `가로유지` 정상 부재와 EA 첫 번째 뷰의 기존 출력에 회귀가 없는지
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Models/MfgViewPose.cs`, 가공도 시트 흐름·코드 레퍼런스 문서
+
 ### T-085 — 도면 일괄 출력·치수 추출 중간 취소
 - **생성일/착수일**: 2026-07-23
 - **상태**: IN_PROGRESS (구현·Debug Rebuild 완료, 사내 실기 검증 대기)
