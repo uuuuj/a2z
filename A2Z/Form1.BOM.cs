@@ -331,6 +331,12 @@ namespace A2Z
         /// </summary>
         private void btnMainDimension_Click(object sender, EventArgs e)
         {
+            if (_mainDimensionInProgress || _p2aInProgress)
+            {
+                DiagLog("치수 추출 재진입 무시 — 다른 자동 작업이 진행 중");
+                return;
+            }
+
             // [T-016 진단 로그] 진입 시 상태
             DiagLog($"btnMainDimension ENTER " +
                 $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
@@ -341,6 +347,12 @@ namespace A2Z
                 MessageBox.Show("먼저 파일을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            _mainDimensionInProgress = true;
+            BeginCancelableOperation();
+            btnMainDimension.Enabled = false;
+            if (btnExtractDrawingList != null)
+                btnExtractDrawingList.Enabled = false;
 
             // T-026: "치수추출 버튼은 항상 현재 visible 기준" — 이전 시트 선택으로 남은
             // xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며
@@ -356,19 +368,27 @@ namespace A2Z
                 CollectBOMData();
                 if (bomList.Count == 0)
                 {
+                    FinishMainDimensionOperation();
                     MessageBox.Show("BOM 데이터를 수집할 수 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    HideBusyOverlay();
                     return;
                 }
+                if (CancelMainDimensionAtCheckpoint("BOM 수집 후"))
+                    return;
 
                 // 1. Clash 검사 먼저 수행 — 연결성 판정(T-023 v3)을 Clash 결과 기반으로 하려면
                 //    Osnap/치수보다 Clash가 선행되어야 함. 치수 생성은 판정 통과 후에만.
                 ShowBusyOverlay("간섭검사 실행 중...");
+                if (CancelMainDimensionAtCheckpoint("간섭검사 시작 전"))
+                    return;
+
                 _autoProcessOsnapSuccess = false;
                 bool clashStarted = DetectClash(includeOutsideNeighbors: true);
 
                 if (!clashStarted)
                 {
+                    if (CancelMainDimensionAtCheckpoint("간섭검사 호출 후"))
+                        return;
+
                     // T-024: 단일 부재(쌍 0개) 또는 SDK 예외 → Clash 이벤트 미발동.
                     // 단일 부재는 "연결 성분 1개"로 간주하고 나머지 파이프라인 직접 수행.
                     CompleteMainDimensionPostClash(isSingleMember: true, clashTestCount: 0);
@@ -387,9 +407,72 @@ namespace A2Z
                 // [T-016 진단 로그] 예외 종료
                 DiagLog($"btnMainDimension EXIT FAIL " +
                     $"{ex.Message}\n{ex.StackTrace}");
+                FinishMainDimensionOperation();
                 MessageBox.Show($"치수 추출 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                HideBusyOverlay();
             }
+        }
+
+        private bool CancelMainDimensionAtCheckpoint(string checkpoint)
+        {
+            if (!IsCancellationRequested(checkpoint))
+                return false;
+
+            if (_mainDimensionInProgress)
+            {
+                ResetSilentClashSequence();
+                ClearCanceledOperationArtifacts();
+                FinishMainDimensionOperation();
+                MessageBox.Show(
+                    $"치수 추출을 취소했습니다.\n\n중단 위치: {checkpoint}\n현재 실행 중이던 작업 단위까지는 정상적으로 마무리했습니다.",
+                    "취소됨",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            return true;
+        }
+
+        private void FinishMainDimensionOperation()
+        {
+            if (!_mainDimensionInProgress)
+                return;
+
+            _mainDimensionInProgress = false;
+            HideBusyOverlay();
+            EndCancelableOperation();
+            try { btnMainDimension.Enabled = true; } catch { }
+            if (!_p2aInProgress)
+            {
+                try
+                {
+                    if (btnExtractDrawingList != null)
+                        btnExtractDrawingList.Enabled = true;
+                }
+                catch { }
+            }
+        }
+
+        private void ClearCanceledOperationArtifacts()
+        {
+            try { ResetSilentClashSequence(); } catch { }
+            try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
+            try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
+            try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
+            try { vizcore3d.Review.Note.Clear(); } catch { }
+            try { vizcore3d.Review.Measure.Clear(); } catch { }
+            try { vizcore3d.ShapeDrawing.Clear(); } catch { }
+
+            drawingSheetList?.Clear();
+            lvDrawingSheet?.Items.Clear();
+            chainDimensionList?.Clear();
+            lvDimension?.Items.Clear();
+            osnapPoints?.Clear();
+            osnapPointsWithNames?.Clear();
+            lvOsnap?.Items.Clear();
+            xraySelectedNodeIndices?.Clear();
+            _lastCollectedNodeOsnapMap?.Clear();
+            _udaValueCache?.Clear();
+            _autoProcessOsnapSuccess = false;
+            DiagLog("중간 취소 후 부분 시트·2D·3D·치수 상태 정리 완료");
         }
 
         /// <summary>
@@ -401,15 +484,26 @@ namespace A2Z
         {
             try
             {
+                if (CancelMainDimensionAtCheckpoint("간섭검사 결과 처리 후"))
+                    return;
+
                 // 1. Osnap 수집
                 ShowBusyOverlay("Osnap 수집 중...");
+                if (CancelMainDimensionAtCheckpoint("Osnap 수집 전"))
+                    return;
+
                 bool osnapSuccess = CollectAllOsnap();
                 _autoProcessOsnapSuccess = osnapSuccess;
+                if (CancelMainDimensionAtCheckpoint("Osnap 수집 후"))
+                    return;
 
                 // 2. 치수 추출 (T-028: 2D 출력 엔진과 동일 경로 / T-032: 성능 측정 + Osnap 맵 재사용)
                 if (osnapSuccess && osnapPointsWithNames.Count > 0)
                 {
                     ShowBusyOverlay("치수 계산 중...");
+                    if (CancelMainDimensionAtCheckpoint("치수 계산 전"))
+                        return;
+
                     float tolerance = 0.5f;
 
                     // visible 부재 대상으로 공용 엔진 호출 — 3뷰(X/Y/Z) × 2축 = 6조합 치수 계산 + 중복 제거
@@ -428,6 +522,8 @@ namespace A2Z
                     chainDimensionList.AddRange(
                         ComputeViewDimensionsForMembers(visibleMembers, null, tolerance, _lastCollectedNodeOsnapMap));
                     swCompute.Stop();
+                    if (CancelMainDimensionAtCheckpoint("치수 계산 후"))
+                        return;
 
                     DiagLog($"T-032 치수 계산: visibleMembers={visibleMembers.Count} " +
                         $"osnapMapNodes={_lastCollectedNodeOsnapMap.Count} " +
@@ -479,10 +575,19 @@ namespace A2Z
                 // 기존 순서(MessageBox → 시트 → finally 해제)는 "팝업 뜰 때 오버레이 잔존 + 팝업 닫힌 후 오버레이 2초 더"라는 사용자 체감 문제를 유발.
 
                 // 3. 도면 시트 생성 (오버레이 유지, 내부에서 Sheet 1 BOM 자동 수집 — T-025)
+                ShowBusyOverlay("도면 시트 생성 중...");
+                if (CancelMainDimensionAtCheckpoint("도면 시트 생성 전"))
+                    return;
+
                 GenerateDrawingSheets();
+                if (CancelMainDimensionAtCheckpoint("도면 시트 생성 후"))
+                    return;
 
                 // 4. 오버레이 해제 (MessageBox 전에)
-                HideBusyOverlay();
+                if (_mainDimensionInProgress)
+                    FinishMainDimensionOperation();
+                else
+                    HideBusyOverlay();
 
                 // 5. 요약 MessageBox (오버레이 없이)
                 // T-064 P2 본진 진행 중엔 메시지박스 차단 — 매 STRU마다 사용자가 OK 눌러야 하는 부담 회피.
@@ -497,11 +602,16 @@ namespace A2Z
             catch (Exception ex)
             {
                 DiagLog($"CompleteMainDimensionPostClash FAIL {ex.Message}\n{ex.StackTrace}");
+                if (_mainDimensionInProgress)
+                    FinishMainDimensionOperation();
                 MessageBox.Show($"치수 추출 후속 처리 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                HideBusyOverlay();
+                if (_mainDimensionInProgress)
+                    FinishMainDimensionOperation();
+                else
+                    HideBusyOverlay();
             }
         }
 

@@ -1012,7 +1012,12 @@ namespace A2Z
                 {
                     ShowBusyOverlay($"가공도 PDF 출력 중: {struNode.NodeName}");
                     ThrowIfCancellationRequested("가공도 출력 시작 전");
-                    var mfgResult = GenerateMfgDrawingManual(mfgSheets, struSubDir, struNode.NodeName, struNode.Index);
+                    var mfgResult = GenerateMfgDrawingManual(
+                        mfgSheets,
+                        struSubDir,
+                        struNode.NodeName,
+                        struNode.Index,
+                        () => _cancelRequested);
                     pdfCount += mfgResult.SuccessPdfs;
                     reportPdfSaved?.Invoke(mfgResult.SuccessPdfs);
                     ThrowIfCancellationRequested("가공도 출력 후");

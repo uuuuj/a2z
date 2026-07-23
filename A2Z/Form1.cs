@@ -129,10 +129,22 @@ namespace A2Z
         private TextBox txtMemberNameOverlay = null;
 
         /// <summary>
-        /// 장시간 작업 중 표시하는 "처리 중..." 오버레이 라벨 (T-018)
+        /// 장시간 작업 중 표시하는 "처리 중..." 오버레이 패널 (T-018)
         /// ShowBusyOverlay/HideBusyOverlay로 제어
         /// </summary>
-        private Label busyOverlay = null;
+        private Panel busyOverlay = null;
+        private Label busyOverlayMessage = null;
+        private Button busyOverlayCancelButton = null;
+        private string busyOverlayBaseMessage = "처리 중...";
+
+        /// <summary>
+        /// UI 스레드 장시간 작업의 협력적 취소 상태.
+        /// SDK 단일 호출은 중단하지 않고 다음 체크포인트에서만 취소한다.
+        /// </summary>
+        private bool _cancelableOperationInProgress = false;
+        private bool _cancelRequested = false;
+        private string _lastCancellationCheckpoint = null;
+        private bool _mainDimensionInProgress = false;
 
         /// <summary>
         /// T-032: CollectAllOsnap이 마지막으로 수집한 부재별 Osnap 맵.
@@ -249,6 +261,9 @@ namespace A2Z
             lvOsnap.SelectedIndexChanged += LvOsnap_SelectedIndexChanged;  // REQ-004 (2026-05-11)
             lvDimension.SelectedIndexChanged += LvDimension_SelectedIndexChanged;  // REQ-005 (2026-05-11)
 
+            // #36 STRU 이름 검색 → 즉시 치수 추출 입력창 (코드 생성)
+            InitStruSearchUI();
+
             // VIZCore3D.NET 초기화
             VIZCore3D.NET.ModuleInitializer.Run();
 
@@ -264,31 +279,112 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 3D 뷰어 중앙에 "처리 중..." 오버레이 라벨 표시 (T-018).
+        /// 3D 뷰어 중앙에 "처리 중..." 오버레이 표시 (T-018).
         /// 장시간 블로킹 작업 전 호출 → 반드시 finally에서 HideBusyOverlay() 호출.
         /// </summary>
         private void ShowBusyOverlay(string message = "처리 중...")
         {
             if (busyOverlay == null)
             {
-                busyOverlay = new Label();
-                busyOverlay.AutoSize = false;
-                busyOverlay.TextAlign = ContentAlignment.MiddleCenter;
-                busyOverlay.Font = new Font("맑은 고딕", 14F, FontStyle.Bold);
-                busyOverlay.ForeColor = Color.White;
+                busyOverlay = new Panel();
                 busyOverlay.BackColor = Color.FromArgb(45, 45, 48);
                 busyOverlay.BorderStyle = BorderStyle.FixedSingle;
-                busyOverlay.Size = new Size(260, 70);
+                busyOverlay.Size = new Size(360, 135);
                 busyOverlay.Visible = false;
+
+                busyOverlayMessage = new Label();
+                busyOverlayMessage.AutoSize = false;
+                busyOverlayMessage.TextAlign = ContentAlignment.MiddleCenter;
+                busyOverlayMessage.Font = new Font("맑은 고딕", 12F, FontStyle.Bold);
+                busyOverlayMessage.ForeColor = Color.White;
+                busyOverlayMessage.BackColor = Color.Transparent;
+                busyOverlayMessage.Location = new Point(10, 8);
+                busyOverlayMessage.Size = new Size(338, 72);
+                busyOverlay.Controls.Add(busyOverlayMessage);
+
+                busyOverlayCancelButton = new Button();
+                busyOverlayCancelButton.Text = "현재 작업 후 취소";
+                busyOverlayCancelButton.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+                busyOverlayCancelButton.Size = new Size(160, 34);
+                busyOverlayCancelButton.Location = new Point(99, 88);
+                busyOverlayCancelButton.Visible = false;
+                busyOverlayCancelButton.Click += BusyOverlayCancelButton_Click;
+                busyOverlay.Controls.Add(busyOverlayCancelButton);
+
                 panelViewer.Controls.Add(busyOverlay);
             }
-            busyOverlay.Text = message;
+
+            busyOverlayBaseMessage = message;
+            UpdateBusyOverlayContents();
             busyOverlay.Location = new Point(
                 Math.Max(0, (panelViewer.ClientSize.Width - busyOverlay.Width) / 2),
                 Math.Max(0, (panelViewer.ClientSize.Height - busyOverlay.Height) / 2));
             busyOverlay.BringToFront();
             busyOverlay.Visible = true;
             Application.DoEvents(); // 즉시 화면 갱신
+        }
+
+        private void BusyOverlayCancelButton_Click(object sender, EventArgs e)
+        {
+            if (!_cancelableOperationInProgress || _cancelRequested)
+                return;
+
+            _cancelRequested = true;
+            _lastCancellationCheckpoint = null;
+            UpdateBusyOverlayContents();
+            DiagLog("사용자가 중간 취소를 요청함 — 현재 SDK 작업 완료 후 다음 체크포인트에서 중단");
+            Application.DoEvents();
+        }
+
+        private void UpdateBusyOverlayContents()
+        {
+            if (busyOverlayMessage == null || busyOverlayCancelButton == null)
+                return;
+
+            bool showCancel = _cancelableOperationInProgress;
+            busyOverlay.Size = showCancel ? new Size(360, 135) : new Size(300, 80);
+            busyOverlayMessage.Location = showCancel ? new Point(10, 8) : new Point(10, 4);
+            busyOverlayMessage.Size = showCancel ? new Size(338, 72) : new Size(278, 70);
+            busyOverlayCancelButton.Visible = _cancelableOperationInProgress;
+            busyOverlayCancelButton.Enabled = _cancelableOperationInProgress && !_cancelRequested;
+            busyOverlayCancelButton.Text = _cancelRequested ? "취소 요청됨" : "현재 작업 후 취소";
+            busyOverlayMessage.Text = _cancelRequested
+                ? $"{busyOverlayBaseMessage}\n현재 작업이 끝나면 중단합니다."
+                : busyOverlayBaseMessage;
+        }
+
+        private void BeginCancelableOperation()
+        {
+            _cancelRequested = false;
+            _lastCancellationCheckpoint = null;
+            _cancelableOperationInProgress = true;
+        }
+
+        private void EndCancelableOperation()
+        {
+            _cancelableOperationInProgress = false;
+            _cancelRequested = false;
+            _lastCancellationCheckpoint = null;
+            UpdateBusyOverlayContents();
+        }
+
+        private bool IsCancellationRequested(string checkpoint)
+        {
+            if (!_cancelRequested)
+                return false;
+
+            if (!string.Equals(_lastCancellationCheckpoint, checkpoint, StringComparison.Ordinal))
+            {
+                _lastCancellationCheckpoint = checkpoint;
+                DiagLog($"중간 취소 체크포인트 도달: {checkpoint}");
+            }
+            return true;
+        }
+
+        private void ThrowIfCancellationRequested(string checkpoint)
+        {
+            if (IsCancellationRequested(checkpoint))
+                throw new OperationCanceledException(checkpoint);
         }
 
         /// <summary>

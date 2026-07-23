@@ -2154,7 +2154,8 @@ namespace A2Z
             List<DrawingSheetData> mfgSheets,
             string saveDir,
             string struName,
-            int struIndex = 0)
+            int struIndex = 0,
+            Func<bool> shouldCancel = null)
         {
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
@@ -2265,6 +2266,13 @@ namespace A2Z
 
                 foreach (var page in pages)
                 {
+                    Application.DoEvents();
+                    if (shouldCancel != null && shouldCancel())
+                    {
+                        DiagLog($"[GenMfgManual] 중간 취소 — p{page.PageIdx} 시작 전 중단");
+                        break;
+                    }
+
                     int failedRows = 0;
                     int successRows = 0;
                     try
