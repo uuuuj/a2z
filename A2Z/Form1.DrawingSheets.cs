@@ -2171,43 +2171,7 @@ namespace A2Z
                         try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
                         catch { }
                     }
-
-                    // SDK 1.0.26.723: 최종 2D 좌표에서 ISO 부재번호 풍선을 모델 표시 범위 바깥쪽으로 정렬한다.
-                    // 연결 Assembly/Part 이름 노트는 이 호출 뒤에 생성해 정렬 대상에서 제외한다.
-                    if (viewDir == "ISO" && convertedNoteIndices.Count > 0)
-                    {
-                        const float balloonAlignOffset = 10f;
-
-                        // 전체 View_1을 기준으로 주면 SDK가 풍선을 셀 바깥으로 밀어 템플릿을 벗어난다.
-                        // 실제 모델 배치 중심과 70% fit envelope를 기준으로 잡아 풍선은 모델 밖,
-                        // View_1 안쪽 여백에 남도록 한다.
-                        float alignCenterX = p.X + p.Width / 2f + isoModelXOffset;
-                        float alignCenterY = p.Y + p.Height / 2f + templateYOffset;
-                        float alignWidth = Math.Max(1f, (p.Width - 2f * margin) * isoShrinkFactor);
-                        float alignHeight = Math.Max(1f, (p.Height - 2f * margin) * isoShrinkFactor);
-                        var rectMin = new VIZCore3D.NET.Data.Vertex3D(
-                            alignCenterX - alignWidth / 2f,
-                            alignCenterY - alignHeight / 2f,
-                            0f);
-                        var rectMax = new VIZCore3D.NET.Data.Vertex3D(
-                            alignCenterX + alignWidth / 2f,
-                            alignCenterY + alignHeight / 2f,
-                            0f);
-
-                        try
-                        {
-                            vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
-                                rectMin, rectMax, balloonAlignOffset);
-                            DiagLog($"P2 ISO 풍선 영역 정렬 sheet={sheet.SheetNumber} count={convertedNoteIndices.Count} " +
-                                    $"basis=modelFit70% rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
-                                    $"offsetPx={balloonAlignOffset:F1}");
-                        }
-                        catch (Exception ex)
-                        {
-                            DiagLog($"P2 ISO 풍선 영역 정렬 WARN sheet={sheet.SheetNumber} " +
-                                    $"count={convertedNoteIndices.Count} {ex.Message}");
-                        }
-                    }
+                    int createdIsoConnectionNameNotes = 0;
 
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
                     // Add2DNoteFromWorldCoordinate는 objectID를 받지 않으므로 연결 부재가 들어 있는 점선 객체를
@@ -2241,7 +2205,11 @@ namespace A2Z
                                     {
                                         int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
                                             note.AssemblyName, target, label);
-                                        if (noteIndex >= 0) createdNeighborNotes++;
+                                        if (noteIndex >= 0)
+                                        {
+                                            createdNeighborNotes++;
+                                            createdIsoConnectionNameNotes++;
+                                        }
                                     }
                                     catch (Exception ex)
                                     {
@@ -2324,7 +2292,11 @@ namespace A2Z
                                 {
                                     int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
                                         text, target, label);
-                                    if (noteIndex >= 0) createdConnectionNotes++;
+                                    if (noteIndex >= 0)
+                                    {
+                                        createdConnectionNotes++;
+                                        createdIsoConnectionNameNotes++;
+                                    }
                                 }
                                 catch (Exception ex)
                                 {
@@ -2339,6 +2311,46 @@ namespace A2Z
                         }
                         DiagLog($"설치도 ISO 연결 이름 노트 parts={noteGroups.Count} " +
                                 $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
+                    }
+
+                    // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
+                    // 이름 노트의 Target은 실제 접합점에 유지되고 Label 위치만 다른 리뷰와 함께 재배치된다.
+                    int isoReviewCount = convertedNoteIndices.Count + createdIsoConnectionNameNotes;
+                    if (viewDir == "ISO" && isoReviewCount > 0)
+                    {
+                        const float balloonAlignOffset = 10f;
+
+                        // 전체 View_1을 기준으로 주면 SDK가 라벨을 셀 바깥으로 밀어 템플릿을 벗어난다.
+                        // 실제 모델 배치 중심과 70% fit envelope를 기준으로 잡아 라벨은 모델 밖,
+                        // View_1 안쪽 여백에 남도록 한다.
+                        float alignCenterX = p.X + p.Width / 2f + isoModelXOffset;
+                        float alignCenterY = p.Y + p.Height / 2f + templateYOffset;
+                        float alignWidth = Math.Max(1f, (p.Width - 2f * margin) * isoShrinkFactor);
+                        float alignHeight = Math.Max(1f, (p.Height - 2f * margin) * isoShrinkFactor);
+                        var rectMin = new VIZCore3D.NET.Data.Vertex3D(
+                            alignCenterX - alignWidth / 2f,
+                            alignCenterY - alignHeight / 2f,
+                            0f);
+                        var rectMax = new VIZCore3D.NET.Data.Vertex3D(
+                            alignCenterX + alignWidth / 2f,
+                            alignCenterY + alignHeight / 2f,
+                            0f);
+
+                        try
+                        {
+                            vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
+                                rectMin, rectMax, balloonAlignOffset);
+                            DiagLog($"P2 ISO 리뷰 영역 정렬 sheet={sheet.SheetNumber} " +
+                                    $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
+                                    $"basis=modelFit70% rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
+                                    $"offsetPx={balloonAlignOffset:F1}");
+                        }
+                        catch (Exception ex)
+                        {
+                            DiagLog($"P2 ISO 리뷰 영역 정렬 WARN sheet={sheet.SheetNumber} " +
+                                    $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
+                                    $"{ex.Message}");
+                        }
                     }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
@@ -2358,7 +2370,7 @@ namespace A2Z
                     viewsRendered++;
                 }
 
-                // 신규 풍선 정렬과 이후 추가된 이름 노트·치수를 최종 캔버스에 반영한다.
+                // 정렬된 풍선·연결 이름 노트와 치수를 최종 캔버스에 반영한다.
                 vizcore3d.Drawing2D.Render();
 
                 // 3D 뷰 기본(부드러운 음영) 복원 — 도면 생성 후 은선/X-Ray 잔존 방지 (2026-06-23)

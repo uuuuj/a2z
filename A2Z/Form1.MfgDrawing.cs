@@ -125,13 +125,13 @@ namespace A2Z
             var data = new Dictionary<int, string>();
 
             // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            //   [2026-07-23] Input 200+ 크래시가 API 배포로 해소됨 → 제작도처럼 240까지 확장(BOM 25행).
-            //   (구 주석: 200 이상 import 시 메모리 손상 → AccessViolation. 이제 무효.)
+            //   [2026-07-23] Input 200+ 크래시가 API 배포로 해소됨 → 제작도처럼 확장.
+            //   REV 표 첫 기재행(194~199)은 제작도와 동일하게 살려 " "(괘선 보존), 부재명은 241~245로 분리.
             //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-            //   제거 대상: BOM(4~163)·Note(164)·Rev 위 4행(170~193)·부재명(195~199)·BOM 21~25행(200~240) — 제작도와 동일 정책.
-            //   보존: PAINT/DP/TAG(165~169)·194(Rev 첫 기재행의 REV. 칸). View도 1~5.
-            for (int k = 1; k <= 240; k++)
-                data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || k >= 195) ? "" : " ";
+            //   제거 대상: BOM(4~163)·Note(164)·Rev 위(170~193)·BOM 21~25행(200~240)·부재명(241~245) — 제작도와 동일 정책.
+            //   보존: PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199 = REV./DATE/DESC/DRAWN/CHECKED/APPROVED). View 1~5.
+            for (int k = 1; k <= 245; k++)
+                data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 200 && k <= 245)) ? "" : " ";
 
             // ── 도면정보 ──
             data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)
@@ -141,16 +141,16 @@ namespace A2Z
                 : "가공도";
             if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
 
-            // ── 부재명 5칸 (Input_195~Input_199, 각 View 왼쪽 라벨) ──
-            //   가공도는 Rev 표 마지막 행 태그(195~199)를 부재명이 사용 (2026-07-20).
-            //   ⚠ 템플릿 오른쪽에 제작도 붙여넣기 잔재로 195~199가 중복되면 부재명이 그쪽에도 샘 → 잔재 제거 필요.
+            // ── 부재명 5칸 (Input_241~Input_245, 각 View 왼쪽 라벨) ──
+            //   [2026-07-23] 195~199는 제작도처럼 REV 표 첫 기재행 전용으로 되돌리고, 부재명은 241~245로 분리
+            //   (200+ 크래시 해소 후 가능). 번호 충돌·REV 표 부재명 누수 제거.
             for (int i = 0; i < page.Rows.Count && i < 5; i++)
             {
                 var sheet = page.Rows[i];
                 if (sheet.MemberIndices.Count == 0) continue;
                 var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                 if (bom == null) continue;
-                data[195 + i] = bom.Name ?? "";
+                data[241 + i] = bom.Name ?? "";
             }
 
             // ── 우측 BOM 표 8컬럼 × 25행 (snapshot 사용) ──
