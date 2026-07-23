@@ -1949,11 +1949,12 @@ namespace A2Z
                     {
                         if (sheet.BaseMemberIndex >= 0 && bomList != null && bomList.Count > 1)   // 조립도
                         {
-                            isoSolidTargets = new List<int> { sheet.BaseMemberIndex };
-                            isoDashedTargets = new List<int>();
-                            foreach (var b in bomList)
-                                if (b.Index != sheet.BaseMemberIndex) isoDashedTargets.Add(b.Index);
-                            isoFitByDashed = true;
+                            // #7 재오픈(㉠): 실선 대상 = 기준부재만 → BOM 테이블 부재 전체.
+                            //   실선이 BOM 전체가 되면 점선 배경(전체−기준)이 비므로 점선 없이 단일 실선 캡처로 단순화.
+                            isoSolidTargets = new List<int>();
+                            foreach (var b in bomList) isoSolidTargets.Add(b.Index);
+                            isoDashedTargets = null;   // 점선 배경 없음
+                            isoFitByDashed = false;
                         }
                         else if (sheet.BaseMemberIndex == -1)   // 제작도
                         {
@@ -1974,6 +1975,11 @@ namespace A2Z
                         var flyAll = new List<int>(isoDashedTargets);
                         flyAll.AddRange(isoSolidTargets);
                         vizcore3d.View.FlyToObject3d(flyAll, 1.25f);
+                    }
+                    else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
+                    {
+                        // #7 재오픈(㉠): 조립도 단일 실선 — 실선 대상(BOM 전체) 기준 fit
+                        vizcore3d.View.FlyToObject3d(isoSolidTargets, 1.25f);
                     }
                     else
                     {
@@ -2114,6 +2120,15 @@ namespace A2Z
                         }
 
                         // 실선 대상만 보이기 (두 번째 캡처 준비)
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(isoSolidTargets, true);
+                        vizcore3d.EndUpdate();
+                    }
+                    else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
+                    {
+                        // #7 재오픈(㉠): 조립도 단일 실선 캡처 전, 실선 대상(BOM 전체)만 표시
+                        //   (앞 풍선 단계는 sheet.MemberIndices만 보였으므로 여기서 BOM 전체로 교체)
                         vizcore3d.BeginUpdate();
                         vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                         vizcore3d.Object3D.Show(isoSolidTargets, true);
@@ -2321,8 +2336,7 @@ namespace A2Z
                                     (noteOrder % 2 == 0 ? 1f : -1f);
                                 VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
                                     target, viewDir, offset);
-                                string text = $"{connection.Label}. " +
-                                              $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}";
+                                string text = $"{connection.Label}. {connection.ConnectedAssemblyName}";   // #45 STRU만 표시, /Part 제거
                                 try
                                 {
                                     var targetVertex = new VIZCore3D.NET.Data.Vertex3D(
@@ -2757,7 +2771,7 @@ namespace A2Z
                 try { neighborPart = vizcore3d.Object3D.FromIndex(neighborPartIndex); }
                 catch { }
 
-                VIZCore3D.NET.Data.Node assembly = FindNearestParentAssembly(neighborPart);
+                VIZCore3D.NET.Data.Node assembly = FindParentStru(neighborPart) ?? FindNearestParentAssembly(neighborPart);   // #45 연결부재 STRU 단위
                 int assemblyIndex = assembly != null ? assembly.Index : neighborPartIndex;
                 if (!addedAssemblyIndices.Add(assemblyIndex)) continue;
 
@@ -2803,6 +2817,34 @@ namespace A2Z
                 currentIndex = current.ParentIndex;
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// #45: 연결부재가 속한 STRU 노드를 부모로 올라가며 찾는다.
+        /// STRU 식별은 이미 수집된 _struNodeCache(모델 로드 시 CollectStruList) 집합으로 판정.
+        /// STRU 조상이 없으면 null → 호출부에서 FindNearestParentAssembly로 폴백.
+        /// </summary>
+        private VIZCore3D.NET.Data.Node FindParentStru(VIZCore3D.NET.Data.Node part)
+        {
+            if (part == null || _struNodeCache == null || _struNodeCache.Count == 0) return null;
+
+            var struIndexSet = new HashSet<int>();
+            foreach (var s in _struNodeCache)
+                if (s != null) struIndexSet.Add(s.Index);
+
+            int currentIndex = part.ParentIndex;
+            var visited = new HashSet<int>();
+            while (currentIndex >= 0 && visited.Add(currentIndex))
+            {
+                VIZCore3D.NET.Data.Node current;
+                try { current = vizcore3d.Object3D.FromIndex(currentIndex); }
+                catch { return null; }
+                if (current == null) return null;
+                if (struIndexSet.Contains(current.Index)) return current;   // STRU 도달
+                if (current.ParentIndex == currentIndex) return null;
+                currentIndex = current.ParentIndex;
+            }
             return null;
         }
 
