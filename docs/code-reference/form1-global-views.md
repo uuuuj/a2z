@@ -59,7 +59,7 @@
   1. 같은 Target Body↔Connected Body의 여러 접합영역을 하나로 병합
   2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축(주축)으로 선택
   3. Target 끝단면 MIN/MAX 중 연결 모서리에 가까운 쪽과, Connected Body에서 접합영역에 가장 가까운 LINE/POINT Osnap을 선택
-  4. **축 게이트** (2026-07-23, issue #12): Target Osnap 축별 extent를 재고 `extent ≥ 최대×InstallationAxisExtentRatio(0.25) 且 ≥ InstallationAxisMinExtent(30mm)`인 축(+주축 무조건)을 `AxisComponents`로 채택. 채택 축마다 `SelectInstallationTargetEndForAxis`로 그 축 기준 끝단 재선정(주축은 기존 끝단 재사용). `[설치치수축]` 로그에 축별 extent·채택 목록 기록
+  4. **축 게이트 + 성분 상한** (2026-07-23, issue #12): Target Osnap 축별 extent를 재고 `extent ≥ 최대×InstallationAxisExtentRatio(0.25) 且 ≥ InstallationAxisMinExtent(30mm)`인 축(+주축 무조건)을 후보로 두고, 각 축 끝단을 `SelectInstallationTargetEndForAxis`로 재선정(주축은 기존 끝단 재사용). 이어 **성분 상한**: 성분값(끝단→연결 접합점 거리)이 `부재 extent × InstallationComponentExtentCapFactor(1.25)`를 넘으면 제외 — 연결부재가 큰 부재라 그 축으로 멀리 뻗어 접합 osnap이 부재 밖(성분 950 등)에 잡히면 위치가 아니라 먼 거리라 도면 이탈. 통과분만 `AxisComponents`로 확정. `[설치치수축]` 로그에 gate·성분채택·상한제외 기록
   5. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
 
 ### SelectInstallationTargetEndForAxis(targetPoints, connectedCorner, worldAxis)
