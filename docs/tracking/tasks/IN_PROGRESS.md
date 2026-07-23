@@ -45,29 +45,6 @@
   - [ ] 실패 시 issue #37을 `상태: API 요청 필요`로 변경하고 ReferenceAxis+UserAxis 문자 각도 보정 또는 화면 수평 고정 API 문의
 - **영향 파일**: `A2Z/Form1.Dimensions.cs`, 시트 2D 렌더 흐름 문서, 치수 코드 레퍼런스
 
-### T-083 — ISO 부재번호 풍선 View 영역 자동 정렬
-- **생성일/착수일**: 2026-07-23
-- **상태**: IN_PROGRESS (SDK 1.0.26.723 적용·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
-- **구현 커밋**: `2664b8e`, `9f13789`, `70a6da3`, `d139ef8`, `2d6726f`
-- **관련**: 사용자 직접 지시, GitHub issue #4, Softhills SDK 1.0.26.723 배포 예제
-- **구현**:
-  - [x] SDK XML·DLL에서 `Set2DViewAlignAreaReviewsPositionByOffset(Vertex3D, Vertex3D, float)` 존재·void 반환·예제 순서 검증
-  - [x] 프로젝트 관리 DLL 참조를 1.0.26.723 `lib\` 기준으로 고정하고 외부 PC 절대경로 제거
-  - [x] ISO 실선 투영 객체 선택 → `Add2DNoteFrom3DNote` → 선택 해제 순서 적용
-  - [x] 1차로 전체 `{View_1}` 대신 모델 중심·fit 70% 영역을 사용했으나, 세로로 긴 모델에서 빈 영역 때문에 풍선이 과도하게 멀어지는 실기 결과 확인
-  - [x] 최종 Crop/Fit/Rescale/Move/Match 이후 `GetObjectSize`·`GetObjectCenter`로 실제 2D 표시 객체 AABB를 읽고 캔버스 10mm 확장 영역 + SDK `offset=0`으로 정렬
-  - [x] 제작도·설치도 연결 Assembly/Part 이름을 `AddNoteSurface` → `Add2DNoteFrom3DNote` 경로로 통일해 부재번호 풍선과 같은 영역 정렬 대상에 포함하고 실제 접합점 Target 유지
-  - [x] 성공 로그에 기준 객체·실제 크기·10mm 영역·SDK offset을 남기고 유효하지 않은 객체 외곽은 경고 후 기존 위치 유지
-  - [x] 정렬 API 예외 시 기존 AABB 배치로 출력 계속
-  - [x] Debug 빌드 오류 0건
-- **사용자 확인 필요**:
-  - [ ] PDF에서 풍선과 연결 이름이 실제 모델 외곽에서 약 10mm 떨어져 ISO View 안쪽에 정렬되는지
-  - [ ] 큰 조립체에서 풍선끼리·모델·ISO 제목과 겹치지 않는지
-  - [ ] 지시선이 대상 부재를 유지하고 과도하게 길어지지 않는지
-  - [ ] 제작도·설치도 연결 이름 노트의 지시 대상은 접합점에 유지되고 라벨은 풍선과 같은 모델 외곽 영역에 정렬되는지
-  - [ ] X/Y/Z 치수·3D 미리보기가 기존과 동일한지
-- **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, `A2Z/A2Z.csproj`, ISO·2D 렌더·빌드 환경 문서
-
 ### T-079 — 기울어진 가공도·제작도 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
 - **상태**: IN_PROGRESS (ORIENTATION 로컬 ReferenceAxis 카메라·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 3D/PDF 실기 검증 대기)
