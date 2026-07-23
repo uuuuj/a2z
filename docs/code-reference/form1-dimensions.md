@@ -28,7 +28,7 @@
 |---|---|
 | `AddChainDimensionByAxis` | 축별 체인 치수 생성 |
 | `MergeCoordinates` | tolerance 내 Osnap 좌표 병합 |
-| `ShowAllDimensions(axis?)` | `chainDimensionList`를 뷰별 필터링한 뒤 SDK Measure에 추가. 설치도 2D 출력은 선택 STRU BBox를 기준선·축척 기준으로 사용하고 연결 Part는 점선 맥락으로만 처리 |
+| `ShowAllDimensions(axis?, forDrawing2D?, canvasScaleOverride?, keepCamera?)` | `chainDimensionList`를 뷰별 필터링한 뒤 SDK Measure에 추가. 치수선 기준선은 선택 부재 BBox와 치수 끝점의 합집합 바깥 (2026-07-23 — 설치도 연결 모서리가 BBox 밖일 때 보조선 오버슛 방지, 제작도·가공도는 no-op). `keepCamera=true`(설치도 2D 경로)는 내부 PLUS 카메라 이동을 생략해 MINUS 캡처 모델과 치수 2D 변환의 좌우 반전을 막음 |
 | `AssignDimensionPriorities` / `ApplySmartFiltering` | 전체 치수 우선순위·겹침 필터. `IsRequired` 설치 접합 치수는 개수·겹침 제한보다 먼저 보존 |
 | `SelectRelatedOsnapItems` | Clash 기반 관련 Osnap ListView 자동 선택 |
 | `SelectRelatedDimensionItems` | Clash BBox 기반 관련 치수 ListView 자동 선택 |
