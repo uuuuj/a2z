@@ -205,6 +205,11 @@ namespace A2Z
         private const float InstallationAxisMinExtent = 30.0f;
         // 성분 최소 임계(mm) — 축 게이트를 통과해도 남는 미소 성분(끝단 근접 연결·어셈블리 틈 잔여)을 이중 차단.
         private const float InstallationMinComponent = 3.0f;
+        // 성분 상한 배수 (issue #12, 2026-07-23 실기) — 성분값(끝단→연결 접합점 거리)이 그 축 부재 extent를
+        //   이 배수 넘게 초과하면 제외한다. 설치도는 "연결부재가 부재 위 어느 위치에 붙는지"를 보이므로 위치는
+        //   부재 span 안이어야 한다. 연결부재가 큰 부재라 그 축으로 멀리 뻗어(예: 50mm 축에 성분 147·950)
+        //   접합 osnap이 부재 밖에 잡히면, 그 성분은 위치가 아니라 먼 부재까지의 거리 → 도면을 벗어난다.
+        private const float InstallationComponentExtentCapFactor = 1.25f;
 
         /// <summary>
         /// 채택된 긴 축 하나에 대한 위치 치수 성분. 축마다 기준 끝단이 다르므로 성분별로 끝단을 보관한다.
@@ -909,18 +914,35 @@ namespace A2Z
                                 extentsXYZ[ai] >= InstallationAxisMinExtent;
                     if (pass || isMain) acceptedAxes.Add(axesXYZ[ai]);
                 }
+                var acceptedComponents = new List<string>();
+                var cappedComponents = new List<string>();
                 foreach (string axis in acceptedAxes)
                 {
                     // 주축은 이미 확정된 끝단(실기 검증된 최장축 치수) 그대로, 나머지 축은 그 축 기준으로 재선정.
                     VIZCore3D.NET.Data.Vector3D axisEnd = axis == best.Axis
                         ? best.TargetEndPoint
                         : SelectInstallationTargetEndForAxis(targetPoints, best.ConnectedCornerPoint, axis);
+
+                    // 성분 상한 (2026-07-23 실기): 연결부재 접합점이 부재 span을 크게 벗어나면(연결부재가 그 축으로
+                    //   멀리 뻗은 큰 부재) 그 성분은 "부재 위 위치"가 아니라 먼 부재까지의 거리 → 도면을 벗어난다.
+                    //   성분이 부재 extent×Cap을 넘으면 제외. (예: 50mm 축에 성분 147·950)
+                    double axisExtentVal = axis == "X" ? extentX : (axis == "Y" ? extentY : extentZ);
+                    double compVal = Math.Abs(
+                        GetVectorAxisValue(best.ConnectedCornerPoint, axis) - GetVectorAxisValue(axisEnd, axis));
+                    if (compVal > axisExtentVal * InstallationComponentExtentCapFactor)
+                    {
+                        cappedComponents.Add($"{axis}={compVal:F0}>{axisExtentVal:F0}×{InstallationComponentExtentCapFactor}");
+                        continue;
+                    }
+
                     best.AxisComponents.Add(new InstallationAxisComponent { Axis = axis, TargetEndPoint = axisEnd });
+                    acceptedComponents.Add(axis);
                 }
                 DiagLog($"[설치치수축] targetPart={best.TargetPartIndex} " +
                         $"extent=(X={extentX:F1},Y={extentY:F1},Z={extentZ:F1}) maxExt={maxExtent:F1} " +
                         $"main={best.Axis} ratio={InstallationAxisExtentRatio} minExt={InstallationAxisMinExtent} " +
-                        $"accepted=[{string.Join(",", acceptedAxes)}]");
+                        $"gate=[{string.Join(",", acceptedAxes)}] 성분채택=[{string.Join(",", acceptedComponents)}]" +
+                        (cappedComponents.Count > 0 ? $" 상한제외=[{string.Join(",", cappedComponents)}]" : ""));
 
                 DiagLog($"[설치위치] targetPart={best.TargetPartIndex} targetBody={best.TargetBodyIndex} " +
                         $"connectedPart={best.ConnectedPartIndex} connectedBody={best.ConnectedBodyIndex} " +
