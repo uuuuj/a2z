@@ -31,6 +31,16 @@ namespace A2Z
     }
 
     /// <summary>
+    /// 최종 카메라 가로 전환이 끝난 뒤 화면 하단에 생성할 가공도 홀/슬롯 노트.
+    /// </summary>
+    internal sealed class MfgPendingHoleNote
+    {
+        public string Text;
+        public System.Drawing.Color Color;
+        public VIZCore3D.NET.Data.Vertex3D ArrowPosition;
+    }
+
+    /// <summary>
     /// 가공도 3D 장면 생성 결과. BuildMfgSceneCore가 반환, 호출자가 후속 적용(회전·뷰 유지·2D 캡처)에 사용.
     /// </summary>
     internal sealed class MfgViewPose
@@ -63,6 +73,13 @@ namespace A2Z
         /// 추정 스케일(EstimateFitScaleForViewArea)은 2D 은선 투영 실측과 달라 보조선 길이가 어긋났음 (설계 §4.4 v2-c, 2026-07-01).
         /// </summary>
         public System.Collections.Generic.List<MfgPendingDim> PendingDims { get; set; } = new System.Collections.Generic.List<MfgPendingDim>();
+
+        /// <summary>
+        /// PDF 캡처 직전 최종 화면 좌표계에서 생성할 홀/슬롯 노트 목록.
+        /// BuildMfgSceneCore가 수집하고 ProbeAndRollLandscape 이후 AddMfgPendingHoleNotes가 소비한다.
+        /// </summary>
+        public System.Collections.Generic.List<MfgPendingHoleNote> PendingHoleNotes { get; set; } =
+            new System.Collections.Generic.List<MfgPendingHoleNote>();
 
         /// <summary>
         /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).

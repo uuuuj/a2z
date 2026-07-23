@@ -14,7 +14,7 @@
 **변경 사항**:
 - 연결부재 이름을 가장 가까운 상위 어셈블리 → **STRU 단위**로 변경. 신규 헬퍼 `FindParentStru`(부모로 올라가며 `_struNodeCache` STRU 집합 판정), STRU 조상 없으면 `FindNearestParentAssembly` 폴백
 - 제작도 ISO(`Form1.DrawingSheets.cs`)·설치도 ISO(`Form1.GlobalViews.cs`) 양쪽 이름 조회 교체
-- 설치도 라벨 `A. 어셈블리 / Part` → `A. STRU` (`/ Part` 제거)
+- 설치도 라벨 `A. 어셈블리 / Part` → `STRU` (접합 기호 `A.`·`/ Part` 제거)
 - 흐름 문서 `ISO 도면.md` 동기화
 
 **영향 범위**: 제작도·설치도 ISO 연결부재 이름 라벨. 부재번호 풍선·치수·다른 도면 경로 무변경

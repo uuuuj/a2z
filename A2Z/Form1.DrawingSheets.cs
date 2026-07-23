@@ -2336,7 +2336,7 @@ namespace A2Z
                                     (noteOrder % 2 == 0 ? 1f : -1f);
                                 VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
                                     target, viewDir, offset);
-                                string text = $"{connection.Label}. {connection.ConnectedAssemblyName}";   // #45 STRU만 표시, /Part 제거
+                                string text = connection.ConnectedAssemblyName;   // #45 STRU 이름만 (A. 접두사·/Part 제거)
                                 try
                                 {
                                     var targetVertex = new VIZCore3D.NET.Data.Vertex3D(
