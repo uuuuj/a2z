@@ -708,6 +708,14 @@ namespace A2Z
                 const int maxBusyWaitCount = 40;
                 for (int attempt = 0; attempt < maxBusyWaitCount; attempt++)
                 {
+                    if (IsCancellationRequested("간섭검사 후속 항목 시작 전"))
+                    {
+                        ResetSilentClashSequence();
+                        if (_mainDimensionInProgress)
+                            CancelMainDimensionAtCheckpoint("간섭검사 후속 항목 시작 전");
+                        return;
+                    }
+
                     if (!_silentClashSequenceActive || _silentClashPendingTestIds.Count == 0)
                         return;
 
@@ -727,9 +735,20 @@ namespace A2Z
 
         private void HandleSilentClashStartFailure(int nextTestId)
         {
+            if (IsCancellationRequested("간섭검사 후속 항목 시작 실패"))
+            {
+                ResetSilentClashSequence();
+                if (_mainDimensionInProgress)
+                    CancelMainDimensionAtCheckpoint("간섭검사 후속 항목 시작 실패");
+                return;
+            }
+
             DiagLog($"간섭검사 무창 후속 시작 실패: id={nextTestId}");
             ResetSilentClashSequence();
-            HideBusyOverlay();
+            if (_mainDimensionInProgress)
+                FinishMainDimensionOperation();
+            else
+                HideBusyOverlay();
 
             if (_p2aInProgress)
             {
@@ -914,6 +933,14 @@ namespace A2Z
             {
                 System.Diagnostics.Debug.WriteLine($"[Clash Finished] 이벤트 발생! ID: {e.ID}");
 
+                if (IsCancellationRequested("간섭검사 단위 완료 후"))
+                {
+                    ResetSilentClashSequence();
+                    if (_mainDimensionInProgress)
+                        CancelMainDimensionAtCheckpoint("간섭검사 단위 완료 후");
+                    return;
+                }
+
                 // 진행창 없는 단일-ID 실행은 테스트마다 완료 이벤트가 온다.
                 // 다음 테스트를 이어서 실행하고, 마지막 이벤트에서만 아래 전체 결과를 한 번 처리한다.
                 if (!AdvanceSilentClashSequence(e.ID))
@@ -1037,7 +1064,11 @@ namespace A2Z
                 int componentCount;
                 if (!IsSingleConnectedComponent(out componentCount))
                 {
-                    HideBusyOverlay();
+                    if (_mainDimensionInProgress)
+                        FinishMainDimensionOperation();
+                    else
+                        HideBusyOverlay();
+
                     // T-064 P2 본진 진행 중엔 모달 차단 — 사용자 액션 대기로 흐름 정지·비결정 동작 방지.
                     if (!_p2aInProgress)
                     {
@@ -1060,7 +1091,10 @@ namespace A2Z
             catch (Exception ex)
             {
                 ResetSilentClashSequence();
-                HideBusyOverlay();
+                if (_mainDimensionInProgress)
+                    FinishMainDimensionOperation();
+                else
+                    HideBusyOverlay();
                 MessageBox.Show($"간섭검사 결과 처리 중 오류:\n\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
