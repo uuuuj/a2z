@@ -2351,11 +2351,11 @@ namespace A2Z
                     }
 
                     // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
-                    // 실제 표시 객체의 외곽은 기준점으로만 쓰고, 외곽과 라벨 사이 거리는 도면 고정 5mm로 둔다.
+                    // 실제 표시 객체의 외곽은 기준점으로만 쓰고, 외곽과 라벨 사이 거리는 도면 고정 10mm로 둔다.
                     int isoReviewCount = convertedNoteIndices.Count + createdIsoConnectionNameNotes;
                     if (viewDir == "ISO" && isoReviewCount > 0)
                     {
-                        const float isoReviewGapCanvas = 5f;
+                        const float isoReviewGapCanvas = 10f;
                         const float sdkAlignOffset = 0f;
 
                         try
