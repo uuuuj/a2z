@@ -645,6 +645,10 @@ namespace A2Z
 
             try
             {
+                // 가공도 3D 미리보기가 유지 중인 참조축·화면 roll을 다른 시트 카메라에 넘기지 않는다.
+                if (sheet.BaseMemberIndex != -3)
+                    ResetMfgPreviewViewState("ApplySheetSelection/non-mfg");
+
                 vizcore3d.BeginUpdate();
                 vizcore3d.View.EnableAnimation = false;
 

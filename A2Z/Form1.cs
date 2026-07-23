@@ -174,6 +174,12 @@ namespace A2Z
         private float _mfgPreviewNetRoll = 0f;
 
         /// <summary>
+        /// 현재 활성화한 가공도 부재 참조축 리뷰 ID.
+        /// PDF는 뷰마다 Reset/Delete하고, 3D 미리보기는 다음 선택 또는 다른 시트 진입 때 정리한다.
+        /// </summary>
+        private int _mfgActiveReferenceAxisId = -1;
+
+        /// <summary>
         /// Osnap 자동 처리 성공 여부
         /// </summary>
         private bool _autoProcessOsnapSuccess = false;

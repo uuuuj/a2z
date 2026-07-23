@@ -125,12 +125,12 @@ namespace A2Z
             var data = new Dictionary<int, string>();
 
             // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            //   ⚠ Input 번호는 199까지만 — 200 이상(dict 키·템플릿 태그 모두)은 SDK 내부 배열 범위를 넘겨
-            //   import 시 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측 격리). View도 동일하게 1~7만.
+            //   [2026-07-23] Input 200+ 크래시가 API 배포로 해소됨 → 제작도처럼 240까지 확장(BOM 25행).
+            //   (구 주석: 200 이상 import 시 메모리 손상 → AccessViolation. 이제 무효.)
             //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-            //   제거 대상: BOM(4~163)·Note(164)·Rev 위 4행(170~193)·부재명(195~199, 빈 밴드) — 제작도와 동일 정책(2026-07-21).
-            //   보존: PAINT/DP/TAG(165~169)·194(Rev 첫 기재행의 REV. 칸 — 가공도는 195~199를 부재명이 사용).
-            for (int k = 1; k <= 199; k++)
+            //   제거 대상: BOM(4~163)·Note(164)·Rev 위 4행(170~193)·부재명(195~199)·BOM 21~25행(200~240) — 제작도와 동일 정책.
+            //   보존: PAINT/DP/TAG(165~169)·194(Rev 첫 기재행의 REV. 칸). View도 1~5.
+            for (int k = 1; k <= 240; k++)
                 data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || k >= 195) ? "" : " ";
 
             // ── 도면정보 ──
@@ -142,8 +142,8 @@ namespace A2Z
             if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
 
             // ── 부재명 5칸 (Input_195~Input_199, 각 View 왼쪽 라벨) ──
-            //   200~204 대역은 SDK 한계로 폐기(위 주석) → 가공도에서 항상 빈칸인 Rev 표 마지막 행
-            //   태그(195~199)를 템플릿에서 제거하고 그 번호를 부재명이 사용 (2026-07-20).
+            //   가공도는 Rev 표 마지막 행 태그(195~199)를 부재명이 사용 (2026-07-20).
+            //   ⚠ 템플릿 오른쪽에 제작도 붙여넣기 잔재로 195~199가 중복되면 부재명이 그쪽에도 샘 → 잔재 제거 필요.
             for (int i = 0; i < page.Rows.Count && i < 5; i++)
             {
                 var sheet = page.Rows[i];
@@ -153,25 +153,40 @@ namespace A2Z
                 data[195 + i] = bom.Name ?? "";
             }
 
-            // ── 우측 BOM 표 8컬럼 × 20행 (Input_4~Input_163, snapshot 사용) ──
-            //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 열별 20연속.
+            // ── 우측 BOM 표 8컬럼 × 25행 (snapshot 사용) ──
+            //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 1~20행=열별 20연속(4~163),
+            //   21~25행=신규 태그(201~240, 열별 5연속). 2026-07-23 Input 200+ 확장(크래시 해소 후).
             int bomMapped = 0;
             if (bomSnapshot != null)
             {
-                int n = Math.Min(bomSnapshot.Count, 20);
+                int n = Math.Min(bomSnapshot.Count, 25);
                 for (int i = 0; i < n; i++)
                 {
                     string[] row = bomSnapshot[i];
-                    data[4 + i]   = row[0];   // NO
-                    data[24 + i]  = row[1];   // ITEM
-                    data[44 + i]  = row[2];   // MATERIAL
-                    data[64 + i]  = row[3];   // SIZE
-                    data[84 + i]  = row[4];   // Q'TY
-                    data[104 + i] = row[5];   // T/W
-                    data[124 + i] = row[6];   // MA
-                    data[144 + i] = row[7];   // FA
+                    int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
+                    if (i < 20)
+                    {
+                        cNo = 4 + i;   cItem = 24 + i;  cMat = 44 + i;  cSize = 64 + i;
+                        cQty = 84 + i; cTw = 104 + i;   cMa = 124 + i;  cFa = 144 + i;
+                    }
+                    else
+                    {
+                        int j = i - 20;   // 0~4 (BOM 21~25행)
+                        cNo = 201 + j;  cItem = 206 + j; cMat = 211 + j; cSize = 216 + j;
+                        cQty = 221 + j; cTw = 226 + j;   cMa = 231 + j;  cFa = 236 + j;
+                    }
+                    data[cNo]   = row[0];   // NO
+                    data[cItem] = row[1];   // ITEM
+                    data[cMat]  = row[2];   // MATERIAL
+                    data[cSize] = row[3];   // SIZE
+                    data[cQty]  = row[4];   // Q'TY
+                    data[cTw]   = row[5];   // T/W
+                    data[cMa]   = row[6];   // MA
+                    data[cFa]   = row[7];   // FA
                 }
                 bomMapped = n;
+                if (bomSnapshot.Count > 25)
+                    DiagLog($"[BuildMfgPageData] BOM {bomSnapshot.Count}행 중 25행만 표시 (템플릿 한도)");
             }
             DiagLog($"[BuildMfgPageData] p{page.PageIdx}/{totalPages} BOM 매핑 {bomMapped}행 (snapshot)");
 
@@ -548,9 +563,8 @@ namespace A2Z
             if (pose == null || pose.PendingDims == null || pose.PendingDims.Count == 0) return;
             if (newScale <= 0f || float.IsNaN(newScale) || float.IsInfinity(newScale)) return;
 
-            // 직전 뷰(EA 1차)의 3D 측정·보조선 제거 — 이 뷰 측정만 2D로 변환되게.
-            vizcore3d.Review.Measure.Clear();
-            vizcore3d.ShapeDrawing.Clear();
+            // 측정·보조선 초기화는 참조축 생성 전에 BuildMfgSceneCore/BuildEaSecondaryScene가 수행한다.
+            // 여기서 Measure.Clear를 호출하면 활성 참조축까지 삭제되므로 캡처가 끝날 때까지 다시 지우지 않는다.
             pose.ShapeDrawingIds.Clear();
 
             // 실측 배율로 캔버스 절대 오프셋(가공도 6/12mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
@@ -589,8 +603,7 @@ namespace A2Z
             //   부호는 실제 카메라 투영 헬퍼: 가로(길이축) 치수=화면 오른쪽(MfgHeightToRight),
             //   세로(폭) 치수=화면 위(MfgAxisUpPositive). 호출 시점 카메라 = 캡처 시점과 동일(roll 원복 전).
             float lvl2SlideMag = MfgLvl2TextSlideCanvas / newScale;
-            bool useOrientationUserAxis = !string.IsNullOrEmpty(pose.OrientationAxis) &&
-                Math.Abs(pose.OrientationAngle) > MfgAxisTiltToleranceDegrees;
+            bool useOrientationUserAxis = pose.UseReferenceAxis;
             int userAxisDimCount = 0;
             foreach (var pd in pose.PendingDims)
             {
@@ -611,8 +624,8 @@ namespace A2Z
                 if (useOrientationUserAxis)
                 {
                     string offsetAxis = GetRemainingAxis(pose.ViewDirection, pd.Axis);
-                    userMeasureAxis = GetMfgOrientationAxisVector(pd.Axis, pose.OrientationAngle);
-                    userOffsetAxis = GetMfgOrientationAxisVector(offsetAxis, pose.OrientationAngle);
+                    userMeasureAxis = GetMfgOrientationAxisVector(pose, pd.Axis);
+                    userOffsetAxis = GetMfgOrientationAxisVector(pose, offsetAxis);
                     if (userMeasureAxis != null && userOffsetAxis != null) userAxisDimCount++;
                 }
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
@@ -732,11 +745,21 @@ namespace A2Z
             MfgViewPose primaryPose,
             bool secondaryAtTop = true)
         {
-            var pose = new MfgViewPose { LongestAxis = primaryPose.LongestAxis };
+            var pose = new MfgViewPose
+            {
+                LongestAxis = primaryPose.LongestAxis,
+                OrientationAxis = primaryPose.OrientationAxis,
+                OrientationAngle = primaryPose.OrientationAngle,
+                UseReferenceAxis = primaryPose.UseReferenceAxis,
+                ReferenceAxisX = primaryPose.ReferenceAxisX,
+                ReferenceAxisY = primaryPose.ReferenceAxisY,
+                ReferenceAxisZ = primaryPose.ReferenceAxisZ,
+                ReferenceAxisOrigin = primaryPose.ReferenceAxisOrigin
+            };
 
+            // 1차 뷰 참조축·측정은 모두 정리한 뒤 2차 뷰 전용 참조축을 새로 만든다.
+            ClearMfgViewAnnotations("BuildEaSecondaryScene");
             vizcore3d.Review.Note.Clear();
-            vizcore3d.Review.Measure.Clear();
-            vizcore3d.ShapeDrawing.Clear();
 
             // 두 번째 뷰는 독립 카메라에서 절대 방향으로 만든다.
             //   절대 방향(MoveCamera로 직교 프레임 재설정)이라 primary 회전을 되돌릴 필요가 없다 —
@@ -756,7 +779,10 @@ namespace A2Z
             }
 
             pose.UsedMinusCamera = true;
-            vizcore3d.View.MoveCamera(pose.CameraDirection);
+            if (pose.UseReferenceAxis)
+                ActivateMfgReferenceAxis(pose, bom, "EA-secondary");
+            else
+                vizcore3d.View.MoveCamera(pose.CameraDirection);
             // 가로화(세로면 회전)는 캡처 직전 호출자(RenderMfgRowToViewArea)에서 ProbeAndRollLandscape로 수행.
 
             // ── 2차 뷰 상하 미러 판정 — 코너가 최종 슬롯에서 가운데를 향하는지 (2026-07-02) ──
@@ -953,9 +979,8 @@ namespace A2Z
         private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
             VIZCore3D.NET.Data.TemplateViewArea area)
         {
+            ClearMfgViewAnnotations("RenderMfgRow/start");
             vizcore3d.Review.Note.Clear();
-            vizcore3d.Review.Measure.Clear();
-            vizcore3d.ShapeDrawing.Clear();
 
             var createdObjectIds = new List<int>();
             bool success = false;
@@ -1066,8 +1091,7 @@ namespace A2Z
                 }
 
                 vizcore3d.Review.Note.Clear();
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
+                ClearMfgViewAnnotations("RenderMfgRow/finally");
             }
         }
 
@@ -1188,6 +1212,9 @@ namespace A2Z
             BOMData bom = bomList.FirstOrDefault(b => b.Index == bomIndex);
             if (bom == null) return pose;
 
+            // ReferenceAxis는 Review.Measure.Clear에 함께 삭제되므로 모든 측정 초기화를 축 생성 전에 끝낸다.
+            ClearMfgViewAnnotations("BuildMfgSceneCore");
+
             // ── 1. 부재 격리: 전체 숨김 → 해당 bom만 Show ──
             //   BeginUpdate/EndUpdate는 호출자(어댑터)가 자기 범위로 관리.
             vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
@@ -1238,11 +1265,20 @@ namespace A2Z
             pose.CameraDirection = cameraDir;
             pose.UsedMinusCamera = false;
 
-            // ── 4. ORIENTATION UDA 기반 카메라 회전 ──
+            // ── 4. ORIENTATION UDA 기반 로컬 참조축 카메라 ──
             var (orientAxis_saved, orientAngle_saved) = ParseOrientation(bom.Index);
-            ApplyOrientationRotation(bom.Index, viewDirection);
             pose.OrientationAxis = orientAxis_saved;
             pose.OrientationAngle = orientAngle_saved;
+            if (TryBuildMfgOrientationReferenceFrame(bom, pose))
+            {
+                // 화면 roll이 아니라 활성 참조축 기준의 CameraDirection으로 시선 자체를 로컬축에 정렬한다.
+                ActivateMfgReferenceAxis(pose, bom, "primary");
+            }
+            else
+            {
+                // 정상 부재와 ORIENTATION 파싱 불가 부재는 기존 카메라 동작을 그대로 유지한다.
+                ApplyOrientationRotation(bom.Index, viewDirection);
+            }
 
             // Z 최장축 시 90° 회전 결정 (실제 적용은 어댑터)
             //   ExecuteMfgDrawing에서 pose.LongestAxis=="Z"이면 RotateCameraByScreenAxis(0,0,90) (PDF는 ProbeAndRollLandscape가 실측 회전).
@@ -1388,11 +1424,13 @@ namespace A2Z
                 {
                     switch (viewDirection)
                     {
-                        case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_MINUS); break;
-                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
-                        default:  vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_MINUS); break;
+                        case "X": pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.X_MINUS; break;
+                        case "Y": pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.Y_MINUS; break;
+                        default:  pose.CameraDirection = VIZCore3D.NET.Data.CameraDirection.Z_MINUS; break;
                     }
-                    ApplyOrientationRotation(bom.Index, viewDirection);
+                    vizcore3d.View.MoveCamera(pose.CameraDirection);
+                    if (!pose.UseReferenceAxis)
+                        ApplyOrientationRotation(bom.Index, viewDirection);
                 }
 
                 isEAUse180 = use180;
@@ -1545,9 +1583,6 @@ namespace A2Z
                 if (mfgDimensions.Count > 0)
                 {
                     // 7. 치수 그리기 (수동 스타일 Blue, 사용자 사양 2026-05-19)
-                    vizcore3d.Review.Measure.Clear();
-                    vizcore3d.ShapeDrawing.Clear();
-
                     VIZCore3D.NET.Data.MeasureStyle mfgStyle = vizcore3d.Review.Measure.GetStyle();
                     mfgStyle.Prefix = false;
                     mfgStyle.Unit = false;
@@ -2027,12 +2062,7 @@ namespace A2Z
                 //   RotateCameraByScreenAxis는 상대(누적) 회전 — 미리보기는 PDF 경로처럼 되돌리는 곳이 없어
                 //   Z-최장축(90°)·EA(180°) 부재를 연속 클릭할수록 카메라가 점점 틀어졌음 (2026-07-22 수정).
                 //   MoveCamera(코어) '앞'에서 되돌리므로, MoveCamera가 자체 리셋해도 안전(덮어씀)·안 하면 여기서 상쇄.
-                if (_mfgPreviewNetRoll != 0f)
-                {
-                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
-                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, -_mfgPreviewNetRoll);
-                    _mfgPreviewNetRoll = 0f;
-                }
+                ResetMfgPreviewViewState("ExecuteMfgDrawing/entry");
                 CamLog("entry");
 
                 // ── 공통 코어 호출 ──
@@ -2051,16 +2081,19 @@ namespace A2Z
 
                 // pose 저장 (진단·향후 참조용)
                 _lastMfgViewPose = pose;
-                shouldSnapshotCamera = pose.ApplyZ90 || pose.ApplyR180 || pose.UsedMinusCamera;
+                shouldSnapshotCamera = pose.ApplyZ90 || pose.ApplyR180 ||
+                                       pose.UsedMinusCamera || pose.UseReferenceAxis;
 
                 DiagLog($"B2 ExecuteMfgDrawing bom={bom.Index} name=\"{bom.Name}\" " +
                     $"viewDir={pose.ViewDirection} longestAxis={pose.LongestAxis} " +
                     $"ApplyZ90={pose.ApplyZ90} ApplyR180={pose.ApplyR180} " +
                     $"UsedMinusCamera={pose.UsedMinusCamera} " +
-                    $"orient={pose.OrientationAxis}/{pose.OrientationAngle:F0}");
+                    $"orient={pose.OrientationAxis}/{pose.OrientationAngle:F0} " +
+                    $"referenceAxis={pose.UseReferenceAxis}");
             }
             catch (Exception ex)
             {
+                ResetMfgPreviewViewState("ExecuteMfgDrawing/error");
                 MessageBox.Show($"가공도 출력 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
@@ -2158,9 +2191,9 @@ namespace A2Z
                     previousSelectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
 
                 // ── 진입부 강제 초기화 8단계 ──
+                ResetMfgPreviewViewState("GenerateMfgDrawingManual/start");
                 vizcore3d.Review.Note.Clear();
-                vizcore3d.Review.Measure.Clear();
-                vizcore3d.ShapeDrawing.Clear();
+                ClearMfgViewAnnotations("GenerateMfgDrawingManual/start");
                 Clear2DView();
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
@@ -2300,6 +2333,8 @@ namespace A2Z
             }
             finally
             {
+                ReleaseActiveMfgReferenceAxis("GenerateMfgDrawingManual/finally");
+
                 // BOM UI 복원
                 try
                 {
@@ -2732,25 +2767,316 @@ namespace A2Z
             }
         }
 
-        /// <summary>
-        /// ORIENTATION 회전을 월드 Z축 회전으로 해석해 가공도 치수의 로컬 X/Y/Z 단위 축을 만든다.
-        /// 카메라에 적용하는 양의 화면축 회전과 같은 각도 부호를 사용한다.
-        /// </summary>
-        private VIZCore3D.NET.Data.Vertex3D GetMfgOrientationAxisVector(
-            string worldAxis,
-            float orientationAngle)
+        private void ClearMfgViewAnnotations(string reason)
         {
-            if (string.IsNullOrEmpty(worldAxis)) return null;
-            double radians = orientationAngle * Math.PI / 180.0;
-            float cos = (float)Math.Cos(radians);
-            float sin = (float)Math.Sin(radians);
-            switch (worldAxis)
+            ReleaseActiveMfgReferenceAxis(reason + "/clear");
+            vizcore3d.Review.Measure.Clear();
+            vizcore3d.ShapeDrawing.Clear();
+        }
+
+        private void ReleaseActiveMfgReferenceAxis(string reason)
+        {
+            if (_mfgActiveReferenceAxisId < 0) return;
+
+            int referenceAxisId = _mfgActiveReferenceAxisId;
+            _mfgActiveReferenceAxisId = -1;
+            try
             {
-                case "X": return new VIZCore3D.NET.Data.Vertex3D(cos, sin, 0f);
-                case "Y": return new VIZCore3D.NET.Data.Vertex3D(-sin, cos, 0f);
-                case "Z": return new VIZCore3D.NET.Data.Vertex3D(0f, 0f, 1f);
+                vizcore3d.View.ReferenceAxis.Reset();
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[MfgRefAxis] reset WARN id={referenceAxisId} reason={reason}: {ex.Message}");
+            }
+
+            try
+            {
+                vizcore3d.Review.Delete(referenceAxisId);
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[MfgRefAxis] delete WARN id={referenceAxisId} reason={reason}: {ex.Message}");
+            }
+
+            DiagLog($"[MfgRefAxis] release id={referenceAxisId} reason={reason}");
+        }
+
+        private bool ActivateMfgReferenceAxis(MfgViewPose pose, BOMData bom, string stage)
+        {
+            if (pose == null || bom == null || !pose.UseReferenceAxis)
+                return false;
+
+            ReleaseActiveMfgReferenceAxis(stage + "/replace");
+            try
+            {
+                int referenceAxisId = vizcore3d.View.ReferenceAxis.Create(
+                    pose.ReferenceAxisX,
+                    pose.ReferenceAxisY,
+                    pose.ReferenceAxisOrigin,
+                    $"가공도 부재축 {bom.Index}");
+                if (referenceAxisId < 0)
+                    throw new InvalidOperationException("ReferenceAxis.Create가 유효하지 않은 ID를 반환했습니다.");
+
+                _mfgActiveReferenceAxisId = referenceAxisId;
+                vizcore3d.View.ReferenceAxis.Activate(referenceAxisId, true);
+                // Activate 이후의 CameraDirection은 활성 참조축 기준으로 해석된다.
+                vizcore3d.View.MoveCamera(pose.CameraDirection);
+
+                DiagLog($"[MfgRefAxis] activate stage={stage} bom={bom.Index} id={referenceAxisId} " +
+                        $"view={pose.ViewDirection} camera={pose.CameraDirection} " +
+                        $"X=({pose.ReferenceAxisX.X:F5},{pose.ReferenceAxisX.Y:F5},{pose.ReferenceAxisX.Z:F5}) " +
+                        $"Y=({pose.ReferenceAxisY.X:F5},{pose.ReferenceAxisY.Y:F5},{pose.ReferenceAxisY.Z:F5}) " +
+                        $"Z=({pose.ReferenceAxisZ.X:F5},{pose.ReferenceAxisZ.Y:F5},{pose.ReferenceAxisZ.Z:F5})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ReleaseActiveMfgReferenceAxis(stage + "/failed");
+                pose.UseReferenceAxis = false;
+                vizcore3d.View.MoveCamera(pose.CameraDirection);
+                ApplyOrientationRotation(bom.Index, pose.ViewDirection);
+                DiagLog($"[MfgRefAxis] activate FAIL stage={stage} bom={bom.Index} → 기존 화면 roll 폴백: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void ResetMfgPreviewViewState(string reason)
+        {
+            if (_mfgPreviewNetRoll != 0f)
+            {
+                try
+                {
+                    vizcore3d.View.ScreenAxisRotation.LockZAxis = false;
+                    vizcore3d.View.RotateCameraByScreenAxis(0, 0, -_mfgPreviewNetRoll);
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[MfgRefAxis] preview roll reset WARN reason={reason}: {ex.Message}");
+                }
+                _mfgPreviewNetRoll = 0f;
+            }
+
+            ReleaseActiveMfgReferenceAxis(reason);
+        }
+
+        private bool TryBuildMfgOrientationReferenceFrame(BOMData bom, MfgViewPose pose)
+        {
+            if (bom == null || pose == null ||
+                Math.Abs(pose.OrientationAngle) <= MfgAxisTiltToleranceDegrees)
+                return false;
+
+            string raw = GetUdaValue(bom.Index, "ORIENTATION");
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+
+            VIZCore3D.NET.Data.Vector3D rawX, rawY, rawZ;
+            bool hasX = TryParseMfgOrientationDirection(raw, "X", out rawX);
+            bool hasY = TryParseMfgOrientationDirection(raw, "Y", out rawY);
+            bool hasZ = TryParseMfgOrientationDirection(raw, "Z", out rawZ);
+
+            VIZCore3D.NET.Data.Vector3D xAxis = null;
+            VIZCore3D.NET.Data.Vector3D yAxis = null;
+            VIZCore3D.NET.Data.Vector3D zAxis = null;
+
+            if (hasY && hasZ)
+            {
+                if (!TryNormalizeMfgVector(rawY, out yAxis)) return false;
+                rawZ = SubtractMfgVector(rawZ, ScaleMfgVector(yAxis, DotMfgVector(rawZ, yAxis)));
+                if (!TryNormalizeMfgVector(rawZ, out zAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(yAxis, zAxis), out xAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(zAxis, xAxis), out yAxis)) return false;
+            }
+            else if (hasX && hasY)
+            {
+                if (!TryNormalizeMfgVector(rawX, out xAxis)) return false;
+                rawY = SubtractMfgVector(rawY, ScaleMfgVector(xAxis, DotMfgVector(rawY, xAxis)));
+                if (!TryNormalizeMfgVector(rawY, out yAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(xAxis, yAxis), out zAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(zAxis, xAxis), out yAxis)) return false;
+            }
+            else if (hasX && hasZ)
+            {
+                if (!TryNormalizeMfgVector(rawX, out xAxis)) return false;
+                rawZ = SubtractMfgVector(rawZ, ScaleMfgVector(xAxis, DotMfgVector(rawZ, xAxis)));
+                if (!TryNormalizeMfgVector(rawZ, out zAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(zAxis, xAxis), out yAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(xAxis, yAxis), out zAxis)) return false;
+            }
+            else if (hasY)
+            {
+                if (!TryNormalizeMfgVector(rawY, out yAxis)) return false;
+                VIZCore3D.NET.Data.Vector3D up = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f);
+                if (Math.Abs(DotMfgVector(yAxis, up)) > 0.99f)
+                    up = new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f);
+                if (!TryNormalizeMfgVector(CrossMfgVector(yAxis, up), out xAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(xAxis, yAxis), out zAxis)) return false;
+            }
+            else if (hasX)
+            {
+                if (!TryNormalizeMfgVector(rawX, out xAxis)) return false;
+                VIZCore3D.NET.Data.Vector3D up = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f);
+                if (Math.Abs(DotMfgVector(xAxis, up)) > 0.99f)
+                    up = new VIZCore3D.NET.Data.Vector3D(0f, 1f, 0f);
+                if (!TryNormalizeMfgVector(CrossMfgVector(up, xAxis), out yAxis)) return false;
+                if (!TryNormalizeMfgVector(CrossMfgVector(xAxis, yAxis), out zAxis)) return false;
+            }
+            else
+            {
+                return false;
+            }
+
+            pose.ReferenceAxisX = xAxis;
+            pose.ReferenceAxisY = yAxis;
+            pose.ReferenceAxisZ = zAxis;
+            pose.ReferenceAxisOrigin = new VIZCore3D.NET.Data.Vector3D(
+                (bom.MinX + bom.MaxX) / 2f,
+                (bom.MinY + bom.MaxY) / 2f,
+                (bom.MinZ + bom.MaxZ) / 2f);
+            pose.UseReferenceAxis = true;
+
+            DiagLog($"[MfgRefAxis] frame bom={bom.Index} ORIENTATION='{raw}' " +
+                    $"X=({xAxis.X:F5},{xAxis.Y:F5},{xAxis.Z:F5}) " +
+                    $"Y=({yAxis.X:F5},{yAxis.Y:F5},{yAxis.Z:F5}) " +
+                    $"Z=({zAxis.X:F5},{zAxis.Y:F5},{zAxis.Z:F5})");
+            return true;
+        }
+
+        private bool TryParseMfgOrientationDirection(
+            string raw,
+            string localAxis,
+            out VIZCore3D.NET.Data.Vector3D direction)
+        {
+            direction = null;
+            if (string.IsNullOrWhiteSpace(raw) || string.IsNullOrEmpty(localAxis))
+                return false;
+
+            string pattern = $@"\b{localAxis}\s+IS\s+([NESWUD])(?:\s+([+-]?\d+(?:\.\d+)?)\s+([NESWUD]))?";
+            System.Text.RegularExpressions.Match match =
+                System.Text.RegularExpressions.Regex.Match(
+                    raw.ToUpperInvariant(),
+                    pattern,
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            if (!match.Success) return false;
+
+            VIZCore3D.NET.Data.Vector3D primary;
+            if (!TryGetMfgCardinalDirection(match.Groups[1].Value[0], out primary))
+                return false;
+
+            if (!match.Groups[2].Success || !match.Groups[3].Success)
+            {
+                direction = primary;
+                return true;
+            }
+
+            float degrees;
+            if (!float.TryParse(
+                match.Groups[2].Value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out degrees))
+                return false;
+
+            VIZCore3D.NET.Data.Vector3D secondary;
+            if (!TryGetMfgCardinalDirection(match.Groups[3].Value[0], out secondary))
+                return false;
+
+            double radians = degrees * Math.PI / 180.0;
+            direction = new VIZCore3D.NET.Data.Vector3D(
+                primary.X * (float)Math.Cos(radians) + secondary.X * (float)Math.Sin(radians),
+                primary.Y * (float)Math.Cos(radians) + secondary.Y * (float)Math.Sin(radians),
+                primary.Z * (float)Math.Cos(radians) + secondary.Z * (float)Math.Sin(radians));
+            return TryNormalizeMfgVector(direction, out direction);
+        }
+
+        private bool TryGetMfgCardinalDirection(
+            char direction,
+            out VIZCore3D.NET.Data.Vector3D vector)
+        {
+            switch (direction)
+            {
+                case 'N': vector = new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f); return true;
+                case 'E': vector = new VIZCore3D.NET.Data.Vector3D(0f, 1f, 0f); return true;
+                case 'S': vector = new VIZCore3D.NET.Data.Vector3D(-1f, 0f, 0f); return true;
+                case 'W': vector = new VIZCore3D.NET.Data.Vector3D(0f, -1f, 0f); return true;
+                case 'U': vector = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f); return true;
+                case 'D': vector = new VIZCore3D.NET.Data.Vector3D(0f, 0f, -1f); return true;
+                default: vector = null; return false;
+            }
+        }
+
+        private float DotMfgVector(
+            VIZCore3D.NET.Data.Vector3D a,
+            VIZCore3D.NET.Data.Vector3D b)
+        {
+            return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+        }
+
+        private VIZCore3D.NET.Data.Vector3D CrossMfgVector(
+            VIZCore3D.NET.Data.Vector3D a,
+            VIZCore3D.NET.Data.Vector3D b)
+        {
+            return new VIZCore3D.NET.Data.Vector3D(
+                a.Y * b.Z - a.Z * b.Y,
+                a.Z * b.X - a.X * b.Z,
+                a.X * b.Y - a.Y * b.X);
+        }
+
+        private VIZCore3D.NET.Data.Vector3D ScaleMfgVector(
+            VIZCore3D.NET.Data.Vector3D vector,
+            float scale)
+        {
+            return new VIZCore3D.NET.Data.Vector3D(
+                vector.X * scale,
+                vector.Y * scale,
+                vector.Z * scale);
+        }
+
+        private VIZCore3D.NET.Data.Vector3D SubtractMfgVector(
+            VIZCore3D.NET.Data.Vector3D a,
+            VIZCore3D.NET.Data.Vector3D b)
+        {
+            return new VIZCore3D.NET.Data.Vector3D(
+                a.X - b.X,
+                a.Y - b.Y,
+                a.Z - b.Z);
+        }
+
+        private bool TryNormalizeMfgVector(
+            VIZCore3D.NET.Data.Vector3D vector,
+            out VIZCore3D.NET.Data.Vector3D normalized)
+        {
+            normalized = null;
+            if (vector == null) return false;
+            float length = (float)Math.Sqrt(
+                vector.X * vector.X +
+                vector.Y * vector.Y +
+                vector.Z * vector.Z);
+            if (length < 1e-5f) return false;
+            normalized = new VIZCore3D.NET.Data.Vector3D(
+                vector.X / length,
+                vector.Y / length,
+                vector.Z / length);
+            return true;
+        }
+
+        private VIZCore3D.NET.Data.Vertex3D GetMfgOrientationAxisVector(
+            MfgViewPose pose,
+            string localAxis)
+        {
+            if (pose == null || !pose.UseReferenceAxis || string.IsNullOrEmpty(localAxis))
+                return null;
+
+            VIZCore3D.NET.Data.Vector3D vector;
+            switch (localAxis)
+            {
+                case "X": vector = pose.ReferenceAxisX; break;
+                case "Y": vector = pose.ReferenceAxisY; break;
+                case "Z": vector = pose.ReferenceAxisZ; break;
                 default: return null;
             }
+
+            return vector == null
+                ? null
+                : new VIZCore3D.NET.Data.Vertex3D(vector.X, vector.Y, vector.Z);
         }
 
         private sealed class MfgAxisDirectionBin
