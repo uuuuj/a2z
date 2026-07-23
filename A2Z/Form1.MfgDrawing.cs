@@ -1316,7 +1316,7 @@ namespace A2Z
         /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
-        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(Hole/SlotHole/EarthBoss) 생성.
+        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·EarthBoss 풍선 생성과 홀/슬롯 노트 수집.
         /// ISO 부재번호 풍선과 원형 부재 반지름 풍선은 생성하지 않는다.
         /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
         ///
@@ -1977,12 +1977,13 @@ namespace A2Z
                         int hCount = grp.Count();
                         string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
                         var hole = grp.First();
-                        float[] holeArr = { hole.CenterX, hole.CenterY, hole.CenterZ };
-                        float oH = holeArr[bHAxis_m];
-                        float oV = holeArr[bVAxis_m];
-                        float depthVal = holeArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, holeText, Color.FromArgb(0, 160, 0),
-                            hole.CenterX, hole.CenterY, hole.CenterZ));
+                        pose.PendingHoleNotes.Add(new MfgPendingHoleNote
+                        {
+                            Text = holeText,
+                            Color = Color.FromArgb(0, 160, 0),
+                            ArrowPosition = new VIZCore3D.NET.Data.Vertex3D(
+                                hole.CenterX, hole.CenterY, hole.CenterZ)
+                        });
                     }
                 }
                 catch { }
@@ -2003,18 +2004,20 @@ namespace A2Z
                         string slotText = sCount > 1
                             ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
                             : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
-                        float[] slotArr = { slot.CenterX, slot.CenterY, slot.CenterZ };
-                        float oH = slotArr[bHAxis_m];
-                        float oV = slotArr[bVAxis_m];
-                        float depthVal = slotArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, slotText, Color.FromArgb(180, 0, 180),
-                            slot.CenterX, slot.CenterY, slot.CenterZ));
+                        pose.PendingHoleNotes.Add(new MfgPendingHoleNote
+                        {
+                            Text = slotText,
+                            Color = Color.FromArgb(180, 0, 180),
+                            ArrowPosition = new VIZCore3D.NET.Data.Vertex3D(
+                                slot.CenterX, slot.CenterY, slot.CenterZ)
+                        });
                     }
                 }
                 catch { }
             }
 
-            // --- 풍선 일괄 배치 (4분면 가상선 방식 + 체인치수 겹침 방지) ---
+            // --- 즉시 생성 풍선(EarthBoss) 일괄 배치 ---
+            // 홀/슬롯은 최종 화면 회전 뒤 AddMfgPendingHoleNotes에서 별도로 생성한다.
             float modelCenterH_m = (modelMinH_m + modelMaxH_m) / 2f;
             float modelCenterV_m = (modelMinV_m + modelMaxV_m) / 2f;
 
@@ -2055,19 +2058,9 @@ namespace A2Z
                 try
                 {
                     var textSz = mfgEstTextSize(balloon.text);
-                    float textW = textSz.w;
                     float textH = textSz.h;
 
                     float textPosH, textPosV;
-                    bool isHoleOrSlot = !balloon.text.StartsWith("EarthBoss");
-                    if (isHoleOrSlot)
-                    {
-                        // 홀/슬롯 풍선: 수직 아래로 — 홀 H 위치 그대로 두어 리더가 수직이 되고,
-                        //   모델 아래(모델 바깥)로 빼낸다. (사용자 사양 2026-06-30, 방향이 위로면 부호 반전)
-                        textPosH = balloon.originH;
-                        textPosV = modelMinV_m - (modelMaxV_m - modelMinV_m) * 0.6f;
-                    }
-                    else
                     switch (balloon.quadrant)
                     {
                         case 0: // 왼쪽위
@@ -2130,7 +2123,7 @@ namespace A2Z
         /// 시트 선택 3D 미리보기(LvDrawingSheet_SelectedIndexChanged)에서 사용.
         ///
         /// Step B2 (2026-05-19): 어댑터로 축소.
-        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선)은 BuildMfgSceneCore가 수행.
+        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선 정보 수집)은 BuildMfgSceneCore가 수행.
         /// 어댑터는 수동 전용 후처리만:
         ///   - X-Ray 끄기 + 선택 해제
         ///   - 코어 호출 → pose 받음
@@ -2142,7 +2135,7 @@ namespace A2Z
         ///   - EndUpdate 후 카메라 스냅샷 (ScreenAxisRotation commit 후)
         ///
         /// 사용자 사양 (2026-07-22): 3D 미리보기에서는 형상 풍선을 제거한다.
-        /// PDF 어댑터는 공통 코어가 생성한 Note를 그대로 2D 변환하므로 출력 풍선은 유지한다.
+        /// PDF 어댑터만 최종 가로 전환 뒤 PendingHoleNotes를 화면 하단에 생성하므로 출력 풍선은 유지한다.
         /// </summary>
         private void ExecuteMfgDrawing(int bomIndex)
         {
