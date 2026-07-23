@@ -965,11 +965,15 @@ namespace A2Z
             if (sheet == null || sheet.MemberIndices == null || sheet.MemberIndices.Count == 0)
                 return result;
 
+            // 위치 치수를 세 직교 뷰 모두에 배정 (2026-07-23 실기 PDF) — 설치도는 형강을 각 뷰에서 가로로 눕게
+            //   배치해서, 월드축 기준 "그 축을 정면으로 보는 뷰"(-X)에서도 형강 길이(X)가 화면에 보인다. 옛 월드축
+            //   필터(-X는 Z,Y만)는 그런 뷰에서 길이 치수를 빠뜨렸다. 성분 끝점은 그 축으로만 벌어지게 투영돼 있어,
+            //   실제로 그 축이 화면에 안 보이는 뷰에선 점으로 접혀 표시 안 되고 보이는 뷰에서만 그려진다.
             var viewAxes = new Dictionary<string, string[]>
             {
-                { "X", new[] { "Z", "Y" } },
-                { "Y", new[] { "Z", "X" } },
-                { "Z", new[] { "Y", "X" } }
+                { "X", new[] { "X", "Z", "Y" } },
+                { "Y", new[] { "Y", "Z", "X" } },
+                { "Z", new[] { "Z", "Y", "X" } }
             };
 
             var connectionGroups = sheet.InstallationConnections
