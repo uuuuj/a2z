@@ -180,6 +180,12 @@ namespace A2Z
         private int _mfgActiveReferenceAxisId = -1;
 
         /// <summary>
+        /// 제작도 4면도 렌더 중 활성화한 시트 참조축 리뷰 ID.
+        /// 뷰마다 Reset/Delete하며 조립도·설치도에는 만들지 않는다.
+        /// </summary>
+        private int _drawingActiveReferenceAxisId = -1;
+
+        /// <summary>
         /// Osnap 자동 처리 성공 여부
         /// </summary>
         private bool _autoProcessOsnapSuccess = false;

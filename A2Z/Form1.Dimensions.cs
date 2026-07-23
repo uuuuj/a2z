@@ -394,7 +394,8 @@ namespace A2Z
             string viewDirection = null,
             bool forDrawing2D = false,
             float canvasScaleOverride = -1f,
-            bool keepCamera = false)
+            bool keepCamera = false,
+            DrawingReferenceFrame drawingReferenceFrame = null)
         {
             // T-028: 치수 계산은 호출자가 chainDimensionList에 미리 채움 (치수추출·시트 선택·2D 출력 모두 동일).
             // 본 메서드는 chainDimensionList를 viewDirection 기준으로 필터링해 3D 뷰에 표시하는 역할만.
@@ -430,7 +431,10 @@ namespace A2Z
                 updateOpen = true;
 
                 // 기존 측정 항목 및 보조선 제거
-                vizcore3d.Review.Measure.Clear();
+                // ReferenceAxis는 Measure.Clear와 함께 삭제된다. 제작도 참조축 경로는 호출자가
+                // 뷰 시작 시 측정을 비운 뒤 축을 만들므로 여기서는 활성 축을 보존한다.
+                if (drawingReferenceFrame == null)
+                    vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
                 // 카메라 방향 설정 (줌은 호출하는 쪽에서 담당)
@@ -481,7 +485,16 @@ namespace A2Z
                 // baseline 계산
                 float globalMinX = float.MaxValue, globalMinY = float.MaxValue, globalMinZ = float.MaxValue;
                 float globalMaxX = float.MinValue, globalMaxY = float.MinValue, globalMaxZ = float.MinValue;
-                if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
+                if (drawingReferenceFrame != null)
+                {
+                    globalMinX = drawingReferenceFrame.MinX;
+                    globalMinY = drawingReferenceFrame.MinY;
+                    globalMinZ = drawingReferenceFrame.MinZ;
+                    globalMaxX = drawingReferenceFrame.MaxX;
+                    globalMaxY = drawingReferenceFrame.MaxY;
+                    globalMaxZ = drawingReferenceFrame.MaxZ;
+                }
+                else if (xraySelectedNodeIndices != null && xraySelectedNodeIndices.Count > 0)
                 {
                     try
                     {
@@ -661,7 +674,11 @@ namespace A2Z
                         small ? level2Offset : level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
-                        textSlideModel: small ? lvl2SlideSigned(dim.Axis) : 0f);
+                        textSlideModel: small ? lvl2SlideSigned(dim.Axis) : 0f,
+                        userMeasureAxis: GetDrawingReferenceAxisVertex(drawingReferenceFrame, dim.Axis),
+                        userOffsetAxis: GetDrawingReferenceAxisVertex(
+                            drawingReferenceFrame, GetRemainingAxis(viewDirection, dim.Axis)),
+                        drawingReferenceFrame: drawingReferenceFrame);
                 }
                 if (promotedSmall > 0)
                     DiagLog($"[SmallDimPromote] view={viewDirection} 승격={promotedSmall} threshold={smallDimThreshold:F1}mm maxDist={maxChainDist:F1}mm");
@@ -674,7 +691,11 @@ namespace A2Z
                         level2Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
-                        textSlideModel: lvl2SlideSigned(dim.Axis));
+                        textSlideModel: lvl2SlideSigned(dim.Axis),
+                        userMeasureAxis: GetDrawingReferenceAxisVertex(drawingReferenceFrame, dim.Axis),
+                        userOffsetAxis: GetDrawingReferenceAxisVertex(
+                            drawingReferenceFrame, GetRemainingAxis(viewDirection, dim.Axis)),
+                        drawingReferenceFrame: drawingReferenceFrame);
                 }
 
                 // Level 0 전체 치수 (가장 바깥 - 전체 길이)
@@ -687,7 +708,11 @@ namespace A2Z
                     DrawDimension(dim.StartPoint, dim.EndPoint, dim.Axis,
                         level0Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
-                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel);
+                        globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
+                        userMeasureAxis: GetDrawingReferenceAxisVertex(drawingReferenceFrame, dim.Axis),
+                        userOffsetAxis: GetDrawingReferenceAxisVertex(
+                            drawingReferenceFrame, GetRemainingAxis(viewDirection, dim.Axis)),
+                        drawingReferenceFrame: drawingReferenceFrame);
                 }
 
                 // 보조선 그리기 — ShapeDrawing ID 수집
@@ -1020,13 +1045,16 @@ namespace A2Z
             float extGapOverride = -1f,
             float textSlideModel = 0f,
             VIZCore3D.NET.Data.Vertex3D userMeasureAxis = null,
-            VIZCore3D.NET.Data.Vertex3D userOffsetAxis = null)
+            VIZCore3D.NET.Data.Vertex3D userOffsetAxis = null,
+            DrawingReferenceFrame drawingReferenceFrame = null)
         {
-            // 원본 좌표
-            VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
-                startPoint.X, startPoint.Y, startPoint.Z);
-            VIZCore3D.NET.Data.Vertex3D originalEnd = new VIZCore3D.NET.Data.Vertex3D(
-                endPoint.X, endPoint.Y, endPoint.Z);
+            // 참조축 경로의 start/end는 로컬 좌표다. SDK 측정·ShapeDrawing에는 월드 좌표로 복원한다.
+            VIZCore3D.NET.Data.Vertex3D originalStart = drawingReferenceFrame != null
+                ? DrawingReferenceLocalToWorld(startPoint, drawingReferenceFrame)
+                : new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, startPoint.Z);
+            VIZCore3D.NET.Data.Vertex3D originalEnd = drawingReferenceFrame != null
+                ? DrawingReferenceLocalToWorld(endPoint, drawingReferenceFrame)
+                : new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, endPoint.Z);
 
             // 오프셋 방향 및 baseline 결정
             string offsetDir = "";
@@ -1064,7 +1092,13 @@ namespace A2Z
             VIZCore3D.NET.Data.Vertex3D worldStartVertex;
             VIZCore3D.NET.Data.Vertex3D worldEndVertex;
 
-            switch (offsetDir)
+            if (drawingReferenceFrame != null)
+            {
+                // UserAxis 실패 시 월드축 치수를 잘못 그리지 않도록 원점만 안전 폴백으로 둔다.
+                worldStartVertex = originalStart;
+                worldEndVertex = originalEnd;
+            }
+            else switch (offsetDir)
             {
                 case "X":
                     worldStartVertex = new VIZCore3D.NET.Data.Vertex3D(worldOffsetValue, startPoint.Y, startPoint.Z);
@@ -1100,22 +1134,39 @@ namespace A2Z
             float distance = worldDistance;
             if (useUserAxes)
             {
-                float projectedMin, projectedMax;
-                GetBoundingBoxProjectionRange(normalizedOffsetAxis,
-                    globalMinX, globalMinY, globalMinZ,
-                    globalMaxX, globalMaxY, globalMaxZ,
-                    out projectedMin, out projectedMax);
-                baseline = positiveOffset ? projectedMax : projectedMin;
-                float projectedOffset = positiveOffset ? baseline + offset : baseline - offset;
-                startVertex = MovePointToAxisProjection(originalStart, normalizedOffsetAxis, projectedOffset);
-                endVertex = MovePointToAxisProjection(originalEnd, normalizedOffsetAxis, projectedOffset);
+                if (drawingReferenceFrame != null)
+                {
+                    // globalMin/Max와 start/end가 모두 로컬 좌표이므로 오프셋축 좌표만 바꾼 뒤 월드로 복원한다.
+                    float projectedOffset = positiveOffset ? baseline + offset : baseline - offset;
+                    VIZCore3D.NET.Data.Vertex3D localStart = new VIZCore3D.NET.Data.Vertex3D(
+                        startPoint.X, startPoint.Y, startPoint.Z);
+                    VIZCore3D.NET.Data.Vertex3D localEnd = new VIZCore3D.NET.Data.Vertex3D(
+                        endPoint.X, endPoint.Y, endPoint.Z);
+                    SetDrawingReferenceLocalAxisValue(localStart, offsetDir, projectedOffset);
+                    SetDrawingReferenceLocalAxisValue(localEnd, offsetDir, projectedOffset);
+                    startVertex = DrawingReferenceLocalToWorld(localStart, drawingReferenceFrame);
+                    endVertex = DrawingReferenceLocalToWorld(localEnd, drawingReferenceFrame);
+                    distance = Math.Abs(GetAxisValue(endPoint, axis) - GetAxisValue(startPoint, axis));
+                }
+                else
+                {
+                    float projectedMin, projectedMax;
+                    GetBoundingBoxProjectionRange(normalizedOffsetAxis,
+                        globalMinX, globalMinY, globalMinZ,
+                        globalMaxX, globalMaxY, globalMaxZ,
+                        out projectedMin, out projectedMax);
+                    baseline = positiveOffset ? projectedMax : projectedMin;
+                    float projectedOffset = positiveOffset ? baseline + offset : baseline - offset;
+                    startVertex = MovePointToAxisProjection(originalStart, normalizedOffsetAxis, projectedOffset);
+                    endVertex = MovePointToAxisProjection(originalEnd, normalizedOffsetAxis, projectedOffset);
 
-                float dx = endPoint.X - startPoint.X;
-                float dy = endPoint.Y - startPoint.Y;
-                float dz = endPoint.Z - startPoint.Z;
-                distance = Math.Abs(dx * normalizedMeasureAxis.X +
-                                    dy * normalizedMeasureAxis.Y +
-                                    dz * normalizedMeasureAxis.Z);
+                    float dx = endPoint.X - startPoint.X;
+                    float dy = endPoint.Y - startPoint.Y;
+                    float dz = endPoint.Z - startPoint.Z;
+                    distance = Math.Abs(dx * normalizedMeasureAxis.X +
+                                        dy * normalizedMeasureAxis.Y +
+                                        dz * normalizedMeasureAxis.Z);
+                }
             }
 
             // P3 #3 진단 (2026-05-23): measure 좌표가 부재 BBox와 어떻게 매칭되는지 추적
@@ -1147,6 +1198,11 @@ namespace A2Z
 
             if (!userAxisApplied)
             {
+                if (drawingReferenceFrame != null)
+                {
+                    DiagLog($"[DrawingRefAxis] UserAxis 치수 생성 실패 — 월드축 오표시 방지를 위해 생략 axis={axis}");
+                    return -1;
+                }
                 // UserAxis가 지원되지 않거나 투영 거리가 0이면 기존 동작을 그대로 보존한다.
                 baseline = worldBaseline;
                 startVertex = worldStartVertex;
@@ -1203,7 +1259,18 @@ namespace A2Z
             VIZCore3D.NET.Data.Vertex3D extStart = originalStart, extEnd = originalEnd;
             if (alignExtToBaseline)
             {
-                switch (offsetDir)
+                if (drawingReferenceFrame != null)
+                {
+                    VIZCore3D.NET.Data.Vertex3D localExtStart = new VIZCore3D.NET.Data.Vertex3D(
+                        startPoint.X, startPoint.Y, startPoint.Z);
+                    VIZCore3D.NET.Data.Vertex3D localExtEnd = new VIZCore3D.NET.Data.Vertex3D(
+                        endPoint.X, endPoint.Y, endPoint.Z);
+                    SetDrawingReferenceLocalAxisValue(localExtStart, offsetDir, baseline);
+                    SetDrawingReferenceLocalAxisValue(localExtEnd, offsetDir, baseline);
+                    extStart = DrawingReferenceLocalToWorld(localExtStart, drawingReferenceFrame);
+                    extEnd = DrawingReferenceLocalToWorld(localExtEnd, drawingReferenceFrame);
+                }
+                else switch (offsetDir)
                 {
                     case "X":
                         extStart = new VIZCore3D.NET.Data.Vertex3D(baseline, originalStart.Y, originalStart.Z);
@@ -1239,6 +1306,35 @@ namespace A2Z
             extensionLines.Add(extLine2);
 
             return measureId;
+        }
+
+        private VIZCore3D.NET.Data.Vertex3D GetDrawingReferenceAxisVertex(
+            DrawingReferenceFrame frame, string axis)
+        {
+            if (frame == null || string.IsNullOrEmpty(axis)) return null;
+            VIZCore3D.NET.Data.Vector3D source;
+            switch (axis)
+            {
+                case "X": source = frame.XAxis; break;
+                case "Y": source = frame.YAxis; break;
+                case "Z": source = frame.ZAxis; break;
+                default: return null;
+            }
+            return source == null
+                ? null
+                : new VIZCore3D.NET.Data.Vertex3D(source.X, source.Y, source.Z);
+        }
+
+        private void SetDrawingReferenceLocalAxisValue(
+            VIZCore3D.NET.Data.Vertex3D point, string axis, float value)
+        {
+            if (point == null) return;
+            switch (axis)
+            {
+                case "X": point.X = value; break;
+                case "Y": point.Y = value; break;
+                case "Z": point.Z = value; break;
+            }
         }
 
         private int AddWorldAxisDistance(
@@ -2302,7 +2398,8 @@ namespace A2Z
         /// </summary>
         private List<ChainDimensionData> ComputeViewDimensionsForMembers(
             List<int> memberIndices, string viewDirection = null, float tolerance = 0.5f,
-            Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> preBuiltNodeOsnapMap = null)
+            Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>> preBuiltNodeOsnapMap = null,
+            DrawingReferenceFrame drawingReferenceFrame = null)
         {
             List<ChainDimensionData> result = new List<ChainDimensionData>();
             if (memberIndices == null || memberIndices.Count == 0) return result;
@@ -2378,6 +2475,25 @@ namespace A2Z
             DiagLog($"E1 Osnap cache: hit={cacheHit} miss={cacheMiss} members={memberSet.Count} preBuilt={(preBuiltNodeOsnapMap?.Count ?? 0)}");
 
             if (nodeOsnapMap.Count == 0) return result;
+
+            if (drawingReferenceFrame != null)
+            {
+                var localMap =
+                    new Dictionary<int, List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>>();
+                foreach (var kv in nodeOsnapMap)
+                {
+                    var localPoints =
+                        new List<(VIZCore3D.NET.Data.Vertex3D point, string nodeName)>();
+                    foreach (var item in kv.Value)
+                        localPoints.Add((
+                            DrawingReferenceWorldToLocal(item.point, drawingReferenceFrame),
+                            item.nodeName));
+                    localMap[kv.Key] = localPoints;
+                }
+                nodeOsnapMap = localMap;
+                DiagLog($"[DrawingRefAxis] 치수 Osnap 로컬 변환 members={nodeOsnapMap.Count} " +
+                        $"angle={drawingReferenceFrame.AlignmentAngleDegrees:F2}°");
+            }
 
             // REQ-005 (2026-05-11): 좌표 키 → 부재 인덱스 집합 사전 구축
             //   결과 dim의 StartPoint/EndPoint 좌표로 lookup해 MemberIndices 채움 (lvDimension 행 선택 강조용)

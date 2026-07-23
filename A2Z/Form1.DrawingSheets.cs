@@ -580,13 +580,15 @@ namespace A2Z
         /// 설치도는 사전 준비한 전용 끝단→모서리 위치 치수를 유지하고,
         /// 일반 제작·조립도만 공용 Osnap 치수 엔진을 사용한다.
         /// </summary>
-        private List<ChainDimensionData> GetDrawingSheetDimensionsFor2D(DrawingSheetData sheet)
+        private List<ChainDimensionData> GetDrawingSheetDimensionsFor2D(
+            DrawingSheetData sheet, DrawingReferenceFrame drawingReferenceFrame = null)
         {
             if (sheet == null) return new List<ChainDimensionData>();
             if (sheet.BaseMemberIndex != -2)
             {
                 return ComputeViewDimensionsForMembers(
-                    sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap);
+                    sheet.MemberIndices, null, 0.5f, _lastCollectedNodeOsnapMap,
+                    drawingReferenceFrame);
             }
 
             if (!sheet.DimensionsPrepared)
@@ -1636,6 +1638,7 @@ namespace A2Z
         /// </summary>
         private void GenerateSheetDrawing2D_WithExcelTemplate(DrawingSheetData sheet)
         {
+            DrawingReferenceFrame drawingReferenceFrame = null;
             try
             {
                 vizcore3d.View.EnableAnimation = false;
@@ -1685,7 +1688,12 @@ namespace A2Z
                 // 설치도는 PreparedDimensions, 그 외 시트는 공용 Osnap 6조합 합집합을 사용한다.
                 chainDimensionList.Clear();
                 lvDimension.Items.Clear();
-                chainDimensionList.AddRange(GetDrawingSheetDimensionsFor2D(sheet));
+                // 제작도(Sheet 1)만 선택 영역의 가장 긴 수평 모서리로 참조축을 만든다.
+                // 조립도·설치도는 현재 실기 결과를 보존하기 위해 기존 세계축 경로를 유지한다.
+                if (sheet.BaseMemberIndex == -1)
+                    drawingReferenceFrame = TryBuildDrawingReferenceFrame(sheet.MemberIndices);
+                chainDimensionList.AddRange(
+                    GetDrawingSheetDimensionsFor2D(sheet, drawingReferenceFrame));
                 int dimNo = 1;
                 foreach (var dim in chainDimensionList)
                 {
@@ -1873,6 +1881,8 @@ namespace A2Z
                     List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
 
                     // 매 뷰마다 3D 어노테이션 초기화 (옛 RenderSheetViewForDrawing L1903~1905)
+                    ReleaseActiveDrawingReferenceAxis(
+                        $"sheet={sheet.SheetNumber} view={viewDir} start");
                     vizcore3d.Review.Note.Clear();
                     vizcore3d.Review.Measure.Clear();
                     vizcore3d.ShapeDrawing.Clear();
@@ -1891,10 +1901,17 @@ namespace A2Z
                     vizcore3d.EndUpdate();
 
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
-                    vizcore3d.View.MoveCamera(camDir);
-
-                    if (viewDir != "ISO" && sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
-                        ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
+                    if (drawingReferenceFrame != null)
+                    {
+                        ActivateDrawingReferenceAxis(
+                            drawingReferenceFrame, camDir, sheet.SheetNumber, viewDir);
+                    }
+                    else
+                    {
+                        vizcore3d.View.MoveCamera(camDir);
+                        if (viewDir != "ISO" && sheet.MemberIndices != null && sheet.MemberIndices.Count > 0)
+                            ApplyOrientationRotation(sheet.MemberIndices[0], viewDir);
+                    }
 
                     // ── 두 겹 표현 대상 산출 ──
                     //   설치도(전 뷰): 선택 STRU 실선 + 직접 연결된 외부 Part만 점선, STRU 기준 CropFit
@@ -1996,8 +2013,13 @@ namespace A2Z
                         List<int> scaleReferenceIndices = sheet.BaseMemberIndex == -2
                             ? sheet.MemberIndices
                             : displayIndices;
-                        float estScale = EstimateFitScaleForViewArea(availW, availH, viewDir, scaleReferenceIndices);
-                        shapeDrawingIds = ShowAllDimensions(viewDir, true, estScale);
+                        float estScale = EstimateFitScaleForViewArea(
+                            availW, availH, viewDir, scaleReferenceIndices,
+                            drawingReferenceFrame: drawingReferenceFrame);
+                        shapeDrawingIds = ShowAllDimensions(
+                            viewDir, true, estScale,
+                            keepCamera: drawingReferenceFrame != null,
+                            drawingReferenceFrame: drawingReferenceFrame);
                         // 부재-부재 접합 각도 표시 — 수직·수평이 아닌 접합부 각도를 같은 측정→2D 파이프라인에 누적 (2026-06-23)
                         MarkNonRightAngles(sheet.MemberIndices, viewDir);
                     }
@@ -2368,6 +2390,8 @@ namespace A2Z
                     }
 
                     viewsRendered++;
+                    ReleaseActiveDrawingReferenceAxis(
+                        $"sheet={sheet.SheetNumber} view={viewDir} complete");
                 }
 
                 // 정렬된 풍선·연결 이름 노트와 치수를 최종 캔버스에 반영한다.
@@ -2383,6 +2407,11 @@ namespace A2Z
             {
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate ERROR: {ex.Message}\n{ex.StackTrace}");
                 throw;
+            }
+            finally
+            {
+                ReleaseActiveDrawingReferenceAxis(
+                    $"sheet={(sheet != null ? sheet.SheetNumber : -1)} finally");
             }
         }
 
