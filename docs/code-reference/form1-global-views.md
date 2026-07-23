@@ -59,7 +59,7 @@
   1. 같은 Target Body↔Connected Body의 여러 접합영역을 하나로 병합
   2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축(주축)으로 선택
   3. Target 끝단면 MIN/MAX 중 연결 모서리에 가까운 쪽과, Connected Body에서 접합영역에 가장 가까운 LINE/POINT Osnap을 선택
-  4. **접합 기하 기반 축 선택** (2026-07-23 재설계, issue #12): 위치 기준을 연결부재 osnap이 아니라 **접합선(`GetObjectCollisionLine`) 대표점(centroid)**으로 잡는다 — 접합점은 정의상 기준부재 위라 위치가 부재를 벗어날 수 없어 크기 임계·상한이 불필요. 축 선택은 크기 대신 **접합 덮음**: 각 축 `coverage = 접합 extent / 부재 extent`가 `InstallationContactCrossCoverage(0.5)` 이상이면 연결부재가 그 축으로 부재를 가로지름(관통) → 생략, 미만이면 국소적 → `SelectInstallationTargetEndForAxis`로 끝단 재선정 후 `AxisComponents`에 추가. `[설치치수축]` 로그에 부재·접합 extent, 축별 덮음%, 위치축/가로지름제외 기록. `ConnectedCornerPoint`는 접합 centroid
+  4. **접합 기하 기반 축 선택** (2026-07-23 재설계, issue #12): 위치 기준을 연결부재 osnap이 아니라 **접합선(`GetObjectCollisionLine`) 대표점(centroid)**으로 잡는다 — 접합점은 정의상 기준부재 위라 위치가 부재를 벗어날 수 없어 크기 임계·상한이 불필요. 축 선택은 크기 대신 **접합 덮음**: 각 축 `coverage = 접합 extent / 부재 extent`가 `InstallationContactCrossCoverage(0.5)` 이상이면 연결부재가 그 축으로 부재를 가로지름(관통) → 생략, 미만이면 국소적 → `SelectInstallationTargetEndForAxis`로 끝단 재선정 후 `AxisComponents`에 추가. **치수 끝점은 접합 한가운데(centroid)가 아니라 접합측 모서리**: 각 축 접합 구간(min/max) 중 부재 끝단에 가까운 쪽을 `ConnectionCoord`에 저장(연결부재가 닿기 시작하는 모서리 — 실기값 29·31 복원). centroid는 끝단·덮음 판정·로그용, ConnectionCoord는 실제 치수 끝점. `[설치치수축]` 로그에 부재·접합 extent, 축별 덮음%·모서리거리, 위치축/가로지름제외 기록
   5. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
 
 ### SelectInstallationTargetEndForAxis(targetPoints, connectedCorner, worldAxis)

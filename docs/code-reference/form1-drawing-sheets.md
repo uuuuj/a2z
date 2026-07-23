@@ -60,14 +60,18 @@
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
 - **라인**: L1637+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 같은 도면 목록의 제작도·조립도·설치도·가공도가 공유하는 PAINT CODE를 `Input_166`에 적용 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지하고, 실선 투영 객체를 선택해 부재번호 풍선을 2D 변환한 뒤 제작도·설치도 연결 Assembly/Part 이름 노트를 생성한다. SDK 1.0.26.723의 영역 정렬 API는 두 종류의 라벨을 실제 모델 fit 70% 범위 바깥·View 안쪽에 함께 배치하며 연결 이름의 Target은 실제 접합점에 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영하며, 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 같은 도면 목록의 제작도·조립도·설치도·가공도가 공유하는 PAINT CODE를 `Input_166`에 적용 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. 제작도 1번 시트는 시트 Osnap의 최장 수평 LINE이 세계축에서 1° 넘게 틀어지면 `DrawingReferenceFrame`을 만들고 View마다 ReferenceAxis 카메라를 적용한다. 치수 Osnap도 같은 로컬축으로 변환해 UserAxis 치수·보조선으로 복원하며, View 종료마다 축을 Reset/Delete한다. 정상 제작도와 조립도·설치도는 기존 세계축 경로를 유지한다. ISO는 조립도/제작도 두 겹 표현을 유지하고, 실선 투영 객체를 선택해 부재번호 풍선을 2D 변환한 뒤 제작도·설치도 연결 Assembly/Part 이름 노트를 생성한다. SDK 1.0.26.723의 영역 정렬 API는 두 종류의 라벨을 실제 모델 fit 70% 범위 바깥·View 안쪽에 함께 배치하며 연결 이름의 Target은 실제 접합점에 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영하며, 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
+
+### TryBuildDrawingReferenceFrame / ActivateDrawingReferenceAxis
+- **라인**: L2463+
+- **역할**: 제작도 1번 시트 부재에서 XY 투영이 가장 긴 Osnap LINE을 골라 수평 로컬 X/Y/Z 프레임과 로컬 범위를 계산한다. 세계축과 1° 이내면 no-op. 기울어진 경우 각 ISO/Z/X/Y View에서 `ReferenceAxis.Create/Activate → MoveCamera → Reset/Delete` 수명주기를 적용하고 `[DrawingRefAxis]` 로그를 남긴다
 
 ### GetDrawingSheetDisplayIndices
-- **라인**: L2392+
+- **라인**: L2681+
 - **역할**: 일반 시트는 `MemberIndices`, 설치도는 `MemberIndices + InstallationContextIndices`를 반환한다. 설치도 3D 미리보기 가시성에는 양쪽을 쓰지만, 2D fit·Crop·보조선 축척은 선택 STRU `MemberIndices`만 기준으로 사용
 
 ### GetFabricationNeighborAssemblyNotes / FindNearestParentAssembly
-- **라인**: L2440~L2523
+- **라인**: L2729+
 - **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
 ### GetStruPntUdaValue
