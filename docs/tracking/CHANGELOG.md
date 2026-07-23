@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-07-23 — 가공도 홀·슬롯 최종 화면 하단 배치
+
+**유형**: fix
+**커밋**: `pending` (+ 대기 모델·최종 화면 배치 헬퍼 auto-sync 선반영)
+**관련 TASK**: T-086 (가공도 홀·슬롯 최종 화면 하단 배치)
+**관련 ISSUE**: GitHub issue #39
+**변경 사항**:
+- Hole/SlotHole 노트를 회전 전에 즉시 생성하지 않고 `MfgViewPose.PendingHoleNotes`에 수집한 뒤, `ProbeAndRollLandscape`의 최종 가로 전환 이후 생성하도록 순서 변경
+- ORIENTATION ReferenceAxis 로컬축과 실패 폴백 화면 roll, 추가 90도 가로화 roll을 합산한 최종 화면 기저로 모델 하단과 홀 중심의 수평 위치 계산
+- 회전 없는 정상 부재는 기존 하단 공식과 같은 결과를 유지하고, `[HoleNote]` 로그로 생성 수·회전각·최종 수직 폭 기록
+
+**영향 범위**: 가공도 PDF 첫 번째 뷰의 Hole/SlotHole 위치. EarthBoss·3D 미리보기·가공도 치수·다른 도면 종류는 기존 유지
+
 ## 2026-07-23 — 연결부재 이름 STRU 단위 표시 (#45)
 
 **유형**: feat
