@@ -912,17 +912,28 @@ namespace A2Z
                 }
                 catch { }
 
-                foreach (var view in viewAxes.Where(item => item.Value.Contains(anchor.Axis)))
+                // 주축(부재 길이 방향) 성분만 만들면 주축과 직교하는 뷰(예: Z 부재의 평면도)는 보여줄
+                //   치수가 없어 빈 뷰가 됐다 (2026-07-23). 끝단↔모서리 벡터의 세 축 성분을 모두 만들고
+                //   뷰별 필터(viewAxes)가 각 뷰에서 보이는 성분만 표시한다.
+                //   성분이 0.5mm 이하인 축은 AddInstallationDimension 가드가 걸러 기존과 동일.
+                DiagLog($"[설치치수] {targetName}→{connection.ConnectedPartName} 주축={anchor.Axis} " +
+                        $"성분=({Math.Abs(anchor.ConnectedCornerPoint.X - anchor.TargetEndPoint.X):F1}," +
+                        $"{Math.Abs(anchor.ConnectedCornerPoint.Y - anchor.TargetEndPoint.Y):F1}," +
+                        $"{Math.Abs(anchor.ConnectedCornerPoint.Z - anchor.TargetEndPoint.Z):F1})");
+                foreach (string dimAxis in new[] { "X", "Y", "Z" })
                 {
-                    AddInstallationDimension(result,
-                        anchor.TargetEndPoint,
-                        anchor.ConnectedCornerPoint,
-                        anchor.Axis,
-                        view.Key,
-                        $"설치 {connection.Label} - {targetName} 끝단 → {connection.ConnectedPartName} 모서리",
-                        false,
-                        true,
-                        new[] { anchor.TargetBodyIndex, anchor.ConnectedBodyIndex });
+                    foreach (var view in viewAxes.Where(item => item.Value.Contains(dimAxis)))
+                    {
+                        AddInstallationDimension(result,
+                            anchor.TargetEndPoint,
+                            anchor.ConnectedCornerPoint,
+                            dimAxis,
+                            view.Key,
+                            $"설치 {connection.Label} - {targetName} 끝단 → {connection.ConnectedPartName} 모서리",
+                            false,
+                            true,
+                            new[] { anchor.TargetBodyIndex, anchor.ConnectedBodyIndex });
+                    }
                 }
             }
 
