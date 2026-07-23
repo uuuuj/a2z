@@ -70,7 +70,7 @@
 | `Name1`, `Name2` | string | 간섭 부재명 |
 | `ZValue` | float | HotPoint Z (정렬 기준) |
 
-### DrawingSheetData (L131~L155)
+### DrawingSheetData (L165~L197)
 도면 시트.
 
 | 필드 | 타입 | 용도 |
@@ -81,11 +81,12 @@
 | `MemberIndices` | List&lt;int&gt; | 포함 부재 Index 리스트 |
 | `MemberNames` | List&lt;string&gt; | 포함 부재명 |
 | `MfgDrawingNo` | int | 가공도 번호 |
+| `PaintCode` | string | 같은 STRU에서 생성된 제작도·조립도·설치도·가공도가 공유하는 PNT 계열 UDA 값. `null`은 미조회, 빈 문자열은 조회 결과 없음 |
 | `PreparedDimensions` / `DimensionsPrepared` | List / bool | 목록 표시 전에 준비한 시트 치수와 준비 상태 |
 | `PreparedBomRows` / `BomPrepared` | List / bool | 목록 표시 전에 준비한 BOM 행과 준비 상태 |
 | `PreparedBomNodeGroupMap` | Dictionary | 시트 기준 Body→BOM 그룹 번호 |
 
-### DrawingBomRowData (L159~L169)
+### DrawingBomRowData (L200~L211)
 도면정보 탭 BOM 한 행의 문자열 데이터. `ListViewItem`을 직접 보관하지 않고 시트 전환 때 안전하게 UI 행을 생성한다.
 
 ---

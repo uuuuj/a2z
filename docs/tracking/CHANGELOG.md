@@ -6,11 +6,24 @@
 
 ---
 
+## 2026-07-23 — 모든 도면 PAINT CODE 공용값 보장
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-082 (모든 도면 PAINT CODE에 STRU PNT UDA 공통 표시)
+**관련 ISSUE**: GitHub issue #28
+**변경 사항**:
+- 첫 안전 출력 시점에 STRU PNT 값을 한 번 확정해 같은 도면 목록의 모든 `DrawingSheetData`에 저장
+- 제작도·조립도·설치도와 가공도 모든 페이지가 동일한 `Input_166` 값을 재사용
+- PNT 미존재 결과도 캐시해 반복 UDA 조회를 막고 기존 공백·괘선을 유지
+
+**영향 범위**: 제작도·조립도·설치도 엑셀 2D 출력과 가공도 PDF의 PAINT CODE 칸
+
 ## 2026-07-23 — PAINT CODE에 STRU PNT UDA 표시
 
 **유형**: feat
 **커밋**: `1da8af7`
-**관련 TASK**: T-082 (제작도·가공도 PAINT CODE에 STRU PNT UDA 표시)
+**관련 TASK**: T-082 (모든 도면 PAINT CODE에 STRU PNT UDA 공통 표시)
 **관련 ISSUE**: GitHub issue #28
 **변경 사항**:
 - 이름에 `PNT`가 포함된 UDA 키를 기준부재에서 부모 10단계까지 탐색하고 복수 후보 키·값을 진단 로그에 기록

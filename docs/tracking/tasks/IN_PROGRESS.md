@@ -6,23 +6,26 @@
 
 ---
 
-### T-082 — 제작도·가공도 PAINT CODE에 STRU PNT UDA 표시
+### T-082 — 모든 도면 PAINT CODE에 STRU PNT UDA 공통 표시
 - **생성일/착수일**: 2026-07-23
 - **상태**: IN_PROGRESS (구현·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #28
 - **구현**:
   - [x] 기준부재에서 부모 10단계까지 이름에 `PNT`가 포함된 UDA 키 탐색
   - [x] 복수 후보 키·값 전체를 `[PAINT CODE]` 로그로 남기고 첫 비어 있지 않은 값 선택
-  - [x] 제작도 `Input_166`에 PAINT CODE 값 적용, 미존재 시 공백·괘선 유지
-  - [x] 가공도 첫 부재에서 출력당 1회 조회해 모든 페이지 `Input_166`에 재사용
+  - [x] 안전한 첫 출력 시점에 값을 한 번 조회해 같은 목록의 모든 `DrawingSheetData.PaintCode`에 캐시
+  - [x] 제작도·조립도·설치도 `Input_166`에 동일한 PAINT CODE 값 적용
+  - [x] 가공도 모든 페이지 `Input_166`에 같은 공용값 재사용
+  - [x] PNT 미존재도 빈 문자열로 조회 완료 캐시하고 공백·괘선 유지
   - [x] UDA 조회를 `BeginUpdate` 밖에서 수행
   - [x] 별도 출력 폴더 Debug 빌드 오류 0건
 - **사용자 확인 필요**:
   - [ ] 제작도 PDF PAINT CODE 칸에 기대한 PNT 값이 표시되는지
+  - [ ] 조립도·설치도 PDF에 제작도와 같은 PAINT CODE가 표시되는지
   - [ ] 가공도 모든 페이지 PAINT CODE 칸에 같은 값이 표시되는지
   - [ ] PNT 미설정 모델에서 빈칸과 괘선이 유지되는지
   - [ ] `[PAINT CODE]` 로그의 실제 매칭 키를 보고 복수 후보 우선순위가 필요한지
-- **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.MfgDrawing.cs`, 제작도·가공도 출력 흐름 문서
+- **영향 파일**: `A2Z/Models.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.MfgDrawing.cs`, 도면 시트·가공도 출력 흐름 문서
 
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
