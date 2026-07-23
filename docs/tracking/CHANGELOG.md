@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-07-23 — STRU 이름 검색 → 즉시 치수 추출 입력창
+
+**유형**: feat
+**커밋**: `pending` (기능 코드는 auto-sync `6ae6502`, 본 커밋은 흐름 문서·CHANGELOG)
+**관련 ISSUE**: GitHub issue #36
+**변경 사항**:
+- STRU 목록(`groupBoxStru`) 하단에 STRU 이름 검색 입력창을 코드로 생성(Designer 미사용). 자동완성 소스는 STRU 목록(`PopulateStruCheckList`)과 함께 갱신
+- 검색어로 STRU를 찾아(완전일치 → 부분일치 첫 매칭) 전체 BODY 숨김 후 그 STRU BODY만 표시하는 격리 수행(`ProcessSingleStruFull` 패턴)
+- 격리 후 기존 치수 추출 파이프라인(`btnMainDimension_Click`) 실행 — Enter 또는 "치수 추출" 버튼
+- 흐름 문서 신설: `docs/기능/치수/STRU 검색 치수 추출.md`
+
+**영향 범위**: `Form1.Stru.cs`(검색 UI·격리·추출), `Form1.cs`(생성자 `InitStruSearchUI` 호출). 기존 STRU 목록·치수 추출 버튼 흐름 불변
+
 ## 2026-07-23 — 참조축 제작도 UserAxis 치수 문자 화면 정렬
 
 **유형**: fix
