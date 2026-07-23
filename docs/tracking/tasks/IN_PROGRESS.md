@@ -6,6 +6,28 @@
 
 ---
 
+### T-083 — ISO 부재번호 풍선 View 영역 자동 정렬
+- **생성일/착수일**: 2026-07-23
+- **상태**: IN_PROGRESS (SDK 1.0.26.723 적용·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
+- **구현 커밋**: `2664b8e`
+- **관련**: 사용자 직접 지시, GitHub issue #4, Softhills SDK 1.0.26.723 배포 예제
+- **구현**:
+  - [x] SDK XML·DLL에서 `Set2DViewAlignAreaReviewsPositionByOffset(Vertex3D, Vertex3D, float)` 존재·void 반환·예제 순서 검증
+  - [x] 프로젝트 관리 DLL 참조를 1.0.26.723 `lib\` 기준으로 고정하고 외부 PC 절대경로 제거
+  - [x] ISO 실선 투영 객체 선택 → `Add2DNoteFrom3DNote` → 선택 해제 순서 적용
+  - [x] `{View_1}` 좌표에 Core 템플릿 패딩 15mm를 X/Y에 더한 캔버스 영역으로 풍선 정렬
+  - [x] 배포 예제의 `offset=10px` 적용, 성공·실패·영역·풍선 수 진단 로그 추가
+  - [x] 제작도·설치도 연결 Assembly/Part 이름 노트는 정렬 후 생성해 부재번호 풍선과 분리
+  - [x] 정렬 API 예외 시 기존 AABB 배치로 출력 계속
+  - [x] Debug 빌드 오류 0건
+- **사용자 확인 필요**:
+  - [ ] 제작도·조립도·설치도 PDF에서 풍선이 ISO View 테두리 주변에 정렬되는지
+  - [ ] 큰 조립체에서 풍선끼리·모델·ISO 제목과 겹치지 않는지
+  - [ ] 지시선이 대상 부재를 유지하고 과도하게 길어지지 않는지
+  - [ ] 제작도·설치도 연결 이름 노트가 기존 접합 위치를 유지하는지
+  - [ ] X/Y/Z 치수·3D 미리보기가 기존과 동일한지
+- **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, `A2Z/A2Z.csproj`, ISO·2D 렌더·빌드 환경 문서
+
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
 - **상태**: IN_PROGRESS (ORIENTATION 우선 판정·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 PDF 실기 검증 대기)

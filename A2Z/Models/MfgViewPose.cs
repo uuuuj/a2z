@@ -3,7 +3,7 @@
 // T-036 전역 필드(_mfgDrawingZ90Applied 등) 대체 — 카메라 회전 의도를 객체로 캡슐화.
 // LvDrawingSheet_SelectedIndexChanged 후처리 회전이 _lastMfgViewPose를 참조해 적용.
 //
-// Codex 3차 설계 (8필드):
+// Codex 4차 설계:
 //   - CameraData         : 카메라 상태 스냅샷
 //   - ViewDirection      : "X"/"Y"/"Z" 정면 뷰 방향
 //   - LongestAxis        : 부재 BBox 최장축
@@ -12,6 +12,9 @@
 //   - ApplyZ90           : Z 최장축 시 90° 회전 필요 (가로로 길게 표시)
 //   - ApplyR180          : EA L자 열린 방향 정렬용 180° 회전
 //   - OrientationAngle   : ApplyOrientationRotation 보존값 (UDA ORIENTATION 기반)
+//   - UseReferenceAxis   : 기울어진 부재의 로컬축 카메라 사용 여부
+//   - ReferenceAxisX/Y/Z : ORIENTATION에서 만든 월드좌표계상의 부재 로컬축
+//   - ReferenceAxisOrigin: 참조축 원점(BBox 중심)
 
 namespace A2Z
 {
@@ -41,6 +44,11 @@ namespace A2Z
         public bool ApplyR180 { get; set; }
         public string OrientationAxis { get; set; }
         public float OrientationAngle { get; set; }
+        public bool UseReferenceAxis { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ReferenceAxisX { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ReferenceAxisY { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ReferenceAxisZ { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ReferenceAxisOrigin { get; set; }
 
         /// <summary>
         /// Step B3 (2026-05-19): 코어가 vizcore3d.ShapeDrawing.AddLine으로 등록한 보조선 ID 목록.
