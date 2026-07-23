@@ -198,18 +198,12 @@ namespace A2Z
         private const float InstallationContactSnapTolerance = 3.0f;
         private const float InstallationPlacementTieTolerance = 0.5f;
 
-        // 설치도 위치 치수 축 게이트 (issue #12, 2026-07-23) — 부재가 유의미하게 긴 축만 치수 대상으로 채택해
-        //   판 두께·법선(연결부재가 어셈블리 간격 ~1mm 떨어져 뻗는) 축을 배제한다. 실기 튜닝 전제(로그 기반).
-        //   채택 조건: 축 extent ≥ 최대 extent × Ratio  AND  축 extent ≥ MinExtent(mm). 단, 주축은 무조건 채택.
-        private const float InstallationAxisExtentRatio = 0.25f;
-        private const float InstallationAxisMinExtent = 30.0f;
-        // 성분 최소 임계(mm) — 축 게이트를 통과해도 남는 미소 성분(끝단 근접 연결·어셈블리 틈 잔여)을 이중 차단.
+        // 성분 최소 임계(mm) — 끝단에 사실상 붙은(거리≈0) 위치는 그리지 않는다(끝단 근접 연결·어셈블리 틈 잔여).
         private const float InstallationMinComponent = 3.0f;
-        // 성분 상한 배수 (issue #12, 2026-07-23 실기) — 성분값(끝단→연결 접합점 거리)이 그 축 부재 extent를
-        //   이 배수 넘게 초과하면 제외한다. 설치도는 "연결부재가 부재 위 어느 위치에 붙는지"를 보이므로 위치는
-        //   부재 span 안이어야 한다. 연결부재가 큰 부재라 그 축으로 멀리 뻗어(예: 50mm 축에 성분 147·950)
-        //   접합 osnap이 부재 밖에 잡히면, 그 성분은 위치가 아니라 먼 부재까지의 거리 → 도면을 벗어난다.
-        private const float InstallationComponentExtentCapFactor = 1.25f;
+        // 접합 가로지름 임계 (issue #12, 2026-07-23 재설계) — 접합이 그 축으로 부재를 이 비율 이상 덮으면
+        //   "연결부재가 그 축으로 부재를 가로지름(관통)"으로 보고 위치 치수를 생략한다. 미만이면 한 지점에
+        //   국소적으로 붙은 것 → 위치 치수 표시. 크기 임계(부재가 긴가) 대신 접합 형태로 판정. 절반이 자연 분기점.
+        private const float InstallationContactCrossCoverage = 0.5f;
 
         /// <summary>
         /// 채택된 긴 축 하나에 대한 위치 치수 성분. 축마다 기준 끝단이 다르므로 성분별로 끝단을 보관한다.
@@ -829,131 +823,89 @@ namespace A2Z
                 .Select(group => group.First())
                 .ToList();
 
-            Func<VIZCore3D.NET.Data.Vector3D, double> contactDistance = point =>
+            // 접합점이 전혀 없으면(교선·mesh·hotpoint 모두 실패) 위치를 특정할 수 없다 — 치수 생략.
+            if (contactPoints.Count == 0) return null;
+
+            // ── [2026-07-23 재설계] 위치 기준을 연결부재 osnap → 접합점(교선)으로 ──
+            //   접합점은 두 부재가 물리적으로 맞닿는 교선이라 정의상 기준부재 표면 위에 있다. 연결부재가 큰
+            //   부재라 그 osnap이 접합부에서 멀어도(147·950), 접합점 자체는 항상 기준부재 범위 안 → 위치 치수가
+            //   도면을 벗어나는 게 구조적으로 불가능. 임계값(성분 상한·크기 비율)이 필요 없어진다.
+            var contactCentroid = new VIZCore3D.NET.Data.Vector3D(
+                (float)contactPoints.Average(p => (double)p.X),
+                (float)contactPoints.Average(p => (double)p.Y),
+                (float)contactPoints.Average(p => (double)p.Z));
+
+            double memExtX = targetPoints.Max(p => (double)p.X) - targetPoints.Min(p => (double)p.X);
+            double memExtY = targetPoints.Max(p => (double)p.Y) - targetPoints.Min(p => (double)p.Y);
+            double memExtZ = targetPoints.Max(p => (double)p.Z) - targetPoints.Min(p => (double)p.Z);
+            double conExtX = contactPoints.Max(p => (double)p.X) - contactPoints.Min(p => (double)p.X);
+            double conExtY = contactPoints.Max(p => (double)p.Y) - contactPoints.Min(p => (double)p.Y);
+            double conExtZ = contactPoints.Max(p => (double)p.Z) - contactPoints.Min(p => (double)p.Z);
+
+            VIZCore3D.NET.Data.Vector3D mainEnd =
+                SelectInstallationTargetEndForAxis(targetPoints, contactCentroid, worldAxis);
+
+            InstallationPlacementAnchor best = new InstallationPlacementAnchor
             {
-                if (contactPoints.Count > 0)
-                    return contactPoints.Min(contact => Distance3D(point, contact));
-                return targetPoints.Min(target => Distance3D(point, target));
+                TargetPartIndex = first.TargetPartIndex,
+                TargetBodyIndex = first.TargetBodyIndex,
+                ConnectedPartIndex = first.ConnectedPartIndex,
+                ConnectedBodyIndex = first.ConnectedBodyIndex,
+                Axis = worldAxis,
+                TargetEndPoint = mainEnd,
+                ConnectedCornerPoint = contactCentroid,     // 위치 기준 = 접합점(기준부재 위)
+                TargetBoundsFallback = targetBoundsFallback,
+                ConnectedBoundsFallback = connectedBoundsFallback,
+                MainDirectionTotalLength = mainDirectionTotalLength,
+                SecondDirectionTotalLength = secondDirectionTotalLength,
+                MergedAreaCount = connections.Count
             };
-            double nearestContactDistance = connectedPoints.Min(contactDistance);
-            List<VIZCore3D.NET.Data.Vector3D> cornerCandidates = connectedPoints
-                .Where(point => contactDistance(point) <= nearestContactDistance + InstallationPlacementTieTolerance)
-                .ToList();
-            if (cornerCandidates.Count == 0) return null;
 
-            double minProjection = targetPoints.Min(point => ProjectInstallationPoint(point, direction));
-            double maxProjection = targetPoints.Max(point => ProjectInstallationPoint(point, direction));
-            InstallationPlacementAnchor best = null;
-            double bestAxisDistance = double.MaxValue;
-            double bestPerpendicularDistance = double.MaxValue;
-
-            foreach (VIZCore3D.NET.Data.Vector3D connectedCorner in cornerCandidates)
+            // ── 축 선택: 접합이 그 축으로 부재를 얼마나 덮는가 (coverage = 접합 extent / 부재 extent) ──
+            //   [2026-07-23 재설계] 크기 임계(부재가 긴가) 대신 접합 형태로 판정한다.
+            //   coverage ≥ CrossCoverage: 연결부재가 그 축으로 부재를 가로지름(관통) → 특정 위치 없음 → 생략.
+            //   coverage < CrossCoverage: 한 지점에 국소적으로 붙음 → 위치 치수 표시.
+            //   막대는 길이축만(단면축은 파이프가 관통해 100% 덮음), 판재는 길이+폭이 자연히 나온다.
+            //   접합점은 기준부재 위라 위치는 항상 부재 span 안 → 상한·비율 임계값 불필요.
+            string[] axesXYZ = { "X", "Y", "Z" };
+            double[] memExt = { memExtX, memExtY, memExtZ };
+            double[] conExt = { conExtX, conExtY, conExtZ };
+            var placedAxes = new List<string>();
+            var crossedAxes = new List<string>();
+            for (int ai = 0; ai < 3; ai++)
             {
-                double cornerProjection = ProjectInstallationPoint(connectedCorner, direction);
-                double endProjection = Math.Abs(cornerProjection - minProjection) <=
-                                       Math.Abs(cornerProjection - maxProjection)
-                    ? minProjection
-                    : maxProjection;
-                double nearestEndPlaneDistance = targetPoints.Min(point =>
-                    Math.Abs(ProjectInstallationPoint(point, direction) - endProjection));
-                List<VIZCore3D.NET.Data.Vector3D> endCandidates = targetPoints
-                    .Where(point => Math.Abs(ProjectInstallationPoint(point, direction) - endProjection) <=
-                                    nearestEndPlaneDistance + InstallationPlacementTieTolerance)
-                    .ToList();
-                VIZCore3D.NET.Data.Vector3D targetEnd = endCandidates
-                    .OrderBy(point => GetInstallationPerpendicularDistance(point, connectedCorner, direction))
-                    .ThenBy(point => Distance3D(point, connectedCorner))
-                    .First();
-
-                double axisDistance = Math.Abs(
-                    GetVectorAxisValue(connectedCorner, worldAxis) -
-                    GetVectorAxisValue(targetEnd, worldAxis));
-                double perpendicularDistance =
-                    GetInstallationPerpendicularDistance(targetEnd, connectedCorner, direction);
-                if (best != null &&
-                    (axisDistance > bestAxisDistance + 0.001 ||
-                     (Math.Abs(axisDistance - bestAxisDistance) <= 0.001 &&
-                      perpendicularDistance >= bestPerpendicularDistance)))
+                string axis = axesXYZ[ai];
+                double coverage = memExt[ai] > 1e-3 ? conExt[ai] / memExt[ai] : 1.0;
+                if (coverage >= InstallationContactCrossCoverage)
+                {
+                    crossedAxes.Add($"{axis}={coverage:P0}");
                     continue;
-
-                bestAxisDistance = axisDistance;
-                bestPerpendicularDistance = perpendicularDistance;
-                best = new InstallationPlacementAnchor
-                {
-                    TargetPartIndex = first.TargetPartIndex,
-                    TargetBodyIndex = first.TargetBodyIndex,
-                    ConnectedPartIndex = first.ConnectedPartIndex,
-                    ConnectedBodyIndex = first.ConnectedBodyIndex,
-                    Axis = worldAxis,
-                    TargetEndPoint = targetEnd,
-                    ConnectedCornerPoint = connectedCorner,
-                    TargetBoundsFallback = targetBoundsFallback,
-                    ConnectedBoundsFallback = connectedBoundsFallback,
-                    MainDirectionTotalLength = mainDirectionTotalLength,
-                    SecondDirectionTotalLength = secondDirectionTotalLength,
-                    MergedAreaCount = connections.Count
-                };
+                }
+                VIZCore3D.NET.Data.Vector3D axisEnd = axis == worldAxis
+                    ? mainEnd
+                    : SelectInstallationTargetEndForAxis(targetPoints, contactCentroid, axis);
+                best.AxisComponents.Add(new InstallationAxisComponent { Axis = axis, TargetEndPoint = axisEnd });
+                placedAxes.Add($"{axis}(덮음{coverage:P0})");
             }
 
-            if (best != null)
-            {
-                // ── 축 게이트 (issue #12, 2026-07-23) — 부재가 유의미하게 긴 축만 성분 치수로 채택 ──
-                //   판 두께·법선 축(연결부재가 어셈블리 간격 ~1mm 떨어져 뻗는 방향)을 배제해, 겹쳐 보이는
-                //   1mm 틈 치수와 설치 위치와 무관한 수평 성분을 함께 제거한다. 주축은 무조건 채택(회귀 방지).
-                double extentX = targetPoints.Max(p => (double)p.X) - targetPoints.Min(p => (double)p.X);
-                double extentY = targetPoints.Max(p => (double)p.Y) - targetPoints.Min(p => (double)p.Y);
-                double extentZ = targetPoints.Max(p => (double)p.Z) - targetPoints.Min(p => (double)p.Z);
-                double maxExtent = Math.Max(extentX, Math.Max(extentY, extentZ));
-                string[] axesXYZ = { "X", "Y", "Z" };
-                double[] extentsXYZ = { extentX, extentY, extentZ };
-                var acceptedAxes = new List<string>();
-                for (int ai = 0; ai < 3; ai++)
-                {
-                    bool isMain = axesXYZ[ai] == best.Axis;
-                    bool pass = extentsXYZ[ai] >= maxExtent * InstallationAxisExtentRatio &&
-                                extentsXYZ[ai] >= InstallationAxisMinExtent;
-                    if (pass || isMain) acceptedAxes.Add(axesXYZ[ai]);
-                }
-                var acceptedComponents = new List<string>();
-                var cappedComponents = new List<string>();
-                foreach (string axis in acceptedAxes)
-                {
-                    // 주축은 이미 확정된 끝단(실기 검증된 최장축 치수) 그대로, 나머지 축은 그 축 기준으로 재선정.
-                    VIZCore3D.NET.Data.Vector3D axisEnd = axis == best.Axis
-                        ? best.TargetEndPoint
-                        : SelectInstallationTargetEndForAxis(targetPoints, best.ConnectedCornerPoint, axis);
+            double mainComp = Math.Abs(
+                GetVectorAxisValue(contactCentroid, worldAxis) - GetVectorAxisValue(mainEnd, worldAxis));
+            DiagLog($"[설치치수축] targetPart={best.TargetPartIndex} " +
+                    $"부재extent=(X={memExtX:F0},Y={memExtY:F0},Z={memExtZ:F0}) " +
+                    $"접합extent=(X={conExtX:F0},Y={conExtY:F0},Z={conExtZ:F0}) 접합점={contactPoints.Count} " +
+                    $"기준=({contactCentroid.X:F0},{contactCentroid.Y:F0},{contactCentroid.Z:F0}) " +
+                    $"cross임계={InstallationContactCrossCoverage:P0} 위치축=[{string.Join(",", placedAxes)}]" +
+                    (crossedAxes.Count > 0 ? $" 가로지름제외=[{string.Join(",", crossedAxes)}]" : ""));
 
-                    // 성분 상한 (2026-07-23 실기): 연결부재 접합점이 부재 span을 크게 벗어나면(연결부재가 그 축으로
-                    //   멀리 뻗은 큰 부재) 그 성분은 "부재 위 위치"가 아니라 먼 부재까지의 거리 → 도면을 벗어난다.
-                    //   성분이 부재 extent×Cap을 넘으면 제외. (예: 50mm 축에 성분 147·950)
-                    double axisExtentVal = axis == "X" ? extentX : (axis == "Y" ? extentY : extentZ);
-                    double compVal = Math.Abs(
-                        GetVectorAxisValue(best.ConnectedCornerPoint, axis) - GetVectorAxisValue(axisEnd, axis));
-                    if (compVal > axisExtentVal * InstallationComponentExtentCapFactor)
-                    {
-                        cappedComponents.Add($"{axis}={compVal:F0}>{axisExtentVal:F0}×{InstallationComponentExtentCapFactor}");
-                        continue;
-                    }
-
-                    best.AxisComponents.Add(new InstallationAxisComponent { Axis = axis, TargetEndPoint = axisEnd });
-                    acceptedComponents.Add(axis);
-                }
-                DiagLog($"[설치치수축] targetPart={best.TargetPartIndex} " +
-                        $"extent=(X={extentX:F1},Y={extentY:F1},Z={extentZ:F1}) maxExt={maxExtent:F1} " +
-                        $"main={best.Axis} ratio={InstallationAxisExtentRatio} minExt={InstallationAxisMinExtent} " +
-                        $"gate=[{string.Join(",", acceptedAxes)}] 성분채택=[{string.Join(",", acceptedComponents)}]" +
-                        (cappedComponents.Count > 0 ? $" 상한제외=[{string.Join(",", cappedComponents)}]" : ""));
-
-                DiagLog($"[설치위치] targetPart={best.TargetPartIndex} targetBody={best.TargetBodyIndex} " +
-                        $"connectedPart={best.ConnectedPartIndex} connectedBody={best.ConnectedBodyIndex} " +
-                        $"axis={best.Axis} mainDir=({direction.X:F3},{direction.Y:F3},{direction.Z:F3}) " +
-                        $"mainSum={best.MainDirectionTotalLength:F1} " +
-                        $"secondSum={best.SecondDirectionTotalLength:F1} areas={best.MergedAreaCount} " +
-                        $"targetEnd=({best.TargetEndPoint.X:F1},{best.TargetEndPoint.Y:F1},{best.TargetEndPoint.Z:F1}) " +
-                        $"connectedCorner=({best.ConnectedCornerPoint.X:F1},{best.ConnectedCornerPoint.Y:F1},{best.ConnectedCornerPoint.Z:F1}) " +
-                        $"distance={bestAxisDistance:F1} targetBBox={best.TargetBoundsFallback} " +
-                        $"connectedBBox={best.ConnectedBoundsFallback}");
-            }
+            DiagLog($"[설치위치] targetPart={best.TargetPartIndex} targetBody={best.TargetBodyIndex} " +
+                    $"connectedPart={best.ConnectedPartIndex} connectedBody={best.ConnectedBodyIndex} " +
+                    $"axis={best.Axis} mainDir=({direction.X:F3},{direction.Y:F3},{direction.Z:F3}) " +
+                    $"mainSum={best.MainDirectionTotalLength:F1} " +
+                    $"secondSum={best.SecondDirectionTotalLength:F1} areas={best.MergedAreaCount} " +
+                    $"targetEnd=({best.TargetEndPoint.X:F1},{best.TargetEndPoint.Y:F1},{best.TargetEndPoint.Z:F1}) " +
+                    $"접합기준=({best.ConnectedCornerPoint.X:F1},{best.ConnectedCornerPoint.Y:F1},{best.ConnectedCornerPoint.Z:F1}) " +
+                    $"mainComp={mainComp:F1} targetBBox={best.TargetBoundsFallback} " +
+                    $"connectedBBox={best.ConnectedBoundsFallback}");
             return best;
         }
 
