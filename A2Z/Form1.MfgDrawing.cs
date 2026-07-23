@@ -552,6 +552,126 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 가공도 홀/슬롯 노트를 최종 카메라 기준 화면 하단에 생성한다.
+        /// BuildMfgSceneCore에서 바로 만들면 이후 ProbeAndRollLandscape의 90° 회전에 함께 돌아
+        /// 회전 전 '아래'가 최종 화면 '왼쪽'이 되므로, 가로 전환이 끝난 뒤 호출해야 한다.
+        /// </summary>
+        private void AddMfgPendingHoleNotes(BOMData bom, MfgViewPose pose, float landscapeRoll)
+        {
+            if (bom == null || pose == null || pose.PendingHoleNotes == null ||
+                pose.PendingHoleNotes.Count == 0)
+                return;
+
+            var worldX = new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f);
+            var worldY = new VIZCore3D.NET.Data.Vector3D(0f, 1f, 0f);
+            var worldZ = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f);
+            var origin = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 0f);
+
+            VIZCore3D.NET.Data.Vector3D localX = worldX;
+            VIZCore3D.NET.Data.Vector3D localY = worldY;
+            VIZCore3D.NET.Data.Vector3D localZ = worldZ;
+            if (pose.UseReferenceAxis &&
+                pose.ReferenceAxisX != null && pose.ReferenceAxisY != null &&
+                pose.ReferenceAxisZ != null && pose.ReferenceAxisOrigin != null)
+            {
+                localX = pose.ReferenceAxisX;
+                localY = pose.ReferenceAxisY;
+                localZ = pose.ReferenceAxisZ;
+                origin = pose.ReferenceAxisOrigin;
+            }
+
+            // 회전 전 화면축. 참조축 부재는 로컬축, 일반 부재는 기존 월드축 매핑을 사용한다.
+            VIZCore3D.NET.Data.Vector3D baseH;
+            VIZCore3D.NET.Data.Vector3D baseV;
+            VIZCore3D.NET.Data.Vector3D depth;
+            switch (pose.ViewDirection)
+            {
+                case "X": baseH = localY; baseV = localZ; depth = localX; break;
+                case "Y": baseH = localX; baseV = localZ; depth = localY; break;
+                default:  baseH = localX; baseV = localY; depth = localZ; break;
+            }
+
+            // 참조축 생성 실패 시 사용되는 ORIENTATION 화면 roll과 최종 가로화 roll을 모두 반영한다.
+            float orientationRoll = pose.UseReferenceAxis ? 0f : pose.OrientationAngle;
+            float totalRoll = orientationRoll + landscapeRoll;
+            double radians = totalRoll * Math.PI / 180.0;
+            float cos = (float)Math.Cos(radians);
+            float sin = (float)Math.Sin(radians);
+
+            // RotateCameraByScreenAxis(+θ)는 화면의 형상을 시계 방향으로 돌린다.
+            // 따라서 최종 화면 +H/+V에 대응하는 월드 벡터는 아래 역회전 기저가 된다.
+            var screenH = new VIZCore3D.NET.Data.Vector3D(
+                baseH.X * cos + baseV.X * sin,
+                baseH.Y * cos + baseV.Y * sin,
+                baseH.Z * cos + baseV.Z * sin);
+            var screenV = new VIZCore3D.NET.Data.Vector3D(
+                -baseH.X * sin + baseV.X * cos,
+                -baseH.Y * sin + baseV.Y * cos,
+                -baseH.Z * sin + baseV.Z * cos);
+
+            Func<VIZCore3D.NET.Data.Vertex3D, VIZCore3D.NET.Data.Vector3D, float> project =
+                (point, axis) =>
+                    (point.X - origin.X) * axis.X +
+                    (point.Y - origin.Y) * axis.Y +
+                    (point.Z - origin.Z) * axis.Z;
+
+            // 월드 AABB 8개 꼭짓점을 최종 화면 수직축에 투영해 최종 도면의 모델 하단을 구한다.
+            float modelMinV = float.MaxValue;
+            float modelMaxV = float.MinValue;
+            float[] xs = { bom.MinX, bom.MaxX };
+            float[] ys = { bom.MinY, bom.MaxY };
+            float[] zs = { bom.MinZ, bom.MaxZ };
+            foreach (float x in xs)
+            foreach (float y in ys)
+            foreach (float z in zs)
+            {
+                float v = project(new VIZCore3D.NET.Data.Vertex3D(x, y, z), screenV);
+                if (v < modelMinV) modelMinV = v;
+                if (v > modelMaxV) modelMaxV = v;
+            }
+
+            float modelVSpan = Math.Max(0f, modelMaxV - modelMinV);
+            float textV = modelMinV - modelVSpan * 0.6f;
+            int added = 0;
+
+            foreach (var pending in pose.PendingHoleNotes)
+            {
+                try
+                {
+                    float textH = project(pending.ArrowPosition, screenH);
+                    float textD = project(pending.ArrowPosition, depth);
+                    var textPos = new VIZCore3D.NET.Data.Vertex3D(
+                        origin.X + screenH.X * textH + screenV.X * textV + depth.X * textD,
+                        origin.Y + screenH.Y * textH + screenV.Y * textV + depth.Y * textD,
+                        origin.Z + screenH.Z * textH + screenV.Z * textV + depth.Z * textD);
+
+                    VIZCore3D.NET.Data.NoteStyle noteStyle = vizcore3d.Review.Note.GetStyle();
+                    noteStyle.UseSymbol = false;
+                    noteStyle.BackgroudTransparent = true;
+                    noteStyle.FontBold = true;
+                    noteStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                    noteStyle.FontColor = pending.Color;
+                    noteStyle.LineColor = pending.Color;
+                    noteStyle.LineWidth = 1;
+                    noteStyle.ArrowColor = pending.Color;
+                    noteStyle.ArrowWidth = 2;
+
+                    vizcore3d.Review.Note.AddNoteSurface(
+                        pending.Text, textPos, pending.ArrowPosition, noteStyle);
+                    added++;
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[HoleNote] bom={bom.Index} WARN text='{pending.Text}': {ex.Message}");
+                }
+            }
+
+            DiagLog($"[HoleNote] bom={bom.Index} added={added}/{pose.PendingHoleNotes.Count} " +
+                    $"orientationRoll={orientationRoll:F1} landscapeRoll={landscapeRoll:F1} " +
+                    $"finalVSpan={modelVSpan:F2} placement=screen-bottom");
+        }
+
+        /// <summary>
         /// 가공도 보조선·치수를 '모델 2D 캡처 + RescaleObject 후 확정된 실측 배율(newScale)'로 그린다.
         /// 추정 스케일이 아닌 실측을 써야 보조선 길이 = 캔버스 절대값(2/4mm)으로 부재·뷰 무관 일정해짐 (설계 §4.4 v2-c).
         /// pose.PendingDims = BuildMfgSceneCore/BuildEaSecondaryScene가 수집한 그릴 목록(offset 미적용).
@@ -1013,6 +1133,8 @@ namespace A2Z
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
                 //   (DoEvents 제거 — 격리 5단계 2026-07-21: 네이티브 캡처 전후 메시지 펌프가 크래시 용의)
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
+                // 홀/슬롯 노트는 최종 화면 방향이 확정된 뒤 생성해야 '하단'이 가로화와 함께 왼쪽으로 돌지 않는다.
+                AddMfgPendingHoleNotes(bom, pose, primRoll);
 
                 int primaryObjId;
                 bool primaryOk = CaptureMfgSceneToViewArea(
