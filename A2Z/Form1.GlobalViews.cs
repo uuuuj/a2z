@@ -219,8 +219,8 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 설치도용 치수 추출. 선택 STRU 전체 범위와
-        /// 기준 STRU측 연결 Body 끝단→외부 연결 Body 접합측 모서리 위치를 표시한다.
+        /// 설치도용 치수 추출.
+        /// 기준 STRU측 연결 Body 끝단→외부 연결 Body 접합측 모서리 위치만 표시한다.
         /// </summary>
         private void ExtractInstallationDimensions(DrawingSheetData sheet)
         {
@@ -599,36 +599,6 @@ namespace A2Z
             return points;
         }
 
-        private List<VIZCore3D.NET.Data.Vector3D> GetInstallationReferencePoints(IEnumerable<int> bodyIndices)
-        {
-            if (bodyIndices == null) return new List<VIZCore3D.NET.Data.Vector3D>();
-            var indices = bodyIndices.Distinct().ToList();
-            if (indices.Count == 0) return new List<VIZCore3D.NET.Data.Vector3D>();
-            var points = GetLinePointOsnaps(indices);
-            if (points.Count > 0) return points;
-
-            try
-            {
-                var bounds = vizcore3d.Object3D.GetBoundBox(indices, false);
-                if (bounds != null)
-                {
-                    float[] xs = { bounds.MinX, bounds.MaxX };
-                    float[] ys = { bounds.MinY, bounds.MaxY };
-                    float[] zs = { bounds.MinZ, bounds.MaxZ };
-                    foreach (float x in xs)
-                        foreach (float y in ys)
-                            foreach (float z in zs)
-                                points.Add(new VIZCore3D.NET.Data.Vector3D(x, y, z));
-                    DiagLog($"설치도 Osnap 없음 — BBox fallback: nodes={indices.Count}");
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"설치도 BBox fallback 실패: {ex.Message}");
-            }
-            return points;
-        }
-
         private List<VIZCore3D.NET.Data.Vector3D> GetInstallationBodyPoints(
             int bodyIndex, out bool boundsFallback)
         {
@@ -902,8 +872,8 @@ namespace A2Z
 
         /// <summary>
         /// 설치도 치수를 UI 상태 변경 없이 계산한다.
-        /// 선택 STRU 전체 범위와 실제 접촉한 STRU측 Body의 가까운 끝단→
-        /// 외부 연결 Body 접합측 모서리 위치 치수를 만든다.
+        /// 실제 접촉한 STRU측 Body의 가까운 끝단→외부 연결 Body 접합측 모서리
+        /// 위치 치수만 만든다.
         /// 접합영역 A1/A2와 연결 Assembly 전체 범위는 치수 끝점으로 사용하지 않는다.
         /// </summary>
         private List<ChainDimensionData> ComputeInstallationDimensions(DrawingSheetData sheet)
@@ -912,31 +882,12 @@ namespace A2Z
             if (sheet == null || sheet.MemberIndices == null || sheet.MemberIndices.Count == 0)
                 return result;
 
-            var referenceGroups = new List<(string name, List<int> bodies)>();
-            referenceGroups.Add(("선택 STRU", new List<int>(sheet.MemberIndices)));
-
             var viewAxes = new Dictionary<string, string[]>
             {
                 { "X", new[] { "Z", "Y" } },
                 { "Y", new[] { "Z", "X" } },
                 { "Z", new[] { "Y", "X" } }
             };
-
-            foreach (var group in referenceGroups)
-            {
-                var points = GetInstallationReferencePoints(group.bodies);
-                if (points.Count < 2) continue;
-                foreach (var view in viewAxes)
-                {
-                    foreach (string axis in view.Value)
-                    {
-                        var start = points.OrderBy(point => GetVectorAxisValue(point, axis)).First();
-                        var end = points.OrderByDescending(point => GetVectorAxisValue(point, axis)).First();
-                        AddInstallationDimension(result, start, end, axis, view.Key,
-                            $"설치 전체 - {group.name}", true, true, group.bodies);
-                    }
-                }
-            }
 
             var connectionGroups = sheet.InstallationConnections
                 .Where(connection => connection != null)

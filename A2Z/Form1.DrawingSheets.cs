@@ -897,7 +897,11 @@ namespace A2Z
 
                     vizcore3d.View.XRay.Clear();
                     vizcore3d.View.XRay.Select(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = displayIndices;
+                    // 설치도 치수선 기준 BBox는 출력 fit과 동일하게 선택 STRU만 사용한다.
+                    // 연결 Part 전체 BBox가 baseline을 밀어 보조선이 뷰마다 길어지는 것을 막는다.
+                    xraySelectedNodeIndices = sheet.BaseMemberIndex == -2
+                        ? new List<int>(sheet.MemberIndices)
+                        : displayIndices;
 
                     vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                     vizcore3d.Object3D.Show(displayIndices, true);
@@ -917,7 +921,8 @@ namespace A2Z
                     }
 
                     // 선택된 부재에 맞춰 화면 조정
-                    vizcore3d.View.FlyToObject3d(displayIndices, 1.0f);
+                    vizcore3d.View.FlyToObject3d(
+                        sheet.BaseMemberIndex == -2 ? sheet.MemberIndices : displayIndices, 1.0f);
                     ShowAllDimensions(viewDirection);
                 }
             }
@@ -1867,7 +1872,10 @@ namespace A2Z
                     if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                     vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                     vizcore3d.Object3D.Show(sheet.MemberIndices, true);
-                    xraySelectedNodeIndices = displayIndices;
+                    // 설치도 치수 baseline·배율 기준은 선택 STRU로 고정한다.
+                    xraySelectedNodeIndices = sheet.BaseMemberIndex == -2
+                        ? new List<int>(sheet.MemberIndices)
+                        : displayIndices;
                     vizcore3d.EndUpdate();
 
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
@@ -1968,7 +1976,7 @@ namespace A2Z
                         vizcore3d.Object3D.Show(sheet.MemberIndices, true);
                         vizcore3d.EndUpdate();
                     }
-                    else
+                    else if (sheet.BaseMemberIndex != -2)
                     {
                         // X/Y/Z 치수 — 옛 RenderSheetViewForDrawing L1995~2002
                         float availW = p.Width - 2f * margin;
@@ -2094,6 +2102,27 @@ namespace A2Z
                         string layeredKind = sheet.BaseMemberIndex == -2 ? "설치도" : (isoFitByDashed ? "조립도" : "제작도");
                         DiagLog($"P2 {viewDir} 두겹 {layeredKind} dash={dashedObjId} solid={objId} " +
                                 $"move={objId} ref={dashedObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
+                    }
+
+                    // 설치도는 연결 Part CropFit과 모델 배치가 모두 끝난 뒤의 실측 배율로 치수·보조선을 만든다.
+                    // BBox 추정 배율을 먼저 쓰면 실제 은선 투영/크롭 배율과 차이가 생겨 뷰마다 종이 길이가 달라진다.
+                    if (viewDir != "ISO" && sheet.BaseMemberIndex == -2)
+                    {
+                        int scaleObjectId = dashedObjId >= 0 ? dashedObjId : objId;
+                        float actualScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(scaleObjectId);
+                        if (actualScale <= 0f || float.IsNaN(actualScale) || float.IsInfinity(actualScale))
+                        {
+                            float availW = p.Width - 2f * margin;
+                            float availH = p.Height - 2f * margin;
+                            actualScale = EstimateFitScaleForViewArea(
+                                availW, availH, viewDir, sheet.MemberIndices);
+                            DiagLog($"P2 설치도 실측 배율 fallback view={viewDir} scale={actualScale:F4}");
+                        }
+
+                        xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
+                        shapeDrawingIds = ShowAllDimensions(viewDir, true, actualScale);
+                        DiagLog($"P2 설치도 실측 배율 보조선 view={viewDir} obj={scaleObjectId} " +
+                                $"scale={actualScale:F4} dims={chainDimensionList.Count}");
                     }
 
                     // ── 보조선(ShapeDrawing) → 2D 추가 (X/Y/Z만, ISO는 보조선 없음) ──
@@ -2759,7 +2788,7 @@ namespace A2Z
                 vizcore3d.Object3D.Show(sheet.MemberIndices, true);
                 vizcore3d.EndUpdate();
             }
-            else
+            else if (sheet.BaseMemberIndex != -2)
             {
                 // X/Y/Z: ShowAllDimensions (forDrawing2D=true → 보조선 ShapeDrawing ID 수집)
                 // T-038+039 v2: 치수 max 기반 동적 분기 — ShowAllDimensions가 내부에서 결정.
@@ -2902,6 +2931,20 @@ namespace A2Z
                     float shrinkFactor = (viewDirection == "Z") ? 0.70f : 0.75f;
                     float curScaleObj = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
                     vizcore3d.Drawing2D.Object2D.RescaleObject(objId, curScaleObj * shrinkFactor);
+                }
+
+                // 설치도는 모델의 최종 2D 배율이 확정된 뒤 보조선을 생성해 종이 길이를 통일한다.
+                if (sheet.BaseMemberIndex == -2)
+                {
+                    float actualScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
+                    if (actualScale <= 0f || float.IsNaN(actualScale) || float.IsInfinity(actualScale))
+                    {
+                        actualScale = EstimateFitScaleForCell(row, col, viewDirection, sheet.MemberIndices);
+                        DiagLog($"설치도 구형 2D 실측 배율 fallback view={viewDirection} scale={actualScale:F4}");
+                    }
+                    shapeDrawingIds = ShowAllDimensions(viewDirection, true, actualScale);
+                    DiagLog($"설치도 구형 2D 실측 배율 보조선 view={viewDirection} obj={objId} " +
+                            $"scale={actualScale:F4} dims={chainDimensionList.Count}");
                 }
 
                 // T-038+039 v4 (2026-05-12): 보조선 반대 방향 모델 이동 (ShowAllDimensions가 _lastModelShift* 채움)
