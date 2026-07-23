@@ -201,7 +201,7 @@ namespace A2Z
         // 설치도 위치 치수 축 게이트 (issue #12, 2026-07-23) — 부재가 유의미하게 긴 축만 치수 대상으로 채택해
         //   판 두께·법선(연결부재가 어셈블리 간격 ~1mm 떨어져 뻗는) 축을 배제한다. 실기 튜닝 전제(로그 기반).
         //   채택 조건: 축 extent ≥ 최대 extent × Ratio  AND  축 extent ≥ MinExtent(mm). 단, 주축은 무조건 채택.
-        private const float InstallationAxisExtentRatio = 0.15f;
+        private const float InstallationAxisExtentRatio = 0.25f;
         private const float InstallationAxisMinExtent = 30.0f;
         // 성분 최소 임계(mm) — 축 게이트를 통과해도 남는 미소 성분(끝단 근접 연결·어셈블리 틈 잔여)을 이중 차단.
         private const float InstallationMinComponent = 3.0f;
@@ -1013,13 +1013,27 @@ namespace A2Z
                 //   뷰별 필터(viewAxes)가 각 뷰에서 보이는 축 성분만 표시하고, 미소 성분은 InstallationMinComponent가 거른다.
                 foreach (var component in anchor.AxisComponents)
                 {
+                    // 성분 치수는 그 축으로만 벌어지도록 끝점을 투영한다 (2026-07-23, issue #12 실기 피드백).
+                    //   원본 두 점(기준 끝단·연결 모서리)은 여러 축에서 동시에 벌어져 있어(예: X로 147·Z로 30),
+                    //   그대로 쓰면 한 축 성분을 그릴 때 끝점이 다른 축으로도 벌어진 채 그려져 보조선이 부재를
+                    //   가로지르고 연결부재 쪽까지 뻗어 큰 공백이 생긴다. 기준 끝단의 나머지 두 좌표를 공유하고
+                    //   성분 축만 연결 모서리 좌표로 바꿔, 순수 축정렬 치수(짧고 부재에 붙는 보조선)로 만든다.
+                    VIZCore3D.NET.Data.Vector3D compStart = component.TargetEndPoint;
+                    VIZCore3D.NET.Data.Vector3D corner = anchor.ConnectedCornerPoint;
+                    VIZCore3D.NET.Data.Vector3D compEnd;
+                    switch (component.Axis)
+                    {
+                        case "X": compEnd = new VIZCore3D.NET.Data.Vector3D(corner.X, compStart.Y, compStart.Z); break;
+                        case "Y": compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, corner.Y, compStart.Z); break;
+                        default: compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, compStart.Y, corner.Z); break;
+                    }
                     DiagLog($"[설치치수] {targetName}→{connection.ConnectedPartName} 축={component.Axis} " +
-                            $"성분={Math.Abs(GetVectorAxisValue(anchor.ConnectedCornerPoint, component.Axis) - GetVectorAxisValue(component.TargetEndPoint, component.Axis)):F1}");
+                            $"성분={Math.Abs(GetVectorAxisValue(corner, component.Axis) - GetVectorAxisValue(compStart, component.Axis)):F1}");
                     foreach (var view in viewAxes.Where(item => item.Value.Contains(component.Axis)))
                     {
                         AddInstallationDimension(result,
-                            component.TargetEndPoint,
-                            anchor.ConnectedCornerPoint,
+                            compStart,
+                            compEnd,
                             component.Axis,
                             view.Key,
                             $"설치 {connection.Label} - {targetName} 끝단 → {connection.ConnectedPartName} 모서리",
