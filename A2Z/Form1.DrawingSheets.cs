@@ -1742,12 +1742,10 @@ namespace A2Z
                 //   값 없으면 초기 " "(공백, 괘선 보존) 유지.
                 string struTag = GetStruUdaValue(sheet.BaseMemberIndex);
                 if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
-                // PAINT CODE(166) = 기준부재에서 부모 STRU까지 탐색한 PNT 계열 UDA 값.
+                // PAINT CODE(166) = 출력 시점에 STRU에서 한 번 조회해 모든 도면에 공유한 값.
+                // UDA.Keys는 BeginUpdate 밖인 현재 데이터 구성 단계에서만 호출한다.
                 // 값이 없으면 초기 " "(공백, 괘선 보존)을 유지한다.
-                int paintCodeNodeIndex = sheet.BaseMemberIndex >= 0
-                    ? sheet.BaseMemberIndex
-                    : (sheet.MemberIndices.Count > 0 ? sheet.MemberIndices[0] : -1);
-                string paintCode = GetStruPntUdaValue(paintCodeNodeIndex);
+                string paintCode = GetOrCacheDrawingPaintCode(sheet);
                 if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
@@ -2624,6 +2622,45 @@ namespace A2Z
 
             DiagLog($"[PAINT CODE] 비어 있지 않은 PNT UDA 값 없음: startNode={nodeIndex}");
             return "";
+        }
+
+        /// <summary>
+        /// 같은 도면 목록에서 생성되는 제작도·조립도·설치도·가공도가 PAINT CODE를 공유하도록
+        /// 출력 시점에 한 번만 조회하고 모든 DrawingSheetData에 캐시한다.
+        /// null은 미조회, 빈 문자열은 조회했지만 값 없음으로 구분해 빈 모델도 재조회하지 않는다.
+        /// </summary>
+        private string GetOrCacheDrawingPaintCode(DrawingSheetData sourceSheet, int preferredNodeIndex = -1)
+        {
+            List<DrawingSheetData> relatedSheets;
+            if (sourceSheet != null && drawingSheetList != null && drawingSheetList.Contains(sourceSheet))
+                relatedSheets = drawingSheetList.Where(item => item != null).ToList();
+            else
+                relatedSheets = sourceSheet != null
+                    ? new List<DrawingSheetData> { sourceSheet }
+                    : new List<DrawingSheetData>();
+
+            DrawingSheetData cachedSheet = relatedSheets.FirstOrDefault(item => item.PaintCode != null);
+            if (cachedSheet != null)
+            {
+                DiagLog($"[PAINT CODE] 도면 공용 캐시 재사용: sheets={relatedSheets.Count} " +
+                        $"value='{cachedSheet.PaintCode}'");
+                return cachedSheet.PaintCode;
+            }
+
+            int lookupNodeIndex = preferredNodeIndex > 0 ? preferredNodeIndex : -1;
+            if (lookupNodeIndex < 0 && bomList != null && bomList.Count > 0)
+                lookupNodeIndex = bomList[0].Index;
+            if (lookupNodeIndex < 0 && sourceSheet != null && sourceSheet.MemberIndices.Count > 0)
+                lookupNodeIndex = sourceSheet.MemberIndices[0];
+
+            string paintCode = GetStruPntUdaValue(lookupNodeIndex);
+            foreach (DrawingSheetData drawingSheet in relatedSheets)
+                drawingSheet.PaintCode = paintCode;
+            if (sourceSheet != null) sourceSheet.PaintCode = paintCode;
+
+            DiagLog($"[PAINT CODE] 도면 공용 캐시 생성: startNode={lookupNodeIndex} " +
+                    $"sheets={relatedSheets.Count} value='{paintCode}'");
+            return paintCode;
         }
 
         private string ResolveDrawingAssetPath(string fileName)

@@ -2204,16 +2204,12 @@ namespace A2Z
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
 
-                // 가공도 전체 출력은 같은 STRU 하위 부재이므로 첫 부재에서 PNT 계열 UDA를 1회만 조회한다.
-                int paintCodeNodeIndex = struIndex > 0 ? struIndex : -1;
-                if (paintCodeNodeIndex < 0)
-                {
-                    DrawingSheetData firstMfgSheet = mfgSheets.FirstOrDefault(
-                        item => item != null && item.MemberIndices != null && item.MemberIndices.Count > 0);
-                    if (firstMfgSheet != null) paintCodeNodeIndex = firstMfgSheet.MemberIndices[0];
-                }
-                string paintCode = GetStruPntUdaValue(paintCodeNodeIndex);
-                DiagLog($"[PAINT CODE] 가공도 출력 캐시: startNode={paintCodeNodeIndex} value='{paintCode}'");
+                // 제작도·조립도·설치도와 같은 도면 목록 공용 PAINT CODE를 가공도 전 페이지가 재사용한다.
+                DrawingSheetData firstMfgSheet = mfgSheets.FirstOrDefault(item => item != null);
+                string paintCode = GetOrCacheDrawingPaintCode(firstMfgSheet, struIndex);
+                foreach (DrawingSheetData mfgSheet in mfgSheets)
+                    if (mfgSheet != null) mfgSheet.PaintCode = paintCode;
+                DiagLog($"[PAINT CODE] 가공도 출력 공용값: pages={pages.Count} value='{paintCode}'");
 
                 // [임시 §5-1] 카메라 ± 검증 PDF 1장 — 본 페이지 출력 앞에 별도 저장 (검증 후 제거)
                 if (MfgCameraSignProbeEnabled)
