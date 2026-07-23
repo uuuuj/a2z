@@ -1,6 +1,6 @@
 # Form1.GlobalViews.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.GlobalViews.cs` (약 1,030 라인)
+**경로**: `A2Z/Form1.GlobalViews.cs` (약 980 라인)
 
 **책임**: 글로벌 뷰(ISO/X/Y/Z) 버튼 핸들러, 3가지 경로(시트/X-Ray/전체) 공용 분기 함수, 설치도 치수 추출.
 
@@ -54,7 +54,7 @@
   7. 점선 문맥은 부모 Assembly 전체가 아니라 직접 연결된 외부 Part 인덱스만 저장. Assembly는 이름 노트용 메타데이터로 유지
 
 ### BuildInstallationPlacementAnchor
-- **라인**: L755~L894
+- **라인**: L725~L864
 - **핵심**:
   1. 같은 Target Body↔Connected Body의 여러 접합영역을 하나로 병합
   2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축으로 선택
@@ -62,8 +62,8 @@
   4. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
 
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L909~L989
-- **핵심**: 선택 STRU 전체 Osnap MIN/MAX 치수를 유지하고, 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수를 길이축이 보이는 두 직교 뷰에 생성. 접합 중심·A1/A2·연결 Assembly 전체 범위는 치수 끝점에서 제외
+- **라인**: L879~L937
+- **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수만 길이축이 보이는 두 직교 뷰에 생성. 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
 - **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---

@@ -67,12 +67,13 @@
   - [x] 설치도 4개 뷰를 선택 STRU 기준으로 fit하고, STRU 기준 CropFit으로 긴 연결 부재의 접합 주변만 남김
   - [x] Clash PART 쌍 하위 BODY 조합에서 `GetObjectCollisionLine`, `GetJunctionMesh`로 실제 접합 영역 산출
   - [x] 접합선·Mesh·HotPoint는 Target/Connected Body 쌍과 접합측 모서리 판정용 내부 자료로 유지
-  - [x] 선택 STRU 주축/보조축 전체 Osnap 범위 치수 유지, 연결 Assembly 전체 범위 치수 제거
+  - [x] 선택 STRU·연결 Assembly 전체 범위 치수를 모두 제거하고 실제 `Target 끝단 → Connected 모서리` 연결 거리만 유지
   - [x] Target Body LINE 방향 5도 군집·길이 합 최대 기준으로 길이축 판정, 가까운 끝단 Osnap 선별
   - [x] Connected Body LINE/POINT 중 접합영역과 가장 가까운 실제 모서리 선별
   - [x] 같은 Target/Connected Body 쌍의 A1/A2를 병합하고 `Target 끝단 → Connected 모서리` 필수 위치 치수 생성
   - [x] X/Y/Z의 A/A1/A2 접합점 기호 제거, ISO 이름은 연결 Part당 접합측 모서리에 1개
   - [x] 설치도 3D 미리보기·옛 2D·엑셀 2D 모두 같은 `PreparedDimensions` 사용 — 공용 Osnap 치수 덮어쓰기 제거
+  - [x] 설치도 2D 모델 배치·CropFit·Match 후 실제 객체 배율로 치수·보조선 생성 — 뷰별 종이 길이 편차 제거
   - [x] 접합 형상 없는 Clearance/Proximity는 HotPoint fallback + 로그
   - [x] Debug 별도 출력 폴더 빌드 통과
   - [ ] 사내 모델에서 치수가 선택 STRU측 실제 접촉 Body의 가까운 끝단에서 시작하는지 확인
@@ -80,6 +81,7 @@
   - [ ] 직교 뷰 A/A1/A2가 사라지고 ISO Assembly/Part 이름은 연결 Part당 하나인지 확인
   - [ ] 긴 외부 Assembly가 있어도 선택 STRU가 충분히 크게 나오고 접합 주변만 남는지 확인
   - [ ] 3D 미리보기와 PDF의 설치 위치 치수가 동일한지 확인
+  - [ ] X/Y/Z PDF에서 보조선 오프셋·시작 gap이 도면 기준으로 같은 길이인지 확인
 - **영향 파일**: `A2Z/Form1.GlobalViews.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.Dimensions.cs`, `A2Z/Models.cs`, 설치도/Osnap 문서
 
 ### T-013 — ISO 뷰 점선·실선 분리와 3D 위치 정합

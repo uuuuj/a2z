@@ -6,10 +6,23 @@
 
 ---
 
+## 2026-07-23 — 설치도 연결 거리 전용화 및 보조선 실측 배율 적용
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-075 (설치도 기준 Part 끝단→연결 Part 모서리 위치 치수)
+**관련 ISSUE**: GitHub issue #12
+**변경 사항**:
+- 선택 STRU 전체 범위 치수를 제거해 실제 Target Body 끝단→Connected Body 모서리 연결 거리만 생성
+- 설치도 2D 모델 배치·CropFit·Match 뒤 실제 객체 배율로 치수·보조선을 생성해 뷰별 종이 길이 편차 제거
+- 설치도 치수 baseline·fit 기준을 선택 STRU BBox로 통일하고 연결 Part 전체 BBox 영향 제거
+
+**영향 범위**: 설치도 X/Y/Z 미리보기 fit, 옛 2D·엑셀 2D 치수 및 보조선
+
 ## 2026-07-23 — BOM 빈값 표시 실기 검증 완료
 
 **유형**: docs
-**커밋**: `pending`
+**커밋**: `d033ddd`
 **관련 TASK**: T-081 (BOM ITEM 및 빈 후속 데이터 표시)
 **관련 ISSUE**: GitHub issue #24
 **변경 사항**:
