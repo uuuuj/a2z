@@ -6,27 +6,6 @@
 
 ---
 
-### T-081 — BOM ITEM SPREF 미설정 시 unset 출력
-- **생성일/착수일**: 2026-07-22
-- **상태**: IN_PROGRESS (구현·Debug 빌드 완료, 사내 BOM/PDF 실기 검증 대기)
-- **관련**: 사용자 직접 지시, GitHub issue #24
-- **구현**:
-  - [x] 정상 SPREF의 기존 ITEM·SIZE 파싱 유지
-  - [x] SPREF 키 없음·null·빈 문자열·공백을 ITEM `unset`으로 통일
-  - [x] `/`, `:SIZE`처럼 파싱 후 ITEM 부분이 빈 경우도 `unset` 처리
-  - [x] 노드명 fallback 제거
-  - [x] ITEM이 `unset`인 행의 MATERIAL·SIZE·Q'TY·T/W·MA·FA를 모두 `-`로 표시
-  - [x] 정상 ITEM 행도 뒤쪽 열의 null·빈 문자열·공백을 셀별 `-`로 표시
-  - [x] `0`·`F`·`L` 등 정상 값과 Support&Seat 합계 행 유지
-  - [x] 공통 `DrawingBomSnapshot` 경로로 제작도·조립도·설치도·가공도에 동일 적용
-  - [x] 별도 출력 폴더 Debug 빌드 오류 0건
-- **사용자 확인 필요**:
-  - [ ] 정상 SPREF 부재의 ITEM이 이전과 동일한지
-  - [ ] SPREF 미설정·공백 부재가 도면정보 탭과 각 PDF에서 `unset`인지
-  - [ ] ITEM이 `unset`인 행에서 No·ITEM 뒤의 모든 열이 `-`인지
-  - [ ] 정상 ITEM 행은 값이 없는 뒤쪽 셀만 `-`이고 값이 있는 셀은 유지되는지
-- **영향 파일**: `A2Z/Form1.Clash.cs`, BOM 정보 수집 흐름·Clash 코드 레퍼런스
-
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
 - **상태**: IN_PROGRESS (1단계 판정 로그 구현·컴파일 완료, 사내 실기 판정 검증 대기)
