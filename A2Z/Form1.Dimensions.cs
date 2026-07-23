@@ -1050,10 +1050,14 @@ namespace A2Z
         {
             // 참조축 경로의 start/end는 로컬 좌표다. SDK 측정·ShapeDrawing에는 월드 좌표로 복원한다.
             VIZCore3D.NET.Data.Vertex3D originalStart = drawingReferenceFrame != null
-                ? DrawingReferenceLocalToWorld(startPoint, drawingReferenceFrame)
+                ? DrawingReferenceLocalToWorld(
+                    new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, startPoint.Z),
+                    drawingReferenceFrame)
                 : new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, startPoint.Z);
             VIZCore3D.NET.Data.Vertex3D originalEnd = drawingReferenceFrame != null
-                ? DrawingReferenceLocalToWorld(endPoint, drawingReferenceFrame)
+                ? DrawingReferenceLocalToWorld(
+                    new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, endPoint.Z),
+                    drawingReferenceFrame)
                 : new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, endPoint.Z);
 
             // 오프셋 방향 및 baseline 결정

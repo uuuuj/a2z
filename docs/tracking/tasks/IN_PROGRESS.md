@@ -28,7 +28,7 @@
   - [ ] X/Y/Z 치수·3D 미리보기가 기존과 동일한지
 - **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, `A2Z/A2Z.csproj`, ISO·2D 렌더·빌드 환경 문서
 
-### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
+### T-079 — 기울어진 가공도·제작도 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
 - **상태**: IN_PROGRESS (ORIENTATION 로컬 ReferenceAxis 카메라·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 3D/PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #19, Softhills Demo `참조축 정렬 > 선택 부재 자동 정렬`
@@ -46,6 +46,12 @@
   - [x] 3D 미리보기의 참조축·화면 roll을 다음 가공도 선택 또는 다른 시트 진입 때 원복
   - [x] 정상 부재는 선택 조건·호출 인자 기본값·월드축 API를 포함해 기존 경로 유지
   - [x] 별도 출력 폴더 Debug 빌드 오류 0건
+  - [x] 사용자 재보고 이미지가 가공도 단일 행이 아니라 제작도 1번 시트의 4면도 출력임을 로그(`sheet#=1`, `kind='제작도'`, `GenerateSheetDrawing2D_WithExcelTemplate`)로 확인
+  - [x] 제작도 시트 부재의 Osnap LINE 중 XY 투영 최장선을 기준으로 수평 ReferenceAxis 프레임 구성. 세계축과 1° 이내면 기존 경로 유지
+  - [x] 제작도 ISO/Z/X/Y마다 ReferenceAxis 카메라 적용 후 Reset/Delete하고, 조립도·설치도에는 미적용
+  - [x] 제작도 체인 치수 Osnap을 같은 로컬축으로 변환하고 `AddCustomDistanceUserAxis`로 치수·보조선 복원
+  - [x] 참조축 생성 실패 시 카메라뿐 아니라 치수 목록도 WorldAxis로 재계산해 혼합 좌표 방지
+  - [x] 제작도 참조축 확장 후 별도 출력 폴더 Debug 빌드 오류 0건
 - **사용자 확인 필요**:
   - [ ] 문제 브래킷 3D 미리보기에서 부재 형상이 먼저 수평/수직으로 바로 서는지
   - [ ] `[MfgRefAxis] frame`·`activate`가 출력되고 다른 부재/시트 선택 때 `release`가 출력되는지
@@ -54,7 +60,11 @@
   - [ ] 정상 부재가 이전 출력과 동일하고 `mode=WorldAxis`를 유지하는지
   - [ ] 여러 부재를 연속 출력해 카메라 회전·치수 상태가 다음 행에 누적되지 않는지
   - [ ] 일반 부재 확인 후 EA 두 뷰에서도 동일하게 검증
-- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.cs`, `A2Z/Models/MfgViewPose.cs`, `A2Z/Form1.Dimensions.cs`, 가공도·시트 선택 흐름 문서, 가공도·도면시트 코드 레퍼런스
+  - [ ] 문제 어셈블리의 제작도 1번 시트 평면·정면·측면에서 45° 기울기가 사라지고 모델·치수·보조선이 함께 수평/수직인지
+  - [ ] 제작도 로그에 `[DrawingRefAxis] frame`(약 45°)과 ISO/Z/X/Y별 `activate/release`, `[DimAdd] ... mode=UserAxis`가 출력되는지
+  - [ ] 정상 제작도는 `[DrawingRefAxis] 세계축 정렬 상태` 뒤 기존 WorldAxis 출력을 유지하는지
+  - [ ] 조립도·설치도 출력이 이전과 동일한지
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.cs`, `A2Z/Models.cs`, `A2Z/Models/MfgViewPose.cs`, `A2Z/Form1.Dimensions.cs`, 가공도·시트 선택·시트 2D 렌더 흐름 문서, 가공도·도면시트 코드 레퍼런스
 
 ### T-078 — 도면 시트 3D 임시 치수 잔류 제거
 - **생성일/착수일**: 2026-07-22

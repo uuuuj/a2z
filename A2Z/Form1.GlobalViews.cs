@@ -212,6 +212,9 @@ namespace A2Z
         {
             public string Axis;
             public VIZCore3D.NET.Data.Vector3D TargetEndPoint;
+            // 접합 가장자리(그 축에서 부재 끝단에 가까운 쪽) 좌표 — 위치 치수의 연결측 끝점.
+            //   접합 한가운데(centroid)가 아니라 "연결부재가 닿기 시작하는 모서리"까지 재기 위함 (2026-07-23).
+            public float ConnectionCoord;
         }
 
         /// <summary>
@@ -884,8 +887,20 @@ namespace A2Z
                 VIZCore3D.NET.Data.Vector3D axisEnd = axis == worldAxis
                     ? mainEnd
                     : SelectInstallationTargetEndForAxis(targetPoints, contactCentroid, axis);
-                best.AxisComponents.Add(new InstallationAxisComponent { Axis = axis, TargetEndPoint = axisEnd });
-                placedAxes.Add($"{axis}(덮음{coverage:P0})");
+                // 접합측 모서리 (2026-07-23 실기): 접합이 그 축으로 구간(예: 100mm)일 때 한가운데(centroid)까지
+                //   재면 의미가 없다. 접합 구간의 양 끝(min/max) 중 부재 끝단(axisEnd)에 가까운 쪽 = 연결부재가
+                //   닿기 시작하는 모서리까지 잰다. (막대 30/판재 29 같은 실기 검증값 복원)
+                double cMin = contactPoints.Min(p => (double)GetVectorAxisValue(p, axis));
+                double cMax = contactPoints.Max(p => (double)GetVectorAxisValue(p, axis));
+                double endV = GetVectorAxisValue(axisEnd, axis);
+                float edge = (float)(Math.Abs(endV - cMax) <= Math.Abs(endV - cMin) ? cMax : cMin);
+                best.AxisComponents.Add(new InstallationAxisComponent
+                {
+                    Axis = axis,
+                    TargetEndPoint = axisEnd,
+                    ConnectionCoord = edge
+                });
+                placedAxes.Add($"{axis}(덮음{coverage:P0},모서리{Math.Abs(endV - edge):F0})");
             }
 
             double mainComp = Math.Abs(
@@ -992,17 +1007,18 @@ namespace A2Z
                     //   그대로 쓰면 한 축 성분을 그릴 때 끝점이 다른 축으로도 벌어진 채 그려져 보조선이 부재를
                     //   가로지르고 연결부재 쪽까지 뻗어 큰 공백이 생긴다. 기준 끝단의 나머지 두 좌표를 공유하고
                     //   성분 축만 연결 모서리 좌표로 바꿔, 순수 축정렬 치수(짧고 부재에 붙는 보조선)로 만든다.
+                    //   연결측 끝점은 접합 한가운데가 아니라 접합측 모서리(component.ConnectionCoord)를 쓴다 (2026-07-23).
                     VIZCore3D.NET.Data.Vector3D compStart = component.TargetEndPoint;
-                    VIZCore3D.NET.Data.Vector3D corner = anchor.ConnectedCornerPoint;
+                    float conn = component.ConnectionCoord;
                     VIZCore3D.NET.Data.Vector3D compEnd;
                     switch (component.Axis)
                     {
-                        case "X": compEnd = new VIZCore3D.NET.Data.Vector3D(corner.X, compStart.Y, compStart.Z); break;
-                        case "Y": compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, corner.Y, compStart.Z); break;
-                        default: compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, compStart.Y, corner.Z); break;
+                        case "X": compEnd = new VIZCore3D.NET.Data.Vector3D(conn, compStart.Y, compStart.Z); break;
+                        case "Y": compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, conn, compStart.Z); break;
+                        default: compEnd = new VIZCore3D.NET.Data.Vector3D(compStart.X, compStart.Y, conn); break;
                     }
                     DiagLog($"[설치치수] {targetName}→{connection.ConnectedPartName} 축={component.Axis} " +
-                            $"성분={Math.Abs(GetVectorAxisValue(corner, component.Axis) - GetVectorAxisValue(compStart, component.Axis)):F1}");
+                            $"성분={Math.Abs(conn - GetVectorAxisValue(compStart, component.Axis)):F1}");
                     foreach (var view in viewAxes.Where(item => item.Value.Contains(component.Axis)))
                     {
                         AddInstallationDimension(result,

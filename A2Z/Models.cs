@@ -194,10 +194,6 @@ namespace A2Z
     }
 
     /// <summary>
-    /// 도면정보 탭 BOM 한 행의 사전 준비 데이터.
-    /// ListViewItem 자체를 보관하지 않아 여러 시트 사이에서 안전하게 재사용한다.
-    /// </summary>
-    /// <summary>
     /// 제작도 4면도에서 기울어진 어셈블리를 세계축에 맞춰 투영하기 위한 임시 로컬 좌표계.
     /// X/Y/Z는 월드 좌표의 단위벡터이고, Min/Max는 Origin 기준 로컬 좌표 범위다.
     /// </summary>
@@ -217,6 +213,10 @@ namespace A2Z
         public int SourceNodeIndex { get; set; }
     }
 
+    /// <summary>
+    /// 도면정보 탭 BOM 한 행의 사전 준비 데이터.
+    /// ListViewItem 자체를 보관하지 않아 여러 시트 사이에서 안전하게 재사용한다.
+    /// </summary>
     public class DrawingBomRowData
     {
         public string No { get; set; }
