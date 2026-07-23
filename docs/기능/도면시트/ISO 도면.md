@@ -4,7 +4,7 @@ feature_name: 시트 ISO 뷰 + 풍선 노트
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-07-22
+last_updated: 2026-07-23
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ---
 
@@ -58,7 +58,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 | 카메라 | 이전 | `ISO_PLUS` |
 | `XRay.Enable` | 이전 | true |
 | `xraySelectedNodeIndices` | 이전 | 실제 표시 대상(설치도는 STRU+직접 연결 Part) |
-| `chainDimensionList` | 이전 | 설치도일 때 선택 STRU 전체 범위·Target Body 끝단→Connected Body 모서리 치수 적용 |
+| `chainDimensionList` | 이전 | 설치도일 때 Target Body 끝단→Connected Body 모서리 연결 거리만 적용 |
 | `Review.Note` | 이전 | 풍선 노트 |
 | `Review.Measure` / `ShapeDrawing` | 이전 X/Y/Z 치수 | 비움(ISO에는 치수 없음) |
 | RenderMode | 이전 | SMOOTH |
@@ -73,6 +73,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-23 | 설치도 준비 치수에서 선택 STRU 전체 범위를 제거하고 실제 연결 거리만 유지. ISO 화면에는 기존처럼 치수를 표시하지 않음 | Codex |
 | 2026-07-22 | 설치도 PDF 이름 노트를 접합 중심별 A1/A2에서 연결 Part당 1개로 통합하고 접합측 실제 모서리에 지시 | Codex |
 | 2026-07-22 | 설치도 표시 문맥을 직접 연결 Part로 축소하고, PDF ISO는 선택 STRU 기준 fit·Crop 후 연결 Part만 점선으로 표시하도록 변경 | Codex |
 | 2026-07-22 | ISO 진입 시 직전 X/Y/Z의 3D 측정선·보조선을 먼저 제거해 풍선만 표시하도록 명시. 설치도 접합 치수 데이터는 X/Y/Z·2D용으로 유지 | Codex |
