@@ -1903,8 +1903,18 @@ namespace A2Z
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.DASH_LINE);
                     if (drawingReferenceFrame != null)
                     {
-                        ActivateDrawingReferenceAxis(
+                        bool referenceAxisActivated = ActivateDrawingReferenceAxis(
                             drawingReferenceFrame, camDir, sheet.SheetNumber, viewDir);
+                        if (!referenceAxisActivated)
+                        {
+                            // 카메라가 세계축으로 폴백했으면 치수도 같은 세계축 목록으로 즉시 되돌린다.
+                            drawingReferenceFrame = null;
+                            chainDimensionList.Clear();
+                            chainDimensionList.AddRange(
+                                GetDrawingSheetDimensionsFor2D(sheet, null));
+                            DiagLog($"[DrawingRefAxis] sheet={sheet.SheetNumber} " +
+                                    $"참조축 전체 폴백 — 치수도 WorldAxis로 재계산");
+                        }
                     }
                     else
                     {
@@ -2415,6 +2425,229 @@ namespace A2Z
             }
         }
 
+        private const float DrawingReferenceAxisToleranceDegrees = 1.0f;
+        private const float DrawingReferenceMinimumLineLength = 1.0f;
+
+        /// <summary>
+        /// VIZCore3D+.NET Demo의 '참조축 정렬 → 선택 부재 자동 정렬'과 같은 방식으로
+        /// 선택 영역 안에서 가장 긴 LINE 모서리를 찾는다. 제작도는 Z-up 도면 규약이므로
+        /// 선분의 XY 투영을 로컬 X축으로 사용하고 로컬 Y축은 수평 직교축으로 만든다.
+        /// </summary>
+        private DrawingReferenceFrame TryBuildDrawingReferenceFrame(List<int> memberIndices)
+        {
+            if (memberIndices == null || memberIndices.Count == 0) return null;
+
+            double longest = DrawingReferenceMinimumLineLength;
+            VIZCore3D.NET.Data.Vector3D longestStart = null;
+            VIZCore3D.NET.Data.Vector3D longestEnd = null;
+            int sourceNodeIndex = -1;
+            var worldPoints = new List<VIZCore3D.NET.Data.Vector3D>();
+
+            foreach (int nodeIndex in memberIndices.Distinct())
+            {
+                try
+                {
+                    var osnaps = vizcore3d.Object3D.GetOsnapPoint(nodeIndex);
+                    if (osnaps == null) continue;
+                    foreach (var osnap in osnaps)
+                    {
+                        if (osnap.Kind == VIZCore3D.NET.Data.OsnapKind.LINE &&
+                            osnap.Start != null && osnap.End != null)
+                        {
+                            var start = new VIZCore3D.NET.Data.Vector3D(
+                                osnap.Start.X, osnap.Start.Y, osnap.Start.Z);
+                            var end = new VIZCore3D.NET.Data.Vector3D(
+                                osnap.End.X, osnap.End.Y, osnap.End.Z);
+                            worldPoints.Add(start);
+                            worldPoints.Add(end);
+
+                            double dx = end.X - start.X;
+                            double dy = end.Y - start.Y;
+                            double horizontalLength = Math.Sqrt(dx * dx + dy * dy);
+                            if (horizontalLength > longest)
+                            {
+                                longest = horizontalLength;
+                                longestStart = start;
+                                longestEnd = end;
+                                sourceNodeIndex = nodeIndex;
+                            }
+                        }
+                        else if (osnap.Kind == VIZCore3D.NET.Data.OsnapKind.POINT &&
+                                 osnap.Center != null)
+                        {
+                            worldPoints.Add(new VIZCore3D.NET.Data.Vector3D(
+                                osnap.Center.X, osnap.Center.Y, osnap.Center.Z));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[DrawingRefAxis] osnap WARN node={nodeIndex}: {ex.Message}");
+                }
+            }
+
+            if (longestStart == null || longestEnd == null || worldPoints.Count < 2)
+            {
+                DiagLog("[DrawingRefAxis] 기준 선분 없음 → 기존 세계축 유지");
+                return null;
+            }
+
+            double ux = (longestEnd.X - longestStart.X) / longest;
+            double uy = (longestEnd.Y - longestStart.Y) / longest;
+            // 같은 선분의 시작/끝 순서가 바뀌어도 카메라가 180° 뒤집히지 않도록 대표 부호를 고정한다.
+            if ((Math.Abs(ux) >= Math.Abs(uy) && ux < 0.0) ||
+                (Math.Abs(uy) > Math.Abs(ux) && uy < 0.0))
+            {
+                ux = -ux;
+                uy = -uy;
+            }
+
+            double nearestWorldAxis = Math.Max(Math.Abs(ux), Math.Abs(uy));
+            nearestWorldAxis = Math.Max(-1.0, Math.Min(1.0, nearestWorldAxis));
+            float tiltDegrees = (float)(Math.Acos(nearestWorldAxis) * 180.0 / Math.PI);
+            if (tiltDegrees <= DrawingReferenceAxisToleranceDegrees)
+            {
+                DiagLog($"[DrawingRefAxis] 세계축 정렬 상태 node={sourceNodeIndex} " +
+                        $"nearest={tiltDegrees:F2}° → 기존 경로");
+                return null;
+            }
+
+            VIZCore3D.NET.Data.Vector3D origin;
+            try
+            {
+                var bounds = vizcore3d.Object3D.GetBoundBox(memberIndices, false);
+                origin = bounds != null
+                    ? new VIZCore3D.NET.Data.Vector3D(
+                        (bounds.MinX + bounds.MaxX) / 2f,
+                        (bounds.MinY + bounds.MaxY) / 2f,
+                        (bounds.MinZ + bounds.MaxZ) / 2f)
+                    : null;
+            }
+            catch
+            {
+                origin = null;
+            }
+            if (origin == null)
+            {
+                origin = new VIZCore3D.NET.Data.Vector3D(
+                    worldPoints.Average(p => p.X),
+                    worldPoints.Average(p => p.Y),
+                    worldPoints.Average(p => p.Z));
+            }
+
+            var frame = new DrawingReferenceFrame
+            {
+                XAxis = new VIZCore3D.NET.Data.Vector3D((float)ux, (float)uy, 0f),
+                YAxis = new VIZCore3D.NET.Data.Vector3D((float)-uy, (float)ux, 0f),
+                ZAxis = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f),
+                Origin = origin,
+                AlignmentAngleDegrees = (float)(Math.Atan2(uy, ux) * 180.0 / Math.PI),
+                SourceNodeIndex = sourceNodeIndex,
+                MinX = float.MaxValue,
+                MinY = float.MaxValue,
+                MinZ = float.MaxValue,
+                MaxX = float.MinValue,
+                MaxY = float.MinValue,
+                MaxZ = float.MinValue
+            };
+
+            foreach (var worldPoint in worldPoints)
+            {
+                var local = DrawingReferenceWorldToLocal(
+                    new VIZCore3D.NET.Data.Vertex3D(worldPoint.X, worldPoint.Y, worldPoint.Z),
+                    frame);
+                frame.MinX = Math.Min(frame.MinX, local.X);
+                frame.MinY = Math.Min(frame.MinY, local.Y);
+                frame.MinZ = Math.Min(frame.MinZ, local.Z);
+                frame.MaxX = Math.Max(frame.MaxX, local.X);
+                frame.MaxY = Math.Max(frame.MaxY, local.Y);
+                frame.MaxZ = Math.Max(frame.MaxZ, local.Z);
+            }
+
+            DiagLog($"[DrawingRefAxis] frame node={sourceNodeIndex} longestXY={longest:F1} " +
+                    $"angle={frame.AlignmentAngleDegrees:F2}° nearestWorld={tiltDegrees:F2}° " +
+                    $"X=({frame.XAxis.X:F5},{frame.XAxis.Y:F5},{frame.XAxis.Z:F5}) " +
+                    $"Y=({frame.YAxis.X:F5},{frame.YAxis.Y:F5},{frame.YAxis.Z:F5})");
+            return frame;
+        }
+
+        private bool ActivateDrawingReferenceAxis(
+            DrawingReferenceFrame frame,
+            VIZCore3D.NET.Data.CameraDirection cameraDirection,
+            int sheetNumber,
+            string viewDirection)
+        {
+            if (frame == null) return false;
+            ReleaseActiveDrawingReferenceAxis("replace");
+            try
+            {
+                int referenceAxisId = vizcore3d.View.ReferenceAxis.Create(
+                    frame.XAxis, frame.YAxis, frame.Origin,
+                    $"제작도 시트축 {sheetNumber}");
+                if (referenceAxisId < 0)
+                    throw new InvalidOperationException("ReferenceAxis.Create가 유효하지 않은 ID를 반환했습니다.");
+
+                _drawingActiveReferenceAxisId = referenceAxisId;
+                vizcore3d.View.ReferenceAxis.Activate(referenceAxisId, true);
+                vizcore3d.View.MoveCamera(cameraDirection);
+                DiagLog($"[DrawingRefAxis] activate sheet={sheetNumber} view={viewDirection} " +
+                        $"camera={cameraDirection} id={referenceAxisId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ReleaseActiveDrawingReferenceAxis("activate failed");
+                vizcore3d.View.MoveCamera(cameraDirection);
+                DiagLog($"[DrawingRefAxis] activate FAIL sheet={sheetNumber} view={viewDirection} " +
+                        $"→ 기존 세계축 폴백: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void ReleaseActiveDrawingReferenceAxis(string reason)
+        {
+            if (_drawingActiveReferenceAxisId < 0) return;
+            int referenceAxisId = _drawingActiveReferenceAxisId;
+            _drawingActiveReferenceAxisId = -1;
+            try { vizcore3d.View.ReferenceAxis.Reset(); }
+            catch (Exception ex)
+            {
+                DiagLog($"[DrawingRefAxis] reset WARN id={referenceAxisId} reason={reason}: {ex.Message}");
+            }
+            try { vizcore3d.Review.Delete(referenceAxisId); }
+            catch (Exception ex)
+            {
+                DiagLog($"[DrawingRefAxis] delete WARN id={referenceAxisId} reason={reason}: {ex.Message}");
+            }
+            DiagLog($"[DrawingRefAxis] release id={referenceAxisId} reason={reason}");
+        }
+
+        private VIZCore3D.NET.Data.Vertex3D DrawingReferenceWorldToLocal(
+            VIZCore3D.NET.Data.Vertex3D world,
+            DrawingReferenceFrame frame)
+        {
+            float dx = world.X - frame.Origin.X;
+            float dy = world.Y - frame.Origin.Y;
+            float dz = world.Z - frame.Origin.Z;
+            return new VIZCore3D.NET.Data.Vertex3D(
+                dx * frame.XAxis.X + dy * frame.XAxis.Y + dz * frame.XAxis.Z,
+                dx * frame.YAxis.X + dy * frame.YAxis.Y + dz * frame.YAxis.Z,
+                dx * frame.ZAxis.X + dy * frame.ZAxis.Y + dz * frame.ZAxis.Z);
+        }
+
+        private VIZCore3D.NET.Data.Vertex3D DrawingReferenceLocalToWorld(
+            VIZCore3D.NET.Data.Vertex3D local,
+            DrawingReferenceFrame frame)
+        {
+            return new VIZCore3D.NET.Data.Vertex3D(
+                frame.Origin.X +
+                    local.X * frame.XAxis.X + local.Y * frame.YAxis.X + local.Z * frame.ZAxis.X,
+                frame.Origin.Y +
+                    local.X * frame.XAxis.Y + local.Y * frame.YAxis.Y + local.Z * frame.ZAxis.Y,
+                frame.Origin.Z +
+                    local.X * frame.XAxis.Z + local.Y * frame.YAxis.Z + local.Z * frame.ZAxis.Z);
+        }
+
         /// <summary>
         /// 시트의 실제 표시 대상. 설치도는 선택 STRU에 직접 연결된 외부 Part만 추가한다.
         /// </summary>
@@ -2865,12 +3098,24 @@ namespace A2Z
         /// 사용자 사양: Z=0.65 / X·Y=0.70 (모델 차지 비율). ShowAllDimensions 보조선 위치 계산 기준.
         /// 모델 RescaleObject 시점의 shrinkFactor와 동일 값을 유지해야 보조선이 모델 fit 결과와 일치.
         /// </summary>
-        private float EstimateFitScaleForViewArea(float availW, float availH, string viewDirection, List<int> memberIndices, float fitFactorOverride = -1f)
+        private float EstimateFitScaleForViewArea(
+            float availW,
+            float availH,
+            string viewDirection,
+            List<int> memberIndices,
+            float fitFactorOverride = -1f,
+            DrawingReferenceFrame drawingReferenceFrame = null)
         {
             float minX = float.MaxValue, maxX = float.MinValue;
             float minY = float.MaxValue, maxY = float.MinValue;
             float minZ = float.MaxValue, maxZ = float.MinValue;
-            if (memberIndices != null && memberIndices.Count > 0)
+            if (drawingReferenceFrame != null)
+            {
+                minX = drawingReferenceFrame.MinX; maxX = drawingReferenceFrame.MaxX;
+                minY = drawingReferenceFrame.MinY; maxY = drawingReferenceFrame.MaxY;
+                minZ = drawingReferenceFrame.MinZ; maxZ = drawingReferenceFrame.MaxZ;
+            }
+            else if (memberIndices != null && memberIndices.Count > 0)
             {
                 try
                 {
