@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 3,117 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 3,156 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -60,7 +60,7 @@
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
 - **라인**: L1633+
-- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → STRU PNT 계열 UDA를 PAINT CODE `Input_166`에 적용 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. ISO 이름은 연결 Part당 접합측 모서리에 한 번, 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영한다. 설치도 직교 뷰는 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
+- **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 같은 도면 목록의 제작도·조립도·설치도·가공도가 공유하는 PAINT CODE를 `Input_166`에 적용 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. ISO는 조립도/제작도 두 겹 표현을 유지한다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. ISO 이름은 연결 Part당 접합측 모서리에 한 번, 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영한다. 설치도 직교 뷰는 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
 
 ### GetDrawingSheetDisplayIndices
 - **라인**: L2322+
@@ -71,15 +71,19 @@
 - **역할**: 제작도 연결 Clash의 상대 Part를 가장 가까운 부모 Assembly 단위로 묶어 중복 제거하고, 이름과 대표 HotPoint XYZ를 월드 좌표 노트 입력으로 반환
 
 ### GetStruPntUdaValue
-- **라인**: L2556~L2627
+- **라인**: L2554~L2625
 - **역할**: 기준부재에서 부모로 최대 10단계 이동하며 이름에 `PNT`가 포함된 UDA 키를 조회. 한 노드의 복수 후보 키·값을 모두 로그에 남기고 첫 비어 있지 않은 값을 PAINT CODE로 반환
 
+### GetOrCacheDrawingPaintCode
+- **라인**: L2632~L2664
+- **역할**: `UDA.Keys`를 `BeginUpdate` 밖인 출력 데이터 구성 시점에만 호출하고, 첫 조회 결과를 같은 도면 목록의 모든 `DrawingSheetData.PaintCode`에 저장한다. 빈 문자열도 조회 완료 상태로 캐시해 제작도·조립도·설치도·가공도가 같은 값 또는 같은 빈 상태를 사용한다.
+
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L2629+
+- **라인**: L2666+
 - **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L2645+
+- **라인**: L2682+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
@@ -110,6 +114,7 @@
 - `vizcore3d.Review.Note.AddNoteSurface(text, textPos, arrowPos)`
 - `vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(title, target, label)`
 - `Node.Kind`, `Node.ParentIndex`, `Object3D.FromIndex` (연결 Part의 가장 가까운 부모 Assembly 이름 탐색)
+- `DrawingSheetData.PaintCode` (같은 STRU 도면 목록의 제작도·조립도·설치도·가공도 공용 PNT 값)
 - `DrawingSheetData.InstallationContextIndices`, `InstallationConnections` (설치도 직접 연결 외부 Part·접합영역 스냅샷, Assembly는 노트 문맥)
 
 ---

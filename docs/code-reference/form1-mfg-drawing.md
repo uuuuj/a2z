@@ -1,6 +1,6 @@
 # Form1.MfgDrawing.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.MfgDrawing.cs` (약 2,985 라인)
+**경로**: `A2Z/Form1.MfgDrawing.cs` (약 2,981 라인)
 
 **책임**: 가공도 3D 미리보기, 엑셀 템플릿 기반 PDF 출력, 카메라 방향 결정, Osnap 치수와 풍선 생성, EA 앵글 상하 2뷰 배치(가로화·스왑·미러).
 
@@ -8,7 +8,7 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---:|---|
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2354 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2350 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
 
 옛 `btnMfgDrawing_Click` 핸들러는 제거됐다. 시트 선택 미리보기는 `LvDrawingSheet_SelectedIndexChanged`가 `ExecuteMfgDrawing`을 호출한다.
 
@@ -18,7 +18,7 @@
 
 - **라인**: L2105
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
-- 첫 가공도 부재에서 STRU 부모 방향의 PNT 계열 UDA를 출력당 한 번만 조회하고, 모든 페이지 PAINT CODE `Input_166`에 재사용한다.
+- 제작도·조립도·설치도와 같은 `DrawingSheetData.PaintCode` 공용 캐시를 사용하며, 아직 조회 전이면 안전한 출력 시점에 한 번 확정해 모든 페이지 PAINT CODE `Input_166`에 재사용한다.
 - `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). CONTRACTOR 로고는 `{Image_3}` + mfgImageMapping으로 Import 단계 처리(2026-07-21, 옛 `Set2DViewTemplateMark` 등록 폐기).
 - 템플릿 적용은 `ImportExcelWithData` 직행 — 소형 템플릿(~4천 셀)이라 수백 ms. JSON 사전변환·캐시는 2026-07-19 제거(변환 290초·태그 미보존·stale 좌표 버그). 템플릿은 엑셀에서만 수정(openpyxl 저장본은 네이티브 크래시).
 - 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자(SDK 1.0.26.716)로 Import 단계에서 배치 — 옛 View 기반 수동 배치 폐기 (2026-07-20). `EnsureViewAreasCache`는 중복 View 태그 방어(첫 위치 사용+경고). ⚠ **태그 번호 한계**: View 1~7·Input 1~199만 — 초과 시 import에서 SDK 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측).
@@ -111,10 +111,10 @@
 | `RestoreAllPartsVisibility` | L23 | 활성, 출력 후 가시성 복원 |
 | `SplitMfgIntoPages` | L69 | 활성, 페이지당 5부재 분할 |
 | `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 (PAINT CODE Input_166, 부재명 Input_195~199, BOM 8×20 Input_4~163, 선초기화 1..199 — **Input 200 이상 금지**: SDK 메모리 손상) |
-| `GetSprefValue` | L2410 | 활성 |
-| `ParseOrientation` | L2628 | 활성 |
-| `DetectMfgAxis` | L2803 | LINE Osnap 5도 방향군·길이 합 기반 주축 판정 |
-| `LogMfgAxisDetection` | L2897 | 월드축 편차·정상/틀어짐·단일 최장선·ORIENTATION 진단 로그 |
+| `GetSprefValue` | L2406 | 활성 |
+| `ParseOrientation` | L2624 | 활성 |
+| `DetectMfgAxis` | L2799 | LINE Osnap 5도 방향군·길이 합 기반 주축 판정 |
+| `LogMfgAxisDetection` | L2893 | 월드축 편차·정상/틀어짐·단일 최장선·ORIENTATION 진단 로그 |
 
 옛 그리드 8×3 일괄 출력 경로(`GenerateMfgDrawing2DAll`)와 그 셀 렌더 어댑터(`RenderMfgViewForDrawing`)는 2026-07-03 제거됐다. 현재 PDF 출력은 `GenerateMfgDrawingManual` → `RenderMfgRowToViewArea` 경로로 일원화됐다.
 
