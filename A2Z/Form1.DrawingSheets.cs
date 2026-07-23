@@ -1838,6 +1838,9 @@ namespace A2Z
                 };
 
                 const float margin = 5f;
+                const float isoModelXOffset = 10f;
+                const float templateYOffset = 15f;
+                const float isoShrinkFactor = 0.70f;
                 int viewsRendered = 0;
 
                 // ── 7. 각 View 영역에 모델 + 치수/풍선 투영 ──
@@ -2010,17 +2013,17 @@ namespace A2Z
                         if (objW > 0f && objH > 0f && fitW > 0f && fitH > 0f)
                         {
                             float fitScale = Math.Min(fitW / objW, fitH / objH);
-                            float shrinkFactor = (viewDir == "Z") ? 0.65f : 0.70f;
+                            float shrinkFactor = (viewDir == "Z") ? 0.65f : isoShrinkFactor;
                             vizcore3d.Drawing2D.Object2D.RescaleObject(
                                 targetObjId, objScale * fitScale * shrinkFactor);
                         }
 
-                        float xOffset = (p.Index == 1) ? 10f
+                        float xOffset = (p.Index == 1) ? isoModelXOffset
                                       : (p.Index == 4) ? 20f
                                       : 0f;
                         float cx = p.X + p.Width / 2f;
                         float cy = p.Y + p.Height / 2f;
-                        vizcore3d.Drawing2D.Object2D.MoveObjectTo(targetObjId, cx + xOffset, cy + 15f);
+                        vizcore3d.Drawing2D.Object2D.MoveObjectTo(targetObjId, cx + xOffset, cy + templateYOffset);
                     };
 
                     int dashedObjId = -1;
@@ -2169,19 +2172,26 @@ namespace A2Z
                         catch { }
                     }
 
-                    // SDK 1.0.26.723: 최종 2D 좌표에서 ISO 부재번호 풍선을 View_1 영역 바깥쪽으로 정렬한다.
+                    // SDK 1.0.26.723: 최종 2D 좌표에서 ISO 부재번호 풍선을 모델 표시 범위 바깥쪽으로 정렬한다.
                     // 연결 Assembly/Part 이름 노트는 이 호출 뒤에 생성해 정렬 대상에서 제외한다.
                     if (viewDir == "ISO" && convertedNoteIndices.Count > 0)
                     {
-                        const float templatePadding = 15f;
                         const float balloonAlignOffset = 10f;
+
+                        // 전체 View_1을 기준으로 주면 SDK가 풍선을 셀 바깥으로 밀어 템플릿을 벗어난다.
+                        // 실제 모델 배치 중심과 70% fit envelope를 기준으로 잡아 풍선은 모델 밖,
+                        // View_1 안쪽 여백에 남도록 한다.
+                        float alignCenterX = p.X + p.Width / 2f + isoModelXOffset;
+                        float alignCenterY = p.Y + p.Height / 2f + templateYOffset;
+                        float alignWidth = Math.Max(1f, (p.Width - 2f * margin) * isoShrinkFactor);
+                        float alignHeight = Math.Max(1f, (p.Height - 2f * margin) * isoShrinkFactor);
                         var rectMin = new VIZCore3D.NET.Data.Vertex3D(
-                            p.X + templatePadding,
-                            p.Y + templatePadding,
+                            alignCenterX - alignWidth / 2f,
+                            alignCenterY - alignHeight / 2f,
                             0f);
                         var rectMax = new VIZCore3D.NET.Data.Vertex3D(
-                            p.X + p.Width + templatePadding,
-                            p.Y + p.Height + templatePadding,
+                            alignCenterX + alignWidth / 2f,
+                            alignCenterY + alignHeight / 2f,
                             0f);
 
                         try
@@ -2189,7 +2199,7 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
                                 rectMin, rectMax, balloonAlignOffset);
                             DiagLog($"P2 ISO 풍선 영역 정렬 sheet={sheet.SheetNumber} count={convertedNoteIndices.Count} " +
-                                    $"rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
+                                    $"basis=modelFit70% rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
                                     $"offsetPx={balloonAlignOffset:F1}");
                         }
                         catch (Exception ex)
