@@ -1258,9 +1258,10 @@ namespace A2Z
         //   CropFit2DViewObjectByNodeIDs의 cropOffset로 전달. 실기 튜닝값 — "붙은 부위가 적당히 보이는" 값으로 조정.
         private const float IsoNeighborCropOffset = 0.5f;
 
-        // 제작도 ISO 연결 부재 이름의 지시선 길이(모델 월드 좌표, mm).
-        // Target은 Clash HotPoint 그대로 두고 Label만 X축 방향으로 이동한다.
-        private const float IsoNeighborNoteWorldOffset = 100f;
+        // ISO 리뷰와 실제 2D 객체 외곽 사이의 도면 고정 거리.
+        private const float IsoReviewGapCanvas = 20f;
+        private const float IsoConnectionNameRowSpacingCanvas = 8f;
+        private const float IsoConnectionNameFallbackWorldOffset = 100f;
 
         private sealed class FabricationNeighborAssemblyNote
         {
@@ -1269,6 +1270,24 @@ namespace A2Z
             public float X { get; set; }
             public float Y { get; set; }
             public float Z { get; set; }
+        }
+
+        private sealed class IsoConnectionNameRequest
+        {
+            public string Text { get; set; }
+            public VIZCore3D.NET.Data.Vector3D Target { get; set; }
+        }
+
+        private sealed class IsoProjectionContext
+        {
+            public float ObjectCenterX { get; set; }
+            public float ObjectCenterY { get; set; }
+            public float ObjectWidth { get; set; }
+            public float ObjectHeight { get; set; }
+            public float ScreenCenterX { get; set; }
+            public float ScreenCenterY { get; set; }
+            public float ScreenToCanvasX { get; set; }
+            public float ScreenToCanvasY { get; set; }
         }
 
         /// <summary>
@@ -2203,66 +2222,25 @@ namespace A2Z
                         try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
                         catch { }
                     }
-                    int createdIsoConnectionNameNotes = 0;
+                    var isoConnectionNameRequests = new List<IsoConnectionNameRequest>();
 
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
-                    // 부재번호 풍선과 같은 3D 표면 노트 경로로 만든 뒤 점선 객체에 투영해야 영역 정렬에 포함된다.
+                    // 이름은 번호 풍선 정렬 후 별도 2D 노트로 만들어 상단/하단에만 배치한다.
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -1 &&
                         !isoFitByDashed && dashedObjId >= 0)
                     {
                         List<FabricationNeighborAssemblyNote> neighborNotes =
                             GetFabricationNeighborAssemblyNotes(sheet.MemberIndices);
-                        int createdNeighborNotes = 0;
-
-                        if (neighborNotes.Count > 0)
+                        foreach (FabricationNeighborAssemblyNote note in neighborNotes)
                         {
-                            try
+                            isoConnectionNameRequests.Add(new IsoConnectionNameRequest
                             {
-                                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                                vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
-                                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-
-                                for (int noteOrder = 0; noteOrder < neighborNotes.Count; noteOrder++)
-                                {
-                                    FabricationNeighborAssemblyNote note = neighborNotes[noteOrder];
-                                    float offsetDirection = (noteOrder % 2 == 0) ? 1f : -1f;
-                                    var target = new VIZCore3D.NET.Data.Vertex3D(note.X, note.Y, note.Z);
-                                    var label = new VIZCore3D.NET.Data.Vertex3D(
-                                        note.X + IsoNeighborNoteWorldOffset * offsetDirection,
-                                        note.Y,
-                                        note.Z);
-
-                                    try
-                                    {
-                                        int noteId = vizcore3d.Review.Note.AddNoteSurface(
-                                            note.AssemblyName, label, target);
-                                        if (noteId >= 0)
-                                        {
-                                            vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
-                                            createdNeighborNotes++;
-                                            createdIsoConnectionNameNotes++;
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        DiagLog($"P2 ISO 제작도 연결 이름 노트 실패 assembly='{note.AssemblyName}' " +
-                                                $"point=({note.X:F1},{note.Y:F1},{note.Z:F1}) {ex.Message}");
-                                    }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                DiagLog($"P2 ISO 제작도 연결 이름 노트 준비 실패 obj={dashedObjId} {ex.Message}");
-                            }
-                            finally
-                            {
-                                try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
-                                catch { }
-                            }
+                                Text = note.AssemblyName,
+                                Target = new VIZCore3D.NET.Data.Vector3D(note.X, note.Y, note.Z)
+                            });
                         }
 
-                        DiagLog($"P2 ISO 제작도 연결 이름 노트 obj={dashedObjId} " +
-                                $"candidates={neighborNotes.Count} created={createdNeighborNotes}");
+                        DiagLog($"P2 ISO 제작도 연결 이름 요청 candidates={neighborNotes.Count}");
                     }
 
                     // 설치도: 접합 중심 A1/A2는 표시하지 않는다.
@@ -2270,7 +2248,6 @@ namespace A2Z
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
                         sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
                     {
-                        int createdConnectionNotes = 0;
                         var noteGroups = sheet.InstallationConnections
                             .Where(connection => connection != null)
                             .GroupBy(connection => new
@@ -2283,79 +2260,44 @@ namespace A2Z
                             .OrderBy(group => group.Key.ConnectedAssemblyName)
                             .ThenBy(group => group.Key.ConnectedPartName)
                             .ToList();
-                        try
+                        for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
                         {
-                            vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                            vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
-                            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-
-                            for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
+                            var noteGroup = noteGroups[noteOrder];
+                            InstallationConnectionData connection = noteGroup.First();
+                            InstallationPlacementAnchor anchor = noteGroup
+                                .GroupBy(item => new
+                                {
+                                    item.TargetPartIndex,
+                                    item.TargetBodyIndex,
+                                    item.ConnectedPartIndex,
+                                    item.ConnectedBodyIndex
+                                })
+                                .Select(bodyGroup => BuildInstallationPlacementAnchor(bodyGroup))
+                                .Where(candidate => candidate != null)
+                                .OrderByDescending(candidate => candidate.MergedAreaCount)
+                                .ThenBy(candidate => candidate.ConnectedBodyIndex)
+                                .FirstOrDefault();
+                            if (anchor == null)
                             {
-                                var noteGroup = noteGroups[noteOrder];
-                                InstallationConnectionData connection = noteGroup.First();
-                                InstallationPlacementAnchor anchor = noteGroup
-                                    .GroupBy(item => new
-                                    {
-                                        item.TargetPartIndex,
-                                        item.TargetBodyIndex,
-                                        item.ConnectedPartIndex,
-                                        item.ConnectedBodyIndex
-                                    })
-                                    .Select(bodyGroup => BuildInstallationPlacementAnchor(bodyGroup))
-                                    .Where(candidate => candidate != null)
-                                    .OrderByDescending(candidate => candidate.MergedAreaCount)
-                                    .ThenBy(candidate => candidate.ConnectedBodyIndex)
-                                    .FirstOrDefault();
-                                if (anchor == null)
-                                {
-                                    DiagLog($"설치도 ISO 연결 이름 생략 — 모서리 선별 실패 " +
-                                            $"connectedPart={connection.ConnectedPartIndex}");
-                                    continue;
-                                }
-
-                                VIZCore3D.NET.Data.Vector3D target = anchor.ConnectedCornerPoint;
-                                float offset = IsoNeighborNoteWorldOffset *
-                                    (noteOrder % 2 == 0 ? 1f : -1f);
-                                VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
-                                    target, viewDir, offset);
-                                string text = $"{connection.Label}. " +
-                                              $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}";
-                                try
-                                {
-                                    var targetVertex = new VIZCore3D.NET.Data.Vertex3D(
-                                        target.X, target.Y, target.Z);
-                                    var labelVertex = new VIZCore3D.NET.Data.Vertex3D(
-                                        label.X, label.Y, label.Z);
-                                    int noteId = vizcore3d.Review.Note.AddNoteSurface(
-                                        text, labelVertex, targetVertex);
-                                    if (noteId >= 0)
-                                    {
-                                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
-                                        createdConnectionNotes++;
-                                        createdIsoConnectionNameNotes++;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    DiagLog($"설치도 접합영역 노트 실패 label={connection.Label} view={viewDir} {ex.Message}");
-                                }
+                                DiagLog($"설치도 ISO 연결 이름 생략 — 모서리 선별 실패 " +
+                                        $"connectedPart={connection.ConnectedPartIndex}");
+                                continue;
                             }
+
+                            isoConnectionNameRequests.Add(new IsoConnectionNameRequest
+                            {
+                                Text = $"{connection.Label}. " +
+                                       $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}",
+                                Target = anchor.ConnectedCornerPoint
+                            });
                         }
-                        finally
-                        {
-                            try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
-                            catch { }
-                        }
-                        DiagLog($"설치도 ISO 연결 이름 노트 parts={noteGroups.Count} " +
-                                $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
+                        DiagLog($"설치도 ISO 연결 이름 요청 parts={noteGroups.Count} " +
+                                $"areas={sheet.InstallationConnections.Count} queued={isoConnectionNameRequests.Count}");
                     }
 
-                    // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
-                    // 실제 표시 객체의 외곽은 기준점으로만 쓰고, 외곽과 라벨 사이 거리는 도면 고정 10mm로 둔다.
-                    int isoReviewCount = convertedNoteIndices.Count + createdIsoConnectionNameNotes;
-                    if (viewDir == "ISO" && isoReviewCount > 0)
+                    // SDK 자동 정렬은 번호 풍선에만 적용한다. 긴 연결부재 이름은 아래에서 상단/하단에 직접 배치한다.
+                    if (viewDir == "ISO" && convertedNoteIndices.Count > 0)
                     {
-                        const float isoReviewGapCanvas = 10f;
                         const float sdkAlignOffset = 0f;
 
                         try
@@ -2381,21 +2323,21 @@ namespace A2Z
                             if (validObjectBounds)
                             {
                                 var rectMin = new VIZCore3D.NET.Data.Vertex3D(
-                                    objectCenterX - objectWidth / 2f - isoReviewGapCanvas,
-                                    objectCenterY - objectHeight / 2f - isoReviewGapCanvas,
+                                    objectCenterX - objectWidth / 2f - IsoReviewGapCanvas,
+                                    objectCenterY - objectHeight / 2f - IsoReviewGapCanvas,
                                     0f);
                                 var rectMax = new VIZCore3D.NET.Data.Vertex3D(
-                                    objectCenterX + objectWidth / 2f + isoReviewGapCanvas,
-                                    objectCenterY + objectHeight / 2f + isoReviewGapCanvas,
+                                    objectCenterX + objectWidth / 2f + IsoReviewGapCanvas,
+                                    objectCenterY + objectHeight / 2f + IsoReviewGapCanvas,
                                     0f);
 
                                 vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
                                     rectMin, rectMax, sdkAlignOffset);
                                 DiagLog($"P2 ISO 리뷰 영역 정렬 sheet={sheet.SheetNumber} " +
-                                        $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
+                                        $"balloons={convertedNoteIndices.Count} connectionNames=excluded " +
                                         $"basis=objectBounds obj={alignObjectId} size=({objectWidth:F1}x{objectHeight:F1}) " +
                                         $"rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
-                                        $"gapCanvas={isoReviewGapCanvas:F1} sdkOffset={sdkAlignOffset:F1}");
+                                        $"gapCanvas={IsoReviewGapCanvas:F1} sdkOffset={sdkAlignOffset:F1}");
                             }
                             else
                             {
@@ -2407,9 +2349,18 @@ namespace A2Z
                         catch (Exception ex)
                         {
                             DiagLog($"P2 ISO 리뷰 영역 정렬 WARN sheet={sheet.SheetNumber} " +
-                                    $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
+                                    $"balloons={convertedNoteIndices.Count} connectionNames=excluded " +
                                     $"{ex.Message}");
                         }
+                    }
+
+                    if (viewDir == "ISO" && isoConnectionNameRequests.Count > 0)
+                    {
+                        int createdConnectionNames = AddIsoConnectionNameNotesTopBottom(
+                            isoConnectionNameRequests, sheet.MemberIndices, objId);
+                        DiagLog($"P2 ISO 연결 이름 상하단 배치 sheet={sheet.SheetNumber} " +
+                                $"requested={isoConnectionNameRequests.Count} created={createdConnectionNames} " +
+                                $"gapCanvas={IsoReviewGapCanvas:F1}");
                     }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
@@ -2450,6 +2401,204 @@ namespace A2Z
                 ReleaseActiveDrawingReferenceAxis(
                     $"sheet={(sheet != null ? sheet.SheetNumber : -1)} finally");
             }
+        }
+
+        private int AddIsoConnectionNameNotesTopBottom(
+            List<IsoConnectionNameRequest> requests,
+            List<int> referenceIndices,
+            int referenceObjectId)
+        {
+            if (requests == null || requests.Count == 0 || referenceObjectId < 0)
+                return 0;
+
+            IsoProjectionContext context;
+            if (!TryBuildIsoProjectionContext(referenceIndices, referenceObjectId, out context))
+            {
+                DiagLog($"P2 ISO 연결 이름 상하단 배치 WARN obj={referenceObjectId} " +
+                        "projectionContext 실패 → 월드 Z축 상하 배치 폴백");
+                return AddIsoConnectionNameNotesWorldFallback(requests, referenceObjectId);
+            }
+
+            int created = 0;
+            int topRow = 0;
+            int bottomRow = 0;
+            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+
+            foreach (IsoConnectionNameRequest request in requests)
+            {
+                try
+                {
+                    var targetWorld = new VIZCore3D.NET.Data.Vertex3D(
+                        request.Target.X, request.Target.Y, request.Target.Z);
+                    VIZCore3D.NET.Data.Vertex3D targetScreen =
+                        vizcore3d.View.WorldToScreen(targetWorld, true);
+                    float targetCanvasX = context.ObjectCenterX +
+                        (targetScreen.X - context.ScreenCenterX) * context.ScreenToCanvasX;
+                    float targetCanvasY = context.ObjectCenterY +
+                        (targetScreen.Y - context.ScreenCenterY) * context.ScreenToCanvasY;
+
+                    bool validTarget =
+                        !float.IsNaN(targetCanvasX) && !float.IsInfinity(targetCanvasX) &&
+                        !float.IsNaN(targetCanvasY) && !float.IsInfinity(targetCanvasY);
+                    if (!validTarget)
+                    {
+                        DiagLog($"P2 ISO 연결 이름 상하단 배치 WARN text='{request.Text}' " +
+                                $"invalidTarget=({targetCanvasX},{targetCanvasY})");
+                        continue;
+                    }
+
+                    bool placeTop = targetCanvasY >= context.ObjectCenterY;
+                    int row = placeTop ? topRow++ : bottomRow++;
+                    float labelCanvasY = placeTop
+                        ? context.ObjectCenterY + context.ObjectHeight / 2f +
+                          IsoReviewGapCanvas + row * IsoConnectionNameRowSpacingCanvas
+                        : context.ObjectCenterY - context.ObjectHeight / 2f -
+                          IsoReviewGapCanvas - row * IsoConnectionNameRowSpacingCanvas;
+
+                    var targetCanvas = new VIZCore3D.NET.Data.Vector3D(
+                        targetCanvasX, targetCanvasY, 0f);
+                    // 긴 이름이 좌우 View 경계를 넘지 않도록 라벨 기준점은 모델 가로 중심에 고정한다.
+                    var labelCanvas = new VIZCore3D.NET.Data.Vector3D(
+                        context.ObjectCenterX, labelCanvasY, 0f);
+                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNote(
+                        request.Text, targetCanvas, labelCanvas);
+                    if (noteIndex >= 0)
+                    {
+                        created++;
+                        DiagLog($"P2 ISO 연결 이름 상하단 배치 text='{request.Text}' " +
+                                $"side={(placeTop ? "TOP" : "BOTTOM")} row={row} " +
+                                $"target=({targetCanvasX:F1},{targetCanvasY:F1}) " +
+                                $"label=({context.ObjectCenterX:F1},{labelCanvasY:F1})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"P2 ISO 연결 이름 상하단 배치 실패 text='{request.Text}' {ex.Message}");
+                }
+            }
+
+            return created;
+        }
+
+        private bool TryBuildIsoProjectionContext(
+            List<int> referenceIndices,
+            int referenceObjectId,
+            out IsoProjectionContext context)
+        {
+            context = null;
+            if (referenceIndices == null || referenceIndices.Count == 0 || referenceObjectId < 0)
+                return false;
+
+            try
+            {
+                var bounds = vizcore3d.Object3D.GetBoundBox(referenceIndices.Distinct().ToList(), false);
+                if (bounds == null) return false;
+
+                var corners = new[]
+                {
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MinY, bounds.MinZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MinY, bounds.MinZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MaxY, bounds.MinZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MinY, bounds.MaxZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MaxY, bounds.MinZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MinY, bounds.MaxZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MaxY, bounds.MaxZ),
+                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MaxY, bounds.MaxZ)
+                };
+
+                float screenMinX = float.MaxValue;
+                float screenMinY = float.MaxValue;
+                float screenMaxX = float.MinValue;
+                float screenMaxY = float.MinValue;
+                foreach (VIZCore3D.NET.Data.Vertex3D corner in corners)
+                {
+                    VIZCore3D.NET.Data.Vertex3D screen =
+                        vizcore3d.View.WorldToScreen(corner, true);
+                    screenMinX = Math.Min(screenMinX, screen.X);
+                    screenMinY = Math.Min(screenMinY, screen.Y);
+                    screenMaxX = Math.Max(screenMaxX, screen.X);
+                    screenMaxY = Math.Max(screenMaxY, screen.Y);
+                }
+
+                float screenWidth = screenMaxX - screenMinX;
+                float screenHeight = screenMaxY - screenMinY;
+                float objectWidth = 0f;
+                float objectHeight = 0f;
+                float objectCenterX = 0f;
+                float objectCenterY = 0f;
+                vizcore3d.Drawing2D.Object2D.GetObjectSize(
+                    referenceObjectId, ref objectWidth, ref objectHeight);
+                vizcore3d.Drawing2D.Object2D.GetObjectCenter(
+                    referenceObjectId, ref objectCenterX, ref objectCenterY);
+
+                bool valid =
+                    screenWidth > 0f && screenHeight > 0f &&
+                    objectWidth > 0f && objectHeight > 0f &&
+                    !float.IsNaN(screenWidth) && !float.IsInfinity(screenWidth) &&
+                    !float.IsNaN(screenHeight) && !float.IsInfinity(screenHeight) &&
+                    !float.IsNaN(objectWidth) && !float.IsInfinity(objectWidth) &&
+                    !float.IsNaN(objectHeight) && !float.IsInfinity(objectHeight) &&
+                    !float.IsNaN(objectCenterX) && !float.IsInfinity(objectCenterX) &&
+                    !float.IsNaN(objectCenterY) && !float.IsInfinity(objectCenterY);
+                if (!valid) return false;
+
+                context = new IsoProjectionContext
+                {
+                    ObjectCenterX = objectCenterX,
+                    ObjectCenterY = objectCenterY,
+                    ObjectWidth = objectWidth,
+                    ObjectHeight = objectHeight,
+                    ScreenCenterX = (screenMinX + screenMaxX) / 2f,
+                    ScreenCenterY = (screenMinY + screenMaxY) / 2f,
+                    ScreenToCanvasX = objectWidth / screenWidth,
+                    ScreenToCanvasY = objectHeight / screenHeight
+                };
+                DiagLog($"P2 ISO 연결 이름 투영 기준 obj={referenceObjectId} " +
+                        $"screen=({screenWidth:F1}x{screenHeight:F1}) " +
+                        $"canvas=({objectWidth:F1}x{objectHeight:F1}) " +
+                        $"ratio=({context.ScreenToCanvasX:F4},{context.ScreenToCanvasY:F4})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"P2 ISO 연결 이름 투영 기준 실패 obj={referenceObjectId} {ex.Message}");
+                return false;
+            }
+        }
+
+        private int AddIsoConnectionNameNotesWorldFallback(
+            List<IsoConnectionNameRequest> requests,
+            int referenceObjectId)
+        {
+            int created = 0;
+            try
+            {
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(referenceObjectId, 1);
+                for (int i = 0; i < requests.Count; i++)
+                {
+                    IsoConnectionNameRequest request = requests[i];
+                    float direction = i % 2 == 0 ? 1f : -1f;
+                    float distance = IsoConnectionNameFallbackWorldOffset * (i / 2 + 1);
+                    var label = new VIZCore3D.NET.Data.Vector3D(
+                        request.Target.X,
+                        request.Target.Y,
+                        request.Target.Z + direction * distance);
+                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
+                        request.Text, request.Target, label);
+                    if (noteIndex >= 0) created++;
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"P2 ISO 연결 이름 월드 상하 배치 폴백 실패 obj={referenceObjectId} {ex.Message}");
+            }
+            finally
+            {
+                try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
+                catch { }
+            }
+            return created;
         }
 
         private const float DrawingReferenceAxisToleranceDegrees = 1.0f;
@@ -2686,18 +2835,6 @@ namespace A2Z
             if (sheet.BaseMemberIndex == -2 && sheet.InstallationContextIndices != null)
                 result.AddRange(sheet.InstallationContextIndices);
             return result.Where(index => index >= 0).Distinct().ToList();
-        }
-
-        private VIZCore3D.NET.Data.Vector3D GetInstallationNoteLabelPoint(
-            VIZCore3D.NET.Data.Vector3D target, string viewDirection, float offset)
-        {
-            switch (viewDirection)
-            {
-                case "X": return new VIZCore3D.NET.Data.Vector3D(target.X, target.Y + offset, target.Z);
-                case "Y": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
-                case "Z": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
-                default: return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
-            }
         }
 
         /// <summary>

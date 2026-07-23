@@ -1,6 +1,6 @@
 # Form1.MfgDrawing.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.MfgDrawing.cs` (약 3,352 라인)
+**경로**: `A2Z/Form1.MfgDrawing.cs` (약 3,360 라인)
 
 **책임**: 가공도 3D 미리보기, 엑셀 템플릿 기반 PDF 출력, ORIENTATION 로컬 참조축 카메라, Osnap 치수와 풍선 생성, EA 앵글 상하 2뷰 배치(가로화·스왑·미러).
 
@@ -8,7 +8,7 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---:|---|
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2400 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2408 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
 
 옛 `btnMfgDrawing_Click` 핸들러는 제거됐다. 시트 선택 미리보기는 `LvDrawingSheet_SelectedIndexChanged`가 `ExecuteMfgDrawing`을 호출한다.
 
@@ -24,6 +24,7 @@
 - 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자로 Import 단계에서 배치한다. `EnsureViewAreasCache`는 중복 View 태그를 방어한다. SDK 1.0.26.723에서 Input 200+ 문제가 수정되어 BOM 21~25행에 Input 201~240을 사용한다.
 - Import 직후 `RemoveEmptyTemplateBorders(0.1f, RowAndColumn)`로 내용 없는 공백 셀의 괘선을 제거한다. 전역 동작이라 `BuildMfgPageData` 선초기화가 보존 칸(PAINT/DP/TAG 165~169·REV. 칸 194)만 공백(`" "`)으로 위장하고, BOM(4~163·201~240)·Note(164)·Rev 위 4행(170~193)·부재명(195~199)은 빈 문자열로 둔다.
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
+- 선택적 `shouldCancel` 콜백이 전달된 STRU 일괄 출력 경로는 각 페이지 시작 전에 `Application.DoEvents()` 후 요청을 확인하고 다음 페이지부터 중단한다. 수동 가공도 출력은 콜백을 생략해 기존 흐름을 유지한다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 
 ### <a id="RenderMfgRowToViewArea"></a>RenderMfgRowToViewArea

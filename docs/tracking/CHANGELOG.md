@@ -9,7 +9,7 @@
 ## 2026-07-23 — STRU 이름 검색 → 즉시 치수 추출 입력창
 
 **유형**: feat
-**커밋**: `pending` (기능 코드는 auto-sync `6ae6502`, 본 커밋은 흐름 문서·CHANGELOG)
+**커밋**: `16a8d6f` (기능 코드는 auto-sync `6ae6502`, 본 커밋은 흐름 문서·CHANGELOG)
 **관련 ISSUE**: GitHub issue #36
 **변경 사항**:
 - STRU 목록(`groupBoxStru`) 하단에 STRU 이름 검색 입력창을 코드로 생성(Designer 미사용). 자동완성 소스는 STRU 목록(`PopulateStruCheckList`)과 함께 갱신

@@ -73,6 +73,7 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 | Form1.DrawingSheets.cs | [code-reference/form1-drawing-sheets.md](./code-reference/form1-drawing-sheets.md) |
 | Form1.GlobalViews.cs | [code-reference/form1-global-views.md](./code-reference/form1-global-views.md) |
 | Form1.MfgDrawing.cs | [code-reference/form1-mfg-drawing.md](./code-reference/form1-mfg-drawing.md) |
+| Form1.Stru.cs | [code-reference/form1-stru.md](./code-reference/form1-stru.md) |
 | Form1.Attribute.cs | [code-reference/form1-attribute.md](./code-reference/form1-attribute.md) |
 | Models.cs | [code-reference/models.md](./code-reference/models.md) |
 
