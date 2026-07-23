@@ -1,6 +1,6 @@
 # Form1.MfgDrawing.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.MfgDrawing.cs` (약 2,981 라인)
+**경로**: `A2Z/Form1.MfgDrawing.cs` (약 3,026 라인)
 
 **책임**: 가공도 3D 미리보기, 엑셀 템플릿 기반 PDF 출력, 카메라 방향 결정, Osnap 치수와 풍선 생성, EA 앵글 상하 2뷰 배치(가로화·스왑·미러).
 
@@ -8,7 +8,7 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---:|---|
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2350 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2365 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
 
 옛 `btnMfgDrawing_Click` 핸들러는 제거됐다. 시트 선택 미리보기는 `LvDrawingSheet_SelectedIndexChanged`가 `ExecuteMfgDrawing`을 호출한다.
 
@@ -16,7 +16,7 @@
 
 ### <a id="GenerateMfgDrawingManual"></a>GenerateMfgDrawingManual
 
-- **라인**: L2105
+- **라인**: L2120
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
 - 제작도·조립도·설치도와 같은 `DrawingSheetData.PaintCode` 공용 캐시를 사용하며, 아직 조회 전이면 안전한 출력 시점에 한 번 확정해 모든 페이지 PAINT CODE `Input_166`에 재사용한다.
 - `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). CONTRACTOR 로고는 `{Image_3}` + mfgImageMapping으로 Import 단계 처리(2026-07-21, 옛 `Set2DViewTemplateMark` 등록 폐기).
@@ -28,7 +28,7 @@
 
 ### <a id="RenderMfgRowToViewArea"></a>RenderMfgRowToViewArea
 
-- **라인**: L938
+- **라인**: L953
 - 일반 부재는 View 영역 전체에 한 뷰를 배치한다.
 - EA 부재는 View 영역을 위·아래로 분할하고, 코어(`BuildMfgSceneCore`)와 2차 뷰(`BuildEaSecondaryScene`)를 각각 캡처한다.
 - 첫 번째 뷰는 최장축 치수를 예약하고, 두 번째 뷰가 해당 치수를 담당한다.
@@ -38,10 +38,10 @@
 
 ### <a id="BuildMfgSceneCore"></a>BuildMfgSceneCore
 
-- **라인**: L1167
+- **라인**: L1182
 - 대상 부재 격리, BBox 최장축 판정, PAD/PLATE 카메라 선택을 수행한다.
 - `ORIENTATION` UDA와 EA 열린 방향 보정을 적용한다.
-- LINE Osnap을 5도 방향군으로 묶고 길이 합 주축·월드축 편차(1도 임계값)·단일 최장선·ORIENTATION 비교를 `[참조축판정]` 로그에 남긴다. 1단계에서는 ReferenceAxis와 출력 동작을 변경하지 않는다.
+- `ORIENTATION` UDA를 우선해 1도 초과를 틀어짐으로 판정하고, 값이 없을 때만 LINE Osnap 길이 합 주축을 폴백으로 사용한다. `[참조축판정]`에는 두 결과와 최종 판정 출처를 함께 남긴다.
 - LINE/POINT Osnap 수집, 뒷면 필터, 체인 치수(그릴 목록 `pose.PendingDims`)를 수집한다 — 세로(폭) 축은 전체 치수를 생략하고 체인 1단만(2026-07-03).
 - 풍선은 Hole, SlotHole, UDA `PURPOSE=EBOS`인 EarthBoss만 생성한다.
 - ISO 부재번호와 원형 부재 반지름 풍선은 생성하지 않는다.
@@ -50,7 +50,7 @@
 
 ### <a id="BuildEaSecondaryScene"></a>BuildEaSecondaryScene
 
-- **라인**: L715
+- **라인**: L730
 - EA 두 번째 뷰를 독립 카메라에서 생성한다.
 - 최장축 Z는 `X_PLUS`(가로화는 호출자의 probe 실측), 나머지는 `Z_MINUS`를 사용한다.
 - 길이(최장축) 치수는 위 슬롯일 때만 체인+전체를 수집하고, 폭(높이) 치수는 체인 1단만 수집한다(2026-07-03).
@@ -70,6 +70,7 @@
 - 모델 2D 캡처 + `RescaleObject` 직후 확정된 실측 배율(`newScale`)로 `pose.PendingDims`의 치수·보조선을 그린다.
 - 보조선 오프셋(9/18mm)과 시작 gap(2mm)을 모두 캔버스 절대값으로 역산해 부재·뷰 무관하게 일정하게 유지한다(gap 통일 2026-07-03, 오프셋 1.5배 2026-07-06).
 - 치수 텍스트 위치는 수동 배치 없이 SDK 자동 정렬에 위임한다(가로=치수선 위, 세로=왼쪽 회사 표준).
+- ORIENTATION이 1도를 초과한 부재만 로컬 축 벡터를 계산해 `DrawDimension`의 UserAxis 경로로 전달한다. 정상 부재는 null을 전달해 기존 월드축 치수 경로를 그대로 사용한다.
 
 ### <a id="CaptureMfgSceneToViewArea"></a>CaptureMfgSceneToViewArea
 
@@ -80,7 +81,7 @@
 
 ### <a id="ExecuteMfgDrawing"></a>ExecuteMfgDrawing
 
-- **라인**: L1975
+- **라인**: L1990
 - 가공도 시트 선택 시 단일 3D 미리보기를 만든다.
 - 공통 코어 호출 직후 `Review.Note.Clear()`로 Hole/SlotHole/EarthBoss 풍선만 미리보기에서 제거한다. PDF 렌더 경로는 이 메서드를 거치지 않아 풍선을 유지한다.
 - `BuildMfgSceneCore` 결과의 Z90/R180 회전을 적용한다.
@@ -88,20 +89,20 @@
 
 ### <a id="IsAngleFromSpref"></a>IsAngleFromSpref
 
-- **라인**: L2478
+- **라인**: L2489
 - 부모 방향으로 최대 10단계 탐색해 `SPREF`를 읽는다.
 - `/` 제거 후 `:` 앞 ITEM이 `EA`로 시작하면 앵글 부재로 판정한다.
 
 ### <a id="FilterHiddenLineOsnap"></a>FilterHiddenLineOsnap
 
-- **라인**: L2498
+- **라인**: L2509
 - 카메라 깊이축의 뒤쪽 15% 영역에 있는 Osnap을 제외한다.
 - 뒷면 가시축 극점 복원 예외는 은선 폐지와 함께 제거됐다 — 단면 osnap만 치수화(2026-07-03).
 - PLUS/MINUS 카메라에 따라 제거 방향을 반대로 적용한다.
 
 ### <a id="ApplyOrientationRotation"></a>ApplyOrientationRotation
 
-- **라인**: L2677
+- **라인**: L2688
 - `ORIENTATION` UDA 각도를 화면 Z축 회전으로 적용한다.
 
 ## 보조 메서드
@@ -111,10 +112,11 @@
 | `RestoreAllPartsVisibility` | L23 | 활성, 출력 후 가시성 복원 |
 | `SplitMfgIntoPages` | L69 | 활성, 페이지당 5부재 분할 |
 | `BuildMfgPageData` | L122 | 활성, 페이지 엑셀 슬롯 데이터 구성 (PAINT CODE Input_166, 부재명 Input_195~199, BOM 8×20 Input_4~163, 선초기화 1..199 — **Input 200 이상 금지**: SDK 메모리 손상) |
-| `GetSprefValue` | L2406 | 활성 |
-| `ParseOrientation` | L2624 | 활성 |
-| `DetectMfgAxis` | L2799 | LINE Osnap 5도 방향군·길이 합 기반 주축 판정 |
-| `LogMfgAxisDetection` | L2893 | 월드축 편차·정상/틀어짐·단일 최장선·ORIENTATION 진단 로그 |
+| `GetSprefValue` | L2421 | 활성 |
+| `ParseOrientation` | L2639 | 활성 |
+| `GetMfgOrientationAxisVector` | L2739 | ORIENTATION 각도로 정규화 전 로컬 X/Y/Z 축 벡터 생성 |
+| `DetectMfgAxis` | L2835 | ORIENTATION 부재 시 사용할 LINE Osnap 5도 방향군·길이 합 폴백 판정 |
+| `LogMfgAxisDetection` | L2929 | ORIENTATION 우선 최종 판정과 기하 대조 결과 진단 로그 |
 
 옛 그리드 8×3 일괄 출력 경로(`GenerateMfgDrawing2DAll`)와 그 셀 렌더 어댑터(`RenderMfgViewForDrawing`)는 2026-07-03 제거됐다. 현재 PDF 출력은 `GenerateMfgDrawingManual` → `RenderMfgRowToViewArea` 경로로 일원화됐다.
 

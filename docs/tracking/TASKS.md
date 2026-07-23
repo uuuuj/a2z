@@ -8,10 +8,10 @@
 
 | 상태 | 파일 | 작업 수 | 내용 |
 |---|---|---|---|
-| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 18 | 진행 중 — 대부분 사내 PC 실기 검증 대기 |
+| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 17 | 진행 중 — 대부분 사내 PC 실기 검증 대기 |
 | ⬜ TODO | [tasks/TODO.md](./tasks/TODO.md) | 9 | 대기 — 외부 답변·재현 케이스 대기 다수 |
 | 🔴 BLOCKED | [tasks/BLOCKED.md](./tasks/BLOCKED.md) | 1 | 차단됨 (재현 조건 수집 중) |
-| ✅ DONE | [tasks/DONE.md](./tasks/DONE.md) | 48 | 완료 이력 |
+| ✅ DONE | [tasks/DONE.md](./tasks/DONE.md) | 49 | 완료 이력 |
 
 - ID 체계(`T-`/`FB-`/`REQ-`)·전체 워크플로우: [README.md](./README.md)
 - 입력: [FEEDBACK.md](./FEEDBACK.md)(담당자) · [REQUESTS.md](./REQUESTS.md)(본인) / 출력: [CHANGELOG.md](./CHANGELOG.md)

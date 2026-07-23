@@ -1018,7 +1018,9 @@ namespace A2Z
             bool positiveOffset = false,
             bool alignExtToBaseline = false,
             float extGapOverride = -1f,
-            float textSlideModel = 0f)
+            float textSlideModel = 0f,
+            VIZCore3D.NET.Data.Vertex3D userMeasureAxis = null,
+            VIZCore3D.NET.Data.Vertex3D userOffsetAxis = null)
         {
             // 원본 좌표
             VIZCore3D.NET.Data.Vertex3D originalStart = new VIZCore3D.NET.Data.Vertex3D(
@@ -1056,65 +1058,104 @@ namespace A2Z
                 }
             }
 
-            // baseline에서 오프셋 방향으로 치수 위치 계산 (중심에서 체인치수 방향)
-            float offsetValue = positiveOffset ? (baseline + offset) : (baseline - offset);
-            VIZCore3D.NET.Data.Vertex3D startVertex;
-            VIZCore3D.NET.Data.Vertex3D endVertex;
+            // 기존 월드축 위치는 UserAxis 호출 실패 시 안전 폴백에도 사용한다.
+            float worldBaseline = baseline;
+            float worldOffsetValue = positiveOffset ? (worldBaseline + offset) : (worldBaseline - offset);
+            VIZCore3D.NET.Data.Vertex3D worldStartVertex;
+            VIZCore3D.NET.Data.Vertex3D worldEndVertex;
 
             switch (offsetDir)
             {
                 case "X":
-                    startVertex = new VIZCore3D.NET.Data.Vertex3D(offsetValue, startPoint.Y, startPoint.Z);
-                    endVertex = new VIZCore3D.NET.Data.Vertex3D(offsetValue, endPoint.Y, endPoint.Z);
+                    worldStartVertex = new VIZCore3D.NET.Data.Vertex3D(worldOffsetValue, startPoint.Y, startPoint.Z);
+                    worldEndVertex = new VIZCore3D.NET.Data.Vertex3D(worldOffsetValue, endPoint.Y, endPoint.Z);
                     break;
                 case "Y":
-                    startVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, offsetValue, startPoint.Z);
-                    endVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, offsetValue, endPoint.Z);
+                    worldStartVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, worldOffsetValue, startPoint.Z);
+                    worldEndVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, worldOffsetValue, endPoint.Z);
                     break;
                 case "Z":
-                    startVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, offsetValue);
-                    endVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, offsetValue);
+                    worldStartVertex = new VIZCore3D.NET.Data.Vertex3D(startPoint.X, startPoint.Y, worldOffsetValue);
+                    worldEndVertex = new VIZCore3D.NET.Data.Vertex3D(endPoint.X, endPoint.Y, worldOffsetValue);
                     break;
                 default:
                     return -1;
             }
 
-            // 치수 거리 계산
-            float distance = 0;
+            float worldDistance = 0f;
             switch (axis)
             {
-                case "X": distance = Math.Abs(endPoint.X - startPoint.X); break;
-                case "Y": distance = Math.Abs(endPoint.Y - startPoint.Y); break;
-                case "Z": distance = Math.Abs(endPoint.Z - startPoint.Z); break;
+                case "X": worldDistance = Math.Abs(endPoint.X - startPoint.X); break;
+                case "Y": worldDistance = Math.Abs(endPoint.Y - startPoint.Y); break;
+                case "Z": worldDistance = Math.Abs(endPoint.Z - startPoint.Z); break;
+            }
+
+            VIZCore3D.NET.Data.Vertex3D normalizedMeasureAxis = null;
+            VIZCore3D.NET.Data.Vertex3D normalizedOffsetAxis = null;
+            bool useUserAxes = TryNormalizeDimensionAxis(userMeasureAxis, out normalizedMeasureAxis) &&
+                               TryNormalizeDimensionAxis(userOffsetAxis, out normalizedOffsetAxis);
+
+            VIZCore3D.NET.Data.Vertex3D startVertex = worldStartVertex;
+            VIZCore3D.NET.Data.Vertex3D endVertex = worldEndVertex;
+            float distance = worldDistance;
+            if (useUserAxes)
+            {
+                float projectedMin, projectedMax;
+                GetBoundingBoxProjectionRange(normalizedOffsetAxis,
+                    globalMinX, globalMinY, globalMinZ,
+                    globalMaxX, globalMaxY, globalMaxZ,
+                    out projectedMin, out projectedMax);
+                baseline = positiveOffset ? projectedMax : projectedMin;
+                float projectedOffset = positiveOffset ? baseline + offset : baseline - offset;
+                startVertex = MovePointToAxisProjection(originalStart, normalizedOffsetAxis, projectedOffset);
+                endVertex = MovePointToAxisProjection(originalEnd, normalizedOffsetAxis, projectedOffset);
+
+                float dx = endPoint.X - startPoint.X;
+                float dy = endPoint.Y - startPoint.Y;
+                float dz = endPoint.Z - startPoint.Z;
+                distance = Math.Abs(dx * normalizedMeasureAxis.X +
+                                    dy * normalizedMeasureAxis.Y +
+                                    dz * normalizedMeasureAxis.Z);
             }
 
             // P3 #3 진단 (2026-05-23): measure 좌표가 부재 BBox와 어떻게 매칭되는지 추적
             DiagLog($"[DrawDimension] axis={axis} dist={distance:F2} view={viewDirection} " +
+                $"mode={(useUserAxes ? "UserAxis" : "WorldAxis")} " +
                 $"start=({startPoint.X:F2},{startPoint.Y:F2},{startPoint.Z:F2}) " +
                 $"end=({endPoint.X:F2},{endPoint.Y:F2},{endPoint.Z:F2}) " +
                 $"sv=({startVertex.X:F2},{startVertex.Y:F2},{startVertex.Z:F2}) " +
                 $"ev=({endVertex.X:F2},{endVertex.Y:F2},{endVertex.Z:F2})");
 
-            // T-040 v8: AddCustomAxisDistance 반환값(측정 ID) 받아 호출자에 전달
             int measureId = -1;
-            if (distance > 0.1f)
+            bool userAxisApplied = false;
+            if (useUserAxes && distance > 0.1f)
             {
-                switch (axis)
+                try
                 {
-                    case "X":
-                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.X, startVertex, endVertex);
-                        break;
-                    case "Y":
-                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Y, startVertex, endVertex);
-                        break;
-                    case "Z":
-                        measureId = vizcore3d.Review.Measure.AddCustomAxisDistance(VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
-                        break;
+                    measureId = vizcore3d.Review.Measure.AddCustomDistanceUserAxis(
+                        startVertex, endVertex, normalizedMeasureAxis);
+                    userAxisApplied = measureId >= 0;
+                    DiagLog($"[MfgUserAxis] axis={axis} id={measureId} " +
+                            $"measure=({normalizedMeasureAxis.X:F5},{normalizedMeasureAxis.Y:F5},{normalizedMeasureAxis.Z:F5}) " +
+                            $"offset=({normalizedOffsetAxis.X:F5},{normalizedOffsetAxis.Y:F5},{normalizedOffsetAxis.Z:F5})");
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[MfgUserAxis] axis={axis} 호출 실패 → 월드축 폴백: {ex.Message}");
                 }
             }
-            // [freeze 진단 2026-07-22] AddCustomAxisDistance 통과 확인 — 위 [DrawDimension] 로그는 SDK 호출 '전'이라
-            //   마지막 로그 후 멈추면 이 호출이 용의. 통과 로그로 소거.
-            DiagLog($"[DimAdd] {axis} id={measureId}");
+
+            if (!userAxisApplied)
+            {
+                // UserAxis가 지원되지 않거나 투영 거리가 0이면 기존 동작을 그대로 보존한다.
+                baseline = worldBaseline;
+                startVertex = worldStartVertex;
+                endVertex = worldEndVertex;
+                distance = worldDistance;
+                if (distance > 0.1f)
+                    measureId = AddWorldAxisDistance(axis, startVertex, endVertex);
+            }
+            DiagLog($"[DimAdd] {axis} id={measureId} mode={(userAxisApplied ? "UserAxis" : "WorldAxis")}");
 
             // 2단 승격 치수 텍스트 슬라이드 (사용자 사양 2026-07-21): 치수선 방향으로 종이 절대 2.5mm.
             //   SetMeasureItemDistanceTextPos는 치수선 방향 성분만 반영(수직 성분은 투영·무시 — 실기 확정)이라
@@ -1124,11 +1165,20 @@ namespace A2Z
                 float tsx = (startVertex.X + endVertex.X) / 2f;
                 float tsy = (startVertex.Y + endVertex.Y) / 2f;
                 float tsz = (startVertex.Z + endVertex.Z) / 2f;
-                switch (axis)
+                if (userAxisApplied)
                 {
-                    case "X": tsx += textSlideModel; break;
-                    case "Y": tsy += textSlideModel; break;
-                    default:  tsz += textSlideModel; break;
+                    tsx += normalizedMeasureAxis.X * textSlideModel;
+                    tsy += normalizedMeasureAxis.Y * textSlideModel;
+                    tsz += normalizedMeasureAxis.Z * textSlideModel;
+                }
+                else
+                {
+                    switch (axis)
+                    {
+                        case "X": tsx += textSlideModel; break;
+                        case "Y": tsy += textSlideModel; break;
+                        default:  tsz += textSlideModel; break;
+                    }
                 }
                 try
                 {
@@ -1189,6 +1239,75 @@ namespace A2Z
             extensionLines.Add(extLine2);
 
             return measureId;
+        }
+
+        private int AddWorldAxisDistance(
+            string axis,
+            VIZCore3D.NET.Data.Vertex3D startVertex,
+            VIZCore3D.NET.Data.Vertex3D endVertex)
+        {
+            switch (axis)
+            {
+                case "X":
+                    return vizcore3d.Review.Measure.AddCustomAxisDistance(
+                        VIZCore3D.NET.Data.Axis.X, startVertex, endVertex);
+                case "Y":
+                    return vizcore3d.Review.Measure.AddCustomAxisDistance(
+                        VIZCore3D.NET.Data.Axis.Y, startVertex, endVertex);
+                case "Z":
+                    return vizcore3d.Review.Measure.AddCustomAxisDistance(
+                        VIZCore3D.NET.Data.Axis.Z, startVertex, endVertex);
+                default:
+                    return -1;
+            }
+        }
+
+        private bool TryNormalizeDimensionAxis(
+            VIZCore3D.NET.Data.Vertex3D axis,
+            out VIZCore3D.NET.Data.Vertex3D normalized)
+        {
+            normalized = null;
+            if (axis == null) return false;
+            float length = (float)Math.Sqrt(axis.X * axis.X + axis.Y * axis.Y + axis.Z * axis.Z);
+            if (length < 1e-5f) return false;
+            normalized = new VIZCore3D.NET.Data.Vertex3D(
+                axis.X / length, axis.Y / length, axis.Z / length);
+            return true;
+        }
+
+        private VIZCore3D.NET.Data.Vertex3D MovePointToAxisProjection(
+            VIZCore3D.NET.Data.Vertex3D point,
+            VIZCore3D.NET.Data.Vertex3D axis,
+            float targetProjection)
+        {
+            float currentProjection = point.X * axis.X + point.Y * axis.Y + point.Z * axis.Z;
+            float delta = targetProjection - currentProjection;
+            return new VIZCore3D.NET.Data.Vertex3D(
+                point.X + axis.X * delta,
+                point.Y + axis.Y * delta,
+                point.Z + axis.Z * delta);
+        }
+
+        private void GetBoundingBoxProjectionRange(
+            VIZCore3D.NET.Data.Vertex3D axis,
+            float minX, float minY, float minZ,
+            float maxX, float maxY, float maxZ,
+            out float projectedMin,
+            out float projectedMax)
+        {
+            projectedMin = float.MaxValue;
+            projectedMax = float.MinValue;
+            float[] xs = { minX, maxX };
+            float[] ys = { minY, maxY };
+            float[] zs = { minZ, maxZ };
+            foreach (float x in xs)
+            foreach (float y in ys)
+            foreach (float z in zs)
+            {
+                float projected = x * axis.X + y * axis.Y + z * axis.Z;
+                if (projected < projectedMin) projectedMin = projected;
+                if (projected > projectedMax) projectedMax = projected;
+            }
         }
 
         /// <summary>

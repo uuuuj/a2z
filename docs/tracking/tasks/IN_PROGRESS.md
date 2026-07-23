@@ -6,43 +6,27 @@
 
 ---
 
-### T-082 — 모든 도면 PAINT CODE에 STRU PNT UDA 공통 표시
-- **생성일/착수일**: 2026-07-23
-- **상태**: IN_PROGRESS (구현·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
-- **관련**: 사용자 직접 지시, GitHub issue #28
-- **구현**:
-  - [x] 기준부재에서 부모 10단계까지 이름에 `PNT`가 포함된 UDA 키 탐색
-  - [x] 복수 후보 키·값 전체를 `[PAINT CODE]` 로그로 남기고 첫 비어 있지 않은 값 선택
-  - [x] 안전한 첫 출력 시점에 값을 한 번 조회해 같은 목록의 모든 `DrawingSheetData.PaintCode`에 캐시
-  - [x] 제작도·조립도·설치도 `Input_166`에 동일한 PAINT CODE 값 적용
-  - [x] 가공도 모든 페이지 `Input_166`에 같은 공용값 재사용
-  - [x] PNT 미존재도 빈 문자열로 조회 완료 캐시하고 공백·괘선 유지
-  - [x] UDA 조회를 `BeginUpdate` 밖에서 수행
-  - [x] 별도 출력 폴더 Debug 빌드 오류 0건
-- **사용자 확인 필요**:
-  - [ ] 제작도 PDF PAINT CODE 칸에 기대한 PNT 값이 표시되는지
-  - [ ] 조립도·설치도 PDF에 제작도와 같은 PAINT CODE가 표시되는지
-  - [ ] 가공도 모든 페이지 PAINT CODE 칸에 같은 값이 표시되는지
-  - [ ] PNT 미설정 모델에서 빈칸과 괘선이 유지되는지
-  - [ ] `[PAINT CODE]` 로그의 실제 매칭 키를 보고 복수 후보 우선순위가 필요한지
-- **영향 파일**: `A2Z/Models.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.MfgDrawing.cs`, 도면 시트·가공도 출력 흐름 문서
-
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
-- **상태**: IN_PROGRESS (1단계 판정 로그 구현·컴파일 완료, 사내 실기 판정 검증 대기)
+- **상태**: IN_PROGRESS (ORIENTATION 우선 판정·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #19, Softhills Demo `참조축 정렬 > 선택 부재 자동 정렬`
-- **단계 계획**:
-  - [x] 1단계: LINE Osnap을 5도 방향군으로 묶고 선 길이 합이 가장 큰 방향을 주축으로 판정
-  - [x] 가장 가까운 월드 X/Y/Z축과의 편차를 계산해 1도 이하 정상, 1도 초과 틀어짐으로 로그
-  - [x] 단일 최장 LINE 결과와 주축 차이, ORIENTATION 원문·해석값을 비교 로그에 병기
+- **판정·구현**:
+  - [x] 실기 4건 대조 결과(ORIENTATION 4/4, 기하 1/4)에 따라 ORIENTATION을 최종 판정의 1차 신호로 승격
+  - [x] ORIENTATION이 비었거나 파싱 불가할 때만 LINE Osnap 길이 합 주축 판정을 폴백으로 사용
+  - [x] `[참조축판정]`에 ORIENTATION·기하 결과·최종 판정 출처를 병기
   - [x] 전체 Osnap 수집 때 판정 결과를 함께 캐시하고 캐시 없는 진입만 SDK 직접 조회
-  - [x] 1단계에서 ReferenceAxis·카메라·치수·PDF 동작은 변경하지 않음
+  - [x] 기존 `ApplyOrientationRotation` 카메라 회전 유지(모델 좌표 변경·ReferenceAxis 중복 적용 없음)
+  - [x] ORIENTATION 1도 초과 가공도 부재만 로컬 X/Y/Z 축 벡터를 정규화해 `AddCustomDistanceUserAxis`로 치수 생성
+  - [x] 로컬 오프셋축 BBox 투영으로 치수선·보조선 위치를 맞추고 UserAxis 실패 시 기존 월드축 치수로 자동 폴백
+  - [x] 정상 부재는 선택 조건·호출 인자 기본값·월드축 API를 포함해 기존 경로 유지
   - [x] 별도 출력 폴더 Debug 빌드 오류 0건
-  - [ ] 사내 모델에서 정상/기울어진 부재 여러 개의 `[참조축판정]` 로그 정확도 확인
-  - [ ] 2단계: 검증된 틀어진 부재만 ReferenceAxis 카메라 적용
-  - [ ] 3단계: 로컬 프레임 수동 투영으로 치수·보조선 일치
-  - [ ] 4단계: 가공도 PDF와 EA 두 뷰 실기 검증
-- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.BOM.cs`, 가공도 미리보기/PDF 흐름 문서, 가공도/BOM 코드 레퍼런스
+- **사용자 확인 필요**:
+  - [ ] 기울어진 일반 가공도에서 모델·치수선·보조선이 함께 수평/수직으로 보이는지
+  - [ ] `[MfgUserAxis]`와 `[DimAdd] ... mode=UserAxis`가 출력되고 치수값이 실제 길이와 맞는지
+  - [ ] 정상 부재가 이전 출력과 동일하고 `mode=WorldAxis`를 유지하는지
+  - [ ] 여러 부재를 연속 출력해 카메라 회전·치수 상태가 다음 행에 누적되지 않는지
+  - [ ] 일반 부재 확인 후 EA 두 뷰에서도 동일하게 검증
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.Dimensions.cs`, 가공도 출력 흐름 문서, 가공도·치수 코드 레퍼런스
 
 ### T-078 — 도면 시트 3D 임시 치수 잔류 제거
 - **생성일/착수일**: 2026-07-22

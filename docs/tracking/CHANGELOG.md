@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-07-23 — 기울어진 가공도 부재 로컬 축 치수 적용
+
+**유형**: feat
+**커밋**: `pending`
+**관련 TASK**: T-079 (기울어진 가공도 부재 참조축 자동 정렬)
+**관련 ISSUE**: GitHub issue #19
+**변경 사항**:
+- 실기 판정 4건에서 정확했던 ORIENTATION을 최종 틀어짐 판정의 우선 신호로 사용하고, 값이 없을 때만 기존 LINE Osnap 기하 판정을 폴백으로 유지
+- ORIENTATION 1도 초과 가공도 부재의 로컬 X/Y/Z 축 벡터를 계산·정규화해 `AddCustomDistanceUserAxis`로 치수 생성
+- 로컬 오프셋축에 BBox를 투영해 치수선과 보조선을 같은 방향에 배치하고, UserAxis 실패 시 기존 월드축 API로 자동 복귀
+- 정상 부재와 제작도·조립도·설치도는 기존 월드축 치수 경로를 유지
+
+**검증**: 별도 출력 폴더 Debug 빌드 오류 0건. 실제 PDF의 UserAxis 렌더 방향·치수값·연속 행 상태 복원은 사내 실기 확인 대기
+
+## 2026-07-23 — 모든 도면 PAINT CODE 실기 확인 완료
+
+**유형**: docs
+**커밋**: `pending`
+**관련 TASK**: T-082 (모든 도면 PAINT CODE에 STRU PNT UDA 공통 표시)
+**관련 ISSUE**: GitHub issue #28
+**변경 사항**:
+- 제작도·조립도·설치도·가공도 PAINT CODE 칸의 공용 STRU PNT 값 적용을 실제 출력에서 사용자 확인
+- 작업을 DONE으로 이동하고 GitHub issue #28을 COMPLETED 사유로 종료
+
+**영향 범위**: 작업 추적 문서와 GitHub 이슈 상태
+
 ## 2026-07-23 — 설치도 X/Y/Z 치수 좌우반전·평면도 누락·보조선 오버슛 수정
 
 **유형**: fix
