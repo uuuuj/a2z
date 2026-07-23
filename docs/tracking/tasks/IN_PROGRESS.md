@@ -15,13 +15,14 @@
   - [x] SDK XML·DLL에서 `Set2DViewAlignAreaReviewsPositionByOffset(Vertex3D, Vertex3D, float)` 존재·void 반환·예제 순서 검증
   - [x] 프로젝트 관리 DLL 참조를 1.0.26.723 `lib\` 기준으로 고정하고 외부 PC 절대경로 제거
   - [x] ISO 실선 투영 객체 선택 → `Add2DNoteFrom3DNote` → 선택 해제 순서 적용
-  - [x] 전체 `{View_1}` 기준 정렬 시 템플릿 밖으로 밀리는 SDK 동작 확인 후 실제 모델 중심·fit 70% 캔버스 영역으로 정렬 기준 축소
-  - [x] 배포 예제의 `offset=10px` 적용, 성공·실패·영역·풍선 수 진단 로그 추가
-  - [x] 제작도·설치도 연결 Assembly/Part 이름 노트를 부재번호 풍선보다 먼저 생성해 동일한 모델 fit 70% 영역으로 정렬하고 실제 접합점 Target 유지
+  - [x] 1차로 전체 `{View_1}` 대신 모델 중심·fit 70% 영역을 사용했으나, 세로로 긴 모델에서 빈 영역 때문에 풍선이 과도하게 멀어지는 실기 결과 확인
+  - [x] 최종 Crop/Fit/Rescale/Move/Match 이후 `GetObjectSize`·`GetObjectCenter`로 실제 2D 표시 객체 AABB를 읽고 캔버스 5mm 확장 영역 + SDK `offset=0`으로 정렬
+  - [x] 제작도·설치도 연결 Assembly/Part 이름을 `AddNoteSurface` → `Add2DNoteFrom3DNote` 경로로 통일해 부재번호 풍선과 같은 영역 정렬 대상에 포함하고 실제 접합점 Target 유지
+  - [x] 성공 로그에 기준 객체·실제 크기·5mm 영역·SDK offset을 남기고 유효하지 않은 객체 외곽은 경고 후 기존 위치 유지
   - [x] 정렬 API 예외 시 기존 AABB 배치로 출력 계속
   - [x] Debug 빌드 오류 0건
 - **사용자 확인 필요**:
-  - [x] PDF에서 풍선이 모델 밖·ISO View 안쪽에 정렬되는지 — 사용자 확인 "풍선 잘 나옴"
+  - [ ] PDF에서 풍선과 연결 이름이 실제 모델 외곽에서 약 5mm 떨어져 ISO View 안쪽에 정렬되는지
   - [ ] 큰 조립체에서 풍선끼리·모델·ISO 제목과 겹치지 않는지
   - [ ] 지시선이 대상 부재를 유지하고 과도하게 길어지지 않는지
   - [ ] 제작도·설치도 연결 이름 노트의 지시 대상은 접합점에 유지되고 라벨은 풍선과 같은 모델 외곽 영역에 정렬되는지
@@ -141,7 +142,7 @@
   - [x] 제작도: 연결 결과를 내부 연결성 `clashList`와 분리하고 `lvClash`에 `[연결]` 목록 표시
   - [x] 제작도: Crop 대상 2D 객체에 시트 부재+연결 부재를 함께 넣고 시트 부재 노드 기준으로 긴 연결 부재 절단
   - [x] 제작도: 이웃 캡처 → CropFit → LONG_DASHED → 점선 fit → 실선 캡처 → Match 순서 적용
-  - [x] 제작도: Clash HotPoint XYZ를 보존하고 연결 Part의 가장 가까운 부모 Assembly 이름을 `Add2DNoteFromWorldCoordinate`로 접촉점에 표시
+  - [x] 제작도: Clash HotPoint XYZ를 보존하고 연결 Part의 가장 가까운 부모 Assembly 이름을 `AddNoteSurface` → `Add2DNoteFrom3DNote`로 접촉점에 표시
   - [x] 조립도: 실기 정상인 기존 캡처·배치 순서 유지(제작도 전용 순서 변경에서 제외)
   - [x] C# Compile 오류 0건 (기존 경고 7건)
 - **사용자 확인 필요**:
