@@ -1742,6 +1742,13 @@ namespace A2Z
                 //   값 없으면 초기 " "(공백, 괘선 보존) 유지.
                 string struTag = GetStruUdaValue(sheet.BaseMemberIndex);
                 if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
+                // PAINT CODE(166) = 기준부재에서 부모 STRU까지 탐색한 PNT 계열 UDA 값.
+                // 값이 없으면 초기 " "(공백, 괘선 보존)을 유지한다.
+                int paintCodeNodeIndex = sheet.BaseMemberIndex >= 0
+                    ? sheet.BaseMemberIndex
+                    : (sheet.MemberIndices.Count > 0 ? sheet.MemberIndices[0] : -1);
+                string paintCode = GetStruPntUdaValue(paintCodeNodeIndex);
+                if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
 
@@ -2538,6 +2545,84 @@ namespace A2Z
                 }
                 catch { break; }
             }
+            return "";
+        }
+
+        /// <summary>
+        /// 기준부재에서 부모로 최대 10단계 올라가며 키 이름에 PNT가 포함된
+        /// STRU UDA 값을 찾는다. 복수 후보는 실제 값과 함께 모두 로그에 남기고,
+        /// 가장 먼저 발견된 비어 있지 않은 값을 PAINT CODE로 사용한다.
+        /// </summary>
+        private string GetStruPntUdaValue(int nodeIndex)
+        {
+            var pntKeys = new List<string>();
+            try
+            {
+                var keys = vizcore3d.Object3D.UDA.Keys;
+                if (keys != null)
+                {
+                    foreach (string key in keys)
+                    {
+                        if (!string.IsNullOrWhiteSpace(key) &&
+                            key.IndexOf("PNT", StringComparison.OrdinalIgnoreCase) >= 0)
+                            pntKeys.Add(key);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[PAINT CODE] PNT UDA 키 조회 실패: {ex.Message}");
+            }
+
+            if (pntKeys.Count == 0)
+            {
+                DiagLog($"[PAINT CODE] PNT UDA 키 후보 없음: startNode={nodeIndex}");
+                return "";
+            }
+
+            DiagLog($"[PAINT CODE] PNT UDA 키 후보: {string.Join(", ", pntKeys)}");
+            int currentIdx = nodeIndex;
+            for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
+            {
+                string selectedKey = "";
+                string selectedValue = "";
+                foreach (string key in pntKeys)
+                {
+                    string value = "";
+                    try
+                    {
+                        var raw = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
+                        value = raw != null ? raw.ToString().Trim() : "";
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagLog($"[PAINT CODE] UDA 읽기 실패: node={currentIdx} key='{key}' {ex.Message}");
+                    }
+
+                    DiagLog($"[PAINT CODE] 후보: depth={depth} node={currentIdx} key='{key}' value='{value}'");
+                    if (string.IsNullOrEmpty(selectedValue) && !string.IsNullOrEmpty(value))
+                    {
+                        selectedKey = key;
+                        selectedValue = value;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(selectedValue))
+                {
+                    DiagLog($"[PAINT CODE] 선택: node={currentIdx} key='{selectedKey}' value='{selectedValue}'");
+                    return selectedValue;
+                }
+
+                try
+                {
+                    VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
+                    if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
+                    currentIdx = parentNode.ParentIndex;
+                }
+                catch { break; }
+            }
+
+            DiagLog($"[PAINT CODE] 비어 있지 않은 PNT UDA 값 없음: startNode={nodeIndex}");
             return "";
         }
 

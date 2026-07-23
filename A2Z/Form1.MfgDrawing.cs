@@ -120,7 +120,7 @@ namespace A2Z
         /// BOM 데이터는 호출자가 SnapshotBomRows로 1회 복사한 bomSnapshot 사용.
         /// </summary>
         private Dictionary<int, string> BuildMfgPageData(
-            MfgPage page, int totalPages, string struName, List<string[]> bomSnapshot)
+            MfgPage page, int totalPages, string struName, string paintCode, List<string[]> bomSnapshot)
         {
             var data = new Dictionary<int, string>();
 
@@ -139,6 +139,7 @@ namespace A2Z
             data[3] = totalPages > 1
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
+            if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
 
             // ── 부재명 5칸 (Input_195~Input_199, 각 View 왼쪽 라벨) ──
             //   200~204 대역은 SDK 한계로 폐기(위 주석) → 가공도에서 항상 빈칸인 Rev 표 마지막 행
@@ -2203,6 +2204,17 @@ namespace A2Z
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
 
+                // 가공도 전체 출력은 같은 STRU 하위 부재이므로 첫 부재에서 PNT 계열 UDA를 1회만 조회한다.
+                int paintCodeNodeIndex = struIndex > 0 ? struIndex : -1;
+                if (paintCodeNodeIndex < 0)
+                {
+                    DrawingSheetData firstMfgSheet = mfgSheets.FirstOrDefault(
+                        item => item != null && item.MemberIndices != null && item.MemberIndices.Count > 0);
+                    if (firstMfgSheet != null) paintCodeNodeIndex = firstMfgSheet.MemberIndices[0];
+                }
+                string paintCode = GetStruPntUdaValue(paintCodeNodeIndex);
+                DiagLog($"[PAINT CODE] 가공도 출력 캐시: startNode={paintCodeNodeIndex} value='{paintCode}'");
+
                 // [임시 §5-1] 카메라 ± 검증 PDF 1장 — 본 페이지 출력 앞에 별도 저장 (검증 후 제거)
                 if (MfgCameraSignProbeEnabled)
                     RunMfgCameraSignProbe(mfgSheets, saveDir, xlsxPath, ref viewAreasCache);
@@ -2214,7 +2226,7 @@ namespace A2Z
                     try
                     {
                         ResetCanvasForMfgPage();
-                        var data = BuildMfgPageData(page, pages.Count, struName, bomSnapshot);
+                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, bomSnapshot);
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
                         // 북쪽 화살표 2종은 {Image_1}/{Image_2} + mfgImageMapping으로 Import 단계에서 처리 (2026-07-20).
                         //   ⚠ 태그 번호 한계 주의 — View는 1~7, Input은 1~199까지만 (초과 시 SDK 메모리 손상 → 캡처 AccessViolation).
