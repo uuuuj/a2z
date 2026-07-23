@@ -2145,13 +2145,54 @@ namespace A2Z
                     var convertedNoteIndices = new List<int>();
                     if (visibleNoteIds != null && visibleNoteIds.Count > 0)
                     {
-                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+                        // SDK 1.0.26.723 예제 기준: 좌표 변환 기준이 될 ISO 실선 투영 객체를
+                        // 활성화한 상태에서 3D 풍선을 2D로 변환한다.
+                        vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                        vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 1);
+                        try
+                        {
+                            vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(visibleNoteIds.ToArray());
+                        }
+                        finally
+                        {
+                            vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 0);
+                        }
                         convertedNoteIndices.AddRange(visibleNoteIds);
                     }
                     foreach (int nIdx in convertedNoteIndices)
                     {
                         try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
                         catch { }
+                    }
+
+                    // SDK 1.0.26.723: 최종 2D 좌표에서 ISO 부재번호 풍선을 View_1 영역 바깥쪽으로 정렬한다.
+                    // 연결 Assembly/Part 이름 노트는 이 호출 뒤에 생성해 정렬 대상에서 제외한다.
+                    if (viewDir == "ISO" && convertedNoteIndices.Count > 0)
+                    {
+                        const float templatePadding = 15f;
+                        const float balloonAlignOffset = 10f;
+                        var rectMin = new VIZCore3D.NET.Data.Vertex3D(
+                            p.X + templatePadding,
+                            p.Y + templatePadding,
+                            0f);
+                        var rectMax = new VIZCore3D.NET.Data.Vertex3D(
+                            p.X + p.Width + templatePadding,
+                            p.Y + p.Height + templatePadding,
+                            0f);
+
+                        try
+                        {
+                            vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
+                                rectMin, rectMax, balloonAlignOffset);
+                            DiagLog($"P2 ISO 풍선 영역 정렬 sheet={sheet.SheetNumber} count={convertedNoteIndices.Count} " +
+                                    $"rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
+                                    $"offsetPx={balloonAlignOffset:F1}");
+                        }
+                        catch (Exception ex)
+                        {
+                            DiagLog($"P2 ISO 풍선 영역 정렬 WARN sheet={sheet.SheetNumber} " +
+                                    $"count={convertedNoteIndices.Count} {ex.Message}");
+                        }
                     }
 
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
@@ -2302,6 +2343,9 @@ namespace A2Z
 
                     viewsRendered++;
                 }
+
+                // 신규 풍선 정렬과 이후 추가된 이름 노트·치수를 최종 캔버스에 반영한다.
+                vizcore3d.Drawing2D.Render();
 
                 // 3D 뷰 기본(부드러운 음영) 복원 — 도면 생성 후 은선/X-Ray 잔존 방지 (2026-06-23)
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);

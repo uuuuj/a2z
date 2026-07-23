@@ -48,9 +48,10 @@
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="VIZCore3D+.NET, Version=1.0.26.716, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="VIZCore3D+.NET, Version=1.0.26.723, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\노트북\DataSources\회사\프로젝트\Digital Wave\Vibe 3D Lab\3. API 적용 참조 파일 (.dll)\03.VIZCore3D+.NET\VIZCore3DPlus.NET_V.1.0.26.723\VIZCore3D+.NET.dll</HintPath>
+      <HintPath>..\lib\VIZCore3D+.NET.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -147,7 +148,7 @@
     </Content>
     <!-- VizCore 네이티브/보조 DLL: lib\에서 빌드 출력 폴더로 복사 (런타임 동적 로드). -->
     <!-- Reference(관리 API)와 달리 이들은 컴파일 참조가 아니라 실행 시 필요 → None + Copy. -->
-    <!-- 소스는 프로젝트 내 ..\lib\ (bin\Debug 의존 제거, 클린 빌드 가능). VizCore 1.0.26.709. -->
+    <!-- 소스는 프로젝트 내 ..\lib\ (bin\Debug 의존 제거, 클린 빌드 가능). VizCore 1.0.26.723. -->
     <None Include="..\lib\VIZCore3D.NET.Interop.dll">
       <Link>VIZCore3D.NET.Interop.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
