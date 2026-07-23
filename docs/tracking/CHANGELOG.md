@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-07-23 — 기울어진 가공도 부재 ReferenceAxis 카메라 정렬
+
+**유형**: fix
+**커밋**: `6e22a10`
+**관련 TASK**: T-079 (기울어진 가공도 부재 참조축 자동 정렬)
+**관련 ISSUE**: GitHub issue #19
+**변경 사항**:
+- ORIENTATION 원문의 로컬축을 직교 X/Y/Z 프레임으로 복원해 `ReferenceAxis.Create/Activate` 후 로컬축 기준 카메라 적용
+- 화면 roll로 시선축과 수직인 기울기를 고치지 못하던 브래킷을 로컬 정면 뷰로 전환하고, 기존 UserAxis 치수와 같은 프레임 공유
+- 정상 부재는 기존 월드축 경로 유지, ReferenceAxis API 실패 시 기존 ORIENTATION 화면 회전으로 자동 폴백
+- `Review.Measure.Clear()` 전에 활성 축을 Reset/Delete하고 PDF 행·EA 2차 뷰마다 다시 생성해 카메라 상태 누적 방지
+- 3D 미리보기에서 다음 가공도 부재나 다른 시트로 이동할 때 참조축과 화면 회전을 원복
+
+**검증**: 프로젝트 SDK 1.0.26.723 XML/DLL과 로컬 공식 데모의 Create→Activate→MoveCamera→Reset→Delete 수명주기 확인, 별도 출력 폴더 Debug 빌드 오류 0건
+
+**영향 범위**: ORIENTATION 각도 1도 초과 가공도 3D 미리보기·PDF·EA 두 뷰. 정상 가공도 및 제작도·조립도·설치도 카메라는 기존 경로 유지
+
 ## 2026-07-23 — 설치도 위치 치수 접합 기하 재설계 (임계값 제거)
 
 **유형**: refactor
@@ -24,7 +41,7 @@
 ## 2026-07-23 — ISO 부재번호 풍선 View 영역 자동 정렬
 
 **유형**: feat
-**커밋**: `2664b8e`
+**커밋**: `2664b8e`, `9f13789`
 **관련 TASK**: T-083 (ISO 부재번호 풍선 View 영역 자동 정렬)
 **관련 ISSUE**: GitHub issue #4
 **변경 사항**:

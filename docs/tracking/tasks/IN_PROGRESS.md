@@ -9,7 +9,7 @@
 ### T-083 — ISO 부재번호 풍선 View 영역 자동 정렬
 - **생성일/착수일**: 2026-07-23
 - **상태**: IN_PROGRESS (SDK 1.0.26.723 적용·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
-- **구현 커밋**: `2664b8e`
+- **구현 커밋**: `2664b8e`, `9f13789`
 - **관련**: 사용자 직접 지시, GitHub issue #4, Softhills SDK 1.0.26.723 배포 예제
 - **구현**:
   - [x] SDK XML·DLL에서 `Set2DViewAlignAreaReviewsPositionByOffset(Vertex3D, Vertex3D, float)` 존재·void 반환·예제 순서 검증
@@ -30,25 +30,31 @@
 
 ### T-079 — 기울어진 가공도 부재 참조축 자동 정렬
 - **생성일/착수일**: 2026-07-22
-- **상태**: IN_PROGRESS (ORIENTATION 우선 판정·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 PDF 실기 검증 대기)
+- **상태**: IN_PROGRESS (ORIENTATION 로컬 ReferenceAxis 카메라·UserAxis 치수 구현 및 Debug 빌드 완료, 사내 3D/PDF 실기 검증 대기)
 - **관련**: 사용자 직접 지시, GitHub issue #19, Softhills Demo `참조축 정렬 > 선택 부재 자동 정렬`
 - **판정·구현**:
   - [x] 실기 4건 대조 결과(ORIENTATION 4/4, 기하 1/4)에 따라 ORIENTATION을 최종 판정의 1차 신호로 승격
   - [x] ORIENTATION이 비었거나 파싱 불가할 때만 LINE Osnap 길이 합 주축 판정을 폴백으로 사용
   - [x] `[참조축판정]`에 ORIENTATION·기하 결과·최종 판정 출처를 병기
   - [x] 전체 Osnap 수집 때 판정 결과를 함께 캐시하고 캐시 없는 진입만 SDK 직접 조회
-  - [x] 기존 `ApplyOrientationRotation` 카메라 회전 유지(모델 좌표 변경·ReferenceAxis 중복 적용 없음)
+  - [x] ORIENTATION 1도 초과 부재는 원문의 방향 두 축을 직교화하고 외적으로 나머지 축을 복원해 로컬 X/Y/Z 프레임 구성
+  - [x] BBox 중심에 `ReferenceAxis.Create/Activate` 후 로컬축 기준 `MoveCamera`를 적용해 화면 roll로 세워지지 않던 부재 형상 정렬
+  - [x] 정상 부재는 기존 월드축 카메라 유지, ReferenceAxis 생성 실패 시 기존 `ApplyOrientationRotation`으로 자동 폴백
   - [x] ORIENTATION 1도 초과 가공도 부재만 로컬 X/Y/Z 축 벡터를 정규화해 `AddCustomDistanceUserAxis`로 치수 생성
   - [x] 로컬 오프셋축 BBox 투영으로 치수선·보조선 위치를 맞추고 UserAxis 실패 시 기존 월드축 치수로 자동 폴백
+  - [x] `Measure.Clear`가 참조축도 삭제하는 SDK 동작에 맞춰 Clear 전 Reset/Delete, PDF 행·EA 2차 뷰마다 참조축 재생성
+  - [x] 3D 미리보기의 참조축·화면 roll을 다음 가공도 선택 또는 다른 시트 진입 때 원복
   - [x] 정상 부재는 선택 조건·호출 인자 기본값·월드축 API를 포함해 기존 경로 유지
   - [x] 별도 출력 폴더 Debug 빌드 오류 0건
 - **사용자 확인 필요**:
-  - [ ] 기울어진 일반 가공도에서 모델·치수선·보조선이 함께 수평/수직으로 보이는지
+  - [ ] 문제 브래킷 3D 미리보기에서 부재 형상이 먼저 수평/수직으로 바로 서는지
+  - [ ] `[MfgRefAxis] frame`·`activate`가 출력되고 다른 부재/시트 선택 때 `release`가 출력되는지
+  - [ ] 기울어진 일반 가공도 PDF에서 모델·치수선·보조선이 함께 수평/수직으로 보이는지
   - [ ] `[MfgUserAxis]`와 `[DimAdd] ... mode=UserAxis`가 출력되고 치수값이 실제 길이와 맞는지
   - [ ] 정상 부재가 이전 출력과 동일하고 `mode=WorldAxis`를 유지하는지
   - [ ] 여러 부재를 연속 출력해 카메라 회전·치수 상태가 다음 행에 누적되지 않는지
   - [ ] 일반 부재 확인 후 EA 두 뷰에서도 동일하게 검증
-- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.Dimensions.cs`, 가공도 출력 흐름 문서, 가공도·치수 코드 레퍼런스
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.cs`, `A2Z/Models/MfgViewPose.cs`, `A2Z/Form1.Dimensions.cs`, 가공도·시트 선택 흐름 문서, 가공도·도면시트 코드 레퍼런스
 
 ### T-078 — 도면 시트 3D 임시 치수 잔류 제거
 - **생성일/착수일**: 2026-07-22
