@@ -424,6 +424,8 @@ namespace A2Z
             // [freeze 진단 2026-07-22] BeginUpdate 열림 추적 — 예외로 EndUpdate가 누락되면
             //   화면 갱신이 영구 중단(앱이 멈춘 듯)되므로 catch에서 짝을 복구한다.
             bool updateOpen = false;
+            bool restoreAlignDistanceText = false;
+            bool originalAlignDistanceText = true;
 
             try
             {
@@ -478,9 +480,20 @@ namespace A2Z
                 measureStyle.ArrowSize = 5;
                 measureStyle.AssistantLine = false;
                 measureStyle.AssistantLineStyle = VIZCore3D.NET.Data.MeasureStyle.AssistantLineType.SOLIDLINE;
-                measureStyle.AlignDistanceText = true;
+                originalAlignDistanceText = measureStyle.AlignDistanceText;
+                bool keepDistanceTextScreenAligned =
+                    forDrawing2D && drawingReferenceFrame != null;
+                measureStyle.AlignDistanceText = !keepDistanceTextScreenAligned;
                 measureStyle.AlignDistanceTextMargine = 3;
                 vizcore3d.Review.Measure.SetStyle(measureStyle);
+                restoreAlignDistanceText =
+                    keepDistanceTextScreenAligned &&
+                    originalAlignDistanceText != measureStyle.AlignDistanceText;
+                if (keepDistanceTextScreenAligned)
+                {
+                    DiagLog($"[DrawingRefAxis] UserAxis 치수 문자 화면 정렬 " +
+                            $"view={viewDirection} AlignDistanceText=false");
+                }
 
                 // baseline 계산
                 float globalMinX = float.MaxValue, globalMinY = float.MaxValue, globalMinZ = float.MaxValue;
@@ -1018,6 +1031,23 @@ namespace A2Z
                 {
                     try { vizcore3d.EndUpdate(); } catch { }
                     updateOpen = false;
+                }
+            }
+
+            if (restoreAlignDistanceText)
+            {
+                try
+                {
+                    VIZCore3D.NET.Data.MeasureStyle restoredStyle =
+                        vizcore3d.Review.Measure.GetStyle();
+                    restoredStyle.AlignDistanceText = originalAlignDistanceText;
+                    vizcore3d.Review.Measure.SetStyle(restoredStyle);
+                    DiagLog($"[DrawingRefAxis] 치수 문자 정렬 기본값 복원 " +
+                            $"AlignDistanceText={originalAlignDistanceText}");
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[DrawingRefAxis] 치수 문자 정렬 기본값 복원 WARN: {ex.Message}");
                 }
             }
 
