@@ -9,7 +9,7 @@
 ## 2026-07-23 — 연결부재 이름 STRU 단위 표시 (#45)
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `52f4166` (+ 제작도측·헬퍼 auto-sync 선반영)
 **관련 ISSUE**: GitHub issue #45
 **변경 사항**:
 - 연결부재 이름을 가장 가까운 상위 어셈블리 → **STRU 단위**로 변경. 신규 헬퍼 `FindParentStru`(부모로 올라가며 `_struNodeCache` STRU 집합 판정), STRU 조상 없으면 `FindNearestParentAssembly` 폴백
