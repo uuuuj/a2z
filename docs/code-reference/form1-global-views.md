@@ -62,8 +62,8 @@
   4. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
 
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L879~L937
-- **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수만 길이축이 보이는 두 직교 뷰에 생성. 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
+- **라인**: L879~L949
+- **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수를 생성. 끝단↔모서리 벡터의 X/Y/Z 세 축 성분을 모두 만들고 각 직교 뷰는 화면에 보이는 두 성분만 표시 (2026-07-23 — 주축 1성분만 만들면 주축과 직교하는 뷰가 빈 뷰였음. 성분별 `[설치치수]` 로그). 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
 - **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---
