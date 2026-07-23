@@ -40,8 +40,8 @@
 - **핵심**: Sheet 1 기존 치수 결과 재사용 → 일반 시트 Osnap 치수 선계산 → 설치도 Target Body 끝단→Connected Body 모서리 치수만 선계산. 선택·3D 미리보기·옛 2D·엑셀 2D 모두 같은 설치도 `PreparedDimensions`를 사용해 공용 Osnap 계산이 덮어쓰지 않음
 
 ### ApplySheetSelection
-- **라인**: L626~L784
-- **핵심**: 애니메이션 없는 모델 전환 → 일반 시트는 MemberIndices, 설치도는 STRU+직접 연결 외부 Part 표시 → 준비 치수·BOM 적용. 로그에 장면·치수·BOM·전체 시간을 분리 기록
+- **라인**: L626~L775
+- **핵심**: 가공도가 아닌 시트로 이동할 때 가공도 미리보기의 화면 roll·ReferenceAxis를 먼저 원복 → 애니메이션 없는 모델 전환 → 일반 시트는 MemberIndices, 설치도는 STRU+직접 연결 외부 Part 표시 → 준비 치수·BOM 적용. 로그에 장면·치수·BOM·전체 시간을 분리 기록
 
 ### <a id="ApplyDrawingSheetView"></a>ApplyDrawingSheetView(string viewDirection)
 - **라인**: L821~L936
