@@ -9,7 +9,7 @@
 ## 2026-07-23 — PAINT CODE에 STRU PNT UDA 표시
 
 **유형**: feat
-**커밋**: `pending`
+**커밋**: `1da8af7`
 **관련 TASK**: T-082 (제작도·가공도 PAINT CODE에 STRU PNT UDA 표시)
 **관련 ISSUE**: GitHub issue #28
 **변경 사항**:

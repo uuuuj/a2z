@@ -170,6 +170,8 @@ namespace A2Z
         public List<int> MemberIndices { get; set; }
         public List<string> MemberNames { get; set; }
         public int MfgDrawingNo { get; set; }
+        /// <summary>같은 STRU에서 생성된 모든 도면이 공유하는 PAINT CODE(PNT 계열 UDA).</summary>
+        public string PaintCode { get; set; }
         public List<ChainDimensionData> PreparedDimensions { get; set; }
         public bool DimensionsPrepared { get; set; }
         public List<DrawingBomRowData> PreparedBomRows { get; set; }
