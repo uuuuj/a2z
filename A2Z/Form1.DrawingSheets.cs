@@ -2305,7 +2305,7 @@ namespace A2Z
                         {
                             vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                             vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
-                            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+                            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(10.5f);   // #44 부재번호 풍선과 동일 폰트
 
                             for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
                             {
