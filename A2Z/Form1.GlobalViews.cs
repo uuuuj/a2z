@@ -198,9 +198,27 @@ namespace A2Z
         private const float InstallationContactSnapTolerance = 3.0f;
         private const float InstallationPlacementTieTolerance = 0.5f;
 
+        // 설치도 위치 치수 축 게이트 (issue #12, 2026-07-23) — 부재가 유의미하게 긴 축만 치수 대상으로 채택해
+        //   판 두께·법선(연결부재가 어셈블리 간격 ~1mm 떨어져 뻗는) 축을 배제한다. 실기 튜닝 전제(로그 기반).
+        //   채택 조건: 축 extent ≥ 최대 extent × Ratio  AND  축 extent ≥ MinExtent(mm). 단, 주축은 무조건 채택.
+        private const float InstallationAxisExtentRatio = 0.15f;
+        private const float InstallationAxisMinExtent = 30.0f;
+        // 성분 최소 임계(mm) — 축 게이트를 통과해도 남는 미소 성분(끝단 근접 연결·어셈블리 틈 잔여)을 이중 차단.
+        private const float InstallationMinComponent = 3.0f;
+
+        /// <summary>
+        /// 채택된 긴 축 하나에 대한 위치 치수 성분. 축마다 기준 끝단이 다르므로 성분별로 끝단을 보관한다.
+        /// </summary>
+        private sealed class InstallationAxisComponent
+        {
+            public string Axis;
+            public VIZCore3D.NET.Data.Vector3D TargetEndPoint;
+        }
+
         /// <summary>
         /// 설치 위치 치수의 최종 기준점.
         /// 접합영역은 이 두 점을 고르는 내부 판정 자료로만 사용한다.
+        /// Axis/TargetEndPoint는 주축(최장축) 성분이며, AxisComponents가 채택된 모든 긴 축 성분(축별 끝단 포함)을 담는다.
         /// </summary>
         private sealed class InstallationPlacementAnchor
         {
@@ -216,6 +234,7 @@ namespace A2Z
             public double MainDirectionTotalLength;
             public double SecondDirectionTotalLength;
             public int MergedAreaCount;
+            public List<InstallationAxisComponent> AxisComponents = new List<InstallationAxisComponent>();
         }
 
         /// <summary>
@@ -722,6 +741,51 @@ namespace A2Z
             return Math.Sqrt(px * px + py * py + pz * pz);
         }
 
+        /// <summary>
+        /// 월드 축(worldAxis)에 직교하는 평면에서 두 점의 거리 — 그 축 성분을 제외한 나머지 두 성분의 거리.
+        /// 축별 끝단 후보를 연결 모서리에 가까운 순으로 정렬할 때 사용한다.
+        /// </summary>
+        private double PerpendicularDistanceInPlane(
+            VIZCore3D.NET.Data.Vector3D a,
+            VIZCore3D.NET.Data.Vector3D b,
+            string worldAxis)
+        {
+            double dx = a.X - b.X, dy = a.Y - b.Y, dz = a.Z - b.Z;
+            switch (worldAxis)
+            {
+                case "X": return Math.Sqrt(dy * dy + dz * dz);
+                case "Y": return Math.Sqrt(dx * dx + dz * dz);
+                default: return Math.Sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        /// <summary>
+        /// 주어진 월드 축을 따라 Target Body의 끝단점을 고른다 (issue #12, 2026-07-23).
+        /// BuildInstallationPlacementAnchor의 최장축 끝단 선정 로직을 임의 월드 축으로 일반화한 것.
+        /// 축 좌표 MIN/MAX 중 연결 모서리에 가까운 쪽 끝단면을 잡고, 그 끝단면 후보(동률 허용오차 내)
+        /// 가운데 연결 모서리와 축 직교 평면 거리가 가장 가까운 점을 반환한다.
+        /// </summary>
+        private VIZCore3D.NET.Data.Vector3D SelectInstallationTargetEndForAxis(
+            List<VIZCore3D.NET.Data.Vector3D> targetPoints,
+            VIZCore3D.NET.Data.Vector3D connectedCorner,
+            string worldAxis)
+        {
+            double minProj = targetPoints.Min(p => (double)GetVectorAxisValue(p, worldAxis));
+            double maxProj = targetPoints.Max(p => (double)GetVectorAxisValue(p, worldAxis));
+            double cornerProj = GetVectorAxisValue(connectedCorner, worldAxis);
+            double endProj = Math.Abs(cornerProj - minProj) <= Math.Abs(cornerProj - maxProj)
+                ? minProj
+                : maxProj;
+            double nearestEndPlaneDistance = targetPoints
+                .Min(p => Math.Abs(GetVectorAxisValue(p, worldAxis) - endProj));
+            return targetPoints
+                .Where(p => Math.Abs(GetVectorAxisValue(p, worldAxis) - endProj) <=
+                            nearestEndPlaneDistance + InstallationPlacementTieTolerance)
+                .OrderBy(p => PerpendicularDistanceInPlane(p, connectedCorner, worldAxis))
+                .ThenBy(p => Distance3D(p, connectedCorner))
+                .First();
+        }
+
         private InstallationPlacementAnchor BuildInstallationPlacementAnchor(
             IEnumerable<InstallationConnectionData> sourceConnections)
         {
@@ -828,6 +892,36 @@ namespace A2Z
 
             if (best != null)
             {
+                // ── 축 게이트 (issue #12, 2026-07-23) — 부재가 유의미하게 긴 축만 성분 치수로 채택 ──
+                //   판 두께·법선 축(연결부재가 어셈블리 간격 ~1mm 떨어져 뻗는 방향)을 배제해, 겹쳐 보이는
+                //   1mm 틈 치수와 설치 위치와 무관한 수평 성분을 함께 제거한다. 주축은 무조건 채택(회귀 방지).
+                double extentX = targetPoints.Max(p => (double)p.X) - targetPoints.Min(p => (double)p.X);
+                double extentY = targetPoints.Max(p => (double)p.Y) - targetPoints.Min(p => (double)p.Y);
+                double extentZ = targetPoints.Max(p => (double)p.Z) - targetPoints.Min(p => (double)p.Z);
+                double maxExtent = Math.Max(extentX, Math.Max(extentY, extentZ));
+                string[] axesXYZ = { "X", "Y", "Z" };
+                double[] extentsXYZ = { extentX, extentY, extentZ };
+                var acceptedAxes = new List<string>();
+                for (int ai = 0; ai < 3; ai++)
+                {
+                    bool isMain = axesXYZ[ai] == best.Axis;
+                    bool pass = extentsXYZ[ai] >= maxExtent * InstallationAxisExtentRatio &&
+                                extentsXYZ[ai] >= InstallationAxisMinExtent;
+                    if (pass || isMain) acceptedAxes.Add(axesXYZ[ai]);
+                }
+                foreach (string axis in acceptedAxes)
+                {
+                    // 주축은 이미 확정된 끝단(실기 검증된 최장축 치수) 그대로, 나머지 축은 그 축 기준으로 재선정.
+                    VIZCore3D.NET.Data.Vector3D axisEnd = axis == best.Axis
+                        ? best.TargetEndPoint
+                        : SelectInstallationTargetEndForAxis(targetPoints, best.ConnectedCornerPoint, axis);
+                    best.AxisComponents.Add(new InstallationAxisComponent { Axis = axis, TargetEndPoint = axisEnd });
+                }
+                DiagLog($"[설치치수축] targetPart={best.TargetPartIndex} " +
+                        $"extent=(X={extentX:F1},Y={extentY:F1},Z={extentZ:F1}) maxExt={maxExtent:F1} " +
+                        $"main={best.Axis} ratio={InstallationAxisExtentRatio} minExt={InstallationAxisMinExtent} " +
+                        $"accepted=[{string.Join(",", acceptedAxes)}]");
+
                 DiagLog($"[설치위치] targetPart={best.TargetPartIndex} targetBody={best.TargetBodyIndex} " +
                         $"connectedPart={best.ConnectedPartIndex} connectedBody={best.ConnectedBodyIndex} " +
                         $"axis={best.Axis} mainDir=({direction.X:F3},{direction.Y:F3},{direction.Z:F3}) " +
@@ -912,22 +1006,21 @@ namespace A2Z
                 }
                 catch { }
 
-                // 주축(부재 길이 방향) 성분만 만들면 주축과 직교하는 뷰(예: Z 부재의 평면도)는 보여줄
-                //   치수가 없어 빈 뷰가 됐다 (2026-07-23). 끝단↔모서리 벡터의 세 축 성분을 모두 만들고
-                //   뷰별 필터(viewAxes)가 각 뷰에서 보이는 성분만 표시한다.
-                //   성분이 0.5mm 이하인 축은 AddInstallationDimension 가드가 걸러 기존과 동일.
-                DiagLog($"[설치치수] {targetName}→{connection.ConnectedPartName} 주축={anchor.Axis} " +
-                        $"성분=({Math.Abs(anchor.ConnectedCornerPoint.X - anchor.TargetEndPoint.X):F1}," +
-                        $"{Math.Abs(anchor.ConnectedCornerPoint.Y - anchor.TargetEndPoint.Y):F1}," +
-                        $"{Math.Abs(anchor.ConnectedCornerPoint.Z - anchor.TargetEndPoint.Z):F1})");
-                foreach (string dimAxis in new[] { "X", "Y", "Z" })
+                // 설치 위치 치수는 "부재가 유의미하게 긴 축"에만 생성한다 (issue #12, 2026-07-23 사용자 확정).
+                //   BuildInstallationPlacementAnchor의 축 게이트가 채택한 각 축 성분은 그 축 기준으로 재선정된
+                //   끝단을 가진다 — 주축(예: 세로 30mm)에 더해 판형 부재의 폭 방향 성분이 평면도에 나온다.
+                //   판 두께·법선 축(1mm 어셈블리 틈이 있는 연결부재 뻗는 방향)은 게이트에서 배제돼 생성 안 됨.
+                //   뷰별 필터(viewAxes)가 각 뷰에서 보이는 축 성분만 표시하고, 미소 성분은 InstallationMinComponent가 거른다.
+                foreach (var component in anchor.AxisComponents)
                 {
-                    foreach (var view in viewAxes.Where(item => item.Value.Contains(dimAxis)))
+                    DiagLog($"[설치치수] {targetName}→{connection.ConnectedPartName} 축={component.Axis} " +
+                            $"성분={Math.Abs(GetVectorAxisValue(anchor.ConnectedCornerPoint, component.Axis) - GetVectorAxisValue(component.TargetEndPoint, component.Axis)):F1}");
+                    foreach (var view in viewAxes.Where(item => item.Value.Contains(component.Axis)))
                     {
                         AddInstallationDimension(result,
-                            anchor.TargetEndPoint,
+                            component.TargetEndPoint,
                             anchor.ConnectedCornerPoint,
-                            dimAxis,
+                            component.Axis,
                             view.Key,
                             $"설치 {connection.Label} - {targetName} 끝단 → {connection.ConnectedPartName} 모서리",
                             false,
@@ -959,7 +1052,8 @@ namespace A2Z
             IEnumerable<int> memberIndices)
         {
             float distance = Math.Abs(GetVectorAxisValue(end, axis) - GetVectorAxisValue(start, axis));
-            if (distance <= 0.5f) return;
+            // 미소 성분 차단 (issue #12, 2026-07-23) — 끝단 근접 연결·어셈블리 틈 잔여를 걸러 겹친 선 방지.
+            if (distance <= InstallationMinComponent) return;
             result.Add(new ChainDimensionData
             {
                 Axis = axis,
