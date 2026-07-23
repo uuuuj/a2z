@@ -325,7 +325,7 @@ namespace A2Z
                 VIZCore3D.NET.Data.Node connectedPart = null;
                 try { connectedPart = vizcore3d.Object3D.FromIndex(connectedPartIndex); }
                 catch { }
-                VIZCore3D.NET.Data.Node connectedAssembly = FindNearestParentAssembly(connectedPart);
+                VIZCore3D.NET.Data.Node connectedAssembly = FindParentStru(connectedPart) ?? FindNearestParentAssembly(connectedPart);   // #45 연결부재 STRU 단위
                 int assemblyIndex = connectedAssembly != null ? connectedAssembly.Index : connectedPartIndex;
                 string assemblyName = connectedAssembly != null ? connectedAssembly.NodeName : null;
                 if (string.IsNullOrWhiteSpace(assemblyName))

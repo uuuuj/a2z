@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 # 시트 ISO 뷰 + 풍선 노트
 
 ## 1. 개요
-선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)만 생성한다. 설치도 3D 미리보기는 선택 STRU와 직접 연결된 외부 Part를 함께 표시한다. 설치 위치 치수 데이터는 X/Y/Z와 2D 도면용으로 유지하지만 ISO 3D 화면에는 그리지 않는다. PDF의 ISO 부재번호 풍선과 연결부재 이름 라벨은 2D 변환 후 실제 표시 객체 외곽에서 도면 기준 20mm 떨어진 영역으로 함께 자동 정렬한다. 설치도 PDF는 선택 STRU를 기준으로 맞추고 연결 Part만 점선으로 남기며, 연결 Part당 `A. Assembly / Part` 이름을 접합측 실제 모서리에 한 번 표시한다.
+선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)만 생성한다. 설치도 3D 미리보기는 선택 STRU와 직접 연결된 외부 Part를 함께 표시한다. 설치 위치 치수 데이터는 X/Y/Z와 2D 도면용으로 유지하지만 ISO 3D 화면에는 그리지 않는다. PDF의 ISO 부재번호 풍선과 연결부재 이름 라벨은 2D 변환 후 실제 표시 객체 외곽에서 도면 기준 20mm 떨어진 영역으로 함께 자동 정렬한다. 설치도 PDF는 선택 STRU를 기준으로 맞추고 연결 Part만 점선으로 남기며, 연결 Part당 `A. STRU` 이름(연결부재의 STRU 단위까지만, `/ Part` 미표기)을 접합측 실제 모서리에 한 번 표시한다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -74,6 +74,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-23 | 연결부재 이름을 가장 가까운 상위 어셈블리 → **STRU 단위**로 변경(`FindParentStru`)하고 설치도 라벨의 `/ Part` 제거 (#45). STRU 조상 없으면 기존 어셈블리 폴백 | Claude |
 | 2026-07-23 | 부재번호 풍선·연결 이름의 실제 2D 객체 외곽 간격을 20mm로 확대. 개별 연결 이름의 상/하 방향 강제는 SDK 직접 지원이 없어 별도 향후 요청으로 분리하고 현재 자동 정렬 유지 | Codex |
 | 2026-07-23 | 사용자 조정에 따라 실제 2D 객체 외곽과 풍선·연결 이름 사이의 도면 고정 간격을 5mm에서 10mm로 확대. SDK 영역 정렬 offset은 0 유지 | Codex |
 | 2026-07-23 | 실기 이미지에서 fit 70% 사각형 때문에 풍선이 멀어지고 월드 좌표 직접 생성 연결 이름이 이동하지 않는 현상 확인. 실제 2D 객체 외곽 + 도면 고정 5mm로 변경하고 연결 이름도 3D 표면 노트 변환 경로로 통일 | Codex |
