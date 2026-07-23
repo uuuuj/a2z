@@ -41,6 +41,9 @@ namespace A2Z
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
 
+        // #36 STRU 이름 검색 → 즉시 치수 추출 입력창 (코드 생성, Designer 미사용).
+        private System.Windows.Forms.TextBox txtStruSearch;
+
         // 가드 — 체크박스 클릭 시 WinForms가 SelectedIndexChanged도 발생시킴(MouseDown 순간).
         // ItemCheck에서 set, BeginInvoke로 큐 끝 해제. SelectedIndexChanged는 BeginInvoke 지연 후 검사 → 가드 on이면 fit 차단.
         private bool _suppressStruSelChanged = false;
@@ -152,20 +155,183 @@ namespace A2Z
             }
             clbStruList.Items.Clear();
             _struNodeCache = CollectStruList();
+            var acSource = new System.Windows.Forms.AutoCompleteStringCollection();  // #36 검색 자동완성 소스
             foreach (var stru in _struNodeCache)
             {
-                string display;
-                if (!string.IsNullOrEmpty(stru.NodeName))
-                    display = stru.NodeName;
-                else if (!string.IsNullOrEmpty(stru.NodePath))
-                    display = stru.NodePath;
-                else
-                    display = $"(Index {stru.Index})";
+                string display = GetStruDisplayName(stru);
                 clbStruList.Items.Add(display, false);
+                acSource.Add(display);
             }
+            if (txtStruSearch != null)                       // #36 STRU 검색창 자동완성 갱신
+                txtStruSearch.AutoCompleteCustomSource = acSource;
             if (lblStruTitle != null)
                 lblStruTitle.Text = $"STRU 목록 ({_struNodeCache.Count}개)";
             DiagLog($"T-064 PopulateStruCheckList: {_struNodeCache.Count}개 항목 추가됨");
+        }
+
+        /// <summary>
+        /// STRU 표시 이름 — NodeName → NodePath → "(Index N)". 목록 표시·검색 매칭 공통 사용.
+        /// </summary>
+        private string GetStruDisplayName(VIZCore3D.NET.Data.Node stru)
+        {
+            if (stru == null) return "";
+            if (!string.IsNullOrEmpty(stru.NodeName)) return stru.NodeName;
+            if (!string.IsNullOrEmpty(stru.NodePath)) return stru.NodePath;
+            return $"(Index {stru.Index})";
+        }
+
+        /// <summary>
+        /// #36 STRU 이름 검색 입력창을 코드로 생성해 groupBoxStru 하단에 붙인다.
+        /// (Designer 손수정 회피 — 생성자에서 1회 호출.) 자동완성 소스는 PopulateStruCheckList에서 갱신.
+        /// </summary>
+        private void InitStruSearchUI()
+        {
+            if (groupBoxStru == null) return;
+
+            var panelStruSearch = new System.Windows.Forms.Panel
+            {
+                Name = "panelStruSearch",
+                Dock = System.Windows.Forms.DockStyle.Bottom,
+                Height = 34
+            };
+
+            var lblStruSearch = new System.Windows.Forms.Label
+            {
+                Name = "lblStruSearch",
+                AutoSize = true,
+                Text = "STRU 검색",
+                Location = new System.Drawing.Point(8, 9)
+            };
+
+            txtStruSearch = new System.Windows.Forms.TextBox
+            {
+                Name = "txtStruSearch",
+                Location = new System.Drawing.Point(70, 6),
+                Size = new System.Drawing.Size(258, 23),
+                Anchor = System.Windows.Forms.AnchorStyles.Top
+                       | System.Windows.Forms.AnchorStyles.Left
+                       | System.Windows.Forms.AnchorStyles.Right,
+                AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource
+            };
+            txtStruSearch.KeyDown += TxtStruSearch_KeyDown;
+
+            var btnStruSearchExtract = new System.Windows.Forms.Button
+            {
+                Name = "btnStruSearchExtract",
+                Text = "치수 추출",
+                Location = new System.Drawing.Point(334, 5),
+                Size = new System.Drawing.Size(95, 25),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
+                UseVisualStyleBackColor = true
+            };
+            btnStruSearchExtract.Click += BtnStruSearchExtract_Click;
+
+            panelStruSearch.Controls.Add(lblStruSearch);
+            panelStruSearch.Controls.Add(txtStruSearch);
+            panelStruSearch.Controls.Add(btnStruSearchExtract);
+
+            groupBoxStru.Controls.Add(panelStruSearch);
+            // Dock 계층: Fill(clbStruList)이 맨 뒤여야 Top/Bottom 패널이 가장자리를 차지.
+            panelStruSearch.BringToFront();
+            if (clbStruList != null) clbStruList.SendToBack();
+        }
+
+        private void BtnStruSearchExtract_Click(object sender, EventArgs e)
+        {
+            ExtractDimensionsForStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
+        }
+
+        private void TxtStruSearch_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode != System.Windows.Forms.Keys.Enter) return;
+            e.Handled = true;
+            e.SuppressKeyPress = true;   // Enter 비프음·기본동작 억제
+            ExtractDimensionsForStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
+        }
+
+        /// <summary>
+        /// #36 STRU 이름으로 찾아 그 STRU만 격리한 뒤 기존 치수 추출(btnMainDimension_Click)을 실행한다.
+        /// 격리 방식은 ProcessSingleStruFull(전체 BODY 숨김 → STRU BODY만 표시)과 동일 —
+        /// 치수 추출이 "현재 보이는 부재" 기준이므로 격리해야 그 STRU만 대상이 됨.
+        /// </summary>
+        private void ExtractDimensionsForStruByName(string name)
+        {
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 파일을 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string query = (name ?? "").Trim();
+            if (query.Length == 0)
+            {
+                MessageBox.Show("검색할 STRU 이름을 입력해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (_struNodeCache == null || _struNodeCache.Count == 0)
+            {
+                MessageBox.Show("STRU 목록이 비어 있습니다. 모델을 먼저 열어주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int idx = FindStruIndexByName(query);
+            if (idx < 0)
+            {
+                MessageBox.Show($"'{query}' 에 해당하는 STRU를 찾을 수 없습니다.", "검색 실패", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var struNode = _struNodeCache[idx];
+
+            // STRU 후손 BODY 수집
+            var descendants = vizcore3d.Object3D.GetChildObject3d(
+                struNode.Index, VIZCore3D.NET.Data.Object3DChildOption.ALL_CHILDREN, true);
+            var memberIndices = descendants == null ? new List<int>()
+                : descendants.Where(b => b.Kind == VIZCore3D.NET.Data.NodeKind.BODY).Select(b => b.Index).ToList();
+            if (memberIndices.Count == 0)
+            {
+                MessageBox.Show($"'{GetStruDisplayName(struNode)}' STRU에 부재(BODY)가 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 가시성 격리 — 전체 BODY 숨김 후 STRU BODY만 표시 (ProcessSingleStruFull 패턴)
+            var allBodies = vizcore3d.Object3D.FromFilter(VIZCore3D.NET.Data.Object3dFilter.ALL_INCLUDE_BODY, false);
+            var allBodyIndices = allBodies == null ? new List<int>()
+                : allBodies.Where(n => n.Kind == VIZCore3D.NET.Data.NodeKind.BODY).Select(n => n.Index).ToList();
+            vizcore3d.BeginUpdate();
+            try
+            {
+                if (allBodyIndices.Count > 0) vizcore3d.Object3D.Show(allBodyIndices, false);
+                vizcore3d.Object3D.Show(memberIndices, true);
+            }
+            finally { vizcore3d.EndUpdate(); }
+
+            // 목록에서도 해당 STRU 강조 (시각 일관성). 선택 핸들러가 show+fit 재수행 — 같은 STRU라 무해.
+            if (clbStruList != null && idx < clbStruList.Items.Count)
+                clbStruList.SelectedIndex = idx;
+            Application.DoEvents();
+
+            DiagLog($"#36 STRU 검색 '{query}' → '{struNode.NodeName}' idx={idx} bodies={memberIndices.Count} 격리 후 치수 추출");
+
+            // 기존 치수 추출 파이프라인 실행 (현재 보이는 = 격리된 STRU 기준)
+            btnMainDimension_Click(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 검색어로 _struNodeCache에서 STRU 인덱스를 찾는다. 완전일치(대소문자·앞뒤공백 무시) 우선, 없으면 부분일치 첫 매칭.
+        /// </summary>
+        private int FindStruIndexByName(string query)
+        {
+            if (_struNodeCache == null) return -1;
+            // 1) 완전일치
+            for (int i = 0; i < _struNodeCache.Count; i++)
+                if (string.Equals(GetStruDisplayName(_struNodeCache[i]).Trim(), query, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            // 2) 부분일치 (첫 매칭)
+            for (int i = 0; i < _struNodeCache.Count; i++)
+                if (GetStruDisplayName(_struNodeCache[i]).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return i;
+            return -1;
         }
 
         /// <summary>
@@ -383,7 +549,11 @@ namespace A2Z
             }
 
             _p2aInProgress = true;
+            BeginCancelableOperation();
             btnExtractDrawingList.Enabled = false;
+            if (btnMainDimension != null)
+                btnMainDimension.Enabled = false;
+            ShowBusyOverlay("도면 일괄 출력 준비 중...");
 
             // ─── 자동 출력 진입 사전 초기화 (2026-05-19, 사용자 제안) ───
             //   증상: 수동 작업 잔재(drawingSheetList 시트)가 있으면 폴링 조건
@@ -463,21 +633,38 @@ namespace A2Z
             int successCount = 0, failCount = 0;
             var errors = new List<string>();
             int totalPdfCount = 0;
+            bool cancelled = false;
 
             try
             {
+                if (IsCancellationRequested("일괄 출력 준비 후"))
+                    cancelled = true;
+
                 for (int s = 0; s < checkedStrus.Count; s++)
                 {
+                    if (cancelled || IsCancellationRequested($"STRU {s + 1} 시작 전"))
+                    {
+                        cancelled = true;
+                        break;
+                    }
+
                     var stru = checkedStrus[s];
                     ShowBusyOverlay($"STRU 처리 {s + 1}/{checkedStrus.Count}: {stru.NodeName}");
                     Application.DoEvents();
 
                     try
                     {
-                        int pdfCount = ProcessSingleStruFull(stru, saveDir);
+                        int pdfCount = ProcessSingleStruFull(
+                            stru,
+                            saveDir,
+                            savedCount => totalPdfCount += savedCount);
                         successCount++;
-                        totalPdfCount += pdfCount;
                         DiagLog($"T-064 STRU '{stru.NodeName}' 완료 — PDF {pdfCount}개 생성");
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        cancelled = true;
+                        DiagLog($"STRU '{stru.NodeName}' 중간 취소 — checkpoint={ex.Message}");
                     }
                     catch (Exception ex)
                     {
@@ -494,10 +681,22 @@ namespace A2Z
                     GC.Collect();
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(100);
+
+                    if (cancelled || IsCancellationRequested($"STRU {s + 1} 처리 후"))
+                    {
+                        cancelled = true;
+                        break;
+                    }
                 }
             }
             finally
             {
+                if (cancelled || _cancelRequested)
+                {
+                    cancelled = true;
+                    ClearCanceledOperationArtifacts();
+                }
+
                 // 모든 BODY 다시 표시 — 가시성 복원 (마지막 STRU 처리 후 사용자 일반 사용 흐름 복귀)
                 try
                 {
@@ -530,19 +729,33 @@ namespace A2Z
 
                 _p2aInProgress = false;
                 try { btnExtractDrawingList.Enabled = true; } catch { }
+                try
+                {
+                    if (btnMainDimension != null)
+                        btnMainDimension.Enabled = true;
+                }
+                catch { }
                 try { HideBusyOverlay(); } catch { }
+                EndCancelableOperation();
             }
 
             // 결과 요약
-            string msg = $"STRU 일괄 도면 출력 완료\n\n성공: {successCount}개 STRU (PDF {totalPdfCount}개)\n실패: {failCount}개";
+            int completedCount = successCount + failCount;
+            int remainingCount = Math.Max(0, checkedStrus.Count - completedCount);
+            string msg = cancelled
+                ? $"STRU 일괄 도면 출력을 취소했습니다.\n\n" +
+                  $"처리 완료: {completedCount}/{checkedStrus.Count}개 STRU\n" +
+                  $"성공: {successCount}개\n실패: {failCount}개\n미처리: {remainingCount}개\n" +
+                  $"생성된 PDF: {totalPdfCount}개\n\n현재 실행 중이던 작업 단위까지 마무리한 뒤 중단했습니다."
+                : $"STRU 일괄 도면 출력 완료\n\n성공: {successCount}개 STRU (PDF {totalPdfCount}개)\n실패: {failCount}개";
             if (errors.Count > 0)
             {
                 int maxShow = Math.Min(10, errors.Count);
                 msg += $"\n\n실패 목록 (최대 10건):\n{string.Join("\n", errors.Take(maxShow))}";
                 if (errors.Count > maxShow) msg += $"\n... +{errors.Count - maxShow}건";
             }
-            MessageBox.Show(msg, "완료", MessageBoxButtons.OK,
-                failCount == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            MessageBox.Show(msg, cancelled ? "취소됨" : "완료", MessageBoxButtons.OK,
+                cancelled || failCount > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -559,8 +772,13 @@ namespace A2Z
         ///
         /// drawingSheetList 대신 lvDrawingSheet.Items를 순회 — UI 동기 보장 (GenerateDrawingSheets가 둘 다 갱신).
         /// </summary>
-        private int ProcessSingleStruFull(VIZCore3D.NET.Data.Node struNode, string saveDir)
+        private int ProcessSingleStruFull(
+            VIZCore3D.NET.Data.Node struNode,
+            string saveDir,
+            Action<int> reportPdfSaved = null)
         {
+            ThrowIfCancellationRequested("STRU 부재 수집 전");
+
             // 1) STRU 후손 BODY 수집
             var descendants = vizcore3d.Object3D.GetChildObject3d(
                 struNode.Index,
@@ -574,6 +792,7 @@ namespace A2Z
                 .ToList();
             if (memberIndices.Count == 0)
                 throw new Exception("STRU 후손 BODY 0건");
+            ThrowIfCancellationRequested("STRU 부재 수집 후");
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' bodies={memberIndices.Count}");
 
@@ -603,6 +822,7 @@ namespace A2Z
                 Application.DoEvents();
                 DiagLog($"T-064 STRU '{struNode.NodeName}' 가시성 격리 — allBody={allBodyIndices.Count}, STRU={memberIndices.Count}");
             }
+            ThrowIfCancellationRequested("STRU 가시성 격리 후");
 
             // 2) xraySelectedNodeIndices 초기화 — 사용자 평소 btnMainDimension_Click(Form1.BOM.cs:347) 패턴 그대로.
             // 격리는 *가시성*으로만 수행 (CollectBOMData가 보이는 부재만 수집). xraySelectedNodeIndices 의존은
@@ -616,17 +836,26 @@ namespace A2Z
             // 그룹으로 카운트되어 컴포넌트 > 1 → T-023 메시지 + return → 시트 생성 안 됨.
             // 가시성 격리 + xraySelectedNodeIndices 설정 후 CollectBOMData 호출 → bomList에 STRU 부재만 →
             // 연결성 검사 시 STRU 부재끼리만 그래프 → 정상.
+            ShowBusyOverlay($"BOM 수집 중: {struNode.NodeName}");
+            ThrowIfCancellationRequested("STRU BOM 수집 전");
             bool bomCollected = CollectBOMData();
             DiagLog($"T-064 STRU '{struNode.NodeName}' CollectBOMData success={bomCollected}, bomList={bomList?.Count ?? 0}");
+            ThrowIfCancellationRequested("STRU BOM 수집 후");
 
             // 3) DetectClash 호출 (비동기) — OnFinished가 자동으로 시트 생성·치수계산까지 진행
+            ShowBusyOverlay($"간섭검사 실행 중: {struNode.NodeName}");
+            ThrowIfCancellationRequested("STRU 간섭검사 시작 전");
             bool startResult = DetectClash(includeOutsideNeighbors: true);
             DiagLog($"T-064 STRU '{struNode.NodeName}' DetectClash startResult={startResult}");
             if (!startResult)
             {
+                ThrowIfCancellationRequested("STRU 간섭검사 호출 후");
+
                 // Clash 페어 0개 등 시작 실패 — 단일 부재 또는 모든 부재가 서로 멀어진 경우.
                 // 그래도 GenerateDrawingSheets 직접 호출 시도 (Sheet 1 + 가공도라도 생성)
+                ShowBusyOverlay($"도면 시트 생성 중: {struNode.NodeName}");
                 GenerateDrawingSheets();
+                ThrowIfCancellationRequested("STRU 도면 시트 생성 후");
             }
             else
             {
@@ -647,7 +876,18 @@ namespace A2Z
                 while (sw.ElapsedMilliseconds < 60000)
                 {
                     Application.DoEvents();
+                    bool cancellationPending = IsCancellationRequested("STRU 간섭검사 완료 대기");
+                    if (cancellationPending)
+                        ShowBusyOverlay($"간섭검사 마무리 후 취소: {struNode.NodeName}");
+
                     System.Threading.Thread.Sleep(50);
+                    if (cancellationPending && !vizcore3d.Clash.IsBusy)
+                    {
+                        System.Threading.Thread.Sleep(100);
+                        Application.DoEvents();
+                        throw new OperationCanceledException("STRU 간섭검사 완료 후");
+                    }
+
                     // IsBusy=false AND 시트 1개 이상 채워졌으면 OnFinished 완료된 것
                     if (!vizcore3d.Clash.IsBusy &&
                         drawingSheetList != null &&
@@ -664,6 +904,7 @@ namespace A2Z
                     throw new Exception("간섭검사 60초 타임아웃");
                 }
             }
+            ThrowIfCancellationRequested("STRU 시트 출력 시작 전");
 
             // 5) drawingSheetList 채워졌는지 확인
             if (drawingSheetList == null || drawingSheetList.Count == 0)
@@ -687,6 +928,8 @@ namespace A2Z
             //   = lvi.Selected=true (핸들러 자동) → GenerateSheetDrawing2D(sheet) → Export2PDFBy2DView(file)
             for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
             {
+                ThrowIfCancellationRequested($"일반 시트 {i + 1} 시작 전");
+
                 var lvi = lvDrawingSheet.Items[i];
                 var sheet = lvi.Tag as DrawingSheetData;
                 if (sheet == null || sheet.MemberIndices.Count == 0) continue;
@@ -696,6 +939,9 @@ namespace A2Z
 
                 try
                 {
+                    ShowBusyOverlay(
+                        $"PDF 출력 {i + 1}/{lvDrawingSheet.Items.Count}: {sheetLabel}");
+
                     // Step A (2026-05-19): UI 트릭(lvi.Selected=true + DoEvents + Sleep) 제거 →
                     //   ApplySheetSelection(sheet) 직접 호출. 시트당 200ms 단축 + 이벤트 타이밍 의존 제거.
                     //   UI 선택 표시는 시각 일관성 위해 유지 (사용자가 진행 중 어떤 시트 처리되는지 확인 가능)
@@ -705,11 +951,13 @@ namespace A2Z
 
                     // = LvDrawingSheet_SelectedIndexChanged 본체 (이벤트 시뮬 X, 메서드 직접 호출)
                     ApplySheetSelection(sheet);
+                    ThrowIfCancellationRequested($"일반 시트 {i + 1} 선택 후");
 
                     // = btnGenerateSheet2D_Click 흐름 ("2D 출력" 버튼)
                     GenerateSheetDrawing2D(sheet);
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(200);
+                    ThrowIfCancellationRequested($"일반 시트 {i + 1} 2D 생성 후");
 
                     // = btnExportSheet2DPDF_Click 흐름 ("PDF 출력" 버튼) — SaveFileDialog 우회
                     string safeBaseName = SanitizeFileName(sheet.BaseMemberName ?? "Unknown");
@@ -721,6 +969,8 @@ namespace A2Z
                     vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
                     DiagLog($"T-064 PDF saved: {pdfPath}");
                     pdfCount++;
+                    reportPdfSaved?.Invoke(1);
+                    ThrowIfCancellationRequested($"일반 시트 {i + 1} PDF 저장 후");
 
                     // 메모리 정리
                     try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
@@ -732,22 +982,62 @@ namespace A2Z
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(100);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     DiagLog($"T-064 시트 #{sheet.SheetNumber} ({sheetLabel}) ERROR: {ex.Message}");
                 }
             }
 
-            // ─── 8) 가공도 묶음 처리 — P1 hard skip (refactor/dead-code, 2026-05-23) ───
-            // 옛 GenerateMfgDrawing2DAll + Export2PDFBy2DView 호출 제거.
-            // 수동 새 함수(GenerateMfgDrawingManual) 작성·검증 후 P4에서 재배선.
-            // pdfCount 증가 X (success로 집계 안 함).
-            int mfgSkipCount = 0;
-            foreach (ListViewItem lvi in lvDrawingSheet.Items)
-                if (lvi.Text.StartsWith("가공도")) mfgSkipCount++;
-            if (mfgSkipCount > 0)
-                DiagLog($"[P1 no-op] STRU '{struNode.NodeName}' 가공도 묶음 {mfgSkipCount}건 hard skip (P4에서 재활성)");
+            ThrowIfCancellationRequested("일반 시트 출력 후");
 
+            // ─── 8) 가공도 묶음 처리 — 검증된 수동 함수 재사용 (2026-07-23, #35) ───
+            //   옛 P1 hard skip 제거. 수동 경로(btnMfgDrawingSheet_Click)와 동일한 GenerateMfgDrawingManual로
+            //   실제 생성·저장. 저장 위치는 STRU 폴더(struSubDir), 결과 SuccessPdfs를 pdfCount에 합산.
+            //   ⚠ 여러 STRU 연속 생성이라 가공도 크래시(#3) 핵심 검증 시나리오 — 재현 시 #3에 반영.
+            var mfgSheets = new List<DrawingSheetData>();
+            foreach (ListViewItem lvi in lvDrawingSheet.Items)
+                if (lvi.Text.StartsWith("가공도"))
+                {
+                    var s = lvi.Tag as DrawingSheetData;
+                    if (s != null && s.MemberIndices.Count > 0) mfgSheets.Add(s);
+                }
+
+            if (mfgSheets.Count > 0)
+            {
+                try
+                {
+                    ShowBusyOverlay($"가공도 PDF 출력 중: {struNode.NodeName}");
+                    ThrowIfCancellationRequested("가공도 출력 시작 전");
+                    var mfgResult = GenerateMfgDrawingManual(mfgSheets, struSubDir, struNode.NodeName, struNode.Index);
+                    pdfCount += mfgResult.SuccessPdfs;
+                    reportPdfSaved?.Invoke(mfgResult.SuccessPdfs);
+                    ThrowIfCancellationRequested("가공도 출력 후");
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 {mfgResult.SuccessPdfs}개 저장" +
+                        (mfgResult.TemplateMissing ? " (템플릿 누락)" : "") +
+                        (mfgResult.Warnings.Count > 0 ? $" 경고 {mfgResult.Warnings.Count}건" : ""));
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 묶음 ERROR: {ex.Message}");
+                }
+                finally
+                {
+                    // 다음 STRU 전 메모리 정리 (2D 상태는 GenerateMfgDrawingManual finally가 이미 복원)
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+            }
+
+            ThrowIfCancellationRequested("STRU 출력 완료 후");
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
             return pdfCount;
         }
