@@ -1,6 +1,6 @@
 # Form1.Dimensions.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.Dimensions.cs` (약 2,810 라인)
+**경로**: `A2Z/Form1.Dimensions.cs` (약 2,835 라인)
 
 **책임**: 체인 치수 표시/삭제/필터, 축별 뷰 전환, 풍선 조정, Clash 연동 자동 선택, 현재 뷰 기반 치수 추출.
 
@@ -17,8 +17,8 @@
 | <a id="btnShowAxisZ_Click"></a>`btnShowAxisZ_Click` | L221 | 버튼 | [show-axis-z](../기능/치수/Z축%20치수%20표시.md) |
 | <a id="btnShowISO_Click"></a>`btnShowISO_Click` | L229 | 버튼 | [show-iso](../기능/치수/ISO%20풍선%20표시.md) |
 | <a id="btnBalloonAdjust_Click"></a>`btnBalloonAdjust_Click` | L237 | 버튼 | [balloon-adjust](../기능/치수/풍선%20위치%20조정.md) |
-| <a id="LvClash_SelectedIndexChanged"></a>`LvClash_SelectedIndexChanged` | L1748 | 이벤트 | [lvclash-selected](../기능/치수/Clash%20선택%20시%20치수%20필터.md) |
-| <a id="btnExtractDimension_Click"></a>`btnExtractDimension_Click` | L1955 | 버튼 | [extract-dimension](../기능/치수/현재%20뷰%20기반%20체인%20치수%20추출.md) |
+| <a id="LvClash_SelectedIndexChanged"></a>`LvClash_SelectedIndexChanged` | L1770 | 이벤트 | [lvclash-selected](../기능/치수/Clash%20선택%20시%20치수%20필터.md) |
+| <a id="btnExtractDimension_Click"></a>`btnExtractDimension_Click` | L1977 | 버튼 | [extract-dimension](../기능/치수/현재%20뷰%20기반%20체인%20치수%20추출.md) |
 
 ---
 
@@ -29,6 +29,9 @@
 | `AddChainDimensionByAxis` | 축별 체인 치수 생성 |
 | `MergeCoordinates` | tolerance 내 Osnap 좌표 병합 |
 | `ShowAllDimensions(axis?, forDrawing2D?, canvasScaleOverride?, keepCamera?)` | `chainDimensionList`를 뷰별 필터링한 뒤 SDK Measure에 추가. 치수선 기준선은 선택 부재 BBox와 치수 끝점의 합집합 바깥 (2026-07-23 — 설치도 연결 모서리가 BBox 밖일 때 보조선 오버슛 방지, 제작도·가공도는 no-op). `keepCamera=true`(설치도 2D 경로)는 내부 PLUS 카메라 이동을 생략해 MINUS 캡처 모델과 치수 2D 변환의 좌우 반전을 막음 |
+| `DrawDimension(..., userMeasureAxis?, userOffsetAxis?)` | 기본값은 기존 월드축 치수. 가공도에서 정규화 가능한 로컬 측정축·오프셋축을 넘기면 BBox 투영 외곽에 치수선을 놓고 `AddCustomDistanceUserAxis`를 호출하며, 실패 시 월드축 경로로 복귀 |
+| `AddWorldAxisDistance` | `AddCustomAxisDistance` X/Y/Z 호출을 보존한 UserAxis 실패·정상 부재 공통 경로 |
+| `TryNormalizeDimensionAxis` / `MovePointToAxisProjection` / `GetBoundingBoxProjectionRange` | 임의 축 정규화와 치수선·보조선 배치용 투영 계산 |
 | `AssignDimensionPriorities` / `ApplySmartFiltering` | 전체 치수 우선순위·겹침 필터. `IsRequired` 설치 접합 치수는 개수·겹침 제한보다 먼저 보존 |
 | `SelectRelatedOsnapItems` | Clash 기반 관련 Osnap ListView 자동 선택 |
 | `SelectRelatedDimensionItems` | Clash BBox 기반 관련 치수 ListView 자동 선택 |
@@ -55,6 +58,7 @@
 ## VIZCore3D API 사용
 
 - `vizcore3d.Review.Measure.SetStyle(MeasureStyle)`, `.Clear()`, `.AddCustomAxisDistance(axis, start, end)`
+- `vizcore3d.Review.Measure.AddCustomDistanceUserAxis(start, end, axis)` — 기울어진 가공도 부재 전용, 실패 시 기존 월드축 API로 폴백
 - `vizcore3d.View.SetPivotPosition(vertex)`
 - `vizcore3d.BeginUpdate()` / `EndUpdate()`
 

@@ -589,6 +589,9 @@ namespace A2Z
             //   부호는 실제 카메라 투영 헬퍼: 가로(길이축) 치수=화면 오른쪽(MfgHeightToRight),
             //   세로(폭) 치수=화면 위(MfgAxisUpPositive). 호출 시점 카메라 = 캡처 시점과 동일(roll 원복 전).
             float lvl2SlideMag = MfgLvl2TextSlideCanvas / newScale;
+            bool useOrientationUserAxis = !string.IsNullOrEmpty(pose.OrientationAxis) &&
+                Math.Abs(pose.OrientationAngle) > MfgAxisTiltToleranceDegrees;
+            int userAxisDimCount = 0;
             foreach (var pd in pose.PendingDims)
             {
                 float off = pd.Level == 2 ? off2 : (pd.Level == 1 ? off1 : off0);
@@ -603,9 +606,19 @@ namespace A2Z
                 // alignExtToBaseline=false — 제작도와 동일하게 보조선을 osnap 점 그대로에서 시작.
                 //   (true=박스 스냅은 대각(beveled) 부재의 실제 꼭짓점을 박스 모서리로 밀어내 대각을 무시했음.
                 //    직사각 부재는 극점 osnap 좌표가 박스값과 같아 무영향. 2026-07-01)
+                VIZCore3D.NET.Data.Vertex3D userMeasureAxis = null;
+                VIZCore3D.NET.Data.Vertex3D userOffsetAxis = null;
+                if (useOrientationUserAxis)
+                {
+                    string offsetAxis = GetRemainingAxis(pose.ViewDirection, pd.Axis);
+                    userMeasureAxis = GetMfgOrientationAxisVector(pd.Axis, pose.OrientationAngle);
+                    userOffsetAxis = GetMfgOrientationAxisVector(offsetAxis, pose.OrientationAngle);
+                    if (userMeasureAxis != null && userOffsetAxis != null) userAxisDimCount++;
+                }
                 DrawDimension(pd.Start, pd.End, pd.Axis, off,
                     bom.MinX, bom.MinY, bom.MinZ, pose.ViewDirection, extLines,
-                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false, extGap, slide);
+                    bom.MaxX, bom.MaxY, bom.MaxZ, pd.PosOff, false, extGap, slide,
+                    userMeasureAxis, userOffsetAxis);
             }
             if (extLines.Count > 0)
             {
@@ -613,7 +626,9 @@ namespace A2Z
                 if (shapeId >= 0) pose.ShapeDrawingIds.Add(shapeId);
             }
             DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
-                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} dims={pose.PendingDims.Count} promoted={promoted}");
+                $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} " +
+                $"dims={pose.PendingDims.Count} promoted={promoted} " +
+                $"orientation={pose.OrientationAxis}/{pose.OrientationAngle:F1}° userAxisDims={userAxisDimCount}");
         }
 
         /// <summary>
@@ -2717,6 +2732,27 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// ORIENTATION 회전을 월드 Z축 회전으로 해석해 가공도 치수의 로컬 X/Y/Z 단위 축을 만든다.
+        /// 카메라에 적용하는 양의 화면축 회전과 같은 각도 부호를 사용한다.
+        /// </summary>
+        private VIZCore3D.NET.Data.Vertex3D GetMfgOrientationAxisVector(
+            string worldAxis,
+            float orientationAngle)
+        {
+            if (string.IsNullOrEmpty(worldAxis)) return null;
+            double radians = orientationAngle * Math.PI / 180.0;
+            float cos = (float)Math.Cos(radians);
+            float sin = (float)Math.Sin(radians);
+            switch (worldAxis)
+            {
+                case "X": return new VIZCore3D.NET.Data.Vertex3D(cos, sin, 0f);
+                case "Y": return new VIZCore3D.NET.Data.Vertex3D(-sin, cos, 0f);
+                case "Z": return new VIZCore3D.NET.Data.Vertex3D(0f, 0f, 1f);
+                default: return null;
+            }
+        }
+
         private sealed class MfgAxisDirectionBin
         {
             public double WeightedX;
@@ -2896,11 +2932,18 @@ namespace A2Z
             MfgAxisDetectionResult result = GetMfgAxisDetection(bom.Index, out cacheHit);
             string orientationRaw = GetUdaValue(bom.Index, "ORIENTATION");
             var (orientationAxis, orientationAngle) = ParseOrientation(bom.Index);
+            bool orientationAvailable = !string.IsNullOrWhiteSpace(orientationRaw) &&
+                                        !string.IsNullOrEmpty(orientationAxis);
+            bool orientationTilted = Math.Abs(orientationAngle) > MfgAxisTiltToleranceDegrees;
+            string decisionSource = orientationAvailable ? "ORIENTATION" : "GEOMETRY_FALLBACK";
+            bool decisionTilted = orientationAvailable ? orientationTilted : result.IsTilted;
 
             if (!result.Success)
             {
                 DiagLog($"[참조축판정] bom={bom.Index} name='{bom.Name}' source={(cacheHit ? "cache" : "sdk")} " +
-                    $"실패={result.FailureReason} ORIENTATION='{orientationRaw}' parsed={orientationAxis}/{orientationAngle:F1}°");
+                    $"decisionSource={decisionSource} decision={(decisionTilted ? "틀어짐" : "정상")} " +
+                    $"geometryFailure={result.FailureReason} ORIENTATION='{orientationRaw}' " +
+                    $"parsed={orientationAxis}/{orientationAngle:F1}° threshold={MfgAxisTiltToleranceDegrees:F1}°");
                 return;
             }
 
@@ -2908,9 +2951,9 @@ namespace A2Z
                 System.Globalization.CultureInfo.InvariantCulture,
                 "[참조축판정] bom={0} name='{1}' source={2} LINE={3} groups={4} " +
                 "main=({5:F5},{6:F5},{7:F5}) sumLen={8:F2} secondLen={9:F2} " +
-                "nearest={10} deviation={11:F3}° threshold={12:F1}° result={13} " +
+                "nearest={10} deviation={11:F3}° threshold={12:F1}° geometryResult={13} " +
                 "longest=({14:F5},{15:F5},{16:F5}) length={17:F2} mainVsLongest={18:F3}° " +
-                "ORIENTATION='{19}' parsed={20}/{21:F1}°",
+                "ORIENTATION='{19}' parsed={20}/{21:F1}° decisionSource={22} decision={23}",
                 bom.Index,
                 bom.Name,
                 cacheHit ? "cache" : "sdk",
@@ -2932,7 +2975,9 @@ namespace A2Z
                 result.MainVsLongestDegrees,
                 orientationRaw,
                 orientationAxis,
-                orientationAngle);
+                orientationAngle,
+                decisionSource,
+                decisionTilted ? "틀어짐" : "정상");
             DiagLog(message);
         }
 
