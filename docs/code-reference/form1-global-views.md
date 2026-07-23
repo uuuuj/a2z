@@ -54,16 +54,22 @@
   7. 점선 문맥은 부모 Assembly 전체가 아니라 직접 연결된 외부 Part 인덱스만 저장. Assembly는 이름 노트용 메타데이터로 유지
 
 ### BuildInstallationPlacementAnchor
-- **라인**: L725~L864
+- **라인**: L725~L900
 - **핵심**:
   1. 같은 Target Body↔Connected Body의 여러 접합영역을 하나로 병합
-  2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축으로 선택
+  2. Target Body LINE Osnap 방향을 5도 이내로 군집화하고 길이 합 최대 방향을 길이축(주축)으로 선택
   3. Target 끝단면 MIN/MAX 중 연결 모서리에 가까운 쪽과, Connected Body에서 접합영역에 가장 가까운 LINE/POINT Osnap을 선택
-  4. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
+  4. **축 게이트** (2026-07-23, issue #12): Target Osnap 축별 extent를 재고 `extent ≥ 최대×InstallationAxisExtentRatio(0.15) 且 ≥ InstallationAxisMinExtent(30mm)`인 축(+주축 무조건)을 `AxisComponents`로 채택. 채택 축마다 `SelectInstallationTargetEndForAxis`로 그 축 기준 끝단 재선정(주축은 기존 끝단 재사용). `[설치치수축]` 로그에 축별 extent·채택 목록 기록
+  5. Osnap이 없을 때만 해당 Body BBox로 fallback하고 `[설치위치]` 로그에 ID·축·좌표·거리·fallback 기록
+
+### SelectInstallationTargetEndForAxis(targetPoints, connectedCorner, worldAxis)
+- **라인**: L764~L791 부근
+- **핵심**: 주축 끝단 선정 로직을 임의 월드 축으로 일반화. 축 좌표 MIN/MAX 중 연결 모서리에 가까운 끝단면을 잡고, 동률 허용오차(`InstallationPlacementTieTolerance`) 내 후보 중 축 직교 평면 거리(`PerpendicularDistanceInPlane`)가 최소인 점 반환
 
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
-- **라인**: L879~L949
-- **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 가까운 끝단→Connected Body 접합측 모서리 필수 치수를 생성. 끝단↔모서리 벡터의 X/Y/Z 세 축 성분을 모두 만들고 각 직교 뷰는 화면에 보이는 두 성분만 표시 (2026-07-23 — 주축 1성분만 만들면 주축과 직교하는 뷰가 빈 뷰였음. 성분별 `[설치치수]` 로그). 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
+- **라인**: L955~L1030 부근
+- **핵심**: 같은 Body 쌍을 병합한 뒤 실제 접촉 Target Body의 축별 끝단→Connected Body 접합측 모서리 필수 치수를 생성. 앵커의 `AxisComponents`(축 게이트가 채택한 긴 축들)만 순회하고 각 직교 뷰는 그 축이 보이는 뷰에만 성분 치수 표시 (2026-07-23 — 판 두께·법선 축을 배제해 1mm 어셈블리 틈 치수·불필요 수평 성분 제거, 판형 평면도 폭 방향 치수는 유지. 성분별 `[설치치수]` 로그). 선택 STRU·연결 Assembly 전체 범위와 접합 중심·A1/A2는 생성하지 않음
+- **미소 성분 가드**: `AddInstallationDimension`이 축 성분 `≤ InstallationMinComponent(3mm)`를 제외 (끝단 근접 연결·어셈블리 틈 잔여 이중 차단)
 - **Osnap 정책**: LINE Start/End + POINT Center만 사용, CIRCLE 제외. Osnap이 전혀 없을 때만 BBox 꼭짓점 fallback
 
 ---
