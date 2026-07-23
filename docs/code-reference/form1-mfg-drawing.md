@@ -21,8 +21,8 @@
 - 제작도·조립도·설치도와 같은 `DrawingSheetData.PaintCode` 공용 캐시를 사용하며, 아직 조회 전이면 안전한 출력 시점에 한 번 확정해 모든 페이지 PAINT CODE `Input_166`에 재사용한다.
 - `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). CONTRACTOR 로고는 `{Image_3}` + mfgImageMapping으로 Import 단계 처리(2026-07-21, 옛 `Set2DViewTemplateMark` 등록 폐기).
 - 템플릿 적용은 `ImportExcelWithData` 직행 — 소형 템플릿(~4천 셀)이라 수백 ms. JSON 사전변환·캐시는 2026-07-19 제거(변환 290초·태그 미보존·stale 좌표 버그). 템플릿은 엑셀에서만 수정(openpyxl 저장본은 네이티브 크래시).
-- 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자(SDK 1.0.26.716)로 Import 단계에서 배치 — 옛 View 기반 수동 배치 폐기 (2026-07-20). `EnsureViewAreasCache`는 중복 View 태그 방어(첫 위치 사용+경고). ⚠ **태그 번호 한계**: View 1~7·Input 1~199만 — 초과 시 import에서 SDK 메모리 손상 → 직후 캡처 AccessViolation (2026-07-20 실측).
-- Import 직후 `RemoveEmptyTemplateBorders(0.1f, RowAndColumn)`(SDK 1.0.26.716)로 내용 없는 공백 셀(미기재 BOM 행)의 괘선 제거 (2026-07-21, 제작도와 동일). 전역 동작이라 `BuildMfgPageData` 선초기화가 보존 칸(PAINT/DP/TAG 165~169·REV. 칸 194)만 공백(`" "`)으로 위장 — BOM(4~163)·Note(164)·Rev 위 4행(170~193)·부재명(195~199)은 빈 문자열(괘선 제거 대상, 제작도와 동일 정책).
+- 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자로 Import 단계에서 배치한다. `EnsureViewAreasCache`는 중복 View 태그를 방어한다. SDK 1.0.26.723에서 Input 200+ 문제가 수정되어 BOM 21~25행에 Input 201~240을 사용한다.
+- Import 직후 `RemoveEmptyTemplateBorders(0.1f, RowAndColumn)`로 내용 없는 공백 셀의 괘선을 제거한다. 전역 동작이라 `BuildMfgPageData` 선초기화가 보존 칸(PAINT/DP/TAG 165~169·REV. 칸 194)만 공백(`" "`)으로 위장하고, BOM(4~163·201~240)·Note(164)·Rev 위 4행(170~193)·부재명(195~199)은 빈 문자열로 둔다.
 - 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 
