@@ -386,11 +386,15 @@ namespace A2Z
         /// 4. Multi-Level Layout: 레벨 기반 정렬로 깔끔한 배치
         ///
         /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
+        /// keepCamera: true면 내부 MoveCamera(X/Y/Z_PLUS) 생략 — 모델 캡처를 이미 마친 2D 경로(설치도)가
+        ///   사용한다. 캡처가 MINUS 카메라인데 여기서 PLUS로 틀면 이후 Add2D 변환(보조선·치수)이
+        ///   모델과 좌우 거울 반전으로 어긋난다 (2026-07-23 설치도 -X 뷰 치수 반대편 버그).
         /// </summary>
         private List<int> ShowAllDimensions(
             string viewDirection = null,
             bool forDrawing2D = false,
-            float canvasScaleOverride = -1f)
+            float canvasScaleOverride = -1f,
+            bool keepCamera = false)
         {
             // T-028: 치수 계산은 호출자가 chainDimensionList에 미리 채움 (치수추출·시트 선택·2D 출력 모두 동일).
             // 본 메서드는 chainDimensionList를 viewDirection 기준으로 필터링해 3D 뷰에 표시하는 역할만.
@@ -430,7 +434,8 @@ namespace A2Z
                 vizcore3d.ShapeDrawing.Clear();
 
                 // 카메라 방향 설정 (줌은 호출하는 쪽에서 담당)
-                if (viewDirection != null)
+                // keepCamera=true(설치도 2D 경로)는 캡처 시점 카메라(MINUS+ORIENTATION 회전)를 그대로 유지.
+                if (viewDirection != null && !keepCamera)
                 {
                     switch (viewDirection)
                     {
@@ -493,17 +498,19 @@ namespace A2Z
                     }
                     catch { }
                 }
-                if (globalMinX == float.MaxValue)
+                // 치수 끝점을 bounds에 항상 합집합 (2026-07-23) — BBox 실패 시 fallback 역할은 그대로,
+                //   추가로 설치도처럼 치수 끝점(연결 Part 모서리)이 선택 STRU BBox 밖에 있는 경우
+                //   치수선(baseline±offset)이 모든 끝점 바깥에 놓이도록 확장한다. 끝점이 baseline 너머에
+                //   있으면 그 점의 보조선이 치수선을 지나쳐 그려지는 문제(-Y 뷰 보조선 오버슛) 방지.
+                //   제작도·가공도는 osnap 끝점이 전부 부재 BBox 안이라 합집합이 no-op — 기존 동작 불변.
+                foreach (var dim in filteredDims)
                 {
-                    foreach (var dim in filteredDims)
-                    {
-                        globalMinX = Math.Min(globalMinX, Math.Min(dim.StartPoint.X, dim.EndPoint.X));
-                        globalMinY = Math.Min(globalMinY, Math.Min(dim.StartPoint.Y, dim.EndPoint.Y));
-                        globalMinZ = Math.Min(globalMinZ, Math.Min(dim.StartPoint.Z, dim.EndPoint.Z));
-                        globalMaxX = Math.Max(globalMaxX, Math.Max(dim.StartPoint.X, dim.EndPoint.X));
-                        globalMaxY = Math.Max(globalMaxY, Math.Max(dim.StartPoint.Y, dim.EndPoint.Y));
-                        globalMaxZ = Math.Max(globalMaxZ, Math.Max(dim.StartPoint.Z, dim.EndPoint.Z));
-                    }
+                    globalMinX = Math.Min(globalMinX, Math.Min(dim.StartPoint.X, dim.EndPoint.X));
+                    globalMinY = Math.Min(globalMinY, Math.Min(dim.StartPoint.Y, dim.EndPoint.Y));
+                    globalMinZ = Math.Min(globalMinZ, Math.Min(dim.StartPoint.Z, dim.EndPoint.Z));
+                    globalMaxX = Math.Max(globalMaxX, Math.Max(dim.StartPoint.X, dim.EndPoint.X));
+                    globalMaxY = Math.Max(globalMaxY, Math.Max(dim.StartPoint.Y, dim.EndPoint.Y));
+                    globalMaxZ = Math.Max(globalMaxZ, Math.Max(dim.StartPoint.Z, dim.EndPoint.Z));
                 }
                 // 모델 중심 계산 (풍선 방향 결정용)
                 float modelCenterX = (globalMinX + globalMaxX) / 2f;
