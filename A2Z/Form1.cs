@@ -261,7 +261,7 @@ namespace A2Z
             lvOsnap.SelectedIndexChanged += LvOsnap_SelectedIndexChanged;  // REQ-004 (2026-05-11)
             lvDimension.SelectedIndexChanged += LvDimension_SelectedIndexChanged;  // REQ-005 (2026-05-11)
 
-            // #36 STRU 이름 검색 → 즉시 치수 추출 입력창 (코드 생성)
+            // #36/#48 STRU 이름 검색 입력창 (검색과 치수 추출 분리, 코드 생성)
             InitStruSearchUI();
 
             // VIZCore3D.NET 초기화
