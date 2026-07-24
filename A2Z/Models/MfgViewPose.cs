@@ -95,8 +95,8 @@ namespace A2Z
         public bool PlaceNotesAbove { get; set; }
 
         /// <summary>
-        /// DrawMfgDimsAtScale가 실제 사용한 최대 치수 오프셋(모델 좌표).
-        /// 풍선이 치수선 바깥에서 시작하도록 같은 종이 절대 오프셋을 공유한다.
+        /// DrawMfgDimsAtScale가 풍선과 같은 화면 위·아래 쪽에 실제 사용한 최대 치수 오프셋(모델 좌표).
+        /// 풍선이 치수 문자 바깥에서 시작하도록 같은 종이 절대 오프셋을 공유한다.
         /// </summary>
         public float DimensionEnvelopeOffset { get; set; }
 
