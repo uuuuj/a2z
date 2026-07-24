@@ -4,59 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>치수 보조선 표현 로직 — 제작도 · 가공도</title>
+<link rel="stylesheet" href="_deck.css">
 <style>
-  @page { size: landscape; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root{
-    --ink:#17233a; --muted:#5c6a82; --faint:#8a97ac;
-    --line:#dce3ee; --line2:#eef2f8;
-    --bg:#eef1f6; --panel:#f6f9fd; --panel2:#eef4fb;
-    --accent:#2563eb; --accent-ink:#1d4ed8;
-    --fab:#64748b; --mfg:#2563eb;
-    --warn:#b45309; --warn-bg:#fdf4e3; --warn-line:#f0d9a8;
-    --ok:#0f766e; --ok-bg:#eafaf4; --ok-line:#bfe3d8;
-  }
-  html{ scroll-behavior:smooth; }
-  body{
-    font-family:"Malgun Gothic","맑은 고딕","Segoe UI",system-ui,-apple-system,sans-serif;
-    background:var(--bg); color:var(--ink);
-  }
-  .deck{ height:100vh; overflow-y:auto; scroll-snap-type:y mandatory; }
-  .page{
-    min-height:100vh; display:flex; align-items:center; justify-content:center;
-    padding:16px; scroll-snap-align:start;
-  }
-  .slide{
-    position:relative;
-    width:min(97vw, calc((100vh - 32px) * 16 / 9));
-    aspect-ratio:16/9;
-    background:#fff; border-radius:14px;
-    box-shadow:0 18px 50px rgba(20,35,60,.18), 0 2px 6px rgba(20,35,60,.08);
-    overflow:hidden;
-    container-type:size;
-    display:grid;
-    grid-template-rows:auto 1fr auto;
-  }
-  /* ---------- HEADER ---------- */
-  header{
-    display:flex; align-items:flex-start; justify-content:space-between;
-    padding:3.2cqh 4cqw 2.1cqh;
-    border-bottom:1px solid var(--line);
-  }
-  .kicker{
-    font-size:1.9cqh; letter-spacing:.14em; font-weight:700;
-    color:var(--accent-ink); text-transform:uppercase; margin-bottom:.7cqh;
-  }
-  h1{ font-size:4.3cqh; font-weight:800; letter-spacing:-.01em; line-height:1.05; }
-  h1 .sub{ color:var(--muted); font-weight:600; font-size:.62em; }
-  .hr{ display:flex; flex-direction:column; align-items:flex-end; gap:.85cqh; text-align:right; }
-  .pgnum{ font-size:1.45cqh; font-weight:800; color:var(--faint); letter-spacing:.12em; border:1px solid var(--line); border-radius:20px; padding:.3cqh 1cqw; white-space:nowrap; }
-  .nav{ font-size:1.5cqh; font-weight:700; color:var(--accent-ink); text-decoration:none; border-bottom:1.5px dashed var(--accent); padding-bottom:1px; white-space:nowrap; }
-  .nav:hover{ color:#0f2f9e; }
-  .meta{ font-size:1.6cqh; color:var(--faint); line-height:1.5; white-space:nowrap; }
-  .meta b{ color:var(--muted); font-weight:700; }
-  /* ---------- MAIN ---------- */
-  main{ display:grid; min-height:0; }
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
+  h1{ font-size:4.3cqh; } h1 .sub{ font-size:.62em; }
   main.m1{
     grid-template-columns:1.12fr 0.88fr; grid-template-rows:auto 1fr;
     grid-template-areas:"diagram principle" "diagram numbers";
@@ -67,22 +18,10 @@
     grid-template-areas:"flow reversal" "flow verdict";
     gap:2cqh 3cqw; padding:2.5cqh 4cqw 1.3cqh;
   }
-  .sect-label{
-    font-size:1.7cqh; font-weight:800; letter-spacing:.02em;
-    color:var(--accent-ink); margin-bottom:1.1cqh;
-    display:flex; align-items:center; gap:.6cqw;
-  }
-  .sect-label::before{ content:""; width:.9cqw; height:.9cqw; min-width:7px; min-height:7px; background:var(--accent); border-radius:2px; }
-  /* diagram (slide 1) */
-  .diagram{ grid-area:diagram; display:flex; flex-direction:column; min-height:0; }
-  .diagram .frame{
-    flex:1; min-height:0; background:var(--panel);
-    border:1px solid var(--line); border-radius:10px;
-    padding:1.5cqh 1.4cqw; display:flex; align-items:center; justify-content:center;
-  }
-  .diagram svg{ width:100%; height:100%; display:block; }
-  .cap{ font-size:1.55cqh; color:var(--muted); margin-top:1cqh; line-height:1.45; }
-  .cap b{ color:var(--ink); font-weight:700; }
+  .sect-label{ font-size:1.7cqh; letter-spacing:.02em; margin-bottom:1.1cqh; }
+  .diagram{ grid-area:diagram; }
+  .diagram .frame{ padding:1.5cqh 1.4cqw; }
+  .cap{ font-size:1.55cqh; margin-top:1cqh; line-height:1.45; }
   /* principle (slide 1) */
   .principle{ grid-area:principle; display:flex; flex-direction:column; }
   .formula{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:1.6cqh 1.6cqw; margin-bottom:1.2cqh; }
@@ -97,32 +36,22 @@
   .hint a{ color:inherit; }
   /* numbers (slide 1) */
   .numbers{ grid-area:numbers; display:flex; flex-direction:column; min-height:0; }
-  table{ width:100%; border-collapse:collapse; font-size:1.7cqh; }
-  th,td{ text-align:center; padding:.68cqh .5cqw; border-bottom:1px solid var(--line2); }
-  th:first-child,td:first-child{ text-align:left; color:var(--muted); font-weight:600; }
-  thead th{ font-size:1.6cqh; font-weight:800; border-bottom:1.5px solid var(--line); padding-bottom:.85cqh; }
+  table{ font-size:1.7cqh; }
+  th,td{ padding:.68cqh .5cqw; }
+  th:first-child,td:first-child{ font-weight:600; }
+  thead th{ font-size:1.6cqh; color:var(--ink); padding-bottom:.85cqh; }
   thead th.fab{ color:var(--fab); } thead th.mfg{ color:var(--mfg); }
-  tbody td{ font-variant-numeric:tabular-nums; font-weight:700; }
-  tbody tr:last-child td{ border-bottom:none; }
   td.fabv{ color:var(--fab); } td.mfgv{ color:var(--mfg); }
   .ncap{ font-size:1.4cqh; color:var(--faint); margin-top:.85cqh; line-height:1.4; }
   .ncap code{ font-family:"Consolas","Courier New",monospace; color:var(--muted); background:var(--line2); padding:.1cqh .5cqw; border-radius:3px; }
   /* flow (slide 2) */
   .flow{ grid-area:flow; display:flex; flex-direction:column; min-height:0; }
-  .flow-cols{ flex:1; display:grid; grid-template-columns:1fr 1fr; gap:1.3cqw; min-height:0; }
-  .track{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.2cqh 1cqw; display:flex; flex-direction:column; gap:.65cqh; }
-  .track .th{ font-weight:800; font-size:1.62cqh; text-align:center; padding-bottom:.6cqh; border-bottom:1px solid var(--line); }
+  .flow-cols{ flex:1; grid-template-columns:1fr 1fr; }
   .track.fab .th{ color:var(--fab); } .track.mfg .th{ color:var(--mfg); }
-  .step{ display:flex; align-items:center; gap:.7cqw; font-size:1.5cqh; padding:.5cqh .7cqw; background:#fff; border:1px solid var(--line2); border-radius:6px; }
-  .step .n{ width:2.3cqh; height:2.3cqh; min-width:15px; min-height:15px; border-radius:50%; background:var(--faint); color:#fff; font-size:1.15cqh; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .step .lab{ line-height:1.15; }
-  .step .badge{ margin-left:auto; font-size:1.2cqh; font-weight:800; white-space:nowrap; }
   .step.est{ border-color:var(--warn-line); background:var(--warn-bg); }
   .step.est .n{ background:var(--warn); } .step.est .badge{ color:var(--warn); }
   .step.meas{ border-color:var(--ok-line); background:var(--ok-bg); }
   .step.meas .n{ background:var(--ok); } .step.meas .badge{ color:var(--ok); }
-  .track .note{ font-size:1.35cqh; color:var(--muted); text-align:center; margin-top:auto; padding-top:.5cqh; line-height:1.35; }
-  .track .note b{ color:var(--ink); }
   /* reversal + verdict (slide 2) */
   .reversal{ grid-area:reversal; background:var(--panel2); border:1px solid #d5e0f7; border-radius:10px; padding:1.5cqh 1.5cqw; display:flex; flex-direction:column; }
   .reversal .ft, .verdict .ft{ font-size:1.72cqh; font-weight:800; color:var(--accent-ink); margin-bottom:.9cqh; display:flex; align-items:center; gap:.6cqw; }
@@ -135,19 +64,11 @@
   .verdict li .ic{ position:absolute; left:0; top:.02em; font-size:1.6cqh; }
   .verdict li.no{ color:var(--muted); }
   /* ---------- FOOTER ---------- */
-  footer{ border-top:1px solid var(--line); background:linear-gradient(180deg,#fbfcfe,#f6f9fd); }
-  footer.foot3{ display:grid; grid-template-columns:1fr 1.25fr 1.15fr; gap:2.4cqw; padding:1.8cqh 4cqw 2.5cqh; }
+  footer.foot3{ grid-template-columns:1fr 1.25fr 1.15fr; gap:2.4cqw; padding:1.8cqh 4cqw 2.5cqh; }
   .fcard{ font-size:1.5cqh; line-height:1.42; }
-  .fcard .ft{ font-size:1.5cqh; font-weight:800; color:var(--ink); margin-bottom:.5cqh; display:flex; align-items:center; gap:.5cqw; }
-  .fcard .ft .ic{ font-size:1.7cqh; }
-  .fcard p{ color:var(--muted); }
-  .fcard code{ font-family:"Consolas","Courier New",monospace; font-size:1.34cqh; color:var(--ink); }
-  .fcard.warn{ background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:8px; padding:1cqh 1.2cqw; margin:-.5cqh 0; }
-  .fcard.warn .ft{ color:var(--warn); } .fcard.warn p{ color:#8a5a1c; } .fcard.warn b{ color:var(--warn); }
-  footer.foot1{ display:flex; align-items:center; justify-content:center; padding:2cqh 4cqw; }
-  .concl{ font-size:1.95cqh; font-weight:700; text-align:center; color:var(--ink); line-height:1.4; }
-  .concl b{ color:var(--accent-ink); }
-  svg text{ font-family:"Malgun Gothic","Segoe UI",sans-serif; }
+  .fcard .ft{ font-size:1.5cqh; } .fcard .ft .ic{ font-size:1.7cqh; }
+  .fcard code{ font-size:1.34cqh; }
+  .fcard.warn{ padding:1cqh 1.2cqw; }
 </style>
 </head>
 <body>

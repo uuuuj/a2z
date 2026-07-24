@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOM ② 도면 표 — 품명·재질·규격·중량이 채워지는 경로</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
+  .place-note{ font-size:1.42cqh; color:var(--muted); margin-top:.8cqh; line-height:1.4; }
+  .place-note b{ color:var(--ink); }
+  .place-note .em{ color:var(--accent-ink); font-weight:800; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="page" id="s1">
+  <div class="slide" role="img" aria-label="도면 우측 BOM 표의 품명·재질·규격·중량이 부재 속성에서 오며, 부재에 값이 없으면 부모로 최대 열 단계까지 거슬러 찾고, 규격 참조 문자열을 품명과 규격으로 쪼갠 뒤 시작·끝 좌표로 길이를 계산해 붙이는 흐름을 정리한 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">도면 표현 규칙 · BOM ②</div>
+        <h1>도면의 BOM 표는 어떻게 채워지는가 <span class="sub">— 속성에서 표까지</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">1 / 1</div>
+        <a class="nav" href="16-룰북-BOM-부재목록.html">← 부재 목록 수집</a>
+        <div class="meta"><b>기준일</b> 2026-07-24</div>
+      </div>
+    </header>
+
+    <main class="rulebook">
+
+      <section class="rb-src">
+        <div class="sect-label">① 가져오기 — 무엇에서 뽑나</div>
+        <div class="chips">
+          <span class="chip uda">규격 참조</span>
+          <span class="chip uda">재질</span>
+          <span class="chip uda">중량</span>
+          <span class="chip uda">시작·끝 좌표</span>
+        </div>
+        <div class="srcnote">
+          표의 내용은 형상이 아니라 <b>부재에 붙은 속성값</b>에서 온다.
+          모델링 단계에서 넣어 둔 값을 읽어 쓰는 것이라,
+          <span class="em">속성이 비어 있으면 표도 빈다</span>.<br><br>
+          번호(No.)만은 속성이 아니라
+          <b>앞 단계에서 정해진 부재 목록 순번</b>을 그대로 가져온다.
+        </div>
+      </section>
+
+      <section class="rb-filter">
+        <div class="sect-label">② 조립하기 — 값을 찾아 표 칸으로</div>
+        <div class="gates">
+          <div class="gate keep">
+            <span class="n">1</span>
+            <span class="lab">부재에 값이 없으면 <b>부모로 거슬러 올라가며</b> 찾는다 — 넷을 다 채우면 멈춤</span>
+            <span class="val">최대 10단계</span>
+          </div>
+          <div class="gate">
+            <span class="n">2</span>
+            <span class="lab"><b>규격 참조</b>를 앞뒤로 쪼갠다 — 앞이 <b>품명</b>, 뒤가 <b>규격</b></span>
+          </div>
+          <div class="gate">
+            <span class="n">3</span>
+            <span class="lab"><b>시작·끝 좌표</b>가 있으면 두 점 거리를 <b>길이</b>로 계산해 규격 뒤에 붙인다</span>
+          </div>
+          <div class="gate">
+            <span class="n">4</span>
+            <span class="lab"><b>중량</b>은 단위가 섞여 있어 숫자만 뽑아 소수 둘째 자리로 맞춘다</span>
+          </div>
+          <div class="gate drop">
+            <span class="n">5</span>
+            <span class="lab">품명을 끝내 못 찾으면 <b>unset</b>으로 두고 나머지 칸은 비운다</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="rb-place">
+        <div class="sect-label">③ 놓기 — 도면 오른쪽 표에 이렇게 들어간다</div>
+        <div class="diagram" style="flex:1;min-height:0;">
+          <div class="frame">
+            <svg viewBox="0 0 1090 230" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <marker id="a17" markerWidth="10" markerHeight="10" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#9333ea"/></marker>
+              </defs>
+
+              <!-- ── 왼쪽: 부재 속성 원본 ── -->
+              <text x="185" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="#17233a">부재에 붙어 있는 속성</text>
+              <rect x="30" y="34" width="310" height="164" rx="8" fill="#faf5ff" stroke="#e0cbf5" stroke-width="1.4"/>
+              <g font-size="11.5">
+                <text x="48" y="60" fill="#9333ea" font-weight="700">규격 참조</text>
+                <text x="48" y="76" fill="#17233a" font-family="Consolas, monospace">/EA100x75x10:SIZE</text>
+                <text x="48" y="104" fill="#9333ea" font-weight="700">재질</text>
+                <text x="48" y="120" fill="#17233a" font-family="Consolas, monospace">/SS400</text>
+                <text x="190" y="104" fill="#9333ea" font-weight="700">중량</text>
+                <text x="190" y="120" fill="#17233a" font-family="Consolas, monospace">12.34 kg</text>
+                <text x="48" y="148" fill="#9333ea" font-weight="700">시작 좌표 · 끝 좌표</text>
+                <text x="48" y="164" fill="#17233a" font-family="Consolas, monospace">0 0 0  /  0 0 1250</text>
+              </g>
+              <text x="185" y="188" text-anchor="middle" font-size="11" fill="#a08cc0">부재에 없으면 부모로 거슬러 올라가 찾는다</text>
+
+              <!-- 변환 화살표 -->
+              <line x1="356" y1="78" x2="470" y2="78" stroke="#9333ea" stroke-width="1.6" marker-end="url(#a17)"/>
+              <text x="413" y="70" text-anchor="middle" font-size="11" fill="#9333ea">":" 앞뒤로 쪼갬</text>
+              <line x1="356" y1="156" x2="470" y2="156" stroke="#9333ea" stroke-width="1.6" marker-end="url(#a17)"/>
+              <text x="413" y="148" text-anchor="middle" font-size="11" fill="#9333ea">두 점 거리 = 길이</text>
+              <text x="413" y="171" text-anchor="middle" font-size="11" fill="#9333ea">규격 뒤에 붙임</text>
+
+              <!-- ── 오른쪽: 완성된 BOM 표 ── -->
+              <text x="785" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="#17233a">도면 오른쪽 BOM 표</text>
+              <rect x="490" y="34" width="590" height="164" rx="6" fill="#fff" stroke="#aab6c9" stroke-width="1.4"/>
+
+              <!-- 헤더 -->
+              <rect x="490" y="34" width="590" height="24" fill="#eef2f8"/>
+              <g font-size="11" font-weight="800" fill="#5c6a82" text-anchor="middle">
+                <text x="516" y="50">No.</text><text x="600" y="50">ITEM</text><text x="700" y="50">MATERIAL</text>
+                <text x="810" y="50">SIZE</text><text x="900" y="50">Q'TY</text><text x="960" y="50">T/W</text>
+                <text x="1015" y="50">MA</text><text x="1055" y="50">FA</text>
+              </g>
+
+              <!-- 합계 행 -->
+              <rect x="490" y="58" width="590" height="24" fill="#eafaf4"/>
+              <g font-size="11.5" font-weight="800" fill="#0f766e" text-anchor="middle">
+                <text x="600" y="74">Support&amp;Seat</text><text x="960" y="74">148.20</text>
+                <text x="1015" y="74">F</text><text x="1055" y="74">F</text>
+              </g>
+              <text x="1088" y="74" font-size="10.5" fill="#0f766e" text-anchor="end"></text>
+
+              <!-- 데이터 행 -->
+              <g font-size="11.5" fill="#17233a" text-anchor="middle">
+                <text x="516" y="98">1</text><text x="600" y="98">EA100x75x10</text><text x="700" y="98">SS400</text>
+                <text x="810" y="98" font-weight="800" fill="#9333ea">SIZEx1250</text><text x="900" y="98">1</text>
+                <text x="960" y="98">12.34</text><text x="1015" y="98">L</text><text x="1055" y="98">F</text>
+                <text x="516" y="120">2</text><text x="600" y="120">EA100x75x10</text><text x="700" y="120">SS400</text>
+                <text x="810" y="120">SIZEx980</text><text x="900" y="120">1</text>
+                <text x="960" y="120">9.67</text><text x="1015" y="120">L</text><text x="1055" y="120">F</text>
+                <text x="516" y="142">3</text><text x="600" y="142" fill="#a9b3c2">unset</text>
+                <text x="900" y="142" fill="#a9b3c2">—</text>
+              </g>
+              <text x="700" y="142" font-size="10.5" fill="#a9b3c2" text-anchor="middle">속성이 없어 칸을 비움</text>
+
+              <!-- 생략 행 -->
+              <line x1="490" y1="152" x2="1080" y2="152" stroke="#dce3ee" stroke-width="1"/>
+              <text x="516" y="170" font-size="11.5" fill="#8a97ac" text-anchor="middle">…</text>
+              <text x="620" y="170" font-size="11.5" font-weight="700" fill="#b45309" text-anchor="middle">+6건 생략</text>
+              <text x="800" y="170" font-size="11" fill="#c8994a">표에 들어가는 데이터는 최대 14행</text>
+
+              <text x="785" y="192" text-anchor="middle" font-size="11" fill="#8a97ac">맨 윗줄은 이 도면에 실린 부재들의 <tspan font-weight="800" fill="#0f766e">중량 합계</tspan></text>
+
+              <!-- 세로 괘선 -->
+              <g stroke="#e2e8f2" stroke-width="1">
+                <line x1="542" y1="34" x2="542" y2="198"/><line x1="660" y1="34" x2="660" y2="198"/>
+                <line x1="750" y1="34" x2="750" y2="198"/><line x1="870" y1="34" x2="870" y2="198"/>
+                <line x1="930" y1="34" x2="930" y2="198"/><line x1="992" y1="34" x2="992" y2="198"/>
+                <line x1="1038" y1="34" x2="1038" y2="198"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <div class="place-note">
+          같은 번호가 <b>부재 목록 · 도면 BOM 표 · 풍선</b> 셋에서 일치한다.
+          표의 첫 줄은 부재 한 개가 아니라 <span class="em">이 도면 전체의 중량 합계</span>다.
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🌳</span> 왜 부모까지 뒤지나</div>
+        <p>재질·중량 같은 값은 <b>부재 하나하나가 아니라 상위 묶음에 한 번만</b> 붙어 있는 경우가 많다. 부재에서 못 찾으면 위로 거슬러 올라가야 표가 빈칸으로 남지 않는다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">📍</span> 근거</div>
+        <p class="srcline">속성 읽기·파싱 <code>Form1.Clash.cs:224-330</code> · 표 조립 <code>:332-413</code> · 14행 제한 <code>Form1.DrawingSheets.cs:1751</code></p>
+      </div>
+      <div class="fcard warn">
+        <div class="ft"><span class="ic">⚠️</span> 표가 비면 모델을 보라</div>
+        <p>칸이 <b>unset</b>이거나 비어 있으면 프로그램 문제가 아니라 <b>모델에 속성이 안 들어간 것</b>이다. 부재 정보 탭에서 해당 부재의 속성을 확인·보완할 수 있다.</p>
+      </div>
+    </footer>
+  </div>
+  </section>
+
+</div>
+</body>
+</html>

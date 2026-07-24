@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도면 4종 — 무엇이 몇 장 나오나</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
+  main.m-kinds{ grid-template-rows:auto 1fr; gap:1.8cqh; padding:2.4cqh 4cqw 1.3cqh; }
+  .dcard .cnt{ margin-top:auto; padding-top:.7cqh; font-size:1.36cqh; font-weight:800; }
+  .d-fab .cnt{ color:var(--fab);} .d-asm .cnt{ color:var(--asm);}
+  .d-ins .cnt{ color:var(--ins);} .d-mfg .cnt{ color:var(--mfg);}
+  .example{ display:flex; flex-direction:column; min-height:0; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="page" id="s1">
+  <div class="slide" role="img" aria-label="제작도는 전체를 한 장, 조립도는 부재마다 이웃을 묶어 한 장씩, 설치도는 연결된 전체를 한 장, 가공도는 부재 하나씩 한 장으로 만들어지며 부재 네 개짜리 모델에서 몇 장이 나오는지 예로 보인 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">사용 안내 · 도면 종류</div>
+        <h1>도면 4종은 각각 무엇인가 <span class="sub">— 그리고 몇 장 나오나</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">메뉴얼 03</div>
+        <div class="meta"><b>기준일</b> 2026-07-24</div>
+      </div>
+    </header>
+
+    <main class="m-kinds">
+
+      <section>
+        <div class="sect-label">네 종류 — 보는 범위가 다르다</div>
+        <div class="dcards">
+          <div class="dcard d-fab">
+            <h4>제작도</h4>
+            <div class="id">전체를 한 장에</div>
+            <div class="how">모델의 부재를 <b>모두</b> 한 도면에</div>
+            <div class="note">전체 배치와 부재 번호를 한눈에 보는 도면. 도면 묶음의 첫 장.</div>
+            <div class="cnt">언제나 1장</div>
+          </div>
+          <div class="dcard d-asm">
+            <h4>조립도</h4>
+            <div class="id">부재마다 한 장</div>
+            <div class="how">기준 부재 + <b>직접 닿는 이웃</b>만</div>
+            <div class="note">이 부재에 무엇이 어떻게 붙는지 보는 도면. 부재마다 자기 도면을 하나씩 갖는다.</div>
+            <div class="cnt">부재 수만큼</div>
+          </div>
+          <div class="dcard d-ins">
+            <h4>설치도</h4>
+            <div class="id">연결된 전체를 한 장</div>
+            <div class="how">구조물 + <b>바깥 연결부재</b>를 점선으로</div>
+            <div class="note">이 구조물이 주변 어디에 어떻게 설치되는지 보는 도면. 위치 치수가 핵심.</div>
+            <div class="cnt">언제나 1장</div>
+          </div>
+          <div class="dcard d-mfg">
+            <h4>가공도</h4>
+            <div class="id">부재 하나씩</div>
+            <div class="how">부재 <b>한 개</b>만 떼어 홀·슬롯까지</div>
+            <div class="note">실제로 잘라 뚫어 만들기 위한 도면. 다른 부재는 나오지 않는다.</div>
+            <div class="cnt">부재 수만큼</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="example">
+        <div class="sect-label">예 — 부재 4개가 차례로 닿아 있는 모델이라면</div>
+        <div class="diagram" style="flex:1;min-height:0;">
+          <div class="frame">
+            <svg viewBox="0 0 1090 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <marker id="a03" markerWidth="10" markerHeight="10" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#8a97ac"/></marker>
+              </defs>
+
+              <!-- ── 모델 ── -->
+              <text x="130" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#17233a">모델</text>
+              <rect x="24" y="38" width="212" height="230" rx="8" fill="#fbfcfe" stroke="#e2e8f2" stroke-width="1.4"/>
+              <g fill="#e3e9f2" stroke="#aab6c9" stroke-width="1.3">
+                <rect x="50" y="74" width="120" height="18" rx="2"/>
+                <rect x="152" y="74" width="18" height="96" rx="2"/>
+                <rect x="152" y="152" width="66" height="18" rx="2"/>
+                <rect x="200" y="152" width="18" height="80" rx="2"/>
+              </g>
+              <g font-size="13" font-weight="800" fill="#5c6a82">
+                <text x="100" y="68">A</text><text x="180" y="126">B</text>
+                <text x="176" y="146">C</text><text x="228" y="196">D</text>
+              </g>
+              <text x="130" y="256" text-anchor="middle" font-size="11" fill="#a9b3c2">A–B–C–D 가 차례로 닿아 있다</text>
+
+              <line x1="248" y1="152" x2="278" y2="152" stroke="#8a97ac" stroke-width="1.8" marker-end="url(#a03)"/>
+
+              <!-- ── 제작도 ── -->
+              <text x="357" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#64748b">제작도</text>
+              <rect x="292" y="52" width="130" height="84" rx="4" fill="#fff" stroke="#64748b" stroke-width="1.8"/>
+              <text x="357" y="100" text-anchor="middle" font-size="14" font-weight="800" fill="#64748b">A B C D</text>
+              <text x="357" y="160" text-anchor="middle" font-size="12.5" font-weight="800" fill="#64748b">1장</text>
+              <text x="357" y="178" text-anchor="middle" font-size="11" fill="#8a97ac">전부 한 장에</text>
+
+              <!-- ── 조립도 ── -->
+              <text x="545" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#0d9488">조립도</text>
+              <g font-size="11.5" font-weight="800" fill="#0d9488" text-anchor="middle">
+                <rect x="452" y="52" width="88" height="56" rx="4" fill="#fff" stroke="#0d9488" stroke-width="1.5"/><text x="496" y="85">A B</text>
+                <rect x="550" y="52" width="88" height="56" rx="4" fill="#fff" stroke="#0d9488" stroke-width="1.5"/><text x="594" y="85">A B C</text>
+                <rect x="452" y="118" width="88" height="56" rx="4" fill="#fff" stroke="#0d9488" stroke-width="1.5"/><text x="496" y="151">B C D</text>
+                <rect x="550" y="118" width="88" height="56" rx="4" fill="#fff" stroke="#0d9488" stroke-width="1.5"/><text x="594" y="151">C D</text>
+              </g>
+              <text x="545" y="196" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0d9488">4장 — 부재마다 하나씩</text>
+              <text x="545" y="214" text-anchor="middle" font-size="11" fill="#8a97ac">기준 부재 + 직접 닿는 이웃</text>
+
+              <!-- ── 설치도 ── -->
+              <text x="726" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#9333ea">설치도</text>
+              <rect x="661" y="52" width="130" height="84" rx="4" fill="#fff" stroke="#9333ea" stroke-width="1.8"/>
+              <text x="726" y="88" text-anchor="middle" font-size="14" font-weight="800" fill="#9333ea">A B C D</text>
+              <text x="726" y="110" text-anchor="middle" font-size="11" fill="#9333ea">+ 바깥 연결 (점선)</text>
+              <text x="726" y="160" text-anchor="middle" font-size="12.5" font-weight="800" fill="#9333ea">1장</text>
+              <text x="726" y="178" text-anchor="middle" font-size="11" fill="#8a97ac">연결된 전체를 한 장에</text>
+
+              <!-- ── 가공도 ── -->
+              <text x="922" y="26" text-anchor="middle" font-size="13" font-weight="800" fill="#2563eb">가공도</text>
+              <g font-size="13" font-weight="800" fill="#2563eb" text-anchor="middle">
+                <rect x="838" y="52" width="76" height="56" rx="4" fill="#fff" stroke="#2563eb" stroke-width="1.5"/><text x="876" y="85">A</text>
+                <rect x="924" y="52" width="76" height="56" rx="4" fill="#fff" stroke="#2563eb" stroke-width="1.5"/><text x="962" y="85">B</text>
+                <rect x="838" y="118" width="76" height="56" rx="4" fill="#fff" stroke="#2563eb" stroke-width="1.5"/><text x="876" y="151">C</text>
+                <rect x="924" y="118" width="76" height="56" rx="4" fill="#fff" stroke="#2563eb" stroke-width="1.5"/><text x="962" y="151">D</text>
+              </g>
+              <text x="919" y="196" text-anchor="middle" font-size="12.5" font-weight="800" fill="#2563eb">4장 — 부재 하나씩</text>
+              <text x="919" y="214" text-anchor="middle" font-size="11" fill="#8a97ac">다른 부재는 나오지 않는다</text>
+
+              <!-- 하단 정리 -->
+              <line x1="292" y1="240" x2="1060" y2="240" stroke="#dce3ee" stroke-width="1"/>
+              <text x="676" y="264" text-anchor="middle" font-size="12.5" fill="#5c6a82">
+                부재 4개 → 도면 <tspan font-weight="800" fill="#17233a">10장</tspan>.
+                단, <tspan font-weight="800" fill="#17233a">내용이 겹치는 조립도는 자동으로 정리</tspan>되어 실제로는 더 적게 나올 수 있다.
+              </text>
+              <text x="676" y="284" text-anchor="middle" font-size="11" fill="#a9b3c2">어느 부재가 닿았는지는 간섭 검사 결과로 판단한다 — 간섭 검사를 안 하면 조립도·설치도가 만들어지지 않는다</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🧩</span> 왜 부재마다 조립도를</div>
+        <p>예전엔 <b>다른 도면에 이미 나온 부재는 기준이 될 수 없게</b> 막았지만, 현장에서는 <b>모든 부재가 자기 기준 도면을 하나씩</b> 가져야 했다. 지금은 전부 만들고 겹치는 것만 정리한다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">📍</span> 근거</div>
+        <p class="srcline">시트 생성·중복 정리 <code>Form1.DrawingSheets.cs:24-260</code> · 종류 구분 <code>Form1.Stru.cs:1050-1063</code></p>
+      </div>
+      <div class="fcard warn">
+        <div class="ft"><span class="ic">⚠️</span> 가공도는 순서가 다르다</div>
+        <p>제작도·조립도·설치도는 <b>간섭 검사까지 끝나야</b> 목록에 뜬다. 가공도는 <b>부재 목록만 있으면</b> 바로 뽑을 수 있다.</p>
+      </div>
+    </footer>
+  </div>
+  </section>
+
+</div>
+</body>
+</html>

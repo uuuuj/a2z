@@ -4,43 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Osnap 선별 기준 — 제작도 · 조립도 · 가공도 · 설치도</title>
+<link rel="stylesheet" href="_deck.css">
 <style>
-  @page { size: landscape; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root{
-    --ink:#17233a; --muted:#5c6a82; --faint:#8a97ac;
-    --line:#dce3ee; --line2:#eef2f8;
-    --bg:#eef1f6; --panel:#f6f9fd; --panel2:#eef4fb;
-    --accent:#2563eb; --accent-ink:#1d4ed8;
-    --fab:#64748b; --asm:#0d9488; --mfg:#2563eb; --ins:#9333ea;
-    --keep:#0f766e; --keep-bg:#eafaf4; --keep-line:#bfe3d8;
-    --drop:#dc2626; --drop-bg:#fdecec; --drop-line:#f3c9c9;
-    --warn:#b45309; --warn-bg:#fdf4e3; --warn-line:#f0d9a8;
-  }
-  html{ scroll-behavior:smooth; }
-  body{ font-family:"Malgun Gothic","맑은 고딕","Segoe UI",system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); }
-  .deck{ height:100vh; overflow-y:auto; scroll-snap-type:y mandatory; }
-  .page{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; scroll-snap-align:start; }
-  .slide{
-    position:relative;
-    width:min(97vw, calc((100vh - 32px) * 16 / 9)); aspect-ratio:16/9;
-    background:#fff; border-radius:14px;
-    box-shadow:0 18px 50px rgba(20,35,60,.18), 0 2px 6px rgba(20,35,60,.08);
-    overflow:hidden; container-type:size;
-    display:grid; grid-template-rows:auto 1fr auto;
-  }
-  header{ display:flex; align-items:flex-start; justify-content:space-between; padding:3.2cqh 4cqw 2.1cqh; border-bottom:1px solid var(--line); }
-  .kicker{ font-size:1.9cqh; letter-spacing:.14em; font-weight:700; color:var(--accent-ink); text-transform:uppercase; margin-bottom:.7cqh; }
-  h1{ font-size:4.2cqh; font-weight:800; letter-spacing:-.01em; line-height:1.05; }
-  h1 .sub{ color:var(--muted); font-weight:600; font-size:.6em; }
-  .hr{ display:flex; flex-direction:column; align-items:flex-end; gap:.85cqh; text-align:right; }
-  .pgnum{ font-size:1.45cqh; font-weight:800; color:var(--faint); letter-spacing:.12em; border:1px solid var(--line); border-radius:20px; padding:.3cqh 1cqw; white-space:nowrap; }
-  .nav{ font-size:1.5cqh; font-weight:700; color:var(--accent-ink); text-decoration:none; border-bottom:1.5px dashed var(--accent); padding-bottom:1px; white-space:nowrap; }
-  .meta{ font-size:1.6cqh; color:var(--faint); line-height:1.5; white-space:nowrap; }
-  .meta b{ color:var(--muted); font-weight:700; }
-  .sect-label{ font-size:1.68cqh; font-weight:800; color:var(--accent-ink); margin-bottom:1cqh; display:flex; align-items:center; gap:.6cqw; }
-  .sect-label::before{ content:""; width:.9cqw; height:.9cqw; min-width:7px; min-height:7px; background:var(--accent); border-radius:2px; }
-  main{ display:grid; min-height:0; }
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
   /* ---- slide 1 ---- */
   main.m1{ grid-template-rows:auto 1fr; gap:2.2cqh; padding:2.5cqh 4cqw 1.3cqh; }
   .pipewrap{ display:flex; flex-direction:column; }
@@ -56,22 +22,10 @@
   .pipe-alt .albl{ font-weight:800; color:var(--ins); font-size:1.5cqh; white-space:nowrap; }
   .pipe-alt .aarr{ color:#c39ae0; font-weight:700; font-size:1.8cqh; }
   .pipe-alt .abox{ font-size:1.42cqh; color:var(--ink); } .pipe-alt .abox b{ color:var(--ins); }
-  .dcards{ display:grid; grid-template-columns:repeat(4,1fr); gap:1.5cqw; min-height:0; }
-  .dcard{ background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:9px; padding:1.3cqh 1.1cqw; display:flex; flex-direction:column; }
-  .dcard h4{ font-size:1.95cqh; font-weight:800; } .dcard .id{ font-size:1.3cqh; color:var(--faint); font-weight:700; margin-top:.15cqh; }
-  .dcard .how{ font-size:1.5cqh; font-weight:700; margin-top:.9cqh; line-height:1.3; }
-  .dcard .note{ font-size:1.38cqh; color:var(--muted); margin-top:.5cqh; line-height:1.35; }
-  .d-fab{ border-top-color:var(--fab);} .d-fab h4{ color:var(--fab);}
-  .d-asm{ border-top-color:var(--asm);} .d-asm h4{ color:var(--asm);}
-  .d-mfg{ border-top-color:var(--mfg);} .d-mfg h4{ color:var(--mfg);}
-  .d-ins{ border-top-color:var(--ins);} .d-ins h4{ color:var(--ins);}
   .same{ display:inline-block; font-size:1.15cqh; font-weight:800; color:var(--asm); background:#e3f5f2; padding:.1cqh .5cqw; border-radius:8px; margin-top:.5cqh; align-self:flex-start; }
   /* ---- slide 2 ---- */
   main.m2{ grid-template-columns:1.05fr 0.95fr; grid-template-rows:auto 1fr; grid-template-areas:"diagram collect" "diagram axismap"; gap:2cqh 3cqw; padding:2.5cqh 4cqw 1.3cqh; }
-  .diagram{ grid-area:diagram; display:flex; flex-direction:column; min-height:0; }
-  .diagram .frame{ flex:1; min-height:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.3cqh 1.2cqw; display:flex; align-items:center; justify-content:center; }
-  .diagram svg{ width:100%; height:100%; display:block; }
-  .cap{ font-size:1.5cqh; color:var(--muted); margin-top:.9cqh; line-height:1.4; } .cap b{ color:var(--ink); }
+  .diagram{ grid-area:diagram; }
   .collect{ grid-area:collect; display:flex; flex-direction:column; }
   .crow{ display:flex; align-items:center; gap:.7cqw; font-size:1.6cqh; padding:.7cqh .9cqw; border:1px solid var(--line2); border-radius:7px; margin-bottom:.7cqh; }
   .crow .knd{ font-weight:800; min-width:6.5cqw; } .crow .res{ color:var(--muted); flex:1; }
@@ -79,11 +33,6 @@
   .crow.keep{ background:var(--keep-bg); border-color:var(--keep-line); } .crow.keep .bd{ background:var(--keep); color:#fff; } .crow.keep .knd{ color:var(--keep); }
   .crow.drop{ background:var(--drop-bg); border-color:var(--drop-line); } .crow.drop .bd{ background:var(--drop); color:#fff; } .crow.drop .knd{ color:var(--drop); }
   .axismap{ grid-area:axismap; display:flex; flex-direction:column; min-height:0; }
-  table{ width:100%; border-collapse:collapse; font-size:1.55cqh; }
-  th,td{ text-align:center; padding:.6cqh .5cqw; border-bottom:1px solid var(--line2); }
-  th:first-child,td:first-child{ text-align:left; color:var(--muted); font-weight:700; }
-  thead th{ font-size:1.5cqh; font-weight:800; border-bottom:1.5px solid var(--line); color:var(--accent-ink); }
-  tbody td{ font-weight:700; font-variant-numeric:tabular-nums; }
   .dedup{ margin-top:1cqh; font-size:1.42cqh; color:var(--muted); line-height:1.4; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:1cqh 1cqw; }
   .dedup b{ color:var(--ink); }
   /* ---- slide 3 ---- */
@@ -100,16 +49,6 @@
   .shape svg{ width:100%; flex:1; min-height:0; display:block; }
   .shape .sdesc{ font-size:1.3cqh; color:var(--muted); line-height:1.34; margin-top:.4cqh; }
   .shape .sdesc b{ color:var(--ink); }
-  /* ---- footer ---- */
-  footer{ border-top:1px solid var(--line); background:linear-gradient(180deg,#fbfcfe,#f6f9fd); }
-  footer.foot3{ display:grid; grid-template-columns:1.35fr 1.3fr 1.05fr; gap:2.2cqw; padding:1.7cqh 4cqw 2.3cqh; }
-  .fcard{ font-size:1.46cqh; line-height:1.4; }
-  .fcard .ft{ font-size:1.48cqh; font-weight:800; color:var(--ink); margin-bottom:.5cqh; display:flex; align-items:center; gap:.5cqw; }
-  .fcard .ft .ic{ font-size:1.65cqh; }
-  .fcard p{ color:var(--muted); } .fcard code{ font-family:"Consolas","Courier New",monospace; font-size:1.3cqh; color:var(--ink); }
-  .fcard.warn{ background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:8px; padding:.9cqh 1.1cqw; margin:-.5cqh 0; }
-  .fcard.warn .ft{ color:var(--warn); } .fcard.warn p{ color:#8a5a1c; } .fcard.warn b{ color:var(--warn); }
-  svg text{ font-family:"Malgun Gothic","Segoe UI",sans-serif; }
 </style>
 </head>
 <body>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>각도 표시 — 언제 그리고 어느 뷰에 그리나</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
+  .place-note{ font-size:1.42cqh; color:var(--muted); margin-top:.8cqh; line-height:1.4; }
+  .place-note b{ color:var(--ink); }
+  .place-note .em{ color:var(--accent-ink); font-weight:800; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="page" id="s1">
+  <div class="slide" role="img" aria-label="서로 다른 두 부재가 직각도 평행도 아닌 각으로 만날 때만 사잇각을 표시하며, 판형 부재는 제외하고 접합 평면이 정면으로 보이는 직교 뷰 한 곳에만 그리는 규칙을 정리한 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">도면 표현 규칙 · 각도 표시</div>
+        <h1>각도는 언제 표시하는가 <span class="sub">— 직각이면 안 그린다</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">1 / 1</div>
+        <div class="meta"><b>기준일</b> 2026-07-24</div>
+      </div>
+    </header>
+
+    <main class="rulebook">
+
+      <section class="rb-src">
+        <div class="sect-label">① 가져오기 — 무엇에서 뽑나</div>
+        <div class="chips">
+          <span class="chip osnap">부재 모서리 선분</span>
+          <span class="chip clash">간섭 검사 결과</span>
+        </div>
+        <div class="srcnote">
+          부재마다 <b>모서리 선분</b>을 모아 그 부재가 뻗은 방향(길이축)을 정하고,
+          <b>간섭 검사 결과</b>로 어느 부재끼리 실제로 맞닿는지 본다.<br><br>
+          표시 대상은 <span class="em">서로 다른 두 부재가 만나는 곳</span>뿐이다.
+          한 부재가 스스로 꺾인 ㄱ자 모서리는 각도를 그리지 않는다.
+        </div>
+      </section>
+
+      <section class="rb-filter">
+        <div class="sect-label">② 거르기 — 이 조건을 다 통과해야 그린다</div>
+        <div class="gates">
+          <div class="gate drop">
+            <span class="n">1</span>
+            <span class="lab"><b>판형 부재</b>(판·패드)는 후보에서 뺀다 — 길이 방향이 정해지지 않음</span>
+          </div>
+          <div class="gate">
+            <span class="n">2</span>
+            <span class="lab">모서리 선분을 방향이 비슷하면 한 묶음으로 모아, <b>길이 합이 가장 큰 방향</b>을 길이축으로</span>
+            <span class="val">묶음 5°</span>
+          </div>
+          <div class="gate">
+            <span class="n">3</span>
+            <span class="lab">두 부재가 <b>붙었나</b> — 형상 표면이 닿거나(간섭 검사) 끝점이 가까우면 접합</span>
+            <span class="val">3 mm</span>
+          </div>
+          <div class="gate drop">
+            <span class="n">4</span>
+            <span class="lab">두 길이축의 <b>실제 3D 사잇각</b>이 90°의 배수면 <b>안 그린다</b> — 직각·평행은 당연하므로</span>
+            <span class="val">±1°</span>
+          </div>
+          <div class="gate keep">
+            <span class="n">5</span>
+            <span class="lab">남은 것을, 두 축이 만드는 <b>접합 평면이 정면으로 보이는 뷰</b>에만 그린다</span>
+            <span class="val">3뷰 중 1곳</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="rb-place">
+        <div class="sect-label">③ 놓기 — 도면에는 이렇게 나온다</div>
+        <div class="diagram" style="flex:1;min-height:0;">
+          <div class="frame">
+            <svg viewBox="0 0 1090 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <!-- ── 왼쪽: 접합부 상세 ── -->
+              <rect x="150" y="178" width="290" height="24" rx="2" fill="#e3e9f2" stroke="#aab6c9" stroke-width="1.3"/>
+              <rect x="-12" y="-146" width="24" height="146" rx="2" fill="#e3e9f2" stroke="#aab6c9" stroke-width="1.3"
+                    transform="translate(150,190) rotate(27)"/>
+
+              <!-- 길이축 -->
+              <line x1="150" y1="190" x2="410" y2="190" stroke="#2f3d54" stroke-width="2" stroke-dasharray="7 4"/>
+              <line x1="150" y1="190" x2="214" y2="65" stroke="#2f3d54" stroke-width="2" stroke-dasharray="7 4"/>
+              <text x="352" y="182" font-size="12.5" fill="#5c6a82">부재 A 길이축</text>
+              <text x="222" y="72" font-size="12.5" fill="#5c6a82">부재 B 길이축</text>
+
+              <!-- 사잇각 -->
+              <path d="M210,190 A60,60 0 0 0 177,136" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+              <text x="222" y="158" font-size="17" font-weight="800" fill="#2563eb">63°</text>
+
+              <!-- 접합점 -->
+              <circle cx="150" cy="190" r="5" fill="#b45309"/>
+              <text x="150" y="222" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">접합점</text>
+              <text x="150" y="236" text-anchor="middle" font-size="11" fill="#c8994a">두 부재가 닿는 자리</text>
+
+              <!-- 구분선 -->
+              <line x1="500" y1="16" x2="500" y2="232" stroke="#dce3ee" stroke-width="1.5"/>
+
+              <!-- ── 오른쪽: 어느 뷰에 그리나 ── -->
+              <text x="802" y="28" text-anchor="middle" font-size="13.5" font-weight="800" fill="#17233a">같은 접합을 세 방향에서 보면</text>
+
+              <!-- X 뷰 (왜곡) -->
+              <rect x="560" y="42" width="145" height="118" rx="7" fill="#fbfcfe" stroke="#e2e8f2" stroke-width="1.4"/>
+              <line x1="587" y1="118" x2="678" y2="110" stroke="#c8ced9" stroke-width="2.6"/>
+              <line x1="632" y1="114" x2="646" y2="86" stroke="#c8ced9" stroke-width="2.6"/>
+              <text x="632" y="144" text-anchor="middle" font-size="11.5" fill="#a9b3c2">각이 눌려 보임</text>
+              <text x="632" y="178" text-anchor="middle" font-size="13" font-weight="800" fill="#a9b3c2">X 뷰</text>
+
+              <!-- Y 뷰 (정면 — 채택) -->
+              <rect x="730" y="42" width="145" height="118" rx="7" fill="#eef4fb" stroke="#2563eb" stroke-width="2"/>
+              <line x1="757" y1="126" x2="848" y2="126" stroke="#2f3d54" stroke-width="2.8"/>
+              <line x1="757" y1="126" x2="799" y2="60" stroke="#2f3d54" stroke-width="2.8"/>
+              <path d="M789,126 A32,32 0 0 0 772,99" fill="none" stroke="#2563eb" stroke-width="2"/>
+              <text x="800" y="112" font-size="12.5" font-weight="800" fill="#2563eb">63°</text>
+              <text x="802" y="178" text-anchor="middle" font-size="13" font-weight="800" fill="#2563eb">Y 뷰 — 여기에만</text>
+
+              <!-- Z 뷰 (왜곡) -->
+              <rect x="900" y="42" width="145" height="118" rx="7" fill="#fbfcfe" stroke="#e2e8f2" stroke-width="1.4"/>
+              <line x1="927" y1="110" x2="1018" y2="118" stroke="#c8ced9" stroke-width="2.6"/>
+              <line x1="965" y1="113" x2="981" y2="138" stroke="#c8ced9" stroke-width="2.6"/>
+              <text x="972" y="144" text-anchor="middle" font-size="11.5" fill="#a9b3c2">각이 눌려 보임</text>
+              <text x="972" y="178" text-anchor="middle" font-size="13" font-weight="800" fill="#a9b3c2">Z 뷰</text>
+
+              <text x="802" y="208" text-anchor="middle" font-size="12" fill="#5c6a82">접합 평면을 <tspan font-weight="800" fill="#17233a">정면으로 마주보는</tspan> 뷰에서만 각이 실제 값으로 보인다</text>
+              <text x="802" y="226" text-anchor="middle" font-size="11.5" fill="#8a97ac">나머지 두 뷰는 비스듬히 보여 값이 틀리므로 그리지 않는다</text>
+            </svg>
+          </div>
+        </div>
+        <div class="place-note">
+          각도는 <b>파란색</b>으로 <b>소수점 없이</b> 표시한다. 접합점에서 각 부재의 몸통 쪽으로 뻗은 두 선 사이에 호를 그린다.
+          <span class="em">ISO 뷰에는 그리지 않는다</span> — 직교 3뷰(X·Y·Z)에서만.
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🔄</span> 길이축을 이렇게 바꿨다</div>
+        <p>예전엔 부재의 <b>점들이 퍼진 방향</b>으로 길이축을 잡았는데, 사선 끝단·홀의 점이 몰린 쪽으로 몇 도 기울어 <b>실제 90° 접합을 87°로 잘못</b> 잡았다. 지금은 <b>모서리 방향의 길이 합</b>으로 정해 점 분포에 흔들리지 않는다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">📍</span> 근거</div>
+        <p class="srcline">전체 로직 <code>Form1.Dimensions.cs:2770-2982</code> · 직각 판정 공차 1° <code>:2779</code> · 접합 판정 3 mm <code>:2780</code> · 방향 묶음 5° <code>:2848</code></p>
+      </div>
+      <div class="fcard warn">
+        <div class="ft"><span class="ic">⚠️</span> 각이 안 나올 때</div>
+        <p>대부분 <b>판형이라 제외</b>됐거나, <b>모서리 선분이 없어</b> 길이축을 못 정한 경우다. 진단 로그에 부재별 제외 사유가 남는다.</p>
+      </div>
+    </footer>
+  </div>
+  </section>
+
+</div>
+</body>
+</html>
