@@ -4,6 +4,242 @@
 
 ---
 
+### T-087 — 도면 종류별 출력 버튼
+- **생성일/착수일**: 2026-07-24
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #47 종료·Excel No.77 완료
+- **관련**: 사용자 직접 지시, GitHub issue #47
+- **구현**:
+  - [x] 도면정보 탭에 제작도·조립도·설치도 버튼 추가, 가공도 출력 문구를 가공도로 변경
+  - [x] `BaseMemberIndex` 기준으로 기존 시트 목록을 종류별 필터링
+  - [x] 프로그램 시트 선택 이벤트 억제 후 `ApplySheetSelection` 1회 실행
+  - [x] 출력 버튼과 시트 목록 재진입 차단, 취소 예외 분리와 원상 복원
+  - [x] SDK 안정화 대기 유지, 마지막 성공 시트 캔버스만 유지
+  - [x] 설치도 파일명 중복 방지와 종류별 완료·실패·취소 요약
+  - [x] Debug·Release 빌드 오류 0개 (기존 경고만 유지)
+- **사용자 확인 필요**:
+  - [x] 제작도·조립도·설치도 버튼이 해당 종류의 PDF만 생성하는지
+  - [x] 조립도 여러 장 연속 출력과 현재 작업 후 취소가 정상인지
+  - [x] 마지막 성공 도면은 남고 실패·취소 캔버스는 정리되는지
+  - [x] 기존 가공도·2D 출력·PDF 출력·도면 일괄 출력에 회귀가 없는지
+- **영향 파일**: `A2Z/Form1.Designer.cs`, `A2Z/Form1.DrawingSheets.cs`, 도면 종류별 출력 흐름·도면시트 코드 레퍼런스
+
+### T-086 — 가공도 홀·슬롯 최종 화면 하단 배치
+- **생성일/착수일**: 2026-07-23
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #39 종료·Excel No.58·59 완료
+- **관련**: 사용자 직접 지시, GitHub issue #39
+- **원인 확인**:
+  - [x] Hole/SlotHole Note를 `BuildMfgSceneCore`에서 회전 전 하단에 만든 뒤 `ProbeAndRollLandscape`가 화면축 90도를 추가해 회전 전 아래쪽이 최종 화면 왼쪽이 되는 순서 확인
+  - [x] Z 최장축 자체가 아니라 임시 투영 결과 `probeH > probeW`가 실제 가로 전환 조건임을 코드·로그로 확인
+  - [x] `LockZAxis=false`는 월드 Z축 해제가 아니라 카메라 화면축 회전 허용 설정임을 이슈 본문에 정정
+- **구현**:
+  - [x] Hole/SlotHole을 즉시 Review Note로 만들지 않고 `MfgViewPose.PendingHoleNotes`에 수집
+  - [x] `ProbeAndRollLandscape` 완료 후 `AddMfgPendingHoleNotes`에서 최종 화면 하단에 생성
+  - [x] ReferenceAxis 로컬축, ReferenceAxis 실패 폴백 ORIENTATION roll, 추가 90도 가로화 roll을 최종 화면 기저에 반영
+  - [x] 월드 BBox 8개 꼭짓점을 최종 화면 수직축에 투영해 하단을 구하고 홀 중심의 화면 수평 위치를 유지
+  - [x] 회전 없는 정상 부재는 기존 하단 배치 공식과 동일한 결과 유지
+  - [x] Release 빌드 오류 0개 (기존 경고 7개)
+- **사용자 확인 필요**:
+  - [x] `가로전환(90°)` 로그가 나오는 홀·슬롯 부재에서 표시가 최종 도면 하단에 나오는지
+  - [x] ORIENTATION/ReferenceAxis 부재에서도 리더가 수직이고 텍스트가 하단에 나오는지
+  - [x] `가로유지` 정상 부재와 EA 첫 번째 뷰의 기존 출력에 회귀가 없는지
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Models/MfgViewPose.cs`, 가공도 시트 흐름·코드 레퍼런스 문서
+
+### T-085 — 도면 일괄 출력·치수 추출 중간 취소
+- **생성일/착수일**: 2026-07-23
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #34 종료. 대용량 즉시 취소 응답성은 별도 작업으로 분리
+- **관련**: 사용자 직접 지시, GitHub issue #34
+- **구현**:
+  - [x] 처리 오버레이를 메시지+`현재 작업 후 취소` 버튼 패널로 확장
+  - [x] UI 스레드 협력적 취소 상태(`_cancelRequested`)와 재진입 차단 추가
+  - [x] 메인 치수 추출의 BOM·비동기 간섭검사·Osnap·치수·시트 생성 전후 체크포인트 연결
+  - [x] STRU 일괄 출력의 STRU·일반 시트·가공도 페이지 전후 체크포인트 연결
+  - [x] 간섭검사 진행 중 취소는 현재 SDK 검사 완료 뒤 다음 ID를 시작하지 않도록 무창 큐 정리
+  - [x] 취소 후 부분 시트·2D·3D·치수·Osnap 상태와 전체 BODY·버튼 복원
+  - [x] 일괄 출력 취소 요약에 처리 완료/전체 STRU, 성공·실패·미처리, 실제 저장 PDF 수 표시
+- **검증**:
+  - [x] Debug Rebuild 오류 0개 (기존 경고 7개)
+  - [x] BOM 수집·간섭검사·일반 PDF·가공도 페이지 각각에서 취소 버튼 실기 확인
+  - [x] 취소 직후 재실행 시 이전 시트·치수·2D 객체가 남지 않는지 확인
+  - [x] 완료된 PDF가 유지되고 요약 PDF 수와 실제 파일 수가 같은지 확인
+- **영향 파일**: `A2Z/Form1.cs`, `Form1.BOM.cs`, `Form1.Clash.cs`, `Form1.Stru.cs`, `Form1.MfgDrawing.cs`, 관련 흐름·코드 레퍼런스 문서
+
+### T-079 — 기울어진 가공도·제작도 참조축 자동 정렬
+- **생성일/착수일**: 2026-07-22
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #19 종료·Excel No.21 완료. 문자 각도는 별도 API 대기로 분리
+- **관련**: 사용자 직접 지시, GitHub issue #19, Softhills Demo `참조축 정렬 > 선택 부재 자동 정렬`
+- **판정·구현**:
+  - [x] 실기 4건 대조 결과(ORIENTATION 4/4, 기하 1/4)에 따라 ORIENTATION을 최종 판정의 1차 신호로 승격
+  - [x] ORIENTATION이 비었거나 파싱 불가할 때만 LINE Osnap 길이 합 주축 판정을 폴백으로 사용
+  - [x] `[참조축판정]`에 ORIENTATION·기하 결과·최종 판정 출처를 병기
+  - [x] 전체 Osnap 수집 때 판정 결과를 함께 캐시하고 캐시 없는 진입만 SDK 직접 조회
+  - [x] ORIENTATION 1도 초과 부재는 원문의 방향 두 축을 직교화하고 외적으로 나머지 축을 복원해 로컬 X/Y/Z 프레임 구성
+  - [x] BBox 중심에 `ReferenceAxis.Create/Activate` 후 로컬축 기준 `MoveCamera`를 적용해 화면 roll로 세워지지 않던 부재 형상 정렬
+  - [x] 정상 부재는 기존 월드축 카메라 유지, ReferenceAxis 생성 실패 시 기존 `ApplyOrientationRotation`으로 자동 폴백
+  - [x] ORIENTATION 1도 초과 가공도 부재만 로컬 X/Y/Z 축 벡터를 정규화해 `AddCustomDistanceUserAxis`로 치수 생성
+  - [x] 로컬 오프셋축 BBox 투영으로 치수선·보조선 위치를 맞추고 UserAxis 실패 시 기존 월드축 치수로 자동 폴백
+  - [x] `Measure.Clear`가 참조축도 삭제하는 SDK 동작에 맞춰 Clear 전 Reset/Delete, PDF 행·EA 2차 뷰마다 참조축 재생성
+  - [x] 3D 미리보기의 참조축·화면 roll을 다음 가공도 선택 또는 다른 시트 진입 때 원복
+  - [x] 정상 부재는 선택 조건·호출 인자 기본값·월드축 API를 포함해 기존 경로 유지
+  - [x] 별도 출력 폴더 Debug 빌드 오류 0건
+  - [x] 사용자 재보고 이미지가 가공도 단일 행이 아니라 제작도 1번 시트의 4면도 출력임을 로그(`sheet#=1`, `kind='제작도'`, `GenerateSheetDrawing2D_WithExcelTemplate`)로 확인
+  - [x] 제작도 시트 부재의 Osnap LINE 중 XY 투영 최장선을 기준으로 수평 ReferenceAxis 프레임 구성. 세계축과 1° 이내면 기존 경로 유지
+  - [x] 제작도 ISO/Z/X/Y마다 ReferenceAxis 카메라 적용 후 Reset/Delete하고, 조립도·설치도에는 미적용
+  - [x] 제작도 체인 치수 Osnap을 같은 로컬축으로 변환하고 `AddCustomDistanceUserAxis`로 치수·보조선 복원
+  - [x] 참조축 생성 실패 시 카메라뿐 아니라 치수 목록도 WorldAxis로 재계산해 혼합 좌표 방지
+  - [x] 제작도 참조축 확장 후 별도 출력 폴더 Debug 빌드 오류 0건
+- **사용자 확인 필요**:
+  - [x] 문제 브래킷 3D 미리보기에서 부재 형상이 먼저 수평/수직으로 바로 서는지
+  - [x] `[MfgRefAxis] frame`·`activate`가 출력되고 다른 부재/시트 선택 때 `release`가 출력되는지
+  - [x] 기울어진 일반 가공도 PDF에서 모델·치수선·보조선이 함께 수평/수직으로 보이는지
+  - [x] `[MfgUserAxis]`와 `[DimAdd] ... mode=UserAxis`가 출력되고 치수값이 실제 길이와 맞는지
+  - [x] 정상 부재가 이전 출력과 동일하고 `mode=WorldAxis`를 유지하는지
+  - [x] 여러 부재를 연속 출력해 카메라 회전·치수 상태가 다음 행에 누적되지 않는지
+  - [x] 일반 부재 확인 후 EA 두 뷰에서도 동일하게 검증
+  - [x] 문제 어셈블리의 제작도 1번 시트 평면·정면·측면에서 45° 기울기가 사라지고 모델·치수·보조선이 함께 수평/수직인지
+  - [x] 제작도 로그에 `[DrawingRefAxis] frame`(약 45°)과 ISO/Z/X/Y별 `activate/release`, `[DimAdd] ... mode=UserAxis`가 출력되는지
+  - [x] 정상 제작도는 `[DrawingRefAxis] 세계축 정렬 상태` 뒤 기존 WorldAxis 출력을 유지하는지
+  - [x] 조립도·설치도 출력이 이전과 동일한지
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.cs`, `A2Z/Models.cs`, `A2Z/Models/MfgViewPose.cs`, `A2Z/Form1.Dimensions.cs`, 가공도·시트 선택·시트 2D 렌더 흐름 문서, 가공도·도면시트 코드 레퍼런스
+
+### T-078 — 도면 시트 3D 임시 치수 잔류 제거
+- **생성일/착수일**: 2026-07-22
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #21·22 종료·Excel No.68·69 완료
+- **관련**: 사용자 직접 지시, GitHub issue #21·#22
+- **확인 결과**:
+  - [x] ISO/X/Y/Z 버튼 중 X/Y/Z와 2D 도면은 동일한 `chainDimensionList`·`ShowAllDimensions(viewDirection)` 경로 사용
+  - [x] 설치도 준비 목록에는 선택 STRU↔직접 연결 Part 접합 위치 필수 치수가 포함돼 X/Y/Z 미리보기와 2D 도면에 함께 표시
+  - [x] ISO 분기는 `Review.Note`만 지워 직전 X/Y/Z의 `Review.Measure`·`ShapeDrawing`이 남는 원인 확인
+  - [x] 2D 생성은 마지막 축 치수를 2D로 복사한 뒤 3D 임시 측정·보조선을 정리하지 않는 원인 확인
+- **구현**:
+  - [x] `Clear3DDimensionAnnotations()` 공통 헬퍼 추가
+  - [x] ISO/X/Y/Z 공통 진입에서 직전 3D 치수·보조선 제거 — ISO는 풍선만 표시
+  - [x] `GenerateSheetDrawing2D` 전체를 `try/finally`로 감싸 엑셀·fallback·예외 경로 모두 3D 임시 치수 제거
+  - [x] 실행 중 A2Z가 기본 출력 EXE를 잠근 상태에서 별도 출력 폴더 Debug 빌드 오류 0건
+- **사용자 확인 필요**:
+  - [x] X/Y/Z → ISO 전환 시 ISO에 풍선만 남는지
+  - [x] 설치도 X/Y/Z와 2D 도면의 연결 위치 치수가 동일하게 유지되는지
+  - [x] 2D 도면 생성 직후 3D 치수가 비고, 다른 모델을 연속 출력해도 이전 치수가 이월되지 않는지
+- **영향 파일**: `A2Z/Form1.DrawingSheets.cs`, ISO/X/Y/Z·시트 2D 렌더 흐름 문서, 도면시트 코드 레퍼런스
+
+### T-077 — 가공도 3D 미리보기 형상 풍선 제거
+- **생성일/착수일**: 2026-07-22
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #18 종료·Excel No.63 완료
+- **관련**: 사용자 직접 지시, GitHub issue #18
+- **배경**: 도면번호 목록에서 가공도 부재를 선택할 때 3D 화면에 Hole·SlotHole·EarthBoss 풍선이 표시돼 형상 확인을 방해한다. PDF에는 기존 가공 정보 풍선이 계속 필요하다.
+- **구현**:
+  - [x] 공통 `BuildMfgSceneCore`의 풍선 생성 유지
+  - [x] 3D 미리보기 전용 `ExecuteMfgDrawing`에서 코어 호출 직후 Review Note 제거
+  - [x] PDF `RenderMfgRowToViewArea` 경로 무변경으로 풍선 유지
+  - [x] 사내 모델에서 일반/EA 3D 미리보기 풍선 미표시 확인
+  - [x] 가공도 PDF의 Hole·SlotHole·EarthBoss 풍선 유지 확인
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, 가공도 미리보기/PDF 흐름 문서, 가공도 코드 레퍼런스
+
+### T-075 — 설치도 기준 Part 끝단→연결 Part 모서리 위치 치수
+- **생성일/착수일**: 2026-07-21
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #12·29 종료·Excel No.57 완료
+- **관련**: 사용자 직접 지시, GitHub issue #12
+- **배경**: 설치도 목적은 외부 연결 Part가 선택 STRU측 실제 연결 Part의 끝에서 얼마나 떨어져 설치되는지 확인하는 것이다. 접합 중심·A1/A2는 이 위치 판단에 직접 쓸 수 없으므로, 실제 접촉 Body의 끝단과 접합측 모서리 Osnap을 치수 기준으로 사용한다.
+- **구현**:
+  - [x] 설치 문맥을 부모 Assembly 인덱스가 아니라 직접 연결 외부 Part 인덱스로 저장. 부모 Assembly는 ISO 이름 노트 문맥으로만 유지
+  - [x] ISO/Z/X/Y에서 선택 STRU 실선 + 직접 연결 외부 Part만 점선으로 적용
+  - [x] 설치도 4개 뷰를 선택 STRU 기준으로 fit하고, STRU 기준 CropFit으로 긴 연결 부재의 접합 주변만 남김
+  - [x] Clash PART 쌍 하위 BODY 조합에서 `GetObjectCollisionLine`, `GetJunctionMesh`로 실제 접합 영역 산출
+  - [x] 접합선·Mesh·HotPoint는 Target/Connected Body 쌍과 접합측 모서리 판정용 내부 자료로 유지
+  - [x] 선택 STRU·연결 Assembly 전체 범위 치수를 모두 제거하고 실제 `Target 끝단 → Connected 모서리` 연결 거리만 유지
+  - [x] Target Body LINE 방향 5도 군집·길이 합 최대 기준으로 길이축 판정, 가까운 끝단 Osnap 선별
+  - [x] Connected Body LINE/POINT 중 접합영역과 가장 가까운 실제 모서리 선별
+  - [x] 같은 Target/Connected Body 쌍의 A1/A2를 병합하고 `Target 끝단 → Connected 모서리` 필수 위치 치수 생성
+  - [x] X/Y/Z의 A/A1/A2 접합점 기호 제거, ISO 이름은 연결 Part당 접합측 모서리에 1개
+  - [x] 설치도 3D 미리보기·옛 2D·엑셀 2D 모두 같은 `PreparedDimensions` 사용 — 공용 Osnap 치수 덮어쓰기 제거
+  - [x] 설치도 2D 모델 배치·CropFit·Match 후 실제 객체 배율로 치수·보조선 생성 — 뷰별 종이 길이 편차 제거
+  - [x] 접합 형상 없는 Clearance/Proximity는 HotPoint fallback + 로그
+  - [x] Debug 별도 출력 폴더 빌드 통과
+  - [x] 사내 모델에서 치수가 선택 STRU측 실제 접촉 Body의 가까운 끝단에서 시작하는지 확인
+  - [x] 연결 Part의 접합측 실제 모서리에서 치수가 끝나고 같은 Body 쌍 치수가 중복되지 않는지 확인
+  - [x] 직교 뷰 A/A1/A2가 사라지고 ISO Assembly/Part 이름은 연결 Part당 하나인지 확인
+  - [x] 긴 외부 Assembly가 있어도 선택 STRU가 충분히 크게 나오고 접합 주변만 남는지 확인
+  - [x] 3D 미리보기와 PDF의 설치 위치 치수가 동일한지 확인
+  - [x] X/Y/Z PDF에서 보조선 오프셋·시작 gap이 도면 기준으로 같은 길이인지 확인
+- **영향 파일**: `A2Z/Form1.GlobalViews.cs`, `A2Z/Form1.DrawingSheets.cs`, `A2Z/Form1.Dimensions.cs`, `A2Z/Models.cs`, 설치도/Osnap 문서
+
+### T-013 — ISO 뷰 점선·실선 분리와 3D 위치 정합
+- **생성일**: 2026-04-20
+- **착수일**: 2026-04-21
+- **재개일**: 2026-07-21
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #7 종료·Excel No.15·16 완료
+- **관련**: 사용자 피드백, GitHub issue #7
+- **배경**: 조립도는 전체 구조 중 기준부재만 실선, 제작도는 시트 부재 실선과 붙어 있는 시트 밖 주변 부재를 점선으로 표시해야 한다. 옛 수동 정합 방식은 캡처 원점·좌표계 불일치로 실패했다.
+- **구현**:
+  - [x] `Match2DObjectsTo3DObjectPosition(실선, 점선)`으로 옛 WorldToScreen 수동 정합 교체
+  - [x] 조립도: 전체−기준부재 LONG_DASHED 점선 + 기준부재 실선
+  - [x] 제작도: 전체 Body BBox·실제 부모 Part 1회 캐시 → 3mm 근접 후보 선별 → 후보만 전용 그룹 간섭검사
+  - [x] 제작도: 연결 결과를 내부 연결성 `clashList`와 분리하고 `lvClash`에 `[연결]` 목록 표시
+  - [x] 제작도: Crop 대상 2D 객체에 시트 부재+연결 부재를 함께 넣고 시트 부재 노드 기준으로 긴 연결 부재 절단
+  - [x] 제작도: 이웃 캡처 → CropFit → LONG_DASHED → 점선 fit → 실선 캡처 → Match 순서 적용
+  - [x] 제작도: Clash HotPoint XYZ를 보존하고 연결 Part의 가장 가까운 부모 Assembly 이름을 `AddNoteSurface` → `Add2DNoteFrom3DNote`로 접촉점에 표시
+  - [x] 조립도: 실기 정상인 기존 캡처·배치 순서 유지(제작도 전용 순서 변경에서 제외)
+  - [x] C# Compile 오류 0건 (기존 경고 7건)
+- **사용자 확인 필요**:
+  - [x] 제작도 ISO에 붙어 있는 주변 부재가 점선으로 표시되는지
+  - [x] 진단 로그의 BBox 캐시 시간·근접 후보 수·원본 Clash 결과·상대 Part 목록 확인
+  - [x] Crop 범위가 붙은 부위 주변만 남기며 너무 좁거나 넓지 않은지
+  - [x] 연결 어셈블리 이름이 실제 접촉점을 가리키고 중복·겹침 없이 표시되는지
+  - [x] 실선과 점선의 3D 위치가 맞고 PDF에서도 LONG_DASHED로 출력되는지
+- **영향 파일**: `A2Z/Form1.Clash.cs`, `A2Z/Form1.BOM.cs`, `A2Z/Form1.Stru.cs`, `A2Z/Form1.DrawingSheets.cs`, 관련 흐름·코드 레퍼런스 문서
+
+### T-005 — 치수 배치를 Osnap 외곽 방향으로
+- **생성일**: 2026-04-15
+- **착수일**: 2026-05-12
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #8 종료·Excel No.49 완료
+- **관련**: FB-002
+- **사용자 사양 (2026-05-12)**: 모델 전체 뷰 중앙 기준 4분면 — 중앙에서 가장 먼 Osnap이 있는 방향으로 치수. 상/하·좌/우 각각 max·min 거리 비교로 외곽 판정
+- **구현 핵심**: 헬퍼 `ComputePositiveOffsetByOsnapExtreme(values, modelCenter)` 신설. `omax - center` vs `center - omin` 부호 있는 거리 비교 → 큰 쪽이 positive. 기존 `avg >= center` 5곳 전부 교체. 한쪽 쏠림(omin/omax 모두 center 한쪽)도 부호 자동 처리
+- **세부**:
+  - [x] 헬퍼 `ComputePositiveOffsetByOsnapExtreme` 신설 — Form1.Dimensions.cs GetAxisValue 옆
+  - [x] 5곳 적용 — Form1.Dimensions.cs:499(메인, 치수추출+2D 출력 공용) / Form1.MfgDrawing.cs:335(가공도 메인) / :1057(가공도 보조) / :1192(MULTI) / :1707(EA newDims 비길이축, longestAxis 오버라이드 유지)
+  - [x] 빌드 통과 후 사용자 사내 PC에서 실기 — 부재가 모델 중앙 한쪽에 치우친 케이스에서 치수가 *그 반대쪽*(외곽)으로 빠지는지 확인
+  - [x] docs/기능/치수/메인 치수 추출.md 갱신 (외곽 판정 알고리즘 섹션)
+- **영향 파일**:
+  - `A2Z/Form1.Dimensions.cs` (헬퍼 추가 + L499 패턴 교체)
+  - `A2Z/Form1.MfgDrawing.cs` (4곳 패턴 교체)
+
+### T-039 — 치수 생성 타이밍 재설계 + offset 고정 (2D 공간 기준)
+- **생성일**: 2026-04-24
+- **착수일**: 2026-05-12
+- **상태**: DONE (2026-07-24)
+- **완료 판정**: GitHub issue #8 종료·Excel No.50 완료
+- **사용자 사양 v1 (2026-05-12 초)**: 1단=50mm / 2단=100mm 고정 (캔버스 절대). 기준=보조선 끝점. 텍스트 마진 보정 X
+- **사용자 사양 v2 (2026-05-12)**: 각 뷰의 치수 max 기준 동적 분기
+  - max > 1000mm → 보조선 1단=10mm / 2단=20mm (캔버스 절대)
+  - max ≤ 1000mm → 보조선 1단=20mm / 2단=40mm (≤500 포함)
+  - 큰 치수일수록 보조선 짧게 (시각 균형)
+- **구현 핵심 (v2)**: `ShowAllDimensions` 내부에서 `filteredDims.Max(d => d.Distance)` 계산 후 분기. `ShowAllDimensions` 시그니처 단순화 — 두 override(`baseOffsetOverride`, `levelSpacingOverride`) 제거, `canvasScaleOverride` 하나로 통합. 호출자는 scale 추정만 전달, 분기 로직은 내부 책임.
+- **세부 (v2)**:
+  - [x] `ShowAllDimensions` 시그니처 단순화 — `canvasScaleOverride = -1f` (Form1.Dimensions.cs:378)
+  - [x] 내부 분기 — `maxDist > 1000` 기준 canvasBase/canvasLvl 결정 후 `/ scale`로 모델좌표 변환 (Form1.Dimensions.cs:497~)
+  - [x] `EstimateFitScaleForCell` 헬퍼 그대로 사용 (Form1.DrawingSheets.cs:1498)
+  - [x] `RenderSheetViewForDrawing` L1603 호출 — `estScale`만 전달 (분기 로직 호출자 제거)
+  - [x] **빌드 통과 후 사용자 사내 PC 실기 — 큰 치수 시트(>1000) 보조선 10/20mm, 작은 시트(≤1000) 20/40mm 도달 확인. DiagLog `T-038+039 v2 maxDist=N` 값 비교**
+- **잔여 (2차 — 가공도 적용)** → 별도 계획서로 분리 진행: `docs/리팩토링/가공도-보조선-제작도통일.md` v2 (2026-06-03, Codex 1차 반영):
+  - [x] 공용 헬퍼 `ComputeCanvasAbsoluteOffsets` 추출 + 제작도 교체 (동작 보존, `1aba8c7`)
+  - [x] 가공도 `BuildMfgSceneCore(availW, availH)` + 캔버스 절대 5/10mm 분기 (`EstimateFitScaleForViewArea` fitFactor=1.0 추정). 빌드 통과
+  - [x] **사내 검증 — 가공도 보조선 부재 크기 무관 일정 + 모델 정합. 회전(Z90) 부재 추정 오차 확인. 부족 시 실측 newScale 2차**
+  - [x] EA 두 뷰·MULTI·`:1693`(FitObjectToGridCellAspect) 경로는 범위 외 (별도)
+- **잔여 (3차 — 정확도 향상)**:
+  - [x] 사전 추정 vs 실제 RescaleObject scale 차이 측정 → 오차 분석
+  - [x] 큰 경우 2단계 렌더 (모델 먼저 → 실제 scale → 치수) 재설계
+- **영향 파일**: A2Z/Form1.Dimensions.cs (시그니처+변수), A2Z/Form1.DrawingSheets.cs (헬퍼+호출)
+- **선행**: T-038 (셀 크기 기반 모델 스케일)과 결합으로 진행 중
+
 ### T-090 — 문서 링크 경로 공백 일괄 인코딩
 - **완료일**: 2026-07-24
 - **커밋**: `05fc359`
@@ -69,11 +305,6 @@
 - **완료일**: 2026-06-23 (커밋 `pending`)
 - **관련**: 사용자 직접 지시 ("휴리스틱 다 지우고 API로 대체")
 - **요약**: `DetectHoles`(BOM.cs)의 원기둥·Osnap 추측 휴리스틱을 `GetNodeHoleInfo` API(`GetMfgHolesFromApi`)로 전면 교체. 휴리스틱 헬퍼(`IsCompleteCircle`·`HasSlotConnectingLines`)와 죽은 `GetHoleOrSlotForPoint` 삭제(약 790줄). `bom.Holes`/`SlotHoles`·BOM 표 홀사이즈가 API 기반. `Purpose`(EBOS)·`CircleRadius` 필드 유지. 제작도 죽은 풍선 정리는 후속.
-
-### T-067 — 제작도 각도 표시 (부재-부재 접합 각도)
-- **완료일**: 2026-06-23 (커밋 `pending` — 재설계분)
-- **관련**: 사용자 직접 지시 (3개 요청 중 2번째). 사용자 정정: "한 부재 내부 각 말고, 부재끼리 수직·수평으로 안 만나면 표시"
-- **요약**: `MarkNonRightAngles`를 **부재-부재 접합 각도**로 재설계(1차 '부재 내부 각'은 폐기·`0aa3ca1`에서 비활성 후 교체). 부재별 osnap 최원점쌍=길이축, 판형 제외, 부재쌍 osnap 끝점 3mm 근접=접합, 길이축 실제 3D 사잇각이 90의 배수가 아니면 `AddCustom3PointAngle`. 연결성은 osnap 근접 자체 판정(clashList 비의존). 설계·검증 워크플로우 2회(적대 검증으로 과잉수정 기각). **실측 대기**: 인자 순서(예각 모델), 표시값이 3D각 vs 투영각(로그에 둘 다 기록), 프레임 코너 라벨 겹침.
 
 ### T-066 — 가공도 보조선 오프셋 축소 (가공도 전용)
 - **완료일**: 2026-06-23 (커밋 `7816bff`)
