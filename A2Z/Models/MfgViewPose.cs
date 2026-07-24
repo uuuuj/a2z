@@ -31,9 +31,9 @@ namespace A2Z
     }
 
     /// <summary>
-    /// 최종 카메라 가로 전환이 끝난 뒤 화면 하단에 생성할 가공도 홀/슬롯 노트.
+    /// 최종 실측 배율이 확정된 뒤 해당 뷰 외곽에 생성할 가공도 형상 노트.
     /// </summary>
-    internal sealed class MfgPendingHoleNote
+    internal sealed class MfgPendingNote
     {
         public string Text;
         public System.Drawing.Color Color;
@@ -75,11 +75,35 @@ namespace A2Z
         public System.Collections.Generic.List<MfgPendingDim> PendingDims { get; set; } = new System.Collections.Generic.List<MfgPendingDim>();
 
         /// <summary>
-        /// PDF 캡처 직전 최종 화면 좌표계에서 생성할 홀/슬롯 노트 목록.
-        /// BuildMfgSceneCore가 수집하고 ProbeAndRollLandscape 이후 AddMfgPendingHoleNotes가 소비한다.
+        /// 현재 뷰에 그릴 Hole/SlotHole/EarthBoss 노트 목록.
+        /// 모델 캡처 후 확정된 실측 배율로 CaptureMfgSceneToViewArea가 생성한다.
         /// </summary>
-        public System.Collections.Generic.List<MfgPendingHoleNote> PendingHoleNotes { get; set; } =
-            new System.Collections.Generic.List<MfgPendingHoleNote>();
+        public System.Collections.Generic.List<MfgPendingNote> PendingNotes { get; set; } =
+            new System.Collections.Generic.List<MfgPendingNote>();
+
+        /// <summary>
+        /// EA 두 번째 뷰에만 그릴 형상 노트 목록. 첫 번째 뷰와 독립적으로 배정·그룹화한다.
+        /// BuildEaSecondaryScene가 새 pose의 PendingNotes로 복사한다.
+        /// </summary>
+        public System.Collections.Generic.List<MfgPendingNote> SecondaryPendingNotes { get; set; } =
+            new System.Collections.Generic.List<MfgPendingNote>();
+
+        /// <summary>
+        /// 이 뷰의 풍선을 화면 위쪽 외곽에 배치할지 여부.
+        /// EA 페어는 가운데가 아닌 바깥쪽을 향하게 하고 단일 뷰는 아래쪽을 사용한다.
+        /// </summary>
+        public bool PlaceNotesAbove { get; set; }
+
+        /// <summary>
+        /// DrawMfgDimsAtScale가 실제 사용한 최대 치수 오프셋(모델 좌표).
+        /// 풍선이 치수선 바깥에서 시작하도록 같은 종이 절대 오프셋을 공유한다.
+        /// </summary>
+        public float DimensionEnvelopeOffset { get; set; }
+
+        /// <summary>
+        /// 짧은 체인 치수를 2단으로 승격한 수. 캡처 전 fit 여백 계산과 치수 로그가 공유한다.
+        /// </summary>
+        public int PromotedDimensionCount { get; set; }
 
         /// <summary>
         /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).
