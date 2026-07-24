@@ -7,6 +7,7 @@ on:
       - edited
       - labeled
       - unlabeled
+      - closed
       - reopened
 
 permissions:
@@ -34,7 +35,43 @@ jobs:
             const issue = context.payload.issue;
             const currentLabels = issue.labels.map((label) => label.name);
             const incomingLabel = context.payload.label?.name;
-            const incomingStatus = statuses.find((status) => status.label === incomingLabel);
+            const incomingStatus = context.payload.action === 'labeled'
+              ? statuses.find((status) => status.label === incomingLabel)
+              : undefined;
+            const knownPrefixes = [
+              ...statuses.map((status) => status.prefix),
+              '[완료]',
+            ].map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const prefixPattern = new RegExp(`^(?:(?:${knownPrefixes.join('|')})\\s*)+`);
+            const cleanTitle = issue.title.replace(prefixPattern, '').trim();
+
+            if (issue.state === 'closed') {
+              for (const status of statuses) {
+                if (!currentLabels.includes(status.label)) continue;
+
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: status.label,
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+
+              if (issue.title !== cleanTitle) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  title: cleanTitle,
+                });
+              }
+              return;
+            }
+
             let selected = incomingStatus ?? statuses.find((status) => currentLabels.includes(status.label));
 
             if (!selected) {
@@ -64,9 +101,6 @@ jobs:
               }
             }
 
-            const knownPrefixes = statuses.map((status) => status.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-            const prefixPattern = new RegExp(`^(?:${knownPrefixes.join('|')})\\s*`);
-            const cleanTitle = issue.title.replace(prefixPattern, '').trim();
             const desiredTitle = `${selected.prefix} ${cleanTitle}`;
 
             if (issue.title !== desiredTitle) {
