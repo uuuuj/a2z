@@ -10,6 +10,8 @@ namespace A2Z
 {
     public partial class Form1
     {
+        private bool _suppressSheetSelectionHandler;
+
         #region 도면 시트 생성 (BFS)
 
         /// <summary>
@@ -609,6 +611,12 @@ namespace A2Z
         /// </summary>
         private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (_suppressSheetSelectionHandler)
+            {
+                DiagLog("LvDrawingSheet_SelectedIndexChanged SKIP (programmatic selection)");
+                return;
+            }
+
             if (lvDrawingSheet.SelectedItems.Count == 0)
             {
                 // [T-016 진단 로그] 빈 선택 (이벤트 두 번 발생 패턴)
@@ -1235,6 +1243,338 @@ namespace A2Z
             {
                 MessageBox.Show($"PDF 저장 중 오류:\n\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private enum DrawingSheetExportKind
+        {
+            Fabrication,
+            Assembly,
+            Installation
+        }
+
+        private void btnExportFabricationSheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Fabrication);
+        }
+
+        private void btnExportAssemblySheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Assembly);
+        }
+
+        private void btnExportInstallationSheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Installation);
+        }
+
+        /// <summary>
+        /// 이미 생성된 도면 목록에서 요청한 종류만 순서대로 2D 변환·PDF 저장한다.
+        /// 정상 완료한 마지막 시트는 후속 확인과 수동 PDF 재출력을 위해 캔버스에 유지한다.
+        /// </summary>
+        private void ExportSheetsByKind(DrawingSheetExportKind exportKind)
+        {
+            string kindLabel = GetDrawingSheetExportKindLabel(exportKind);
+
+            if (_cancelableOperationInProgress || !lvDrawingSheet.Enabled)
+            {
+                MessageBox.Show("다른 도면 작업이 진행 중입니다.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 모델을 열어주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (bomList == null || bomList.Count == 0)
+            {
+                MessageBox.Show("BOM 데이터가 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (lvDrawingSheet.Items.Count == 0)
+            {
+                MessageBox.Show("도면 시트 목록이 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            List<KeyValuePair<ListViewItem, DrawingSheetData>> targetSheets =
+                GetDrawingSheetExportTargets(exportKind);
+            if (targetSheets.Count == 0)
+            {
+                MessageBox.Show($"{kindLabel} 시트가 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Dictionary<Control, bool> previousEnabledStates = CaptureDrawingExportControlStates();
+            List<string> failures = new List<string>();
+            string saveDir = null;
+            int successCount = 0;
+            bool canceled = false;
+            bool cancelableOperationStarted = false;
+
+            try
+            {
+                SetDrawingExportControlsEnabled(false);
+                BeginCancelableOperation();
+                cancelableOperationStarted = true;
+                ShowBusyOverlay($"{kindLabel} PDF 출력 준비 중...");
+
+                saveDir = GetDefaultDrawingSaveDir();
+                string timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+
+                for (int i = 0; i < targetSheets.Count; i++)
+                {
+                    ListViewItem item = targetSheets[i].Key;
+                    DrawingSheetData sheet = targetSheets[i].Value;
+                    bool sheetSucceeded = false;
+
+                    try
+                    {
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 시작 전");
+                        ShowBusyOverlay($"{kindLabel} PDF 출력 {i + 1}/{targetSheets.Count}: {item.Text}");
+
+                        SelectDrawingSheetItemForExport(item);
+                        ApplySheetSelection(sheet);
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 선택 후");
+
+                        GenerateSheetDrawing2D(sheet);
+                        Application.DoEvents();
+                        System.Threading.Thread.Sleep(200);
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 2D 생성 후");
+
+                        string pdfFileName = BuildDrawingSheetPdfFileName(
+                            sheet, item.Text, kindLabel, timeStamp);
+                        string pdfPath = Path.Combine(saveDir, pdfFileName);
+
+                        vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                        vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+
+                        successCount++;
+                        DiagLog($"[{kindLabel} 출력] PDF saved: {pdfPath}");
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} PDF 저장 후");
+                        sheetSucceeded = true;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        failures.Add($"{item.Text}: {ex.Message}");
+                        DiagLog($"[{kindLabel} 출력] sheet#={sheet.SheetNumber} ERROR: {ex.Message}");
+                    }
+                    finally
+                    {
+                        bool keepFinalCanvas = i == targetSheets.Count - 1 && sheetSucceeded;
+                        if (!keepFinalCanvas)
+                            CleanupDrawingSheetExportCanvas();
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                canceled = true;
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"출력 준비: {ex.Message}");
+                DiagLog($"[{kindLabel} 출력] FAIL: {ex.Message}\n{ex.StackTrace}");
+            }
+            finally
+            {
+                if (cancelableOperationStarted)
+                {
+                    try { HideBusyOverlay(); } catch { }
+                    EndCancelableOperation();
+                }
+                RestoreDrawingExportControlStates(previousEnabledStates);
+            }
+
+            ShowDrawingSheetExportResult(kindLabel, saveDir, successCount, failures, canceled);
+        }
+
+        private List<KeyValuePair<ListViewItem, DrawingSheetData>> GetDrawingSheetExportTargets(
+            DrawingSheetExportKind exportKind)
+        {
+            var result = new List<KeyValuePair<ListViewItem, DrawingSheetData>>();
+            foreach (ListViewItem item in lvDrawingSheet.Items)
+            {
+                DrawingSheetData sheet = item.Tag as DrawingSheetData;
+                if (sheet == null || sheet.MemberIndices == null || sheet.MemberIndices.Count == 0)
+                    continue;
+                if (!MatchesDrawingSheetExportKind(sheet, exportKind))
+                    continue;
+
+                result.Add(new KeyValuePair<ListViewItem, DrawingSheetData>(item, sheet));
+            }
+            return result;
+        }
+
+        private bool MatchesDrawingSheetExportKind(
+            DrawingSheetData sheet, DrawingSheetExportKind exportKind)
+        {
+            switch (exportKind)
+            {
+                case DrawingSheetExportKind.Fabrication:
+                    return sheet.BaseMemberIndex == -1;
+                case DrawingSheetExportKind.Assembly:
+                    return sheet.BaseMemberIndex >= 0;
+                case DrawingSheetExportKind.Installation:
+                    return sheet.BaseMemberIndex == -2;
+                default:
+                    return false;
+            }
+        }
+
+        private string GetDrawingSheetExportKindLabel(DrawingSheetExportKind exportKind)
+        {
+            switch (exportKind)
+            {
+                case DrawingSheetExportKind.Fabrication:
+                    return "제작도";
+                case DrawingSheetExportKind.Assembly:
+                    return "조립도";
+                case DrawingSheetExportKind.Installation:
+                    return "설치도";
+                default:
+                    return "도면";
+            }
+        }
+
+        private void SelectDrawingSheetItemForExport(ListViewItem item)
+        {
+            _suppressSheetSelectionHandler = true;
+            try
+            {
+                while (lvDrawingSheet.SelectedItems.Count > 0)
+                    lvDrawingSheet.SelectedItems[0].Selected = false;
+
+                item.Selected = true;
+                item.Focused = true;
+                item.EnsureVisible();
+            }
+            finally
+            {
+                _suppressSheetSelectionHandler = false;
+            }
+        }
+
+        private Dictionary<Control, bool> CaptureDrawingExportControlStates()
+        {
+            var result = new Dictionary<Control, bool>();
+            Control[] controls =
+            {
+                btnExportFabricationSheets,
+                btnExportAssemblySheets,
+                btnExportInstallationSheets,
+                btnMfgDrawingSheet,
+                btnGenerateSheet2D,
+                btnExportSheet2DPDF,
+                btnExtractDrawingList,
+                lvDrawingSheet
+            };
+
+            foreach (Control control in controls)
+                result[control] = control.Enabled;
+
+            return result;
+        }
+
+        private void SetDrawingExportControlsEnabled(bool enabled)
+        {
+            btnExportFabricationSheets.Enabled = enabled;
+            btnExportAssemblySheets.Enabled = enabled;
+            btnExportInstallationSheets.Enabled = enabled;
+            btnMfgDrawingSheet.Enabled = enabled;
+            btnGenerateSheet2D.Enabled = enabled;
+            btnExportSheet2DPDF.Enabled = enabled;
+            btnExtractDrawingList.Enabled = enabled;
+            lvDrawingSheet.Enabled = enabled;
+        }
+
+        private void RestoreDrawingExportControlStates(Dictionary<Control, bool> previousStates)
+        {
+            if (previousStates == null)
+                return;
+
+            foreach (KeyValuePair<Control, bool> state in previousStates)
+                state.Key.Enabled = state.Value;
+        }
+
+        private string BuildDrawingSheetPdfFileName(
+            DrawingSheetData sheet,
+            string sheetLabel,
+            string kindLabel,
+            string timeStamp)
+        {
+            string safeKind = SanitizeFileName(kindLabel);
+            string safeBaseName = SanitizeFileName(
+                string.IsNullOrWhiteSpace(sheet.BaseMemberName) ? "Unknown" : sheet.BaseMemberName.Trim());
+            string safeSheetLabel = SanitizeFileName(
+                string.IsNullOrWhiteSpace(sheetLabel) ? $"Sheet {sheet.SheetNumber}" : sheetLabel.Trim());
+
+            var parts = new List<string> { safeKind };
+            if (!string.Equals(safeBaseName, safeKind, StringComparison.OrdinalIgnoreCase))
+                parts.Add(safeBaseName);
+            parts.Add(safeSheetLabel);
+            parts.Add(timeStamp);
+            return string.Join("_", parts) + ".pdf";
+        }
+
+        private void CleanupDrawingSheetExportCanvas()
+        {
+            try
+            {
+                Clear2DView();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(100);
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[도면 종류별 출력] 2D 정리 경고: {ex.Message}");
+            }
+        }
+
+        private void ShowDrawingSheetExportResult(
+            string kindLabel,
+            string saveDir,
+            int successCount,
+            List<string> failures,
+            bool canceled)
+        {
+            var message = new System.Text.StringBuilder();
+            message.AppendLine(canceled
+                ? $"{kindLabel} 출력이 현재 작업 후 취소되었습니다."
+                : $"{kindLabel} 출력이 완료되었습니다.");
+            message.AppendLine();
+            message.AppendLine($"저장된 PDF: {successCount}개");
+            if (!string.IsNullOrWhiteSpace(saveDir))
+                message.AppendLine($"저장 위치: {saveDir}");
+
+            if (failures.Count > 0)
+            {
+                message.AppendLine();
+                message.AppendLine($"실패: {failures.Count}개");
+                foreach (string failure in failures)
+                    message.AppendLine($"- {failure}");
+            }
+
+            MessageBoxIcon icon = canceled || failures.Count > 0
+                ? MessageBoxIcon.Warning
+                : MessageBoxIcon.Information;
+            MessageBox.Show(message.ToString(), $"{kindLabel} 출력 결과",
+                MessageBoxButtons.OK, icon);
         }
 
         /// <summary>
