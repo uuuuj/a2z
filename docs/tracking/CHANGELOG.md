@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-07-24 — tracking 문서 상대 경로 링크 깊이 수정
+
+**유형**: docs
+**커밋**: `pending`
+**관련**: md-link-checker 검증 결과 (TASKS.md → `tracking/tasks/` 분할 시 `../` 깊이 한 단계 누락)
+**변경 사항**:
+- `tasks/DONE.md` 18곳 — `../../A2Z/` → `../../../A2Z/` (9), `../기능/`·`../기술 노트/` → `../../` (7), `../_glossary.md`·`../README.md` → `../../` (2)
+- `tasks/IN_PROGRESS.md` 3곳 — `../../A2Z/`·`../../lib/` → `../../../`, `../기능/` → `../../기능/`
+- `CHANGELOG.md` 2곳 — `_glossary.md` → `../_glossary.md`, `../../VIZCore3D.NET.xml` → `../../lib/VIZCore3D.NET.xml` (`lib/` 세그먼트 누락 오타)
+- 공백 포함 경로 8곳을 `%20` 인코딩 — 깊이만 고치면 CommonMark가 링크로 파싱하지 않아 렌더러에서 링크 미형성 (commonmark 렌더링으로 실증 확인)
+- `기능/BOM/BOM 수집.md` 앵커 `#CollectBOMData` → `#btnCollectBOM_Click` — 전자는 form1-bom.md에 부재. docs/기능/ 전체가 예외 없이 핸들러 앵커를 쓰는 관례와 일치
+- `기능/BOM/모델 열기.md` 앵커 `#vizx-viz` → `#vizx--viz` — 헤딩 `.vizx / .viz`의 실제 GitHub 슬러그는 하이픈 2개
+
+**보존 결정** (수정하지 않음):
+- `CHANGELOG.md`의 저장소 루트 기준 링크 123건(`[Form1.MfgDrawing.cs](A2Z/…)`) — 최신 항목엔 이미 안 쓰이는 옛 관례이고 날짜 역순 이력 파일이라 사용자가 유지 결정
+- `sessions/` 3건의 `scripts/check-build-env.ps1` — 커밋 `cdd6806`에 실존했다가 `4887a2c` 폴더 정리로 삭제. 세션 기록은 당시 사실이라 보존
+- `lib/VIZCore3D.NET.xml` — `.gitignore:14`로 커밋 제외되는 벤더 SDK 파일. 경로 자체는 정확
+
+**영향 범위**: docs만. 코드 변경 없음. 남은 공백 경로 236건(107개 파일)은 별도 판단 대기
+
 ## 2026-07-24 — 치수 추출 파이프라인 문서 순서 정정
 
 **유형**: docs
@@ -2962,7 +2982,7 @@ BeginUpdate → try { RestoreColorAll → Select(true,false) → FlyToObject3d(1
 - `docs/technical-notes/` → `docs/기술 노트/` + 4개 파일: `dimension-extension-line.md → 치수 보조선 사양.md`, `dimension-text-position.md → 치수 텍스트 위치.md`, `osnap-criteria.md → Osnap 기준.md`, `sheet1-naming-criteria.md → Sheet1 명명 기준.md`
 - `_index.md` → `_인덱스.md` (8개)
 - [docs/README.md](README.md) 이모지 전부 제거 + **"기준·사양" 진입점 섹션 신규** (보조선/치수/Osnap/Sheet1 4개 본진 한 클릭 접근) + 카테고리 표 한글화
-- [docs/_glossary.md](_glossary.md): "보조선"/"Osnap"/"Chain Dimension"/"Drawing Sheet" 항목에 본진 문서 링크 4개 추가
+- [docs/_glossary.md](../_glossary.md): "보조선"/"Osnap"/"Chain Dimension"/"Drawing Sheet" 항목에 본진 문서 링크 4개 추가
 - CLAUDE.md (R1 경로 + 파일 구조 트리), `.claude/commands/{commit,checkpoint}.md`, `.claude/hooks/docs-sync-reminder.sh` 경로 참조 갱신
 - 일괄 치환 PowerShell 3패스 (디렉토리 → 파일 슬러그 → 절대경로·anchor·substring 충돌 복구) + md-link-checker 3회 검증 → **잔존 깨진 링크 0건**
 
@@ -5502,7 +5522,7 @@ T-036 MfgDrawing bom=11 sizeXYZ=(65,65,1050) longestAxis=Z
   - objId를 bgFinalScale과 동기 스케일링 (`RescaleObject`)
   - objId 중심을 `bgCanvas + (objScreen - bgScreen)`로 이동 (`MoveObject`)
 - DiagLog `OPT-B` 라벨로 3D 중심 / 화면 좌표 / 이동량 / 최종 스케일 모두 기록 — 다음 테스트 결과 즉시 검증 가능
-- SDK API 근거: [VIZCore3D.NET.xml:63853](../../VIZCore3D.NET.xml) `ViewManager.WorldToScreen`
+- SDK API 근거: [VIZCore3D.NET.xml:63853](../../lib/VIZCore3D.NET.xml) `ViewManager.WorldToScreen`
 
 **영향 범위**: Sheet2 이상 시트의 ISO 뷰 렌더링만. 비-ISO / Sheet1 미영향
 

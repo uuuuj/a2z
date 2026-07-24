@@ -38,7 +38,7 @@ code_reference: /docs/code-reference/form1-bom.md#btnCollectBOM_Click
 4. BOMData 인스턴스 생성 및 `bomList`에 추가
 5. `lvBOM` ListView 갱신
 
-> 구현 상세는 [코드 레퍼런스](../../code-reference/form1-bom.md#CollectBOMData) 참고
+> 구현 상세는 [코드 레퍼런스](../../code-reference/form1-bom.md#btnCollectBOM_Click) 참고
 
 ## 5. 주요 분기 처리
 
