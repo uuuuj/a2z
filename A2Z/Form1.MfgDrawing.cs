@@ -1446,6 +1446,10 @@ namespace A2Z
                     DiagLog($"[홀API] node={nodeIndex} type={nh.HoleType} Radius={nh.Radius:F2} " +
                         $"Center=({nh.Center.X:F1},{nh.Center.Y:F1},{nh.Center.Z:F1}) " +
                         $"Size={FormatMfgVector(nh.Size)} " +
+                        $"AxisX={FormatMfgVector(nh.AxisX)} AxisY={FormatMfgVector(nh.AxisY)} " +
+                        $"AxisZ={FormatMfgVector(nh.AxisZ)} " +
+                        $"ThicknessFrom={FormatMfgVector(nh.ThicknessCenterFrom)} " +
+                        $"ThicknessTo={FormatMfgVector(nh.ThicknessCenterTo)} " +
                         $"CircleCenterN={ccN}[{ccStr}] axisSource={throughSource} {throughValidation}");
 
                     if (nh.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.CIRCLE)
@@ -1496,8 +1500,9 @@ namespace A2Z
 
         /// <summary>
         /// NodeHoleItem의 두께 중심점 차이를 홀 관통 방향으로 우선 사용한다.
+        /// 원형 홀은 두께 중심점이 없을 때 CircleCenter 중 가장 먼 두 점의 차이를 사용한다.
         /// SDK XML은 AxisZ의 의미를 관통축으로 보장하지 않으므로, AxisX×AxisY와 평행할 때만 폴백한다.
-        /// CircleCenter는 슬롯 장축일 수 있고 Size는 방향 계약이 없어 관통축 추정에 사용하지 않는다.
+        /// 슬롯의 CircleCenter는 장축일 수 있고 Size는 방향 계약이 없어 관통축 추정에 사용하지 않는다.
         /// </summary>
         private bool TryResolveMfgHoleThroughAxis(
             VIZCore3D.NET.Data.NodeHoleItem hole,
@@ -1507,7 +1512,7 @@ namespace A2Z
         {
             throughAxis = null;
             source = "unresolved";
-            validation = "thick=- axisZ=- crossXY=-";
+            validation = "thick=- circle=- axisZ=- crossXY=-";
             if (hole == null) return false;
 
             VIZCore3D.NET.Data.Vector3D thicknessAxis = null;
@@ -1518,24 +1523,59 @@ namespace A2Z
                     out thicknessAxis);
             }
 
+            VIZCore3D.NET.Data.Vector3D circleAxis = null;
+            if (hole.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.CIRCLE &&
+                hole.CircleCenter != null)
+            {
+                double maxDistanceSquared = 0.0;
+                VIZCore3D.NET.Data.Vector3D farthestDifference = null;
+                var centers = hole.CircleCenter.Where(point => point != null).ToList();
+                for (int i = 0; i < centers.Count - 1; i++)
+                {
+                    for (int j = i + 1; j < centers.Count; j++)
+                    {
+                        var difference = SubtractMfgVector(centers[j], centers[i]);
+                        double distanceSquared =
+                            (double)difference.X * difference.X +
+                            (double)difference.Y * difference.Y +
+                            (double)difference.Z * difference.Z;
+                        if (distanceSquared > maxDistanceSquared)
+                        {
+                            maxDistanceSquared = distanceSquared;
+                            farthestDifference = difference;
+                        }
+                    }
+                }
+                TryNormalizeMfgVector(farthestDifference, out circleAxis);
+            }
+
             TryNormalizeMfgVector(hole.AxisZ, out var axisZ);
             VIZCore3D.NET.Data.Vector3D crossXY = null;
             if (hole.AxisX != null && hole.AxisY != null)
                 TryNormalizeMfgVector(CrossMfgVector(hole.AxisX, hole.AxisY), out crossXY);
 
             string thickText = FormatMfgVector(thicknessAxis);
+            string circleText = FormatMfgVector(circleAxis);
             string axisZText = FormatMfgVector(axisZ);
             string crossText = FormatMfgVector(crossXY);
             string agreement = "-";
             if (thicknessAxis != null && axisZ != null)
                 agreement = Math.Abs(DotMfgVector(thicknessAxis, axisZ)).ToString("F3");
 
-            validation = $"thick={thickText} axisZ={axisZText} crossXY={crossText} thickAxisZ={agreement}";
+            validation = $"thick={thickText} circle={circleText} axisZ={axisZText} " +
+                         $"crossXY={crossText} thickAxisZ={agreement}";
 
             if (thicknessAxis != null)
             {
                 throughAxis = thicknessAxis;
                 source = "thickness";
+                return true;
+            }
+
+            if (circleAxis != null)
+            {
+                throughAxis = circleAxis;
+                source = "circle-center";
                 return true;
             }
 
