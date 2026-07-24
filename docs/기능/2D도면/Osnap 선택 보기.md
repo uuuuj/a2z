@@ -60,7 +60,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#btnOsnapShowSelected_Cli
 | 카메라 | 이전 | 첫 좌표 중심 |
 
 ## 8. 후행 기능 (Chained)
-- [풍선 전체 삭제](./Osnap 풍선 초기화.md)
+- [풍선 전체 삭제](./Osnap%20풍선%20초기화.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L807](../../code-reference/form1-drawing2d.md#btnOsnapShowSelected_Click)

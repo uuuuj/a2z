@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisZ_Click
 # 글로벌 Z축 뷰
 
 ## 1. 개요
-공용 함수 `ApplyGlobalView("Z")` 호출. 동작은 [X축 뷰](./글로벌 X축.md)와 동일하되 축만 Z.
+공용 함수 `ApplyGlobalView("Z")` 호출. 동작은 [X축 뷰](./글로벌%20X축.md)와 동일하되 축만 Z.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -29,7 +29,7 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisZ_Click
 | 1 | 공용 호출 | Form1 | `ApplyGlobalView("Z")` |
 
 ## 5. 주요 분기 처리
-[글로벌 ISO 뷰 §5](./글로벌 ISO.md#5-주요-분기-처리)와 동일.
+[글로벌 ISO 뷰 §5](./글로벌%20ISO.md#5-주요-분기-처리)와 동일.
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |

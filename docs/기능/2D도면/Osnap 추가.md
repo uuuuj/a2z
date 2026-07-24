@@ -30,7 +30,7 @@ VIZCore3D GeometryUtility의 Osnap **픽킹 이벤트**를 등록하고 모드�
 | 2 | Osnap 모드 활성화 | SDK | `GeometryUtility.ShowOsnap(false, true, true, true)` — 선/원/점 |
 | 3 | 안내 메시지 | UI | MessageBox 사용법 표시 |
 
-> 픽킹 발생 시 동작은 [Osnap 픽킹 이벤트](./Osnap 피킹 이벤트.md) 참고
+> 픽킹 발생 시 동작은 [Osnap 픽킹 이벤트](./Osnap%20피킹%20이벤트.md) 참고
 
 ## 5. 주요 분기 처리
 없음.
@@ -47,7 +47,7 @@ VIZCore3D GeometryUtility의 Osnap **픽킹 이벤트**를 등록하고 모드�
 | `GeometryUtility` ShowOsnap | 비활성 | 활성 (선/원/점) |
 
 ## 8. 후행 기능 (Chained)
-- [Osnap 픽킹 이벤트](./Osnap 피킹 이벤트.md) — 사용자 클릭 시마다 호출
+- [Osnap 픽킹 이벤트](./Osnap%20피킹%20이벤트.md) — 사용자 클릭 시마다 호출
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L694](../../code-reference/form1-drawing2d.md#btnOsnapAdd_Click)

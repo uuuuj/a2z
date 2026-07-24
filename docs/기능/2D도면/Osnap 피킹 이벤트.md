@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#GeometryUtility_OnOsnapP
 # Osnap 픽킹 이벤트
 
 ## 1. 개요
-[Osnap 수동 추가](./Osnap 추가.md) 모드에서 사용자가 뷰어를 클릭할 때마다 호출된다. 클릭된 좌표를 `osnapPoints`·`osnapPointsWithNames`·`lvOsnap`에 추가한다.
+[Osnap 수동 추가](./Osnap%20추가.md) 모드에서 사용자가 뷰어를 클릭할 때마다 호출된다. 클릭된 좌표를 `osnapPoints`·`osnapPointsWithNames`·`lvOsnap`에 추가한다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -54,7 +54,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#GeometryUtility_OnOsnapP
 | `lvOsnap` | N행 | N+1행 |
 
 ## 8. 후행 기능 (Chained)
-- [Osnap 풍선 표시](./Osnap 선택 보기.md)
+- [Osnap 풍선 표시](./Osnap%20선택%20보기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L716](../../code-reference/form1-drawing2d.md#GeometryUtility_OnOsnapPickingItem)

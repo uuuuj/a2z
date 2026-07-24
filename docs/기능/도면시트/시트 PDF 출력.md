@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF
 # 선택 시트 PDF 내보내기
 
 ## 1. 개요
-선택된 시트의 2D 도면을 벡터 PDF로 저장한다. 동작은 [Drawing2D의 PDF 내보내기](../2D도면/PDF 출력.md)와 동일(파일명 prefix만 `Sheet2D_`).
+선택된 시트의 2D 도면을 벡터 PDF로 저장한다. 동작은 [Drawing2D의 PDF 내보내기](../2D도면/PDF%20출력.md)와 동일(파일명 prefix만 `Sheet2D_`).
 
 ## 2. 트리거
 | 항목 | 값 |

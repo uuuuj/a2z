@@ -61,7 +61,7 @@ code_reference: /docs/code-reference/form1-attribute.md#btnUdaEdit_Click
 | `dgvAttributes` | 이전 | 갱신됨 |
 
 ## 8. 후행 기능 (Chained)
-- [CSV 내보내기](./CSV 내보내기.md)
+- [CSV 내보내기](./CSV%20내보내기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Attribute.cs:L390](../../code-reference/form1-attribute.md#btnUdaEdit_Click)

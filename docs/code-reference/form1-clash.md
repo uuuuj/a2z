@@ -12,7 +12,7 @@
 - **라인**: L21~L24
 - **트리거**: `btnCollectBOMInfo` 버튼 클릭
 - **핵심**: `CollectBOMInfo(true)` 위임
-- **흐름 문서**: [기능/간섭검사/BOM 정보 수집.md](../기능/간섭검사/BOM 정보 수집.md)
+- **흐름 문서**: [기능/간섭검사/BOM 정보 수집.md](../기능/간섭검사/BOM%20정보%20수집.md)
 
 ### <a id="CollectBOMInfo"></a>CollectBOMInfo (내부 공용)
 - **라인**: L49~L95
@@ -49,13 +49,13 @@
 - **라인**: L911~L925
 - **트리거**: `btnClashDetection` 버튼 클릭
 - **핵심**: `DetectClash()` 위임 + 시작 알림
-- **흐름 문서**: [기능/간섭검사/간섭검사 실행.md](../기능/간섭검사/간섭검사 실행.md)
+- **흐름 문서**: [기능/간섭검사/간섭검사 실행.md](../기능/간섭검사/간섭검사%20실행.md)
 
 ### <a id="Clash_OnClashTestFinishedEvent"></a>Clash_OnClashTestFinishedEvent
 - **라인**: L927~L1105
 - **트리거**: `vizcore3d.Clash.OnClashTestFinishedEvent`
 - **핵심**: 취소 요청이면 현재 검사 완료 뒤 큐를 리셋하고 다음 ID를 차단. 계속할 때만 무창 큐의 중간 완료 이벤트는 다음 실행을 예약 → 마지막 완료에서 `GetResultItem(test, ResultGroupingOptions.PART)` → 대상 내부·제작도 연결 결과 분리 → 연결성 판정 후 자동 파이프라인 계속
-- **흐름 문서**: [기능/간섭검사/간섭검사 완료 이벤트.md](../기능/간섭검사/간섭검사 완료 이벤트.md)
+- **흐름 문서**: [기능/간섭검사/간섭검사 완료 이벤트.md](../기능/간섭검사/간섭검사%20완료%20이벤트.md)
 
 ---
 

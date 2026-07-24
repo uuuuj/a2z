@@ -52,7 +52,7 @@ X축 방향 뷰로 카메라를 전환하고, X축 치수만 표시한다. 내�
 Hole, SlotHole, EarthBoss 형상 풍선은 가공도 전용이므로 X축 뷰에는 표시하지 않는다.
 
 ## 8. 후행 기능 (Chained)
-- [Y축 뷰](./Y축 치수 표시.md), [Z축 뷰](./Z축 치수 표시.md), [ISO 뷰](./ISO 풍선 표시.md)
+- [Y축 뷰](./Y축%20치수%20표시.md), [Z축 뷰](./Z축%20치수%20표시.md), [ISO 뷰](./ISO%20풍선%20표시.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Dimensions.cs:L206](../../code-reference/form1-dimensions.md#btnShowAxisX_Click)

@@ -10,18 +10,18 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="btnGenerate2D_Click"></a>`btnGenerate2D_Click` | L37 | [generate-2d](../기능/2D도면/2D 생성.md) |
-| <a id="btnExportPDF_Click"></a>`btnExportPDF_Click` | L82 | [export-pdf](../기능/2D도면/PDF 출력.md) |
-| <a id="LvBOM_DoubleClick"></a>`LvBOM_DoubleClick` | L123 | [lvbom-doubleclick](../기능/2D도면/BOM 목록 더블클릭.md) |
-| <a id="LvClash_DoubleClick"></a>`LvClash_DoubleClick` | L151 | [lvclash-doubleclick](../기능/2D도면/간섭 목록 더블클릭.md) |
-| <a id="btnCollectOsnap_Click"></a>`btnCollectOsnap_Click` | L179 | [collect-osnap](../기능/2D도면/Osnap 수집.md) |
-| <a id="btnClashShowSelected_Click"></a>`btnClashShowSelected_Click` | L354 | [clash-show-selected](../기능/2D도면/간섭 선택 보기.md) |
-| <a id="btnClashShowAll_Click"></a>`btnClashShowAll_Click` | L651 | [clash-show-all](../기능/2D도면/간섭 전체 보기.md) |
-| <a id="btnOsnapAdd_Click"></a>`btnOsnapAdd_Click` | L694 | [osnap-add](../기능/2D도면/Osnap 추가.md) |
-| <a id="GeometryUtility_OnOsnapPickingItem"></a>`GeometryUtility_OnOsnapPickingItem` | L716 | [osnap-picking-event](../기능/2D도면/Osnap 피킹 이벤트.md) |
-| <a id="btnOsnapDelete_Click"></a>`btnOsnapDelete_Click` | L758 | [osnap-delete](../기능/2D도면/Osnap 삭제.md) |
-| <a id="btnOsnapShowSelected_Click"></a>`btnOsnapShowSelected_Click` | L807 | [osnap-show-selected](../기능/2D도면/Osnap 선택 보기.md) |
-| <a id="btnOsnapClearBalloon_Click"></a>`btnOsnapClearBalloon_Click` | L913 | [osnap-clear-balloon](../기능/2D도면/Osnap 풍선 초기화.md) |
+| <a id="btnGenerate2D_Click"></a>`btnGenerate2D_Click` | L37 | [generate-2d](../기능/2D도면/2D%20생성.md) |
+| <a id="btnExportPDF_Click"></a>`btnExportPDF_Click` | L82 | [export-pdf](../기능/2D도면/PDF%20출력.md) |
+| <a id="LvBOM_DoubleClick"></a>`LvBOM_DoubleClick` | L123 | [lvbom-doubleclick](../기능/2D도면/BOM%20목록%20더블클릭.md) |
+| <a id="LvClash_DoubleClick"></a>`LvClash_DoubleClick` | L151 | [lvclash-doubleclick](../기능/2D도면/간섭%20목록%20더블클릭.md) |
+| <a id="btnCollectOsnap_Click"></a>`btnCollectOsnap_Click` | L179 | [collect-osnap](../기능/2D도면/Osnap%20수집.md) |
+| <a id="btnClashShowSelected_Click"></a>`btnClashShowSelected_Click` | L354 | [clash-show-selected](../기능/2D도면/간섭%20선택%20보기.md) |
+| <a id="btnClashShowAll_Click"></a>`btnClashShowAll_Click` | L651 | [clash-show-all](../기능/2D도면/간섭%20전체%20보기.md) |
+| <a id="btnOsnapAdd_Click"></a>`btnOsnapAdd_Click` | L694 | [osnap-add](../기능/2D도면/Osnap%20추가.md) |
+| <a id="GeometryUtility_OnOsnapPickingItem"></a>`GeometryUtility_OnOsnapPickingItem` | L716 | [osnap-picking-event](../기능/2D도면/Osnap%20피킹%20이벤트.md) |
+| <a id="btnOsnapDelete_Click"></a>`btnOsnapDelete_Click` | L758 | [osnap-delete](../기능/2D도면/Osnap%20삭제.md) |
+| <a id="btnOsnapShowSelected_Click"></a>`btnOsnapShowSelected_Click` | L807 | [osnap-show-selected](../기능/2D도면/Osnap%20선택%20보기.md) |
+| <a id="btnOsnapClearBalloon_Click"></a>`btnOsnapClearBalloon_Click` | L913 | [osnap-clear-balloon](../기능/2D도면/Osnap%20풍선%20초기화.md) |
 
 ---
 
