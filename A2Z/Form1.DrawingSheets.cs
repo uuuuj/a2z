@@ -1555,7 +1555,7 @@ namespace A2Z
         {
             var message = new System.Text.StringBuilder();
             message.AppendLine(canceled
-                ? $"{kindLabel} 출력이 현재 작업 후 취소되었습니다."
+                ? $"{kindLabel} 출력을 취소했습니다."
                 : $"{kindLabel} 출력이 완료되었습니다.");
             message.AppendLine();
             message.AppendLine($"저장된 PDF: {successCount}개");
@@ -1633,9 +1633,17 @@ namespace A2Z
 
         private void GenerateSheetDrawing2DCore(DrawingSheetData sheet)
         {
+            string sheetKind = GetSheetKindLabel(sheet);
+
             // 사전 조건: 히든라인 모델 투영용 엣지 데이터 갱신 (ISO 방향 튀어나온 모서리 누락 방지)
             // 자동(ProcessSingleStruFull)·수동(btnGenerateSheet2D_Click) 모두 이 함수 통과 → 단일 지점에서 보장
+            ProcessCancelableUiCheckpoint(
+                $"{sheetKind} 2D 생성 중... 엣지 준비",
+                $"{sheetKind} sheet#{sheet.SheetNumber} 엣지 생성 전");
             vizcore3d.Object3D.GenerateEdgeData();
+            ProcessCancelableUiCheckpoint(
+                $"{sheetKind} 2D 생성 중... 엣지 준비 완료",
+                $"{sheetKind} sheet#{sheet.SheetNumber} 엣지 생성 후");
 
             // P2 — 엑셀 템플릿 분기
             if (UseExcelTemplate)
@@ -1958,6 +1966,10 @@ namespace A2Z
                     catch { }
                 }));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -2155,8 +2167,14 @@ namespace A2Z
                     { 4, new[] { ResolveDrawingAssetPath("ClientTestImage.png"), ResolveDrawingAssetPath("ClientTestImage.png") } },
                 };
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용",
+                    $"sheet#{sheet.SheetNumber} 템플릿 적용 전");
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, imageMapping);
                 swTpl.Stop();
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용 완료",
+                    $"sheet#{sheet.SheetNumber} 템플릿 적용 후");
                 vizcore3d.Drawing2D.View.SetSelectCanvas(1);
                 DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
 
@@ -2220,6 +2238,10 @@ namespace A2Z
                         case 4: viewDir = "Y"; break;
                         default: continue;
                     }
+
+                    ProcessCancelableUiCheckpoint(
+                        $"{GetSheetKindLabel(sheet)} 2D 생성 중... {viewDir} 뷰 ({viewsRendered + 1}/{cameraMap.Count})",
+                        $"sheet#{sheet.SheetNumber} {viewDir} 뷰 시작 전");
 
                     List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
 
@@ -2786,16 +2808,29 @@ namespace A2Z
                     viewsRendered++;
                     ReleaseActiveDrawingReferenceAxis(
                         $"sheet={sheet.SheetNumber} view={viewDir} complete");
+                    ProcessCancelableUiCheckpoint(
+                        $"{GetSheetKindLabel(sheet)} 2D 생성 중... {viewDir} 뷰 완료 ({viewsRendered}/{cameraMap.Count})",
+                        $"sheet#{sheet.SheetNumber} {viewDir} 뷰 완료 후");
                 }
 
                 // 정렬된 풍선·연결 이름 노트와 치수를 최종 캔버스에 반영한다.
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 최종 렌더",
+                    $"sheet#{sheet.SheetNumber} 최종 렌더 전");
                 vizcore3d.Drawing2D.Render();
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 완료",
+                    $"sheet#{sheet.SheetNumber} 최종 렌더 후");
 
                 // 3D 뷰 기본(부드러운 음영) 복원 — 도면 생성 후 은선/X-Ray 잔존 방지 (2026-06-23)
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
 
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{cameraMap.Count}");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

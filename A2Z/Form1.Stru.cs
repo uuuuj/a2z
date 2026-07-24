@@ -840,7 +840,9 @@ namespace A2Z
             // 연결성 검사 시 STRU 부재끼리만 그래프 → 정상.
             ShowBusyOverlay($"BOM 수집 중: {struNode.NodeName}");
             ThrowIfCancellationRequested("STRU BOM 수집 전");
-            bool bomCollected = CollectBOMData();
+            bool bomCollected = CollectBOMData(
+                null,
+                $"BOM 수집 중: {struNode.NodeName}");
             DiagLog($"T-064 STRU '{struNode.NodeName}' CollectBOMData success={bomCollected}, bomList={bomList?.Count ?? 0}");
             ThrowIfCancellationRequested("STRU BOM 수집 후");
 
@@ -1022,6 +1024,13 @@ namespace A2Z
                         () => _cancelRequested);
                     pdfCount += mfgResult.SuccessPdfs;
                     reportPdfSaved?.Invoke(mfgResult.SuccessPdfs);
+                    if (mfgResult.Canceled)
+                    {
+                        throw new OperationCanceledException(
+                            string.IsNullOrWhiteSpace(mfgResult.CancellationCheckpoint)
+                                ? "가공도 출력 중"
+                                : mfgResult.CancellationCheckpoint);
+                    }
                     ThrowIfCancellationRequested("가공도 출력 후");
                     DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 {mfgResult.SuccessPdfs}개 저장" +
                         (mfgResult.TemplateMissing ? " (템플릿 누락)" : "") +

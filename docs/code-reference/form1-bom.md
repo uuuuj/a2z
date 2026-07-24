@@ -1,6 +1,6 @@
 # Form1.BOM.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.BOM.cs` (약 972 라인)
+**경로**: `A2Z/Form1.BOM.cs` (약 1,057 라인)
 
 **책임**: 3D 모델 로드, BOM 수집 + 홀/슬롯 감지, VIZCore3D 초기화 이벤트 핸들러, 메인 치수 추출 통합 파이프라인, 초기 상태 복원(모델 재로드). **라이선스 관리는 [Form1.License.cs](./form1-license.md)로 분리** (T-017, 2026-04-22).
 
@@ -27,13 +27,13 @@
 - **흐름 문서**: [기능/BOM/초기화.md](../기능/BOM/초기화.md)
 
 ### <a id="btnMainDimension_Click"></a>btnMainDimension_Click
-- **라인**: L332~L412
+- **라인**: L337~L446
 - **트리거**: `btnMainDimension` 버튼 클릭
-- **핵심**: 취소 가능한 작업 시작·재진입 차단 → BOM 재수집 → `DetectClash(includeOutsideNeighbors: true)` 비동기 시작 → 완료 이벤트에서 Osnap·치수·시트 생성
+- **핵심**: 취소 가능한 작업 시작·관련 출력 컨트롤 잠금 → 현재 BODY 대상 스캔과 5,000개 이상 경고 → 진행 수를 표시하며 BOM 재수집 → `DetectClash(includeOutsideNeighbors: true)` 비동기 시작 → 완료 이벤트에서 Osnap·치수·시트 생성
 - **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인%20치수%20추출.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
-- **라인**: L958~L971
+- **라인**: L1045~L1057
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
 - **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM%20수집.md)
@@ -45,17 +45,17 @@
 | 메서드 | 라인 | 역할 |
 |---|---|---|
 | `ResetToInitialState` | L272~L330 | btnOpen의 초기화 블록 + `balloonOverrides.Clear()` + 동일 경로 `Model.Open` 재로드. btnResetToInitial_Click에서 호출 |
-| `CancelMainDimensionAtCheckpoint` | L415 | 취소 요청 확인 → 무창 Clash 큐·부분 2D/3D/시트/치수 상태 정리 → 버튼·오버레이 복원 → 취소 위치 안내 |
-| `FinishMainDimensionOperation` | L434 | 정상·취소·예외 공통으로 진행 플래그와 두 자동 작업 버튼을 복원 |
-| `ClearCanceledOperationArtifacts` | L454 | 부분 시트, 2D Canvas/Object, 3D Note/Measure/ShapeDrawing, 치수·Osnap 캐시 정리 |
-| `CompleteMainDimensionPostClash` | L483~L622 | Osnap·치수·시트 단계 전후 취소 체크포인트와 정상 후속 파이프라인 |
-| `CollectAllOsnap` | L624 | 전체 Osnap 수집 (LINE/POINT만), X-Ray 모드 반영, 같은 원본으로 가공도 주축 판정 캐시 적재 |
+| `CancelMainDimensionAtCheckpoint` | L448 | 취소 요청 확인 → 무창 Clash 큐·부분 BOM/2D/3D/시트/치수 상태 정리 → 컨트롤·오버레이 복원 → 취소 위치 안내 |
+| `FinishMainDimensionOperation` | L467 | 정상·취소·예외 공통으로 진행 플래그와 잠근 도면 출력 컨트롤을 원래 상태로 복원 |
+| `ClearCanceledOperationArtifacts` | L483 | 부분 BOM·시트, 2D Canvas/Object, 3D Note/Measure/ShapeDrawing, 치수·Osnap 캐시 정리 |
+| `CompleteMainDimensionPostClash` | L514~L658 | Osnap·치수·시트 단계 전후 취소 체크포인트와 정상 후속 파이프라인 |
+| `CollectAllOsnap` | L660 | 전체 Osnap 수집 (LINE/POINT만), 매 부재·목록 200개 단위 진행/취소, X-Ray 모드 반영, 같은 원본으로 가공도 주축 판정 캐시 적재 |
+| `GetBOMTargetNodes` | L778 | 전체 BODY를 200개 단위로 스캔해 프로그램 선택 또는 실제 visible 대상 목록 확정 |
 | `CollectBOMInfo` | L20 (Clash.cs) | 도면정보 탭용 그룹 수집 |
-| `CollectBOMData` | (BOM 수집 내부) | bomList 채우는 핵심 로직 |
-| `DetectHoles` | (홀 감지 내부) | 원형/슬롯형 홀 자동 인식 |
+| `CollectBOMData` | L821 | 대상·홀 정보는 매 부재, 목록은 200개 단위 진행/취소를 포함해 `bomList`를 채우는 핵심 로직 |
 | `BuildBodyToPartNameMap` | L37 | Body↔Part 캐시 구축 + 제작도 연결 후보 BBox 캐시 초기화 |
 | `GetPartNameFromBodyIndex` | L105 | Body Index → Part 풀네임 역조회 |
-| `DetectHoles` | L785 | BOM 부재의 원형·슬롯형 홀 감지 |
+| `DetectHoles` | L974 | BOM 부재의 원형·슬롯형 홀 감지, 매 부재 진행/취소 |
 
 ---
 

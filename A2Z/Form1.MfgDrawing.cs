@@ -58,9 +58,28 @@ namespace A2Z
             public bool TemplateMissing;          // 가공도 엑셀 템플릿 누락 → PDF 0개
             public int BomRows;                   // 실제 snapshot BOM 행 수
             public int ExpectedBomRows;           // 예상 BOM 행 수 = Min(allMfgBomIndices.Count, 15)
+            public bool Canceled;                  // 안전 체크포인트에서 사용자 취소
+            public string CancellationCheckpoint; // 실제 중단 위치
             public List<string> Warnings = new List<string>();   // 사용자에게 보일 경고 텍스트
 
             public bool HasIssues => Warnings.Count > 0 || InsufficientBomPdfs > 0 || TemplateMissing;
+        }
+
+        private void CheckMfgCancellation(
+            Func<bool> shouldCancel,
+            string progressMessage,
+            string checkpoint)
+        {
+            if (shouldCancel == null)
+                return;
+
+            if (_cancelableOperationInProgress)
+                ProcessCancelableUiCheckpoint(progressMessage, checkpoint);
+            else
+                Application.DoEvents();
+
+            if (shouldCancel())
+                throw new OperationCanceledException(checkpoint);
         }
 
         /// <summary>
@@ -1289,7 +1308,9 @@ namespace A2Z
         /// 일반 부재는 한 뷰, EA 부재는 같은 ViewArea를 위·아래 두 뷰로 분할한다.
         /// </summary>
         private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
-            VIZCore3D.NET.Data.TemplateViewArea area)
+            VIZCore3D.NET.Data.TemplateViewArea area,
+            Func<bool> shouldCancel = null,
+            string progressPrefix = "가공도")
         {
             ClearMfgViewAnnotations("RenderMfgRow/start");
             vizcore3d.Review.Note.Clear();
@@ -1310,7 +1331,15 @@ namespace A2Z
                 float viewGap = 0f;   // 완전 밀착 (사용자 사양 2026-06-23) — EA 평면도·정면도 사이 간격 제거
                 float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 중...",
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 전");
                 var pose = BuildMfgSceneCore(bom.Index, isEA);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 준비 중...",
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 후");
                 if (isEA)
                     pose.SharedAnnotationBudgetCanvas = GetMfgEaSharedAnnotationBudgetCanvas(pose);
 
@@ -1329,6 +1358,10 @@ namespace A2Z
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
                 //   (DoEvents 제거 — 격리 5단계 2026-07-21: 네이티브 캡처 전후 메시지 펌프가 크래시 용의)
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 캡처 중...",
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 방향 확정 후");
 
                 int primaryObjId;
                 bool primaryOk = CaptureMfgSceneToViewArea(
@@ -1346,16 +1379,28 @@ namespace A2Z
                     return false;
                 }
                 createdObjectIds.Add(primaryObjId);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 완료",
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 캡처 후");
 
                 if (isEA)
                 {
                     try
                     {
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 준비 중...",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 시작 전");
                         var secondaryPose = BuildEaSecondaryScene(
                             bom, pose, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
 
                         // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전 (DoEvents 제거 — 격리 5단계)
                         float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 캡처 중...",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 방향 확정 후");
 
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
@@ -1380,6 +1425,14 @@ namespace A2Z
                             }
                             DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN EA secondary 캡처 실패 — primary 유지");
                         }
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 완료",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 캡처 후");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -1387,8 +1440,16 @@ namespace A2Z
                     }
                 }
 
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 완료",
+                    $"{progressPrefix} 행 {rowIdx} 완료 후");
                 success = true;
                 return true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -2464,6 +2525,10 @@ namespace A2Z
             {
                 // UI 잠금 (가장 먼저)
                 lvDrawingSheet.Enabled = false;
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 출력 준비 중...",
+                    "가공도 출력 초기화 전");
 
                 if (lvDrawingSheet.SelectedItems.Count > 0)
                     previousSelectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
@@ -2477,6 +2542,10 @@ namespace A2Z
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
                 vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
                 // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03). 출력 후 SMOOTH 복원은 유지.
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 BOM 준비 중...",
+                    "가공도 출력 초기화 후");
 
                 // ── BOM 표 1회 채우기 (가공도 전체 부재, 모든 페이지 동일) ──
                 var allMfgBomIndices = mfgSheets
@@ -2500,6 +2569,10 @@ namespace A2Z
                     MfgDrawingNo = 0
                 };
                 CollectBOMInfo(false, syntheticSheet);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 BOM 준비 완료",
+                    "가공도 BOM 수집 후");
 
                 var bomSnapshot = SnapshotBomRows();
                 int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20);
@@ -2543,12 +2616,11 @@ namespace A2Z
 
                 foreach (var page in pages)
                 {
-                    Application.DoEvents();
-                    if (shouldCancel != null && shouldCancel())
-                    {
-                        DiagLog($"[GenMfgManual] 중간 취소 — p{page.PageIdx} 시작 전 중단");
-                        break;
-                    }
+                    string pageProgress = $"가공도 {page.PageIdx}/{pages.Count}페이지";
+                    CheckMfgCancellation(
+                        shouldCancel,
+                        $"{pageProgress} 준비 중...",
+                        $"{pageProgress} 시작 전");
 
                     int failedRows = 0;
                     int successRows = 0;
@@ -2556,11 +2628,19 @@ namespace A2Z
                     {
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, paintCode, bomSnapshot);
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 템플릿 적용 중...",
+                            $"{pageProgress} 템플릿 적용 전");
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
                         // 북쪽 화살표 2종은 {Image_1}/{Image_2} + mfgImageMapping으로 Import 단계에서 처리 (2026-07-20).
                         //   ⚠ 태그 번호 한계 주의 — View는 1~7, Input은 1~199까지만 (초과 시 SDK 메모리 손상 → 캡처 AccessViolation).
                         vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, mfgImageMapping);
                         swTpl.Stop();
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 템플릿 적용 완료",
+                            $"{pageProgress} 템플릿 적용 후");
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 괘선 제거, 제작도와 동일 패턴.
                         vizcore3d.Drawing2D.Object2D.RemoveEmptyTemplateBorders(0.1f, VIZCore3D.NET.Data.TemplateBorderRemoveMode.RowAndColumn);
@@ -2570,16 +2650,30 @@ namespace A2Z
                         //   제작도는 import 직후 Drawing2D.Render()를 호출한 뒤 캡처하는데 가공도는 이게 없었음.
                         //   '그리지 않은 캔버스 + 첫 캡처' 조합이 신 템플릿에서 AccessViolation 용의.
                         vizcore3d.Drawing2D.Render();
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 부재 뷰 생성 중...",
+                            $"{pageProgress} 초기 렌더 후");
 
                         for (int i = 0; i < page.Rows.Count; i++)
                         {
+                            CheckMfgCancellation(
+                                shouldCancel,
+                                $"{pageProgress} 부재 {i + 1}/{page.Rows.Count} 처리 중...",
+                                $"{pageProgress} 행 {i + 1} 시작 전");
+
                             var sheet = page.Rows[i];
                             if (sheet.MemberIndices.Count == 0) { failedRows++; continue; }
                             var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                             if (bom == null) { failedRows++; continue; }
 
                             var area = viewAreasCache[i + 1];
-                            if (RenderMfgRowToViewArea(i + 1, bom, area)) successRows++;
+                            if (RenderMfgRowToViewArea(
+                                i + 1,
+                                bom,
+                                area,
+                                shouldCancel,
+                                pageProgress)) successRows++;
                             else failedRows++;
                         }
 
@@ -2593,16 +2687,32 @@ namespace A2Z
                             continue;
                         }
 
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} PDF 마무리 중...",
+                            $"{pageProgress} 최종 렌더 전");
                         vizcore3d.Drawing2D.Render();
                         vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                         vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
                         string pdfPath = MakeUniquePdfPath(saveDir, struName, page.PageIdx, pages.Count, struIndex);
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} PDF 저장 중...",
+                            $"{pageProgress} PDF 저장 전");
                         vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
                         result.SuccessPdfs++;
                         if (bomSnapshotInsufficient) result.InsufficientBomPdfs++;
 
                         DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 저장: {pdfPath}");
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} PDF 저장 완료",
+                            $"{pageProgress} PDF 저장 후");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -2610,6 +2720,13 @@ namespace A2Z
                         result.Warnings.Add($"p{page.PageIdx} 페이지 ERROR: {ex.Message}");
                     }
                 }
+            }
+            catch (OperationCanceledException ex)
+            {
+                result.Canceled = true;
+                result.CancellationCheckpoint = ex.Message;
+                DiagLog($"[GenMfgManual] 취소: {ex.Message}, 저장 완료={result.SuccessPdfs}");
+                try { Clear2DView(); } catch { }
             }
             catch (Exception ex)
             {
@@ -2684,6 +2801,16 @@ namespace A2Z
         /// </summary>
         private void btnMfgDrawingSheet_Click(object sender, EventArgs e)
         {
+            if (_cancelableOperationInProgress || !lvDrawingSheet.Enabled)
+            {
+                MessageBox.Show(
+                    "다른 도면 작업이 진행 중입니다.",
+                    "알림",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
             var mfgSheets = new List<DrawingSheetData>();
             foreach (ListViewItem lvi in lvDrawingSheet.Items)
                 if (lvi.Text.StartsWith("가공도"))
@@ -2700,7 +2827,45 @@ namespace A2Z
             }
 
             string saveDir = GetDefaultDrawingSaveDir();
-            var result = GenerateMfgDrawingManual(mfgSheets, saveDir, "manual", struIndex: 0);
+            Dictionary<Control, bool> previousEnabledStates =
+                CaptureDrawingExportControlStates();
+            MfgDrawingResult result;
+            try
+            {
+                SetDrawingExportControlsEnabled(false);
+                BeginCancelableOperation();
+                ShowBusyOverlay("가공도 PDF 출력 준비 중...");
+                result = GenerateMfgDrawingManual(
+                    mfgSheets,
+                    saveDir,
+                    "manual",
+                    struIndex: 0,
+                    shouldCancel: () => _cancelRequested);
+            }
+            finally
+            {
+                HideBusyOverlay();
+                EndCancelableOperation();
+                RestoreDrawingExportControlStates(previousEnabledStates);
+            }
+
+            if (result.Canceled)
+            {
+                var canceledMessage = new System.Text.StringBuilder();
+                canceledMessage.AppendLine("가공도 출력을 취소했습니다.");
+                canceledMessage.AppendLine();
+                canceledMessage.AppendLine($"저장 완료 PDF: {result.SuccessPdfs}개");
+                canceledMessage.AppendLine(saveDir);
+                if (!string.IsNullOrWhiteSpace(result.CancellationCheckpoint))
+                    canceledMessage.AppendLine($"중단 위치: {result.CancellationCheckpoint}");
+
+                MessageBox.Show(
+                    canceledMessage.ToString(),
+                    "취소됨",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
 
             // v7 Codex 6차 권고: 단일 MessageBox 통합
             if (result.TemplateMissing)
