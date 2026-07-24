@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-07-24 — 치수 추출 파이프라인 문서 순서 정정
+
+**유형**: docs
+**커밋**: `pending`
+**변경 사항**:
+- `docs/_pipeline.md` — 흐름도·단계별 설명 표의 순서를 코드(`btnMainDimension_Click` → `CompleteMainDimensionPostClash`) 기준으로 정정. 기존 `BOM → Osnap → 치수 → 간섭 검사 → 시트 분할`은 실제와 달랐고, 실제는 `BOM → 간섭 검사 → 연결성 판정 → Osnap → 치수 → 시트 분할`
+- 흐름도를 개별 버튼 나열에서 "치수 추출 버튼 한 번으로 자동 실행" 서브그래프로 재구성. 단계별 표의 트리거도 내부 호출 메서드명(`CollectBOMData`·`DetectClash`·`CollectAllOsnap` 등)으로 교체
+- 단일 부재·Clash 이벤트 미발동 시 `CompleteMainDimensionPostClash(isSingleMember: true)` 우회 경로 주석 추가. 개별 실행 버튼(`btnCollectBOM_Click` 등)이 여전히 존재함을 명시
+- `docs/사용자-매뉴얼/README.md` — 목차의 치수 추출 설명을 `BOM→간섭 검사→특징점→치수→도면 시트`로 정정
+- `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` — "한 줄로" 요약도 같은 오류가 있어 함께 정정. 2026-04-22 순서 변경 때 상세 섹션만 갱신되고 요약이 누락돼 있었음
+- 세 문서 모두 `last_updated` + 변경 이력 갱신 (R1). 수정한 mermaid는 mermaid 11 파서로 구문 검증 통과
+
+**영향 범위**: 문서만. 코드 변경 없음. `docs/기능/BOM/메인 치수 추출.md`(개발자 문서)는 이미 올바른 순서여서 미변경
+
 ## 2026-07-24 — 가공도 풍선 종이 절대 정규화·EA 뷰별 배정
 
 **유형**: fix
