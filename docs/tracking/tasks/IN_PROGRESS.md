@@ -535,7 +535,7 @@
   1. 1차 진입: 선택상태 해제(DESELECT_ALL) + DiagLog 추가 (커밋 `230e45f`)
   2. 1차 해석 시도: "Z 최장축인데 세로로 배치" → L215 `use1803d && longestAxis!="Z"` 가드 추가 (커밋 `537f07c`)
   3. **사용자 재보고 (2026-04-23)**: "45도 대각 ISO 뷰로 보게 된다" → Z 방향이 아닌 **카메라 방향 자체가 ISO로 잔존**하는 증상
-  4. **원인 재확정**: [LvDrawingSheet_SelectedIndexChanged](../../A2Z/Form1.DrawingSheets.cs) 공통부 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 글로벌 ISO) 유지한 채 이동 → `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 덮어쓰지 못함
+  4. **원인 재확정**: [LvDrawingSheet_SelectedIndexChanged](../../../A2Z/Form1.DrawingSheets.cs) 공통부 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 글로벌 ISO) 유지한 채 이동 → `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 덮어쓰지 못함
   5. 수정 (커밋 `b0f8802`): 가공도 시트(-3) 분기 앞에서 `FlyToObject3d` 스킵 + L215 180° 스킵 가드 **원복** (수직 뒤집기 의도 복원)
 - **세부 (완료)**:
   - [x] `ExecuteMfgDrawing` 진입부 `Object3D.Select(DESELECT_ALL)` 추가
@@ -578,7 +578,7 @@
 - **착수일**: 2026-05-12
 - **상태**: IN_PROGRESS (Step 1 코드 빌드 통과, 사용자 사내 PC 실기 검증 대기)
 - **관련**: REQ-002
-- **배경**: SDK가 `ImportExcel`, `ImportExcelWithData`, `Draw2DViewTemplate(path, x, y, w, h)`, `RenderTemplateOnGridStructure`를 제공 ([VIZCore3D.NET.xml:29219](../../lib/VIZCore3D.NET.xml:29219)). 담당자가 엑셀로 양식을 관리할 수 있는지 **실험만** (프로덕션 전환은 별개). 과거 Phase 18(`790a02a`)에서 BOM 동적 행수 문제로 수동 구성으로 되돌린 이력 있음 — 하이브리드로 재도전
+- **배경**: SDK가 `ImportExcel`, `ImportExcelWithData`, `Draw2DViewTemplate(path, x, y, w, h)`, `RenderTemplateOnGridStructure`를 제공 ([VIZCore3D.NET.xml:29219](../../../lib/VIZCore3D.NET.xml:29219)). 담당자가 엑셀로 양식을 관리할 수 있는지 **실험만** (프로덕션 전환은 별개). 과거 Phase 18(`790a02a`)에서 BOM 동적 행수 문제로 수동 구성으로 되돌린 이력 있음 — 하이브리드로 재도전
 - **사용자 결정 (2026-05-12)**: 옵션 A — 기존 `GenerateSheetDrawing2D` 유지 + 별도 partial class `Form1.ExcelTemplate.cs`에 PoC 핸들러 신설. 새 디버그 버튼 "엑셀 PoC" 추가. Step 1 시각 검증 후 단계별 진행.
 - **사전 자료**: `사용자템플릿_엑셀_Rev_01.xlsx` (사용자 작성) — A4 가로 비율(W/H ≈ 1.41), 55컬럼 × 40행, 4뷰(ISO/Z/X/Y) + BOM + NOTE + 도면정보 + TAG NO + 이미지 슬롯 4개
 - **세부**:
@@ -589,5 +589,5 @@
   - [ ] 결과 리포트: `docs/기술 노트/excel-template-experiment.md` 신설
   - [ ] T-057(검토자 Excel 일치 검증)과 통합 — Rev_01이 검토자 Excel과 같은 양식인지 확인
 - **영향 파일**: A2Z/Form1.ExcelTemplate.cs (신규), A2Z/Form1.Designer.cs(+버튼 1개, groupBox1 너비 +87px), A2Z/A2Z.csproj(+Compile Include), 사용자템플릿_엑셀_Rev_01.xlsx (신규)
-- **관련 docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) (Step 1 흐름)
+- **관련 docs**: [엑셀 템플릿 PoC.md](../../기능/도면시트/엑셀%20템플릿%20PoC.md) (Step 1 흐름)
 
