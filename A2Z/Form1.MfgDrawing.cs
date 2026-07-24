@@ -854,7 +854,7 @@ namespace A2Z
             // 여기서 Measure.Clear를 호출하면 활성 참조축까지 삭제되므로 캡처가 끝날 때까지 다시 지우지 않는다.
             pose.ShapeDrawingIds.Clear();
 
-            // 실측 배율로 캔버스 절대 오프셋(가공도 6/12mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
+            // 실측 배율로 캔버스 절대 오프셋(가공도 9/18mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
             ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
                 MfgCanvasBaseOff, MfgCanvasLvlSp);
 
@@ -1765,7 +1765,7 @@ namespace A2Z
         /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
-        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·EarthBoss 풍선 생성과 홀/슬롯 노트 수집.
+        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수와 뷰별 형상 풍선 후보를 수집한다.
         /// ISO 부재번호 풍선과 원형 부재 반지름 풍선은 생성하지 않는다.
         /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
         ///
