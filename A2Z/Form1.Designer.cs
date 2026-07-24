@@ -116,6 +116,9 @@ namespace A2Z
             this.lblDrawingTitle = new System.Windows.Forms.Label();
             this.panelDrawingButtons = new System.Windows.Forms.Panel();
             this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
+            this.btnExportFabricationSheets = new System.Windows.Forms.Button();
+            this.btnExportAssemblySheets = new System.Windows.Forms.Button();
+            this.btnExportInstallationSheets = new System.Windows.Forms.Button();
             this.btnGenerateSheet2D = new System.Windows.Forms.Button();
             this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
             this.btnExtractDrawingList = new System.Windows.Forms.Button();
@@ -980,21 +983,24 @@ namespace A2Z
             //
             this.splitContainerDrawing.Panel2.Controls.Add(this.lvDrawingBOMInfo);
             this.splitContainerDrawing.Panel2.Controls.Add(this.panelDrawingBOMHeader);
-            this.splitContainerDrawing.Size = new System.Drawing.Size(443, 870);
+            this.splitContainerDrawing.Size = new System.Drawing.Size(443, 805);
             this.splitContainerDrawing.SplitterDistance = 400;
             this.splitContainerDrawing.SplitterWidth = 5;
             this.splitContainerDrawing.TabIndex = 3;
             //
             // panelDrawingButtons
             //
+            this.panelDrawingButtons.Controls.Add(this.btnExportInstallationSheets);
+            this.panelDrawingButtons.Controls.Add(this.btnExportAssemblySheets);
+            this.panelDrawingButtons.Controls.Add(this.btnExportFabricationSheets);
             this.panelDrawingButtons.Controls.Add(this.btnExtractDrawingList);
             this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
             this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
             this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
             this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 898);
+            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 863);
             this.panelDrawingButtons.Name = "panelDrawingButtons";
-            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 70);
+            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 105);
             this.panelDrawingButtons.TabIndex = 2;
             //
             // groupBoxStru — T-064 P1 STRU 목록 (Dock=Top, 240px)
@@ -1048,9 +1054,39 @@ namespace A2Z
             this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
             this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
             this.btnMfgDrawingSheet.TabIndex = 0;
-            this.btnMfgDrawingSheet.Text = "가공도 출력";
+            this.btnMfgDrawingSheet.Text = "가공도";
             this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
             this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
+            //
+            // btnExportFabricationSheets
+            //
+            this.btnExportFabricationSheets.Location = new System.Drawing.Point(6, 71);
+            this.btnExportFabricationSheets.Name = "btnExportFabricationSheets";
+            this.btnExportFabricationSheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportFabricationSheets.TabIndex = 4;
+            this.btnExportFabricationSheets.Text = "제작도";
+            this.btnExportFabricationSheets.UseVisualStyleBackColor = true;
+            this.btnExportFabricationSheets.Click += new System.EventHandler(this.btnExportFabricationSheets_Click);
+            //
+            // btnExportAssemblySheets
+            //
+            this.btnExportAssemblySheets.Location = new System.Drawing.Point(112, 71);
+            this.btnExportAssemblySheets.Name = "btnExportAssemblySheets";
+            this.btnExportAssemblySheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportAssemblySheets.TabIndex = 5;
+            this.btnExportAssemblySheets.Text = "조립도";
+            this.btnExportAssemblySheets.UseVisualStyleBackColor = true;
+            this.btnExportAssemblySheets.Click += new System.EventHandler(this.btnExportAssemblySheets_Click);
+            //
+            // btnExportInstallationSheets
+            //
+            this.btnExportInstallationSheets.Location = new System.Drawing.Point(218, 71);
+            this.btnExportInstallationSheets.Name = "btnExportInstallationSheets";
+            this.btnExportInstallationSheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportInstallationSheets.TabIndex = 6;
+            this.btnExportInstallationSheets.Text = "설치도";
+            this.btnExportInstallationSheets.UseVisualStyleBackColor = true;
+            this.btnExportInstallationSheets.Click += new System.EventHandler(this.btnExportInstallationSheets_Click);
             //
             // btnGenerateSheet2D
             //
@@ -1419,6 +1455,9 @@ namespace A2Z
         private System.Windows.Forms.Panel panelDrawingButtons;
         private System.Windows.Forms.Button btnExtractDrawingList;  // T-064 P2a — 도면 일괄 출력 (라벨 변경 2026-05-19)
         private System.Windows.Forms.Button btnMfgDrawingSheet;
+        private System.Windows.Forms.Button btnExportFabricationSheets;
+        private System.Windows.Forms.Button btnExportAssemblySheets;
+        private System.Windows.Forms.Button btnExportInstallationSheets;
         private System.Windows.Forms.Button btnGenerateSheet2D;
         private System.Windows.Forms.Button btnExportSheet2DPDF;
         private System.Windows.Forms.SplitContainer splitContainerDrawing;
