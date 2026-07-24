@@ -452,6 +452,7 @@ namespace A2Z
                 modelCenterY);
             DiagLog($"[MfgAnnotationBudget] row={rowIdx} bom={bom.Index} view={viewLabel} " +
                     $"requested={annotationBudget:F1} reserved={reservedHeight:F1} fitHeight={fitHeight:F1}/{areaHeight:F1} " +
+                    $"shared={pose.SharedAnnotationBudgetCanvas.HasValue} " +
                     $"side={(pose.PlaceNotesAbove ? "above" : "below")} " +
                     $"capped={(annotationBudget > reservedHeight + 0.01f)}");
 
@@ -817,7 +818,11 @@ namespace A2Z
         /// </summary>
         private float GetMfgAnnotationBudgetCanvas(MfgViewPose pose)
         {
-            if (pose == null || pose.PendingNotes == null)
+            if (pose == null)
+                return 0f;
+            if (pose.SharedAnnotationBudgetCanvas.HasValue)
+                return Math.Max(0f, pose.SharedAnnotationBudgetCanvas.Value);
+            if (pose.PendingNotes == null)
                 return 0f;
 
             int noteCount = pose.PendingNotes.Count(
@@ -826,6 +831,38 @@ namespace A2Z
                 return 0f;
 
             float dimensionEnvelope = GetMfgSameSideDimensionEnvelopeCanvas(pose);
+            return CalculateMfgAnnotationBudgetCanvas(noteCount, dimensionEnvelope);
+        }
+
+        private float GetMfgEaSharedAnnotationBudgetCanvas(MfgViewPose pose)
+        {
+            if (pose == null)
+                return 0f;
+
+            int primaryCount = pose.PendingNotes?.Count(
+                note => note != null && note.ArrowPosition != null) ?? 0;
+            int secondaryCount = pose.SecondaryPendingNotes?.Count(
+                note => note != null && note.ArrowPosition != null) ?? 0;
+            int sharedNoteCount = Math.Max(primaryCount, secondaryCount);
+            if (sharedNoteCount == 0)
+                return 0f;
+
+            // 2차 뷰 치수는 1차 캡처 뒤에 수집되므로, 두 뷰에서 가능한 최대 3단 오프셋을 공통 예약한다.
+            // 실제 풍선 위치는 각 뷰의 같은 쪽 치수 외곽을 사용하되 모델 fit 높이만 같게 유지한다.
+            float sharedDimensionEnvelope = MfgCanvasBaseOff + MfgCanvasLvlSp * 2f;
+            float sharedBudget = CalculateMfgAnnotationBudgetCanvas(
+                sharedNoteCount, sharedDimensionEnvelope);
+            DiagLog($"[MfgAnnotationBudget] EA shared primaryNotes={primaryCount} " +
+                    $"secondaryNotes={secondaryCount} sharedNotes={sharedNoteCount} " +
+                    $"dimensionEnvelope={sharedDimensionEnvelope:F1} budget={sharedBudget:F1}");
+            return sharedBudget;
+        }
+
+        private float CalculateMfgAnnotationBudgetCanvas(int noteCount, float dimensionEnvelope)
+        {
+            if (noteCount <= 0)
+                return 0f;
+
             float measureClearance = dimensionEnvelope > 0f
                 ? MfgCanvasMeasureTextHeight + MfgCanvasMeasureTextMargin
                 : 0f;
@@ -1026,7 +1063,8 @@ namespace A2Z
                 ReferenceAxisY = primaryPose.ReferenceAxisY,
                 ReferenceAxisZ = primaryPose.ReferenceAxisZ,
                 ReferenceAxisOrigin = primaryPose.ReferenceAxisOrigin,
-                PlaceNotesAbove = secondaryAtTop
+                PlaceNotesAbove = secondaryAtTop,
+                SharedAnnotationBudgetCanvas = primaryPose.SharedAnnotationBudgetCanvas
             };
             if (primaryPose.SecondaryPendingNotes != null)
                 pose.PendingNotes.AddRange(primaryPose.SecondaryPendingNotes);
@@ -1273,6 +1311,8 @@ namespace A2Z
                 float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
                 var pose = BuildMfgSceneCore(bom.Index, isEA);
+                if (isEA)
+                    pose.SharedAnnotationBudgetCanvas = GetMfgEaSharedAnnotationBudgetCanvas(pose);
 
                 // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03).
                 // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이

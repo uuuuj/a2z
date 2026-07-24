@@ -17,11 +17,13 @@
   - [x] 모델 span 비례 EarthBoss 4분면 배치 제거, EarthBoss를 첫 번째 뷰 지연 생성으로 통합
   - [x] 캡처 후 확정된 `newScale`로 치수 외곽→풍선 6mm·풍선 행 8mm를 역산
   - [x] 풍선과 같은 화면 위·아래 쪽 치수선·문자 여백을 모델 fit 전에 예약해 잘림과 EA 반대 뷰 침범 방지
+  - [x] EA 첫 번째·두 번째 풍선 목록의 최대 행 수와 최대 치수 외곽을 공통 예약해 한쪽 목록이 0건이어도 두 뷰의 모델 fit 높이를 동일하게 유지
   - [x] 풍선 글자 6mm·치수 글자 10mm는 2D 종이 절대값으로 유지
   - [x] Debug·Release 빌드 오류 0개 (기존 경고만 유지)
 - **사용자 확인 필요**:
   - [ ] 크기 차가 큰 부재 5개를 한 페이지에 배치해 풍선 거리·행 간격·글자 크기가 같은지
   - [ ] EA 첫 번째 목록이 비고 두 번째 목록에만 Hole/SlotHole이 있는 부재에서 두 번째 뷰에만 표시되는지
+  - [ ] 같은 EA 부재의 두 `[MfgAnnotationBudget]` 로그에서 `requested`·`reserved`·`fitHeight`가 같고 화면상 모델 배율도 같은지
   - [ ] 같은 규격의 홀이 두 플랜지에 나뉜 경우 뷰별 개수가 각각 맞는지
   - [ ] 세로 가로화·ORIENTATION·상하 미러 EA와 EarthBoss 위치에 회귀가 없는지
 - **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Models.cs`, `A2Z/Models/MfgViewPose.cs`, 가공도 시트·미리보기 흐름과 코드 레퍼런스
