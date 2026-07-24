@@ -105,6 +105,7 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 - 단순히 등록만 하고 구현하지 않은, 요구사항이 확정된 Issue는 `[개발 대기]`로 등록한다.
 - 상태를 바꿀 때는 상태 라벨을 변경한다. GitHub Action이 제목 접두사를 같은 상태로 자동 동기화한다.
 - 완료 상태는 `[완료]` 접두사를 만들지 않고 Issue를 Close하여 표현한다.
+- Issue를 Close하면 GitHub Action이 상태 라벨과 기존 상태 접두사를 제거한다. 종료 Issue에는 활성 상태 라벨·접두사를 남기지 않는다.
 - 신규 Issue는 `.github/ISSUE_TEMPLATE/`의 해당 양식을 우선 사용한다. CLI로 등록할 때도 접두사와 상태 라벨을 함께 지정한다.
 
 ---
