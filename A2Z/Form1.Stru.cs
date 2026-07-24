@@ -41,7 +41,7 @@ namespace A2Z
 
         private List<VIZCore3D.NET.Data.Node> _struNodeCache = new List<VIZCore3D.NET.Data.Node>();
 
-        // #36 STRU 이름 검색 → 즉시 치수 추출 입력창 (코드 생성, Designer 미사용).
+        // #36/#48 STRU 이름 검색 입력창 (코드 생성, Designer 미사용).
         private System.Windows.Forms.TextBox txtStruSearch;
 
         // 가드 — 체크박스 클릭 시 WinForms가 SelectedIndexChanged도 발생시킴(MouseDown 순간).
@@ -214,22 +214,20 @@ namespace A2Z
                 AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend,
                 AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource
             };
-            txtStruSearch.KeyDown += TxtStruSearch_KeyDown;
-
-            var btnStruSearchExtract = new System.Windows.Forms.Button
+            var btnStruSearch = new System.Windows.Forms.Button
             {
-                Name = "btnStruSearchExtract",
-                Text = "치수 추출",
+                Name = "btnStruSearch",
+                Text = "검색",
                 Location = new System.Drawing.Point(334, 5),
                 Size = new System.Drawing.Size(95, 25),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 UseVisualStyleBackColor = true
             };
-            btnStruSearchExtract.Click += BtnStruSearchExtract_Click;
+            btnStruSearch.Click += BtnStruSearch_Click;
 
             panelStruSearch.Controls.Add(lblStruSearch);
             panelStruSearch.Controls.Add(txtStruSearch);
-            panelStruSearch.Controls.Add(btnStruSearchExtract);
+            panelStruSearch.Controls.Add(btnStruSearch);
 
             groupBoxStru.Controls.Add(panelStruSearch);
             // Dock 계층: Fill(clbStruList)이 맨 뒤여야 Top/Bottom 패널이 가장자리를 차지.
@@ -237,25 +235,17 @@ namespace A2Z
             if (clbStruList != null) clbStruList.SendToBack();
         }
 
-        private void BtnStruSearchExtract_Click(object sender, EventArgs e)
+        private void BtnStruSearch_Click(object sender, EventArgs e)
         {
-            ExtractDimensionsForStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
-        }
-
-        private void TxtStruSearch_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (e.KeyCode != System.Windows.Forms.Keys.Enter) return;
-            e.Handled = true;
-            e.SuppressKeyPress = true;   // Enter 비프음·기본동작 억제
-            ExtractDimensionsForStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
+            SearchStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
         }
 
         /// <summary>
-        /// #36 STRU 이름으로 찾아 그 STRU만 격리한 뒤 기존 치수 추출(btnMainDimension_Click)을 실행한다.
+        /// #36/#48 STRU 이름으로 찾아 그 STRU만 격리하고 목록 선택·카메라 fit까지 수행한다.
         /// 격리 방식은 ProcessSingleStruFull(전체 BODY 숨김 → STRU BODY만 표시)과 동일 —
-        /// 치수 추출이 "현재 보이는 부재" 기준이므로 격리해야 그 STRU만 대상이 됨.
+        /// 이후 공용 치수 추출을 별도로 실행해도 검색된 STRU만 대상이 되도록 격리를 유지한다.
         /// </summary>
-        private void ExtractDimensionsForStruByName(string name)
+        private void SearchStruByName(string name)
         {
             if (!vizcore3d.Model.IsOpen())
             {
@@ -306,15 +296,19 @@ namespace A2Z
             }
             finally { vizcore3d.EndUpdate(); }
 
-            // 목록에서도 해당 STRU 강조 (시각 일관성). 선택 핸들러가 show+fit 재수행 — 같은 STRU라 무해.
+            // 목록에서도 해당 STRU를 선택한다. 같은 항목을 재검색하면 SelectedIndexChanged가
+            // 발생하지 않으므로 그 경우에만 직접 show+fit을 호출한다.
             if (clbStruList != null && idx < clbStruList.Items.Count)
+            {
+                bool selectionChanged = clbStruList.SelectedIndex != idx;
                 clbStruList.SelectedIndex = idx;
+                if (!selectionChanged)
+                    PerformFlyToSelectedStru();
+            }
             Application.DoEvents();
 
-            DiagLog($"#36 STRU 검색 '{query}' → '{struNode.NodeName}' idx={idx} bodies={memberIndices.Count} 격리 후 치수 추출");
-
-            // 기존 치수 추출 파이프라인 실행 (현재 보이는 = 격리된 STRU 기준)
-            btnMainDimension_Click(this, EventArgs.Empty);
+            DiagLog($"#48 STRU 검색 '{query}' → '{struNode.NodeName}' idx={idx} " +
+                    $"bodies={memberIndices.Count} 격리·선택 완료");
         }
 
         /// <summary>
