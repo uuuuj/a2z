@@ -1,6 +1,6 @@
 # Form1.Stru.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.Stru.cs` (약 1,056 라인)
+**경로**: `A2Z/Form1.Stru.cs` (약 1,076 라인)
 
 **책임**: STRU 목록 수집·검색·선택 가시성, 검색된 STRU 격리·화면 맞춤, 체크 STRU의 4종 도면 PDF 일괄 출력.
 
@@ -15,7 +15,7 @@
 
 ### <a id="btnExtractDrawingList_Click"></a>btnExtractDrawingList_Click
 
-- **라인**: L491~L767
+- **라인**: L499~L775
 - **트리거**: `btnExtractDrawingList` 버튼 클릭
 - **핵심**: 체크 STRU 순회 → STRU별 `ProcessSingleStruFull` → 생성 PDF 수 집계 → 전체 BODY·UI 복원
 - **취소**: 공용 처리 오버레이의 취소 요청을 STRU 시작·종료 경계에서 확인하고, 부분 2D·3D·시트·치수 상태를 정리한 뒤 완료/전체·PDF 수를 표시
@@ -50,10 +50,10 @@
 
 ### <a id="ProcessSingleStruFull"></a>ProcessSingleStruFull
 
-- **라인**: L769~L1049
+- **라인**: L777~L1070
 - **시그니처**: `int ProcessSingleStruFull(Node struNode, string saveDir, Action<int> reportPdfSaved = null)`
 - STRU 후손 BODY 격리 → BOM 재수집 → 비동기 간섭검사·자동 시트 생성 → 일반 시트 2D/PDF → 가공도 묶음 PDF 순으로 처리한다.
-- `ThrowIfCancellationRequested`를 BOM·간섭검사·시트 선택·2D 생성·PDF 저장·가공도 경계에서 호출한다.
+- BOM 수집은 매 부재·홀마다 진행/취소를 확인하고, 일반 도면은 엣지·템플릿·각 뷰, 가공도는 페이지·행·주/보조 뷰·PDF 경계에서 요청을 확인한다.
 - 간섭검사가 이미 실행 중이면 `Clash.IsBusy` 해제와 완료 이벤트 처리를 기다린 뒤 `OperationCanceledException`으로 상위 반복을 종료한다.
 - PDF 저장 직후 `reportPdfSaved`를 호출하므로 STRU가 중간 취소되어도 실제 저장된 PDF 수가 상위 요약에 남는다.
 
@@ -68,6 +68,7 @@
 | `BeginCancelableOperation` / `EndCancelableOperation` | 요청 상태 초기화·해제 |
 | `IsCancellationRequested` | 체크포인트 진단 로그와 요청 조회 |
 | `ThrowIfCancellationRequested` | 동기 일괄 출력 흐름을 `OperationCanceledException`으로 탈출 |
+| `ProcessCancelableUiCheckpoint` | 진행 문구 갱신 → `Application.DoEvents()` → 안전 지점 취소 예외 발생 |
 
 ## 관련 문서
 

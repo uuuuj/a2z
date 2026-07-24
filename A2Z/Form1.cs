@@ -303,7 +303,7 @@ namespace A2Z
                 busyOverlay.Controls.Add(busyOverlayMessage);
 
                 busyOverlayCancelButton = new Button();
-                busyOverlayCancelButton.Text = "현재 작업 후 취소";
+                busyOverlayCancelButton.Text = "취소";
                 busyOverlayCancelButton.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
                 busyOverlayCancelButton.Size = new Size(160, 34);
                 busyOverlayCancelButton.Location = new Point(99, 88);
@@ -332,7 +332,7 @@ namespace A2Z
             _cancelRequested = true;
             _lastCancellationCheckpoint = null;
             UpdateBusyOverlayContents();
-            DiagLog("사용자가 중간 취소를 요청함 — 현재 SDK 작업 완료 후 다음 체크포인트에서 중단");
+            DiagLog("사용자가 취소를 요청함 — 현재 SDK 호출 완료 후 가장 가까운 안전 체크포인트에서 중단");
             Application.DoEvents();
         }
 
@@ -347,10 +347,29 @@ namespace A2Z
             busyOverlayMessage.Size = showCancel ? new Size(338, 72) : new Size(278, 70);
             busyOverlayCancelButton.Visible = _cancelableOperationInProgress;
             busyOverlayCancelButton.Enabled = _cancelableOperationInProgress && !_cancelRequested;
-            busyOverlayCancelButton.Text = _cancelRequested ? "취소 요청됨" : "현재 작업 후 취소";
+            busyOverlayCancelButton.Text = _cancelRequested ? "취소 요청됨" : "취소";
             busyOverlayMessage.Text = _cancelRequested
-                ? $"{busyOverlayBaseMessage}\n현재 작업이 끝나면 중단합니다."
+                ? $"{busyOverlayBaseMessage}\n현재 SDK 호출이 끝나는 즉시 안전하게 중단합니다."
                 : busyOverlayBaseMessage;
+        }
+
+        /// <summary>
+        /// 긴 관리 코드 루프에서 진행 문구를 갱신하고 UI 메시지 큐를 처리한다.
+        /// SDK 단일 호출 중에는 개입하지 않고 호출 사이의 안전한 경계에서만 사용한다.
+        /// </summary>
+        private void ProcessCancelableUiCheckpoint(string message, string checkpoint)
+        {
+            if (!_cancelableOperationInProgress)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                busyOverlayBaseMessage = message;
+                UpdateBusyOverlayContents();
+            }
+
+            Application.DoEvents();
+            ThrowIfCancellationRequested(checkpoint);
         }
 
         private void BeginCancelableOperation()
