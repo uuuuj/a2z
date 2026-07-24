@@ -195,19 +195,29 @@ namespace A2Z
                 Height = 34
             };
 
+            // 자식보다 패널을 먼저 붙여 Dock 폭을 확정한다.
+            // 기본 폭(200)인 상태에서 Anchor 자식을 넣으면 이후 폭 확장분(≈+237)이 그대로 오른쪽으로 밀려
+            // Right Anchor 버튼이 패널 밖으로 나가 화면에 보이지 않는다.
+            groupBoxStru.Controls.Add(panelStruSearch);
+
+            const int LABEL_X = 8, TXT_X = 70, BTN_W = 95, GAP = 6, MARGIN = 4;
+            int panelW = panelStruSearch.ClientSize.Width;
+            int txtW = Math.Max(80, panelW - TXT_X - BTN_W - GAP - MARGIN);
+            int btnX = Math.Max(TXT_X + txtW + GAP, panelW - BTN_W - MARGIN);
+
             var lblStruSearch = new System.Windows.Forms.Label
             {
                 Name = "lblStruSearch",
                 AutoSize = true,
                 Text = "STRU 검색",
-                Location = new System.Drawing.Point(8, 9)
+                Location = new System.Drawing.Point(LABEL_X, 9)
             };
 
             txtStruSearch = new System.Windows.Forms.TextBox
             {
                 Name = "txtStruSearch",
-                Location = new System.Drawing.Point(70, 6),
-                Size = new System.Drawing.Size(258, 23),
+                Location = new System.Drawing.Point(TXT_X, 6),
+                Size = new System.Drawing.Size(txtW, 23),
                 Anchor = System.Windows.Forms.AnchorStyles.Top
                        | System.Windows.Forms.AnchorStyles.Left
                        | System.Windows.Forms.AnchorStyles.Right,
@@ -218,8 +228,8 @@ namespace A2Z
             {
                 Name = "btnStruSearch",
                 Text = "검색",
-                Location = new System.Drawing.Point(334, 5),
-                Size = new System.Drawing.Size(95, 25),
+                Location = new System.Drawing.Point(btnX, 5),
+                Size = new System.Drawing.Size(BTN_W, 25),
                 Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
                 UseVisualStyleBackColor = true
             };
@@ -229,10 +239,8 @@ namespace A2Z
             panelStruSearch.Controls.Add(txtStruSearch);
             panelStruSearch.Controls.Add(btnStruSearch);
 
-            groupBoxStru.Controls.Add(panelStruSearch);
-            // Dock 계층: Fill(clbStruList)이 맨 뒤여야 Top/Bottom 패널이 가장자리를 차지.
             panelStruSearch.BringToFront();
-            if (clbStruList != null) clbStruList.SendToBack();
+            DiagLog($"#36 STRU 검색 UI: panelW={panelW} txtW={txtW} btnX={btnX}");
         }
 
         private void BtnStruSearch_Click(object sender, EventArgs e)
