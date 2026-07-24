@@ -106,6 +106,12 @@ namespace A2Z
         public int PromotedDimensionCount { get; set; }
 
         /// <summary>
+        /// EA 두 뷰가 공통으로 사용할 모델 fit 전 주석 예약 높이(종이 mm).
+        /// null이면 단일 뷰처럼 현재 PendingNotes와 실제 같은 쪽 치수 외곽으로 계산한다.
+        /// </summary>
+        public float? SharedAnnotationBudgetCanvas { get; set; }
+
+        /// <summary>
         /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).
         /// CornerAxis = 1차 뷰 높이축, CornerAtMax = 코너가 그 축 max쪽에 있는지.
         /// Sec* = 2차 뷰 높이축(=1차 뷰 깊이축) 기준 동일 판정 — 2차 뷰 상하 미러 결정용.
