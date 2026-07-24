@@ -103,6 +103,8 @@ namespace A2Z
         public float CenterY { get; set; }
         public float CenterZ { get; set; }
         public int CylinderBodyIndex { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ThroughAxis { get; set; }
+        public string ThroughAxisSource { get; set; }
     }
 
     /// <summary>
@@ -116,6 +118,8 @@ namespace A2Z
         public float CenterX { get; set; }
         public float CenterY { get; set; }
         public float CenterZ { get; set; }
+        public VIZCore3D.NET.Data.Vector3D ThroughAxis { get; set; }
+        public string ThroughAxisSource { get; set; }
     }
 
     /// <summary>

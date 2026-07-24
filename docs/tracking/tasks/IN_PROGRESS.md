@@ -6,6 +6,25 @@
 
 ---
 
+### T-089 — 가공도 풍선 종이 절대 정규화·EA 뷰별 독립 배정
+- **생성일/착수일**: 2026-07-24
+- **상태**: IN_PROGRESS (구현·Debug 빌드 완료, 사내 PDF 실기 검증 대기)
+- **관련**: 사용자 직접 지시, GitHub issue #46
+- **구현**:
+  - [x] Hole/SlotHole 관통축을 `ThicknessCenterTo - ThicknessCenterFrom` 우선으로 추출하고 SDK 로컬축을 교차검증
+  - [x] EA 첫 번째·두 번째 실제 깊이축과 관통축을 비교해 뷰에 먼저 배정한 뒤 뷰별 규격·개수 그룹화
+  - [x] 첫 번째·두 번째 `PendingNotes`를 독립 관리하고 각 캡처 직전 Note를 격리
+  - [x] 모델 span 비례 EarthBoss 4분면 배치 제거, EarthBoss를 첫 번째 뷰 지연 생성으로 통합
+  - [x] 캡처 후 확정된 `newScale`로 치수 외곽→풍선 6mm·풍선 행 8mm를 역산
+  - [x] 풍선 글자 6mm·치수 글자 10mm는 2D 종이 절대값으로 유지
+  - [x] Debug 빌드 오류 0개 (기존 경고만 유지)
+- **사용자 확인 필요**:
+  - [ ] 크기 차가 큰 부재 5개를 한 페이지에 배치해 풍선 거리·행 간격·글자 크기가 같은지
+  - [ ] EA 첫 번째 목록이 비고 두 번째 목록에만 Hole/SlotHole이 있는 부재에서 두 번째 뷰에만 표시되는지
+  - [ ] 같은 규격의 홀이 두 플랜지에 나뉜 경우 뷰별 개수가 각각 맞는지
+  - [ ] 세로 가로화·ORIENTATION·상하 미러 EA와 EarthBoss 위치에 회귀가 없는지
+- **영향 파일**: `A2Z/Form1.MfgDrawing.cs`, `A2Z/Models.cs`, `A2Z/Models/MfgViewPose.cs`, 가공도 시트·미리보기 흐름과 코드 레퍼런스
+
 ### T-087 — 도면 종류별 출력 버튼
 - **생성일/착수일**: 2026-07-24
 - **상태**: IN_PROGRESS (구현·Debug/Release 빌드 완료, 사내 실기 검증 대기)
