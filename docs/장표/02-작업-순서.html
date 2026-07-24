@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>작업 순서 — 파일 열기부터 PDF까지</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* 이 장표 전용 — 공통 뼈대는 _deck.css */
+  main.m-flow{ grid-template-rows:auto 1fr; gap:2cqh; padding:2.4cqh 4cqw 1.3cqh; }
+  .pipe{ display:flex; align-items:stretch; gap:.5cqw; }
+  .pstep{ flex:1; display:flex; flex-direction:column; justify-content:center;
+          background:#fff; border:1px solid var(--line); border-left:3px solid var(--accent);
+          border-radius:8px; padding:1cqh 1cqw; }
+  .pstep .pn{ font-size:1.2cqh; font-weight:800; color:var(--faint); letter-spacing:.1em; }
+  .pstep .pt{ font-weight:800; font-size:1.85cqh; margin-top:.2cqh; }
+  .pstep .ps{ font-size:1.36cqh; color:var(--muted); margin-top:.35cqh; line-height:1.3; }
+  .pstep.hero{ border-left-color:var(--keep); background:var(--keep-bg); border-color:var(--keep-line); }
+  .pstep.hero .pt{ color:var(--keep); }
+  .parrow{ display:flex; align-items:center; font-size:2.2cqh; color:var(--faint); font-weight:700; }
+  .lower{ display:grid; grid-template-columns:0.95fr 1.05fr; gap:2.6cqw; min-height:0; }
+  .inner{ display:flex; flex-direction:column; min-height:0; }
+  .inner .track{ flex:1; }
+  .confuse{ display:flex; flex-direction:column; min-height:0; }
+  .cfbox{ flex:1; min-height:0; background:var(--panel); border:1px solid var(--line);
+          border-radius:10px; padding:1cqh 1.1cqw; }
+  table.cf{ font-size:1.44cqh; height:100%; }
+  table.cf th,table.cf td{ text-align:left; padding:.62cqh .55cqw; vertical-align:middle; }
+  table.cf thead th{ color:var(--accent-ink); }
+  table.cf td.b{ font-weight:800; color:var(--ink); white-space:nowrap; }
+  table.cf td.d{ color:var(--muted); line-height:1.3; }
+  .tabtag{ display:inline-block; font-size:1.1cqh; font-weight:800; padding:.08cqh .45cqw; border-radius:8px;
+           background:var(--line2); color:var(--muted); margin-right:.3cqw; vertical-align:middle; }
+  .mfgline{ margin-top:1cqh; flex-shrink:0; font-size:1.44cqh; color:var(--muted); background:var(--panel2);
+            border:1px solid var(--line); border-radius:8px; padding:.9cqh 1cqw; line-height:1.4; }
+  .mfgline b{ color:var(--mfg); }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="page" id="s1">
+  <div class="slide" role="img" aria-label="파일 열기 후 치수 추출 한 번으로 부재 목록 수집부터 도면 시트 생성까지 자동으로 진행되고, 시트를 골라 2D를 만든 뒤 PDF로 내보내는 작업 순서와 자주 헷갈리는 버튼 네 쌍을 정리한 슬라이드">
+    <header>
+      <div>
+        <div class="kicker">사용 안내 · 작업 순서</div>
+        <h1>파일 열기부터 PDF까지 <span class="sub">— 실제로 누르는 순서</span></h1>
+      </div>
+      <div class="hr">
+        <div class="pgnum">메뉴얼 02</div>
+        <div class="meta"><b>기준일</b> 2026-07-24</div>
+      </div>
+    </header>
+
+    <main class="m-flow">
+
+      <section>
+        <div class="sect-label">큰 흐름 — 버튼 다섯 번</div>
+        <div class="pipe">
+          <div class="pstep">
+            <div class="pn">1단계</div>
+            <div class="pt">파일 열기</div>
+            <div class="ps">3D 모델(.vizx / .viz)을 불러온다</div>
+          </div>
+          <div class="parrow">›</div>
+          <div class="pstep hero">
+            <div class="pn">2단계</div>
+            <div class="pt">치수 추출</div>
+            <div class="ps">한 번 누르면 아래 다섯 가지가 자동으로 이어진다</div>
+          </div>
+          <div class="parrow">›</div>
+          <div class="pstep">
+            <div class="pn">3단계</div>
+            <div class="pt">시트 선택</div>
+            <div class="ps">도면정보 탭에서 뽑을 도면을 고른다</div>
+          </div>
+          <div class="parrow">›</div>
+          <div class="pstep">
+            <div class="pn">4단계</div>
+            <div class="pt">2D 출력</div>
+            <div class="ps">고른 시트를 2D 도면으로 만든다</div>
+          </div>
+          <div class="parrow">›</div>
+          <div class="pstep">
+            <div class="pn">5단계</div>
+            <div class="pt">PDF 출력</div>
+            <div class="ps">파일로 저장. 여러 장이면 일괄 출력</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="lower">
+        <div class="inner">
+          <div class="sect-label">치수 추출 한 번에 벌어지는 일</div>
+          <div class="track">
+            <div class="th">순서대로 자동 진행</div>
+            <div class="step"><span class="n">1</span><span class="lab"><b>부재 목록</b> 수집 — 모델에서 부재를 뽑아 번호를 매김</span></div>
+            <div class="step"><span class="n">2</span><span class="lab"><b>간섭 검사</b> — 어느 부재끼리 닿는지 조사</span></div>
+            <div class="step"><span class="n">3</span><span class="lab"><b>기준점</b> 수집 — 치수를 걸 형상점 추출</span></div>
+            <div class="step"><span class="n">4</span><span class="lab"><b>치수 계산</b> — 축별 체인 치수 생성</span></div>
+            <div class="step"><span class="n">5</span><span class="lab"><b>도면 시트</b> 생성 — 도면을 몇 장 낼지 자동 분할</span></div>
+            <div class="note">각 단계는 <b>따로 있는 버튼</b>으로도 실행할 수 있다.<br>중간에 <b>취소</b>하면 그 단계까지만 반영된다.</div>
+          </div>
+        </div>
+
+        <div class="confuse">
+          <div class="sect-label">자주 헷갈리는 버튼 — 이름이 비슷하지만 다르다</div>
+          <div class="cfbox">
+          <table class="cf">
+            <thead><tr><th>이 버튼</th><th>이 버튼</th><th>차이</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="b"><span class="tabtag">작업</span>BOM</td>
+                <td class="b"><span class="tabtag">도면</span>BOM 수집</td>
+                <td class="d">앞은 <b>부재 전체 목록</b>, 뒤는 <b>고른 시트</b>의 BOM 표</td>
+              </tr>
+              <tr>
+                <td class="b"><span class="tabtag">작업</span>2D 생성</td>
+                <td class="b"><span class="tabtag">도면</span>2D 출력</td>
+                <td class="d">앞은 <b>전체를 한 장</b>, 뒤는 <b>고른 시트 한 장</b></td>
+              </tr>
+              <tr>
+                <td class="b"><span class="tabtag">작업</span>가공도 출력</td>
+                <td class="b"><span class="tabtag">도면</span>가공도 일괄 출력</td>
+                <td class="d">앞은 <b>고른 부재 하나</b>, 뒤는 <b>여러 장 한꺼번에</b></td>
+              </tr>
+              <tr>
+                <td class="b"><span class="tabtag">작업</span>치수</td>
+                <td class="b"><span class="tabtag">기본</span>치수 추출</td>
+                <td class="d">앞은 <b>지금 화면 기준 다시 계산</b>, 뒤는 <b>위 다섯 단계 전체</b></td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+          <div class="mfgline">
+            <b>가공도</b>는 이 순서를 타지 않는다 — 부재 목록만 있으면 <b>부재를 고르고 바로</b> 뽑을 수 있다.
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="foot3">
+      <div class="fcard">
+        <div class="ft"><span class="ic">🖥️</span> 화면 세 칸</div>
+        <p>왼쪽은 <b>작업/데이터 · 부재 정보 · 도면정보</b> 세 탭, 오른쪽은 <b>3D 뷰어</b>. 뷰 전환(ISO·X·Y·Z)과 초기화는 모든 탭에서 쓸 수 있다.</p>
+      </div>
+      <div class="fcard">
+        <div class="ft"><span class="ic">🔁</span> 다시 뽑을 때</div>
+        <p>부재를 숨기거나 골라 둔 <b>화면 상태가 바뀌면 부재 번호가 달라진다</b>. 같은 번호로 다시 뽑으려면 같은 상태에서 치수 추출부터 다시.</p>
+      </div>
+      <div class="fcard warn">
+        <div class="ft"><span class="ic">⚠️</span> 순서를 건너뛰면</div>
+        <p>부재 목록 없이 2D를 누르면 <b>"BOM 데이터가 없습니다"</b>로 막힌다. 시트 목록은 <b>간섭 검사가 끝나야</b> 만들어진다.</p>
+      </div>
+    </footer>
+  </div>
+  </section>
+
+</div>
+</body>
+</html>
