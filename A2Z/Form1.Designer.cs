@@ -30,6 +30,41 @@ namespace A2Z
         {
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.tabControlLeft = new System.Windows.Forms.TabControl();
+            this.tabPageDrawing = new System.Windows.Forms.TabPage();
+            this.splitContainerDrawing = new System.Windows.Forms.SplitContainer();
+            this.lvDrawingSheet = new System.Windows.Forms.ListView();
+            this.colSheetNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colSheetBase = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colSheetMembers = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colSheetCount = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.groupBoxStru = new System.Windows.Forms.GroupBox();
+            this.clbStruList = new System.Windows.Forms.CheckedListBox();
+            this.panelStruHeader = new System.Windows.Forms.Panel();
+            this.btnSelectAllStru = new System.Windows.Forms.Button();
+            this.lblStruTitle = new System.Windows.Forms.Label();
+            this.lvDrawingBOMInfo = new System.Windows.Forms.ListView();
+            this.colDrawingBomNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colDrawingBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.panelDrawingBOMHeader = new System.Windows.Forms.Panel();
+            this.btnCollectBOMInfo = new System.Windows.Forms.Button();
+            this.lblDrawingBOMTitle = new System.Windows.Forms.Label();
+            this.panelDrawingButtons = new System.Windows.Forms.Panel();
+            this.btnExportInstallationSheets = new System.Windows.Forms.Button();
+            this.btnExportAssemblySheets = new System.Windows.Forms.Button();
+            this.btnExportFabricationSheets = new System.Windows.Forms.Button();
+            this.btnExtractDrawingList = new System.Windows.Forms.Button();
+            this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
+            this.btnGenerateSheet2D = new System.Windows.Forms.Button();
+            this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
+            this.panelDrawingHeader = new System.Windows.Forms.Panel();
+            this.lblDrawingDesc = new System.Windows.Forms.Label();
+            this.lblDrawingTitle = new System.Windows.Forms.Label();
             this.tabPageWork = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.panelClashButtons = new System.Windows.Forms.Panel();
@@ -58,12 +93,11 @@ namespace A2Z
             this.btnOsnapClearBalloon = new System.Windows.Forms.Button();
             this.lvOsnap = new System.Windows.Forms.ListView();
             this.columnHeader10 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader15 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader14 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader11 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader12 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader13 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader15 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader16 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.lvBOM = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -82,51 +116,7 @@ namespace A2Z
             this.btnClashDetection = new System.Windows.Forms.Button();
             this.btnCollectBOM = new System.Windows.Forms.Button();
             this.btnExcelTemplatePoC = new System.Windows.Forms.Button();
-            this.btnMainDimension = new System.Windows.Forms.Button();
-            this.panelGlobalViewButtons = new System.Windows.Forms.Panel();
-            this.panelGlobalActions = new System.Windows.Forms.Panel();
-            this.btnResetToInitial = new System.Windows.Forms.Button();
-            this.btnGlobalISO = new System.Windows.Forms.Button();
-            this.btnGlobalAxisX = new System.Windows.Forms.Button();
-            this.btnGlobalAxisY = new System.Windows.Forms.Button();
-            this.btnGlobalAxisZ = new System.Windows.Forms.Button();
-            this.btnOpen = new System.Windows.Forms.Button();
             this.tabPageAttribute = new System.Windows.Forms.TabPage();
-            this.tabPageDrawing = new System.Windows.Forms.TabPage();
-            this.splitContainerDrawing = new System.Windows.Forms.SplitContainer();
-            this.panelDrawingBOMHeader = new System.Windows.Forms.Panel();
-            this.lblDrawingBOMTitle = new System.Windows.Forms.Label();
-            this.btnCollectBOMInfo = new System.Windows.Forms.Button();
-            this.lvDrawingBOMInfo = new System.Windows.Forms.ListView();
-            this.colDrawingBomNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomItem = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomMaterial = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomQty = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomWeight = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomMA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colDrawingBomFA = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.lvDrawingSheet = new System.Windows.Forms.ListView();
-            this.colSheetNo = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colSheetBase = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colSheetMembers = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colSheetCount = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.panelDrawingHeader = new System.Windows.Forms.Panel();
-            this.lblDrawingDesc = new System.Windows.Forms.Label();
-            this.lblDrawingTitle = new System.Windows.Forms.Label();
-            this.panelDrawingButtons = new System.Windows.Forms.Panel();
-            this.btnMfgDrawingSheet = new System.Windows.Forms.Button();
-            this.btnExportFabricationSheets = new System.Windows.Forms.Button();
-            this.btnExportAssemblySheets = new System.Windows.Forms.Button();
-            this.btnExportInstallationSheets = new System.Windows.Forms.Button();
-            this.btnGenerateSheet2D = new System.Windows.Forms.Button();
-            this.btnExportSheet2DPDF = new System.Windows.Forms.Button();
-            this.btnExtractDrawingList = new System.Windows.Forms.Button();
-            this.groupBoxStru = new System.Windows.Forms.GroupBox();
-            this.clbStruList = new System.Windows.Forms.CheckedListBox();
-            this.panelStruHeader = new System.Windows.Forms.Panel();
-            this.lblStruTitle = new System.Windows.Forms.Label();
-            this.btnSelectAllStru = new System.Windows.Forms.Button();
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
             this.btnUdaImportCSV = new System.Windows.Forms.Button();
@@ -138,12 +128,32 @@ namespace A2Z
             this.panelAttributeHeader = new System.Windows.Forms.Panel();
             this.lblSelectedNode = new System.Windows.Forms.Label();
             this.lblAttributeTitle = new System.Windows.Forms.Label();
+            this.panelGlobalActions = new System.Windows.Forms.Panel();
+            this.btnOpen = new System.Windows.Forms.Button();
+            this.btnMainDimension = new System.Windows.Forms.Button();
+            this.panelGlobalViewButtons = new System.Windows.Forms.Panel();
+            this.btnResetToInitial = new System.Windows.Forms.Button();
+            this.btnGlobalISO = new System.Windows.Forms.Button();
+            this.btnGlobalAxisX = new System.Windows.Forms.Button();
+            this.btnGlobalAxisY = new System.Windows.Forms.Button();
+            this.btnGlobalAxisZ = new System.Windows.Forms.Button();
             this.panelViewer = new System.Windows.Forms.Panel();
+            this.columnHeader16 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
             this.tabControlLeft.SuspendLayout();
+            this.tabPageDrawing.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).BeginInit();
+            this.splitContainerDrawing.Panel1.SuspendLayout();
+            this.splitContainerDrawing.Panel2.SuspendLayout();
+            this.splitContainerDrawing.SuspendLayout();
+            this.groupBoxStru.SuspendLayout();
+            this.panelStruHeader.SuspendLayout();
+            this.panelDrawingBOMHeader.SuspendLayout();
+            this.panelDrawingButtons.SuspendLayout();
+            this.panelDrawingHeader.SuspendLayout();
             this.tabPageWork.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.panelClashButtons.SuspendLayout();
@@ -155,17 +165,11 @@ namespace A2Z
             this.panelBOMButtons.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.tabPageAttribute.SuspendLayout();
-            this.tabPageDrawing.SuspendLayout();
-            this.panelDrawingHeader.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).BeginInit();
-            this.splitContainerDrawing.Panel1.SuspendLayout();
-            this.splitContainerDrawing.Panel2.SuspendLayout();
-            this.splitContainerDrawing.SuspendLayout();
-            this.panelDrawingBOMHeader.SuspendLayout();
-            this.panelDrawingButtons.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).BeginInit();
             this.panelAttributeButtons.SuspendLayout();
             this.panelAttributeHeader.SuspendLayout();
+            this.panelGlobalActions.SuspendLayout();
+            this.panelGlobalViewButtons.SuspendLayout();
             this.SuspendLayout();
             // 
             // splitContainer1
@@ -174,10 +178,9 @@ namespace A2Z
             this.splitContainer1.Location = new System.Drawing.Point(0, 0);
             this.splitContainer1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.splitContainer1.Name = "splitContainer1";
-            //
+            // 
             // splitContainer1.Panel1
-            // (WinForms: 나중에 추가된 컨트롤이 먼저 Dock됨 - Top을 마지막에 추가)
-            //
+            // 
             this.splitContainer1.Panel1.Controls.Add(this.tabControlLeft);
             this.splitContainer1.Panel1.Controls.Add(this.panelGlobalActions);
             this.splitContainer1.Panel1.Controls.Add(this.panelGlobalViewButtons);
@@ -189,19 +192,361 @@ namespace A2Z
             this.splitContainer1.SplitterDistance = 457;
             this.splitContainer1.SplitterWidth = 5;
             this.splitContainer1.TabIndex = 0;
-            //
+            // 
             // tabControlLeft
-            //
-            // 탭 순서: 도면정보(최종 목표)를 첫 번째에 배치 — T-019
+            // 
             this.tabControlLeft.Controls.Add(this.tabPageDrawing);
             this.tabControlLeft.Controls.Add(this.tabPageWork);
             this.tabControlLeft.Controls.Add(this.tabPageAttribute);
             this.tabControlLeft.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tabControlLeft.Location = new System.Drawing.Point(0, 42);
+            this.tabControlLeft.Location = new System.Drawing.Point(0, 102);
             this.tabControlLeft.Name = "tabControlLeft";
             this.tabControlLeft.SelectedIndex = 0;
-            this.tabControlLeft.Size = new System.Drawing.Size(457, 958);
+            this.tabControlLeft.Size = new System.Drawing.Size(457, 898);
             this.tabControlLeft.TabIndex = 0;
+            // 
+            // tabPageDrawing
+            // 
+            this.tabPageDrawing.Controls.Add(this.splitContainerDrawing);
+            this.tabPageDrawing.Controls.Add(this.panelDrawingButtons);
+            this.tabPageDrawing.Controls.Add(this.panelDrawingHeader);
+            this.tabPageDrawing.Location = new System.Drawing.Point(4, 25);
+            this.tabPageDrawing.Name = "tabPageDrawing";
+            this.tabPageDrawing.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageDrawing.Size = new System.Drawing.Size(449, 869);
+            this.tabPageDrawing.TabIndex = 0;
+            this.tabPageDrawing.Text = "도면정보";
+            this.tabPageDrawing.UseVisualStyleBackColor = true;
+            // 
+            // splitContainerDrawing
+            // 
+            this.splitContainerDrawing.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainerDrawing.Location = new System.Drawing.Point(3, 58);
+            this.splitContainerDrawing.Name = "splitContainerDrawing";
+            this.splitContainerDrawing.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // splitContainerDrawing.Panel1
+            // 
+            this.splitContainerDrawing.Panel1.Controls.Add(this.lvDrawingSheet);
+            this.splitContainerDrawing.Panel1.Controls.Add(this.groupBoxStru);
+            // 
+            // splitContainerDrawing.Panel2
+            // 
+            this.splitContainerDrawing.Panel2.Controls.Add(this.lvDrawingBOMInfo);
+            this.splitContainerDrawing.Panel2.Controls.Add(this.panelDrawingBOMHeader);
+            this.splitContainerDrawing.Size = new System.Drawing.Size(443, 703);
+            this.splitContainerDrawing.SplitterDistance = 349;
+            this.splitContainerDrawing.SplitterWidth = 5;
+            this.splitContainerDrawing.TabIndex = 3;
+            // 
+            // lvDrawingSheet
+            // 
+            this.lvDrawingSheet.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.colSheetNo,
+            this.colSheetBase,
+            this.colSheetMembers,
+            this.colSheetCount});
+            this.lvDrawingSheet.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvDrawingSheet.FullRowSelect = true;
+            this.lvDrawingSheet.GridLines = true;
+            this.lvDrawingSheet.HideSelection = false;
+            this.lvDrawingSheet.Location = new System.Drawing.Point(0, 240);
+            this.lvDrawingSheet.Name = "lvDrawingSheet";
+            this.lvDrawingSheet.Size = new System.Drawing.Size(443, 109);
+            this.lvDrawingSheet.TabIndex = 1;
+            this.lvDrawingSheet.UseCompatibleStateImageBehavior = false;
+            this.lvDrawingSheet.View = System.Windows.Forms.View.Details;
+            // 
+            // colSheetNo
+            // 
+            this.colSheetNo.Text = "도면번호";
+            this.colSheetNo.Width = 70;
+            // 
+            // colSheetBase
+            // 
+            this.colSheetBase.Text = "기준부재";
+            this.colSheetBase.Width = 100;
+            // 
+            // colSheetMembers
+            // 
+            this.colSheetMembers.Text = "포함부재";
+            this.colSheetMembers.Width = 180;
+            // 
+            // colSheetCount
+            // 
+            this.colSheetCount.Text = "부재수";
+            this.colSheetCount.Width = 150;
+            // 
+            // groupBoxStru
+            // 
+            this.groupBoxStru.Controls.Add(this.clbStruList);
+            this.groupBoxStru.Controls.Add(this.panelStruHeader);
+            this.groupBoxStru.Dock = System.Windows.Forms.DockStyle.Top;
+            this.groupBoxStru.Location = new System.Drawing.Point(0, 0);
+            this.groupBoxStru.Name = "groupBoxStru";
+            this.groupBoxStru.Size = new System.Drawing.Size(443, 240);
+            this.groupBoxStru.TabIndex = 2;
+            this.groupBoxStru.TabStop = false;
+            this.groupBoxStru.Text = "STRU 목록 (모델트리)";
+            // 
+            // clbStruList
+            // 
+            this.clbStruList.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.clbStruList.FormattingEnabled = true;
+            this.clbStruList.IntegralHeight = false;
+            this.clbStruList.Location = new System.Drawing.Point(3, 51);
+            this.clbStruList.Name = "clbStruList";
+            this.clbStruList.Size = new System.Drawing.Size(437, 186);
+            this.clbStruList.TabIndex = 0;
+            this.clbStruList.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.ClbStruList_ItemCheck);
+            this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
+            // 
+            // panelStruHeader
+            // 
+            this.panelStruHeader.Controls.Add(this.btnSelectAllStru);
+            this.panelStruHeader.Controls.Add(this.lblStruTitle);
+            this.panelStruHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelStruHeader.Location = new System.Drawing.Point(3, 21);
+            this.panelStruHeader.Name = "panelStruHeader";
+            this.panelStruHeader.Size = new System.Drawing.Size(437, 30);
+            this.panelStruHeader.TabIndex = 1;
+            // 
+            // btnSelectAllStru
+            // 
+            this.btnSelectAllStru.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnSelectAllStru.Location = new System.Drawing.Point(567, 3);
+            this.btnSelectAllStru.Name = "btnSelectAllStru";
+            this.btnSelectAllStru.Size = new System.Drawing.Size(100, 24);
+            this.btnSelectAllStru.TabIndex = 0;
+            this.btnSelectAllStru.Text = "전체 선택/해제";
+            this.btnSelectAllStru.UseVisualStyleBackColor = true;
+            this.btnSelectAllStru.Click += new System.EventHandler(this.btnSelectAllStru_Click);
+            // 
+            // lblStruTitle
+            // 
+            this.lblStruTitle.AutoSize = true;
+            this.lblStruTitle.Location = new System.Drawing.Point(8, 7);
+            this.lblStruTitle.Name = "lblStruTitle";
+            this.lblStruTitle.Size = new System.Drawing.Size(120, 15);
+            this.lblStruTitle.TabIndex = 1;
+            this.lblStruTitle.Text = "STRU 목록 (0개)";
+            // 
+            // lvDrawingBOMInfo
+            // 
+            this.lvDrawingBOMInfo.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.colDrawingBomNo,
+            this.colDrawingBomItem,
+            this.colDrawingBomMaterial,
+            this.colDrawingBomSize,
+            this.colDrawingBomQty,
+            this.colDrawingBomWeight,
+            this.colDrawingBomMA,
+            this.colDrawingBomFA});
+            this.lvDrawingBOMInfo.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvDrawingBOMInfo.FullRowSelect = true;
+            this.lvDrawingBOMInfo.GridLines = true;
+            this.lvDrawingBOMInfo.HideSelection = false;
+            this.lvDrawingBOMInfo.Location = new System.Drawing.Point(0, 30);
+            this.lvDrawingBOMInfo.Name = "lvDrawingBOMInfo";
+            this.lvDrawingBOMInfo.Size = new System.Drawing.Size(443, 319);
+            this.lvDrawingBOMInfo.TabIndex = 1;
+            this.lvDrawingBOMInfo.UseCompatibleStateImageBehavior = false;
+            this.lvDrawingBOMInfo.View = System.Windows.Forms.View.Details;
+            // 
+            // colDrawingBomNo
+            // 
+            this.colDrawingBomNo.Text = "No.";
+            this.colDrawingBomNo.Width = 40;
+            // 
+            // colDrawingBomItem
+            // 
+            this.colDrawingBomItem.Text = "ITEM";
+            this.colDrawingBomItem.Width = 100;
+            // 
+            // colDrawingBomMaterial
+            // 
+            this.colDrawingBomMaterial.Text = "MATERIAL";
+            this.colDrawingBomMaterial.Width = 80;
+            // 
+            // colDrawingBomSize
+            // 
+            this.colDrawingBomSize.Text = "SIZE";
+            this.colDrawingBomSize.Width = 110;
+            // 
+            // colDrawingBomQty
+            // 
+            this.colDrawingBomQty.Text = "Q\'TY";
+            this.colDrawingBomQty.Width = 45;
+            // 
+            // colDrawingBomWeight
+            // 
+            this.colDrawingBomWeight.Text = "T/W";
+            // 
+            // colDrawingBomMA
+            // 
+            this.colDrawingBomMA.Text = "MA";
+            this.colDrawingBomMA.Width = 35;
+            // 
+            // colDrawingBomFA
+            // 
+            this.colDrawingBomFA.Text = "FA";
+            this.colDrawingBomFA.Width = 35;
+            // 
+            // panelDrawingBOMHeader
+            // 
+            this.panelDrawingBOMHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
+            this.panelDrawingBOMHeader.Controls.Add(this.btnCollectBOMInfo);
+            this.panelDrawingBOMHeader.Controls.Add(this.lblDrawingBOMTitle);
+            this.panelDrawingBOMHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelDrawingBOMHeader.Location = new System.Drawing.Point(0, 0);
+            this.panelDrawingBOMHeader.Name = "panelDrawingBOMHeader";
+            this.panelDrawingBOMHeader.Size = new System.Drawing.Size(443, 30);
+            this.panelDrawingBOMHeader.TabIndex = 0;
+            // 
+            // btnCollectBOMInfo
+            // 
+            this.btnCollectBOMInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCollectBOMInfo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(130)))), ((int)(((byte)(180)))));
+            this.btnCollectBOMInfo.FlatAppearance.BorderSize = 0;
+            this.btnCollectBOMInfo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCollectBOMInfo.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.btnCollectBOMInfo.ForeColor = System.Drawing.Color.White;
+            this.btnCollectBOMInfo.Location = new System.Drawing.Point(333, 2);
+            this.btnCollectBOMInfo.Name = "btnCollectBOMInfo";
+            this.btnCollectBOMInfo.Size = new System.Drawing.Size(100, 26);
+            this.btnCollectBOMInfo.TabIndex = 1;
+            this.btnCollectBOMInfo.Text = "BOM 수집";
+            this.btnCollectBOMInfo.UseVisualStyleBackColor = false;
+            this.btnCollectBOMInfo.Click += new System.EventHandler(this.btnCollectBOMInfo_Click);
+            // 
+            // lblDrawingBOMTitle
+            // 
+            this.lblDrawingBOMTitle.AutoSize = true;
+            this.lblDrawingBOMTitle.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
+            this.lblDrawingBOMTitle.ForeColor = System.Drawing.Color.White;
+            this.lblDrawingBOMTitle.Location = new System.Drawing.Point(10, 5);
+            this.lblDrawingBOMTitle.Name = "lblDrawingBOMTitle";
+            this.lblDrawingBOMTitle.Size = new System.Drawing.Size(80, 20);
+            this.lblDrawingBOMTitle.TabIndex = 0;
+            this.lblDrawingBOMTitle.Text = "BOM 정보";
+            // 
+            // panelDrawingButtons
+            // 
+            this.panelDrawingButtons.Controls.Add(this.btnExportInstallationSheets);
+            this.panelDrawingButtons.Controls.Add(this.btnExportAssemblySheets);
+            this.panelDrawingButtons.Controls.Add(this.btnExportFabricationSheets);
+            this.panelDrawingButtons.Controls.Add(this.btnExtractDrawingList);
+            this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
+            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
+            this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
+            this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 761);
+            this.panelDrawingButtons.Name = "panelDrawingButtons";
+            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 105);
+            this.panelDrawingButtons.TabIndex = 2;
+            // 
+            // btnExportInstallationSheets
+            // 
+            this.btnExportInstallationSheets.Location = new System.Drawing.Point(218, 71);
+            this.btnExportInstallationSheets.Name = "btnExportInstallationSheets";
+            this.btnExportInstallationSheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportInstallationSheets.TabIndex = 6;
+            this.btnExportInstallationSheets.Text = "설치도";
+            this.btnExportInstallationSheets.UseVisualStyleBackColor = true;
+            this.btnExportInstallationSheets.Click += new System.EventHandler(this.btnExportInstallationSheets_Click);
+            // 
+            // btnExportAssemblySheets
+            // 
+            this.btnExportAssemblySheets.Location = new System.Drawing.Point(112, 71);
+            this.btnExportAssemblySheets.Name = "btnExportAssemblySheets";
+            this.btnExportAssemblySheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportAssemblySheets.TabIndex = 5;
+            this.btnExportAssemblySheets.Text = "조립도";
+            this.btnExportAssemblySheets.UseVisualStyleBackColor = true;
+            this.btnExportAssemblySheets.Click += new System.EventHandler(this.btnExportAssemblySheets_Click);
+            // 
+            // btnExportFabricationSheets
+            // 
+            this.btnExportFabricationSheets.Location = new System.Drawing.Point(6, 71);
+            this.btnExportFabricationSheets.Name = "btnExportFabricationSheets";
+            this.btnExportFabricationSheets.Size = new System.Drawing.Size(100, 30);
+            this.btnExportFabricationSheets.TabIndex = 4;
+            this.btnExportFabricationSheets.Text = "제작도";
+            this.btnExportFabricationSheets.UseVisualStyleBackColor = true;
+            this.btnExportFabricationSheets.Click += new System.EventHandler(this.btnExportFabricationSheets_Click);
+            // 
+            // btnExtractDrawingList
+            // 
+            this.btnExtractDrawingList.Location = new System.Drawing.Point(6, 38);
+            this.btnExtractDrawingList.Name = "btnExtractDrawingList";
+            this.btnExtractDrawingList.Size = new System.Drawing.Size(120, 28);
+            this.btnExtractDrawingList.TabIndex = 3;
+            this.btnExtractDrawingList.Text = "도면 일괄 출력";
+            this.btnExtractDrawingList.UseVisualStyleBackColor = true;
+            this.btnExtractDrawingList.Click += new System.EventHandler(this.btnExtractDrawingList_Click);
+            // 
+            // btnExportSheet2DPDF
+            // 
+            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(218, 5);
+            this.btnExportSheet2DPDF.Name = "btnExportSheet2DPDF";
+            this.btnExportSheet2DPDF.Size = new System.Drawing.Size(75, 30);
+            this.btnExportSheet2DPDF.TabIndex = 2;
+            this.btnExportSheet2DPDF.Text = "PDF 출력";
+            this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
+            this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
+            // 
+            // btnGenerateSheet2D
+            // 
+            this.btnGenerateSheet2D.Location = new System.Drawing.Point(112, 5);
+            this.btnGenerateSheet2D.Name = "btnGenerateSheet2D";
+            this.btnGenerateSheet2D.Size = new System.Drawing.Size(100, 30);
+            this.btnGenerateSheet2D.TabIndex = 1;
+            this.btnGenerateSheet2D.Text = "2D 출력";
+            this.btnGenerateSheet2D.UseVisualStyleBackColor = true;
+            this.btnGenerateSheet2D.Click += new System.EventHandler(this.btnGenerateSheet2D_Click);
+            // 
+            // btnMfgDrawingSheet
+            // 
+            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(6, 5);
+            this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
+            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
+            this.btnMfgDrawingSheet.TabIndex = 0;
+            this.btnMfgDrawingSheet.Text = "가공도";
+            this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
+            this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
+            // 
+            // panelDrawingHeader
+            // 
+            this.panelDrawingHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
+            this.panelDrawingHeader.Controls.Add(this.lblDrawingDesc);
+            this.panelDrawingHeader.Controls.Add(this.lblDrawingTitle);
+            this.panelDrawingHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelDrawingHeader.Location = new System.Drawing.Point(3, 3);
+            this.panelDrawingHeader.Name = "panelDrawingHeader";
+            this.panelDrawingHeader.Size = new System.Drawing.Size(443, 55);
+            this.panelDrawingHeader.TabIndex = 0;
+            // 
+            // lblDrawingDesc
+            // 
+            this.lblDrawingDesc.AutoSize = true;
+            this.lblDrawingDesc.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            this.lblDrawingDesc.ForeColor = System.Drawing.Color.LightGray;
+            this.lblDrawingDesc.Location = new System.Drawing.Point(10, 32);
+            this.lblDrawingDesc.Name = "lblDrawingDesc";
+            this.lblDrawingDesc.Size = new System.Drawing.Size(305, 20);
+            this.lblDrawingDesc.TabIndex = 1;
+            this.lblDrawingDesc.Text = "Clash 기반 BFS 탐색으로 시트를 생성합니다";
+            // 
+            // lblDrawingTitle
+            // 
+            this.lblDrawingTitle.AutoSize = true;
+            this.lblDrawingTitle.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.lblDrawingTitle.ForeColor = System.Drawing.Color.White;
+            this.lblDrawingTitle.Location = new System.Drawing.Point(10, 8);
+            this.lblDrawingTitle.Name = "lblDrawingTitle";
+            this.lblDrawingTitle.Size = new System.Drawing.Size(140, 25);
+            this.lblDrawingTitle.TabIndex = 0;
+            this.lblDrawingTitle.Text = "도면 시트 목록";
             // 
             // tabPageWork
             // 
@@ -213,7 +558,7 @@ namespace A2Z
             this.tabPageWork.Location = new System.Drawing.Point(4, 25);
             this.tabPageWork.Name = "tabPageWork";
             this.tabPageWork.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageWork.Size = new System.Drawing.Size(449, 971);
+            this.tabPageWork.Size = new System.Drawing.Size(449, 869);
             this.tabPageWork.TabIndex = 1;
             this.tabPageWork.Text = "작업/데이터";
             this.tabPageWork.UseVisualStyleBackColor = true;
@@ -223,11 +568,11 @@ namespace A2Z
             this.groupBox3.Controls.Add(this.panelClashButtons);
             this.groupBox3.Controls.Add(this.lvClash);
             this.groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.groupBox3.Location = new System.Drawing.Point(3, 743);
+            this.groupBox3.Location = new System.Drawing.Point(3, 655);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.groupBox3.Size = new System.Drawing.Size(443, 225);
+            this.groupBox3.Size = new System.Drawing.Size(443, 211);
             this.groupBox3.TabIndex = 2;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Clash Detection (Z값 기준 정렬)";
@@ -237,7 +582,7 @@ namespace A2Z
             this.panelClashButtons.Controls.Add(this.btnClashShowSelected);
             this.panelClashButtons.Controls.Add(this.btnClashShowAll);
             this.panelClashButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelClashButtons.Location = new System.Drawing.Point(3, 183);
+            this.panelClashButtons.Location = new System.Drawing.Point(3, 169);
             this.panelClashButtons.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.panelClashButtons.Name = "panelClashButtons";
             this.panelClashButtons.Size = new System.Drawing.Size(437, 38);
@@ -278,7 +623,7 @@ namespace A2Z
             this.lvClash.Location = new System.Drawing.Point(3, 22);
             this.lvClash.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.lvClash.Name = "lvClash";
-            this.lvClash.Size = new System.Drawing.Size(437, 199);
+            this.lvClash.Size = new System.Drawing.Size(437, 185);
             this.lvClash.TabIndex = 0;
             this.lvClash.UseCompatibleStateImageBehavior = false;
             this.lvClash.View = System.Windows.Forms.View.Details;
@@ -303,7 +648,7 @@ namespace A2Z
             this.groupBox5.Controls.Add(this.panelDimensionButtons);
             this.groupBox5.Controls.Add(this.lvDimension);
             this.groupBox5.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox5.Location = new System.Drawing.Point(3, 555);
+            this.groupBox5.Location = new System.Drawing.Point(3, 435);
             this.groupBox5.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox5.Name = "groupBox5";
             this.groupBox5.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -317,7 +662,7 @@ namespace A2Z
             this.panelDimensionButtons.Controls.Add(this.btnDimensionShowSelected);
             this.panelDimensionButtons.Controls.Add(this.btnDimensionDelete);
             this.panelDimensionButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDimensionButtons.Location = new System.Drawing.Point(3, 146);
+            this.panelDimensionButtons.Location = new System.Drawing.Point(3, 178);
             this.panelDimensionButtons.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.panelDimensionButtons.Name = "panelDimensionButtons";
             this.panelDimensionButtons.Size = new System.Drawing.Size(437, 38);
@@ -401,7 +746,7 @@ namespace A2Z
             this.groupBox4.Controls.Add(this.panelOsnapButtons);
             this.groupBox4.Controls.Add(this.lvOsnap);
             this.groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox4.Location = new System.Drawing.Point(3, 366);
+            this.groupBox4.Location = new System.Drawing.Point(3, 246);
             this.groupBox4.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox4.Name = "groupBox4";
             this.groupBox4.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -455,9 +800,9 @@ namespace A2Z
             this.btnOsnapShowSelected.Text = "선택 좌표 보기";
             this.btnOsnapShowSelected.UseVisualStyleBackColor = true;
             this.btnOsnapShowSelected.Click += new System.EventHandler(this.btnOsnapShowSelected_Click);
-            //
+            // 
             // btnOsnapClearBalloon
-            //
+            // 
             this.btnOsnapClearBalloon.Location = new System.Drawing.Point(342, 4);
             this.btnOsnapClearBalloon.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnOsnapClearBalloon.Name = "btnOsnapClearBalloon";
@@ -469,7 +814,6 @@ namespace A2Z
             // 
             // lvOsnap
             // 
-            // REQ-003 (2026-05-11): No / 축 / 부재이름 / X / Y / Z (홀사이즈·슬롯홀 제거)
             this.lvOsnap.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader10,
             this.columnHeader15,
@@ -494,6 +838,11 @@ namespace A2Z
             this.columnHeader10.Text = "No";
             this.columnHeader10.Width = 50;
             // 
+            // columnHeader15
+            // 
+            this.columnHeader15.Text = "축";
+            this.columnHeader15.Width = 40;
+            // 
             // columnHeader14
             // 
             this.columnHeader14.Text = "부재 이름";
@@ -513,23 +862,13 @@ namespace A2Z
             // 
             this.columnHeader13.Text = "Z";
             this.columnHeader13.Width = 100;
-            //
-            // columnHeader15
-            //
-            this.columnHeader15.Text = "축";
-            this.columnHeader15.Width = 40;
-            //
-            // columnHeader16
-            //
-            this.columnHeader16.Text = "슬롯홀";
-            this.columnHeader16.Width = 130;
-            //
+            // 
             // groupBox2
             // 
             this.groupBox2.Controls.Add(this.lvBOM);
             this.groupBox2.Controls.Add(this.panelBOMButtons);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox2.Location = new System.Drawing.Point(3, 178);
+            this.groupBox2.Location = new System.Drawing.Point(3, 58);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -589,7 +928,7 @@ namespace A2Z
             this.columnHeader6.Width = 120;
             // 
             // panelBOMButtons
-            //
+            // 
             this.panelBOMButtons.Controls.Add(this.btnBalloonAdjust);
             this.panelBOMButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panelBOMButtons.Location = new System.Drawing.Point(3, 150);
@@ -597,10 +936,9 @@ namespace A2Z
             this.panelBOMButtons.Name = "panelBOMButtons";
             this.panelBOMButtons.Size = new System.Drawing.Size(437, 34);
             this.panelBOMButtons.TabIndex = 1;
-            //
+            // 
             // btnBalloonAdjust
-            //
-            // P1 (2026-05-23): 옛 btnMfgDrawing 폐기로 (6,4) 위치 이동, TabIndex 0
+            // 
             this.btnBalloonAdjust.Location = new System.Drawing.Point(6, 4);
             this.btnBalloonAdjust.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnBalloonAdjust.Name = "btnBalloonAdjust";
@@ -609,10 +947,9 @@ namespace A2Z
             this.btnBalloonAdjust.Text = "풍선 위치 조정";
             this.btnBalloonAdjust.UseVisualStyleBackColor = true;
             this.btnBalloonAdjust.Click += new System.EventHandler(this.btnBalloonAdjust_Click);
-            //
+            // 
             // groupBox1
             // 
-            // T-020: btnOpen/btnMainDimension은 panelGlobalActions(탭 밖)로 이동됨
             this.groupBox1.Controls.Add(this.btnExtractDimension);
             this.groupBox1.Controls.Add(this.btnCollectOsnap);
             this.groupBox1.Controls.Add(this.btnExportPDF);
@@ -625,49 +962,13 @@ namespace A2Z
             this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.groupBox1.Size = new System.Drawing.Size(530, 55);
+            this.groupBox1.Size = new System.Drawing.Size(443, 55);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "작업";
-            //
-            // btnCollectBOM
-            //
-            this.btnCollectBOM.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnCollectBOM.Location = new System.Drawing.Point(234, 20);
-            this.btnCollectBOM.Margin = new System.Windows.Forms.Padding(1);
-            this.btnCollectBOM.Name = "btnCollectBOM";
-            this.btnCollectBOM.Size = new System.Drawing.Size(52, 25);
-            this.btnCollectBOM.TabIndex = 5;
-            this.btnCollectBOM.Text = "BOM";
-            this.btnCollectBOM.UseVisualStyleBackColor = true;
-            this.btnCollectBOM.Click += new System.EventHandler(this.btnCollectBOM_Click);
-            //
-            // btnClashDetection
-            //
-            this.btnClashDetection.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnClashDetection.Location = new System.Drawing.Point(287, 20);
-            this.btnClashDetection.Margin = new System.Windows.Forms.Padding(1);
-            this.btnClashDetection.Name = "btnClashDetection";
-            this.btnClashDetection.Size = new System.Drawing.Size(52, 25);
-            this.btnClashDetection.TabIndex = 6;
-            this.btnClashDetection.Text = "Clash";
-            this.btnClashDetection.UseVisualStyleBackColor = true;
-            this.btnClashDetection.Click += new System.EventHandler(this.btnClashDetection_Click);
-            //
-            // btnCollectOsnap
-            //
-            this.btnCollectOsnap.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnCollectOsnap.Location = new System.Drawing.Point(340, 20);
-            this.btnCollectOsnap.Margin = new System.Windows.Forms.Padding(1);
-            this.btnCollectOsnap.Name = "btnCollectOsnap";
-            this.btnCollectOsnap.Size = new System.Drawing.Size(52, 25);
-            this.btnCollectOsnap.TabIndex = 7;
-            this.btnCollectOsnap.Text = "Osnap";
-            this.btnCollectOsnap.UseVisualStyleBackColor = true;
-            this.btnCollectOsnap.Click += new System.EventHandler(this.btnCollectOsnap_Click);
-            //
+            // 
             // btnExtractDimension
-            //
+            // 
             this.btnExtractDimension.Font = new System.Drawing.Font("맑은 고딕", 8F);
             this.btnExtractDimension.Location = new System.Drawing.Point(393, 20);
             this.btnExtractDimension.Margin = new System.Windows.Forms.Padding(1);
@@ -677,21 +978,21 @@ namespace A2Z
             this.btnExtractDimension.Text = "치수";
             this.btnExtractDimension.UseVisualStyleBackColor = true;
             this.btnExtractDimension.Click += new System.EventHandler(this.btnExtractDimension_Click);
-            //
-            // btnGenerate2D
-            //
-            this.btnGenerate2D.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnGenerate2D.Location = new System.Drawing.Point(11, 20);
-            this.btnGenerate2D.Margin = new System.Windows.Forms.Padding(1);
-            this.btnGenerate2D.Name = "btnGenerate2D";
-            this.btnGenerate2D.Size = new System.Drawing.Size(105, 25);
-            this.btnGenerate2D.TabIndex = 9;
-            this.btnGenerate2D.Text = "2D 생성";
-            this.btnGenerate2D.UseVisualStyleBackColor = true;
-            this.btnGenerate2D.Click += new System.EventHandler(this.btnGenerate2D_Click);
-            //
+            // 
+            // btnCollectOsnap
+            // 
+            this.btnCollectOsnap.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnCollectOsnap.Location = new System.Drawing.Point(340, 20);
+            this.btnCollectOsnap.Margin = new System.Windows.Forms.Padding(1);
+            this.btnCollectOsnap.Name = "btnCollectOsnap";
+            this.btnCollectOsnap.Size = new System.Drawing.Size(52, 25);
+            this.btnCollectOsnap.TabIndex = 7;
+            this.btnCollectOsnap.Text = "Osnap";
+            this.btnCollectOsnap.UseVisualStyleBackColor = true;
+            this.btnCollectOsnap.Click += new System.EventHandler(this.btnCollectOsnap_Click);
+            // 
             // btnExportPDF
-            //
+            // 
             this.btnExportPDF.Font = new System.Drawing.Font("맑은 고딕", 8F);
             this.btnExportPDF.Location = new System.Drawing.Point(117, 20);
             this.btnExportPDF.Margin = new System.Windows.Forms.Padding(1);
@@ -701,9 +1002,45 @@ namespace A2Z
             this.btnExportPDF.Text = "PDF 내보내기";
             this.btnExportPDF.UseVisualStyleBackColor = true;
             this.btnExportPDF.Click += new System.EventHandler(this.btnExportPDF_Click);
-            //
-            // btnExcelTemplatePoC (REQ-002 / T-012 PoC Step 1)
-            //
+            // 
+            // btnGenerate2D
+            // 
+            this.btnGenerate2D.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnGenerate2D.Location = new System.Drawing.Point(11, 20);
+            this.btnGenerate2D.Margin = new System.Windows.Forms.Padding(1);
+            this.btnGenerate2D.Name = "btnGenerate2D";
+            this.btnGenerate2D.Size = new System.Drawing.Size(105, 25);
+            this.btnGenerate2D.TabIndex = 9;
+            this.btnGenerate2D.Text = "2D 생성";
+            this.btnGenerate2D.UseVisualStyleBackColor = true;
+            this.btnGenerate2D.Click += new System.EventHandler(this.btnGenerate2D_Click);
+            // 
+            // btnClashDetection
+            // 
+            this.btnClashDetection.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnClashDetection.Location = new System.Drawing.Point(287, 20);
+            this.btnClashDetection.Margin = new System.Windows.Forms.Padding(1);
+            this.btnClashDetection.Name = "btnClashDetection";
+            this.btnClashDetection.Size = new System.Drawing.Size(52, 25);
+            this.btnClashDetection.TabIndex = 6;
+            this.btnClashDetection.Text = "Clash";
+            this.btnClashDetection.UseVisualStyleBackColor = true;
+            this.btnClashDetection.Click += new System.EventHandler(this.btnClashDetection_Click);
+            // 
+            // btnCollectBOM
+            // 
+            this.btnCollectBOM.Font = new System.Drawing.Font("맑은 고딕", 8F);
+            this.btnCollectBOM.Location = new System.Drawing.Point(234, 20);
+            this.btnCollectBOM.Margin = new System.Windows.Forms.Padding(1);
+            this.btnCollectBOM.Name = "btnCollectBOM";
+            this.btnCollectBOM.Size = new System.Drawing.Size(52, 25);
+            this.btnCollectBOM.TabIndex = 5;
+            this.btnCollectBOM.Text = "BOM";
+            this.btnCollectBOM.UseVisualStyleBackColor = true;
+            this.btnCollectBOM.Click += new System.EventHandler(this.btnCollectBOM_Click);
+            // 
+            // btnExcelTemplatePoC
+            // 
             this.btnExcelTemplatePoC.Font = new System.Drawing.Font("맑은 고딕", 8F);
             this.btnExcelTemplatePoC.Location = new System.Drawing.Point(446, 20);
             this.btnExcelTemplatePoC.Margin = new System.Windows.Forms.Padding(1);
@@ -713,38 +1050,6 @@ namespace A2Z
             this.btnExcelTemplatePoC.Text = "엑셀 PoC";
             this.btnExcelTemplatePoC.UseVisualStyleBackColor = true;
             this.btnExcelTemplatePoC.Click += new System.EventHandler(this.btnExcelTemplatePoC_Click);
-            //
-            // btnMainDimension
-            // 
-            this.btnMainDimension.BackColor = System.Drawing.Color.SeaGreen;
-            this.btnMainDimension.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnMainDimension.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
-            this.btnMainDimension.ForeColor = System.Drawing.Color.White;
-            // T-020: panelGlobalActions 내부 좌표 (탭 밖 공용 버튼)
-            this.btnMainDimension.Location = new System.Drawing.Point(234, 5);
-            this.btnMainDimension.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.btnMainDimension.Name = "btnMainDimension";
-            this.btnMainDimension.Size = new System.Drawing.Size(211, 50);
-            this.btnMainDimension.TabIndex = 1;
-            this.btnMainDimension.Text = "치수 추출";
-            this.btnMainDimension.UseVisualStyleBackColor = false;
-            this.btnMainDimension.Click += new System.EventHandler(this.btnMainDimension_Click);
-            // 
-            // btnOpen
-            // 
-            this.btnOpen.BackColor = System.Drawing.Color.SteelBlue;
-            this.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnOpen.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
-            this.btnOpen.ForeColor = System.Drawing.Color.White;
-            // T-020: panelGlobalActions 내부 좌표 (탭 밖 공용 버튼)
-            this.btnOpen.Location = new System.Drawing.Point(11, 5);
-            this.btnOpen.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.btnOpen.Name = "btnOpen";
-            this.btnOpen.Size = new System.Drawing.Size(211, 50);
-            this.btnOpen.TabIndex = 0;
-            this.btnOpen.Text = "파일 열기";
-            this.btnOpen.UseVisualStyleBackColor = false;
-            this.btnOpen.Click += new System.EventHandler(this.btnOpen_Click);
             // 
             // tabPageAttribute
             // 
@@ -754,7 +1059,7 @@ namespace A2Z
             this.tabPageAttribute.Location = new System.Drawing.Point(4, 25);
             this.tabPageAttribute.Name = "tabPageAttribute";
             this.tabPageAttribute.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageAttribute.Size = new System.Drawing.Size(449, 971);
+            this.tabPageAttribute.Size = new System.Drawing.Size(449, 869);
             this.tabPageAttribute.TabIndex = 2;
             this.tabPageAttribute.Text = "부재 정보";
             this.tabPageAttribute.UseVisualStyleBackColor = true;
@@ -773,7 +1078,7 @@ namespace A2Z
             this.dgvAttributes.RowHeadersVisible = false;
             this.dgvAttributes.RowTemplate.Height = 23;
             this.dgvAttributes.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvAttributes.Size = new System.Drawing.Size(443, 840);
+            this.dgvAttributes.Size = new System.Drawing.Size(443, 738);
             this.dgvAttributes.TabIndex = 1;
             // 
             // panelAttributeButtons
@@ -785,7 +1090,7 @@ namespace A2Z
             this.panelAttributeButtons.Controls.Add(this.btnExportAttributeCSV);
             this.panelAttributeButtons.Controls.Add(this.btnClearSelection);
             this.panelAttributeButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelAttributeButtons.Location = new System.Drawing.Point(3, 898);
+            this.panelAttributeButtons.Location = new System.Drawing.Point(3, 796);
             this.panelAttributeButtons.Name = "panelAttributeButtons";
             this.panelAttributeButtons.Size = new System.Drawing.Size(443, 70);
             this.panelAttributeButtons.TabIndex = 2;
@@ -882,353 +1187,51 @@ namespace A2Z
             this.lblAttributeTitle.Size = new System.Drawing.Size(205, 25);
             this.lblAttributeTitle.TabIndex = 0;
             this.lblAttributeTitle.Text = "부재 속성 (Attributes)";
-            //
-            // tabPageDrawing
-            // (Dock 순서: Fill 먼저 추가, Top/Bottom 나중 추가 = Fill이 마지막에 처리됨)
-            this.tabPageDrawing.Controls.Add(this.splitContainerDrawing);
-            this.tabPageDrawing.Controls.Add(this.panelDrawingButtons);
-            this.tabPageDrawing.Controls.Add(this.panelDrawingHeader);
-            this.tabPageDrawing.Location = new System.Drawing.Point(4, 25);
-            this.tabPageDrawing.Name = "tabPageDrawing";
-            this.tabPageDrawing.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageDrawing.Size = new System.Drawing.Size(449, 971);
-            this.tabPageDrawing.TabIndex = 0;
-            this.tabPageDrawing.Text = "도면정보";
-            this.tabPageDrawing.UseVisualStyleBackColor = true;
-            //
-            // panelDrawingHeader
-            //
-            this.panelDrawingHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
-            this.panelDrawingHeader.Controls.Add(this.lblDrawingDesc);
-            this.panelDrawingHeader.Controls.Add(this.lblDrawingTitle);
-            this.panelDrawingHeader.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelDrawingHeader.Location = new System.Drawing.Point(3, 3);
-            this.panelDrawingHeader.Name = "panelDrawingHeader";
-            this.panelDrawingHeader.Size = new System.Drawing.Size(443, 55);
-            this.panelDrawingHeader.TabIndex = 0;
-            //
-            // lblDrawingTitle
-            //
-            this.lblDrawingTitle.AutoSize = true;
-            this.lblDrawingTitle.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
-            this.lblDrawingTitle.ForeColor = System.Drawing.Color.White;
-            this.lblDrawingTitle.Location = new System.Drawing.Point(10, 8);
-            this.lblDrawingTitle.Name = "lblDrawingTitle";
-            this.lblDrawingTitle.Size = new System.Drawing.Size(160, 25);
-            this.lblDrawingTitle.TabIndex = 0;
-            this.lblDrawingTitle.Text = "도면 시트 목록";
-            //
-            // lblDrawingDesc
-            //
-            this.lblDrawingDesc.AutoSize = true;
-            this.lblDrawingDesc.Font = new System.Drawing.Font("맑은 고딕", 9F);
-            this.lblDrawingDesc.ForeColor = System.Drawing.Color.LightGray;
-            this.lblDrawingDesc.Location = new System.Drawing.Point(10, 32);
-            this.lblDrawingDesc.Name = "lblDrawingDesc";
-            this.lblDrawingDesc.Size = new System.Drawing.Size(290, 20);
-            this.lblDrawingDesc.TabIndex = 1;
-            this.lblDrawingDesc.Text = "Clash 기반 BFS 탐색으로 시트를 생성합니다";
-            //
-            // lvDrawingSheet
-            //
-            this.lvDrawingSheet.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colSheetNo,
-            this.colSheetBase,
-            this.colSheetMembers,
-            this.colSheetCount});
-            this.lvDrawingSheet.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvDrawingSheet.FullRowSelect = true;
-            this.lvDrawingSheet.GridLines = true;
-            this.lvDrawingSheet.HideSelection = false;
-            this.lvDrawingSheet.Location = new System.Drawing.Point(3, 58);
-            this.lvDrawingSheet.Name = "lvDrawingSheet";
-            this.lvDrawingSheet.Size = new System.Drawing.Size(443, 870);
-            this.lvDrawingSheet.TabIndex = 1;
-            this.lvDrawingSheet.UseCompatibleStateImageBehavior = false;
-            this.lvDrawingSheet.View = System.Windows.Forms.View.Details;
-            //
-            // colSheetNo
-            //
-            this.colSheetNo.Text = "도면번호";
-            this.colSheetNo.Width = 70;
-            //
-            // colSheetBase
-            //
-            this.colSheetBase.Text = "기준부재";
-            this.colSheetBase.Width = 100;
-            //
-            // colSheetMembers
-            //
-            this.colSheetMembers.Text = "포함부재";
-            this.colSheetMembers.Width = 180;
-            //
-            // colSheetCount
-            //
-            this.colSheetCount.Text = "부재수";
-            this.colSheetCount.Width = 150;
-            //
-            // splitContainerDrawing
-            //
-            this.splitContainerDrawing.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.splitContainerDrawing.Location = new System.Drawing.Point(3, 58);
-            this.splitContainerDrawing.Name = "splitContainerDrawing";
-            this.splitContainerDrawing.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            //
-            // splitContainerDrawing.Panel1 - 도면 시트 목록
-            //
-            this.splitContainerDrawing.Panel1.Controls.Add(this.lvDrawingSheet);
-            this.splitContainerDrawing.Panel1.Controls.Add(this.groupBoxStru);
-            //
-            // splitContainerDrawing.Panel2 - BOM 정보
-            //
-            this.splitContainerDrawing.Panel2.Controls.Add(this.lvDrawingBOMInfo);
-            this.splitContainerDrawing.Panel2.Controls.Add(this.panelDrawingBOMHeader);
-            this.splitContainerDrawing.Size = new System.Drawing.Size(443, 805);
-            this.splitContainerDrawing.SplitterDistance = 400;
-            this.splitContainerDrawing.SplitterWidth = 5;
-            this.splitContainerDrawing.TabIndex = 3;
-            //
-            // panelDrawingButtons
-            //
-            this.panelDrawingButtons.Controls.Add(this.btnExportInstallationSheets);
-            this.panelDrawingButtons.Controls.Add(this.btnExportAssemblySheets);
-            this.panelDrawingButtons.Controls.Add(this.btnExportFabricationSheets);
-            this.panelDrawingButtons.Controls.Add(this.btnExtractDrawingList);
-            this.panelDrawingButtons.Controls.Add(this.btnExportSheet2DPDF);
-            this.panelDrawingButtons.Controls.Add(this.btnGenerateSheet2D);
-            this.panelDrawingButtons.Controls.Add(this.btnMfgDrawingSheet);
-            this.panelDrawingButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelDrawingButtons.Location = new System.Drawing.Point(3, 863);
-            this.panelDrawingButtons.Name = "panelDrawingButtons";
-            this.panelDrawingButtons.Size = new System.Drawing.Size(443, 105);
-            this.panelDrawingButtons.TabIndex = 2;
-            //
-            // groupBoxStru — T-064 P1 STRU 목록 (Dock=Top, 240px)
-            //
-            this.groupBoxStru.Controls.Add(this.clbStruList);
-            this.groupBoxStru.Controls.Add(this.panelStruHeader);
-            this.groupBoxStru.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBoxStru.Name = "groupBoxStru";
-            this.groupBoxStru.Size = new System.Drawing.Size(443, 240);
-            this.groupBoxStru.Text = "STRU 목록 (모델트리)";
-            //
-            // panelStruHeader
-            //
-            this.panelStruHeader.Controls.Add(this.btnSelectAllStru);
-            this.panelStruHeader.Controls.Add(this.lblStruTitle);
-            this.panelStruHeader.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelStruHeader.Name = "panelStruHeader";
-            this.panelStruHeader.Size = new System.Drawing.Size(437, 30);
-            //
-            // lblStruTitle
-            //
-            this.lblStruTitle.AutoSize = true;
-            this.lblStruTitle.Location = new System.Drawing.Point(8, 7);
-            this.lblStruTitle.Name = "lblStruTitle";
-            this.lblStruTitle.Text = "STRU 목록 (0개)";
-            //
-            // btnSelectAllStru
-            //
-            this.btnSelectAllStru.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnSelectAllStru.Location = new System.Drawing.Point(330, 3);
-            this.btnSelectAllStru.Name = "btnSelectAllStru";
-            this.btnSelectAllStru.Size = new System.Drawing.Size(100, 24);
-            this.btnSelectAllStru.Text = "전체 선택/해제";
-            this.btnSelectAllStru.UseVisualStyleBackColor = true;
-            this.btnSelectAllStru.Click += new System.EventHandler(this.btnSelectAllStru_Click);
-            //
-            // clbStruList
-            //
-            this.clbStruList.CheckOnClick = false;
-            this.clbStruList.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.clbStruList.FormattingEnabled = true;
-            this.clbStruList.IntegralHeight = false;
-            this.clbStruList.Name = "clbStruList";
-            this.clbStruList.Size = new System.Drawing.Size(437, 207);
-            this.clbStruList.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.ClbStruList_ItemCheck);
-            this.clbStruList.SelectedIndexChanged += new System.EventHandler(this.ClbStruList_SelectedIndexChanged);
-            //
-            // btnMfgDrawingSheet
-            //
-            this.btnMfgDrawingSheet.Location = new System.Drawing.Point(6, 5);
-            this.btnMfgDrawingSheet.Name = "btnMfgDrawingSheet";
-            this.btnMfgDrawingSheet.Size = new System.Drawing.Size(100, 30);
-            this.btnMfgDrawingSheet.TabIndex = 0;
-            this.btnMfgDrawingSheet.Text = "가공도";
-            this.btnMfgDrawingSheet.UseVisualStyleBackColor = true;
-            this.btnMfgDrawingSheet.Click += new System.EventHandler(this.btnMfgDrawingSheet_Click);
-            //
-            // btnExportFabricationSheets
-            //
-            this.btnExportFabricationSheets.Location = new System.Drawing.Point(6, 71);
-            this.btnExportFabricationSheets.Name = "btnExportFabricationSheets";
-            this.btnExportFabricationSheets.Size = new System.Drawing.Size(100, 30);
-            this.btnExportFabricationSheets.TabIndex = 4;
-            this.btnExportFabricationSheets.Text = "제작도";
-            this.btnExportFabricationSheets.UseVisualStyleBackColor = true;
-            this.btnExportFabricationSheets.Click += new System.EventHandler(this.btnExportFabricationSheets_Click);
-            //
-            // btnExportAssemblySheets
-            //
-            this.btnExportAssemblySheets.Location = new System.Drawing.Point(112, 71);
-            this.btnExportAssemblySheets.Name = "btnExportAssemblySheets";
-            this.btnExportAssemblySheets.Size = new System.Drawing.Size(100, 30);
-            this.btnExportAssemblySheets.TabIndex = 5;
-            this.btnExportAssemblySheets.Text = "조립도";
-            this.btnExportAssemblySheets.UseVisualStyleBackColor = true;
-            this.btnExportAssemblySheets.Click += new System.EventHandler(this.btnExportAssemblySheets_Click);
-            //
-            // btnExportInstallationSheets
-            //
-            this.btnExportInstallationSheets.Location = new System.Drawing.Point(218, 71);
-            this.btnExportInstallationSheets.Name = "btnExportInstallationSheets";
-            this.btnExportInstallationSheets.Size = new System.Drawing.Size(100, 30);
-            this.btnExportInstallationSheets.TabIndex = 6;
-            this.btnExportInstallationSheets.Text = "설치도";
-            this.btnExportInstallationSheets.UseVisualStyleBackColor = true;
-            this.btnExportInstallationSheets.Click += new System.EventHandler(this.btnExportInstallationSheets_Click);
-            //
-            // btnGenerateSheet2D
-            //
-            this.btnGenerateSheet2D.Location = new System.Drawing.Point(112, 5);
-            this.btnGenerateSheet2D.Name = "btnGenerateSheet2D";
-            this.btnGenerateSheet2D.Size = new System.Drawing.Size(100, 30);
-            this.btnGenerateSheet2D.TabIndex = 1;
-            this.btnGenerateSheet2D.Text = "2D 출력";
-            this.btnGenerateSheet2D.UseVisualStyleBackColor = true;
-            this.btnGenerateSheet2D.Click += new System.EventHandler(this.btnGenerateSheet2D_Click);
-            //
-            // btnExportSheet2DPDF
-            //
-            this.btnExportSheet2DPDF.Location = new System.Drawing.Point(218, 5);
-            this.btnExportSheet2DPDF.Name = "btnExportSheet2DPDF";
-            this.btnExportSheet2DPDF.Size = new System.Drawing.Size(75, 30);
-            this.btnExportSheet2DPDF.TabIndex = 2;
-            this.btnExportSheet2DPDF.Text = "PDF 출력";
-            this.btnExportSheet2DPDF.UseVisualStyleBackColor = true;
-            this.btnExportSheet2DPDF.Click += new System.EventHandler(this.btnExportSheet2DPDF_Click);
-            //
-            // btnExtractDrawingList — T-064 P2a 도면 일괄 출력 (라벨 변경 2026-05-19)
-            //
-            this.btnExtractDrawingList.Location = new System.Drawing.Point(6, 38);
-            this.btnExtractDrawingList.Name = "btnExtractDrawingList";
-            this.btnExtractDrawingList.Size = new System.Drawing.Size(120, 28);
-            this.btnExtractDrawingList.TabIndex = 3;
-            this.btnExtractDrawingList.Text = "도면 일괄 출력";
-            this.btnExtractDrawingList.UseVisualStyleBackColor = true;
-            this.btnExtractDrawingList.Click += new System.EventHandler(this.btnExtractDrawingList_Click);
-            //
-            // panelDrawingBOMHeader
-            //
-            this.panelDrawingBOMHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
-            this.panelDrawingBOMHeader.Controls.Add(this.btnCollectBOMInfo);
-            this.panelDrawingBOMHeader.Controls.Add(this.lblDrawingBOMTitle);
-            this.panelDrawingBOMHeader.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelDrawingBOMHeader.Location = new System.Drawing.Point(0, 0);
-            this.panelDrawingBOMHeader.Name = "panelDrawingBOMHeader";
-            this.panelDrawingBOMHeader.Size = new System.Drawing.Size(443, 30);
-            this.panelDrawingBOMHeader.TabIndex = 0;
-            //
-            // lblDrawingBOMTitle
-            //
-            this.lblDrawingBOMTitle.AutoSize = true;
-            this.lblDrawingBOMTitle.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.lblDrawingBOMTitle.ForeColor = System.Drawing.Color.White;
-            this.lblDrawingBOMTitle.Location = new System.Drawing.Point(10, 5);
-            this.lblDrawingBOMTitle.Name = "lblDrawingBOMTitle";
-            this.lblDrawingBOMTitle.Size = new System.Drawing.Size(140, 20);
-            this.lblDrawingBOMTitle.TabIndex = 0;
-            this.lblDrawingBOMTitle.Text = "BOM 정보";
-            //
-            // btnCollectBOMInfo
-            //
-            this.btnCollectBOMInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnCollectBOMInfo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(70)))), ((int)(((byte)(130)))), ((int)(((byte)(180)))));
-            this.btnCollectBOMInfo.FlatAppearance.BorderSize = 0;
-            this.btnCollectBOMInfo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCollectBOMInfo.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.btnCollectBOMInfo.ForeColor = System.Drawing.Color.White;
-            this.btnCollectBOMInfo.Location = new System.Drawing.Point(333, 2);
-            this.btnCollectBOMInfo.Name = "btnCollectBOMInfo";
-            this.btnCollectBOMInfo.Size = new System.Drawing.Size(100, 26);
-            this.btnCollectBOMInfo.TabIndex = 1;
-            this.btnCollectBOMInfo.Text = "BOM 수집";
-            this.btnCollectBOMInfo.UseVisualStyleBackColor = false;
-            this.btnCollectBOMInfo.Click += new System.EventHandler(this.btnCollectBOMInfo_Click);
-            //
-            // lvDrawingBOMInfo
-            //
-            this.lvDrawingBOMInfo.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colDrawingBomNo,
-            this.colDrawingBomItem,
-            this.colDrawingBomMaterial,
-            this.colDrawingBomSize,
-            this.colDrawingBomQty,
-            this.colDrawingBomWeight,
-            this.colDrawingBomMA,
-            this.colDrawingBomFA});
-            this.lvDrawingBOMInfo.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvDrawingBOMInfo.FullRowSelect = true;
-            this.lvDrawingBOMInfo.GridLines = true;
-            this.lvDrawingBOMInfo.HideSelection = false;
-            this.lvDrawingBOMInfo.Location = new System.Drawing.Point(0, 30);
-            this.lvDrawingBOMInfo.Name = "lvDrawingBOMInfo";
-            this.lvDrawingBOMInfo.Size = new System.Drawing.Size(443, 435);
-            this.lvDrawingBOMInfo.TabIndex = 1;
-            this.lvDrawingBOMInfo.UseCompatibleStateImageBehavior = false;
-            this.lvDrawingBOMInfo.View = System.Windows.Forms.View.Details;
-            //
-            // colDrawingBomNo
-            //
-            this.colDrawingBomNo.Text = "No.";
-            this.colDrawingBomNo.Width = 40;
-            //
-            // colDrawingBomItem
-            //
-            this.colDrawingBomItem.Text = "ITEM";
-            this.colDrawingBomItem.Width = 100;
-            //
-            // colDrawingBomMaterial
-            //
-            this.colDrawingBomMaterial.Text = "MATERIAL";
-            this.colDrawingBomMaterial.Width = 80;
-            //
-            // colDrawingBomSize
-            //
-            this.colDrawingBomSize.Text = "SIZE";
-            this.colDrawingBomSize.Width = 110;
-            //
-            // colDrawingBomQty
-            //
-            this.colDrawingBomQty.Text = "Q'TY";
-            this.colDrawingBomQty.Width = 45;
-            //
-            // colDrawingBomWeight
-            //
-            this.colDrawingBomWeight.Text = "T/W";
-            this.colDrawingBomWeight.Width = 60;
-            //
-            // colDrawingBomMA
-            //
-            this.colDrawingBomMA.Text = "MA";
-            this.colDrawingBomMA.Width = 35;
-            //
-            // colDrawingBomFA
-            //
-            this.colDrawingBomFA.Text = "FA";
-            this.colDrawingBomFA.Width = 35;
-            //
-            // panelViewer
-            //
-            this.panelViewer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panelViewer.Location = new System.Drawing.Point(0, 0);
-            this.panelViewer.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
-            this.panelViewer.Name = "panelViewer";
-            this.panelViewer.Size = new System.Drawing.Size(1138, 1000);
-            this.panelViewer.TabIndex = 0;
-            //
+            // 
+            // panelGlobalActions
+            // 
+            this.panelGlobalActions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+            this.panelGlobalActions.Controls.Add(this.btnOpen);
+            this.panelGlobalActions.Controls.Add(this.btnMainDimension);
+            this.panelGlobalActions.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelGlobalActions.Location = new System.Drawing.Point(0, 42);
+            this.panelGlobalActions.Name = "panelGlobalActions";
+            this.panelGlobalActions.Padding = new System.Windows.Forms.Padding(5);
+            this.panelGlobalActions.Size = new System.Drawing.Size(457, 60);
+            this.panelGlobalActions.TabIndex = 2;
+            // 
+            // btnOpen
+            // 
+            this.btnOpen.BackColor = System.Drawing.Color.SteelBlue;
+            this.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnOpen.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.btnOpen.ForeColor = System.Drawing.Color.White;
+            this.btnOpen.Location = new System.Drawing.Point(11, 5);
+            this.btnOpen.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.btnOpen.Name = "btnOpen";
+            this.btnOpen.Size = new System.Drawing.Size(211, 50);
+            this.btnOpen.TabIndex = 0;
+            this.btnOpen.Text = "파일 열기";
+            this.btnOpen.UseVisualStyleBackColor = false;
+            this.btnOpen.Click += new System.EventHandler(this.btnOpen_Click);
+            // 
+            // btnMainDimension
+            // 
+            this.btnMainDimension.BackColor = System.Drawing.Color.SeaGreen;
+            this.btnMainDimension.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnMainDimension.Font = new System.Drawing.Font("맑은 고딕", 11F, System.Drawing.FontStyle.Bold);
+            this.btnMainDimension.ForeColor = System.Drawing.Color.White;
+            this.btnMainDimension.Location = new System.Drawing.Point(234, 5);
+            this.btnMainDimension.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.btnMainDimension.Name = "btnMainDimension";
+            this.btnMainDimension.Size = new System.Drawing.Size(211, 50);
+            this.btnMainDimension.TabIndex = 1;
+            this.btnMainDimension.Text = "치수 추출";
+            this.btnMainDimension.UseVisualStyleBackColor = false;
+            this.btnMainDimension.Click += new System.EventHandler(this.btnMainDimension_Click);
+            // 
             // panelGlobalViewButtons
-            //
+            // 
             this.panelGlobalViewButtons.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
             this.panelGlobalViewButtons.Controls.Add(this.btnResetToInitial);
             this.panelGlobalViewButtons.Controls.Add(this.btnGlobalISO);
@@ -1239,23 +1242,11 @@ namespace A2Z
             this.panelGlobalViewButtons.Location = new System.Drawing.Point(0, 0);
             this.panelGlobalViewButtons.Name = "panelGlobalViewButtons";
             this.panelGlobalViewButtons.Padding = new System.Windows.Forms.Padding(5);
-            this.panelGlobalViewButtons.Size = new System.Drawing.Size(438, 42);
+            this.panelGlobalViewButtons.Size = new System.Drawing.Size(457, 42);
             this.panelGlobalViewButtons.TabIndex = 1;
-            //
-            // panelGlobalActions (T-020: 파일 열기 + 치수 추출 — 어느 탭에서도 접근 가능)
-            //
-            this.panelGlobalActions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
-            this.panelGlobalActions.Controls.Add(this.btnOpen);
-            this.panelGlobalActions.Controls.Add(this.btnMainDimension);
-            this.panelGlobalActions.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelGlobalActions.Location = new System.Drawing.Point(0, 42);
-            this.panelGlobalActions.Name = "panelGlobalActions";
-            this.panelGlobalActions.Padding = new System.Windows.Forms.Padding(5);
-            this.panelGlobalActions.Size = new System.Drawing.Size(438, 60);
-            this.panelGlobalActions.TabIndex = 2;
-            //
+            // 
             // btnResetToInitial
-            //
+            // 
             this.btnResetToInitial.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(97)))), ((int)(((byte)(97)))), ((int)(((byte)(97)))));
             this.btnResetToInitial.FlatAppearance.BorderSize = 0;
             this.btnResetToInitial.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1268,9 +1259,9 @@ namespace A2Z
             this.btnResetToInitial.Text = "초기화";
             this.btnResetToInitial.UseVisualStyleBackColor = false;
             this.btnResetToInitial.Click += new System.EventHandler(this.btnResetToInitial_Click);
-            //
+            // 
             // btnGlobalISO
-            //
+            // 
             this.btnGlobalISO.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(193)))), ((int)(((byte)(7)))));
             this.btnGlobalISO.FlatAppearance.BorderSize = 0;
             this.btnGlobalISO.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1282,9 +1273,9 @@ namespace A2Z
             this.btnGlobalISO.Text = "ISO";
             this.btnGlobalISO.UseVisualStyleBackColor = false;
             this.btnGlobalISO.Click += new System.EventHandler(this.btnGlobalISO_Click);
-            //
+            // 
             // btnGlobalAxisX
-            //
+            // 
             this.btnGlobalAxisX.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(67)))), ((int)(((byte)(54)))));
             this.btnGlobalAxisX.FlatAppearance.BorderSize = 0;
             this.btnGlobalAxisX.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1297,9 +1288,9 @@ namespace A2Z
             this.btnGlobalAxisX.Text = "X축";
             this.btnGlobalAxisX.UseVisualStyleBackColor = false;
             this.btnGlobalAxisX.Click += new System.EventHandler(this.btnGlobalAxisX_Click);
-            //
+            // 
             // btnGlobalAxisY
-            //
+            // 
             this.btnGlobalAxisY.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(76)))), ((int)(((byte)(175)))), ((int)(((byte)(80)))));
             this.btnGlobalAxisY.FlatAppearance.BorderSize = 0;
             this.btnGlobalAxisY.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1312,9 +1303,9 @@ namespace A2Z
             this.btnGlobalAxisY.Text = "Y축";
             this.btnGlobalAxisY.UseVisualStyleBackColor = false;
             this.btnGlobalAxisY.Click += new System.EventHandler(this.btnGlobalAxisY_Click);
-            //
+            // 
             // btnGlobalAxisZ
-            //
+            // 
             this.btnGlobalAxisZ.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(150)))), ((int)(((byte)(243)))));
             this.btnGlobalAxisZ.FlatAppearance.BorderSize = 0;
             this.btnGlobalAxisZ.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1327,7 +1318,21 @@ namespace A2Z
             this.btnGlobalAxisZ.Text = "Z축";
             this.btnGlobalAxisZ.UseVisualStyleBackColor = false;
             this.btnGlobalAxisZ.Click += new System.EventHandler(this.btnGlobalAxisZ_Click);
-            //
+            // 
+            // panelViewer
+            // 
+            this.panelViewer.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelViewer.Location = new System.Drawing.Point(0, 0);
+            this.panelViewer.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.panelViewer.Name = "panelViewer";
+            this.panelViewer.Size = new System.Drawing.Size(1138, 1000);
+            this.panelViewer.TabIndex = 0;
+            // 
+            // columnHeader16
+            // 
+            this.columnHeader16.Text = "슬롯홀";
+            this.columnHeader16.Width = 130;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
@@ -1343,6 +1348,19 @@ namespace A2Z
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
             this.tabControlLeft.ResumeLayout(false);
+            this.tabPageDrawing.ResumeLayout(false);
+            this.splitContainerDrawing.Panel1.ResumeLayout(false);
+            this.splitContainerDrawing.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).EndInit();
+            this.splitContainerDrawing.ResumeLayout(false);
+            this.groupBoxStru.ResumeLayout(false);
+            this.panelStruHeader.ResumeLayout(false);
+            this.panelStruHeader.PerformLayout();
+            this.panelDrawingBOMHeader.ResumeLayout(false);
+            this.panelDrawingBOMHeader.PerformLayout();
+            this.panelDrawingButtons.ResumeLayout(false);
+            this.panelDrawingHeader.ResumeLayout(false);
+            this.panelDrawingHeader.PerformLayout();
             this.tabPageWork.ResumeLayout(false);
             this.groupBox3.ResumeLayout(false);
             this.panelClashButtons.ResumeLayout(false);
@@ -1354,20 +1372,12 @@ namespace A2Z
             this.panelBOMButtons.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
             this.tabPageAttribute.ResumeLayout(false);
-            this.tabPageDrawing.ResumeLayout(false);
-            this.panelDrawingHeader.ResumeLayout(false);
-            this.panelDrawingHeader.PerformLayout();
-            this.panelDrawingButtons.ResumeLayout(false);
-            this.splitContainerDrawing.Panel1.ResumeLayout(false);
-            this.splitContainerDrawing.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.splitContainerDrawing)).EndInit();
-            this.splitContainerDrawing.ResumeLayout(false);
-            this.panelDrawingBOMHeader.ResumeLayout(false);
-            this.panelDrawingBOMHeader.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvAttributes)).EndInit();
             this.panelAttributeButtons.ResumeLayout(false);
             this.panelAttributeHeader.ResumeLayout(false);
             this.panelAttributeHeader.PerformLayout();
+            this.panelGlobalActions.ResumeLayout(false);
+            this.panelGlobalViewButtons.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
