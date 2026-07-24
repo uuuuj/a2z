@@ -49,7 +49,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#btnOsnapDelete_Click
 | `lvOsnap` | N행 | N - 선택수 행, 번호 재정렬 |
 
 ## 8. 후행 기능 (Chained)
-- 필요 시 재수집 [`btnCollectOsnap`](./Osnap 수집.md)
+- 필요 시 재수집 [`btnCollectOsnap`](./Osnap%20수집.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L758](../../code-reference/form1-drawing2d.md#btnOsnapDelete_Click)

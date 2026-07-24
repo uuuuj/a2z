@@ -53,7 +53,7 @@ code_reference: /docs/code-reference/form1-attribute.md#btnExportAttributeCSV_Cl
 | 디스크 CSV | 없음 | 생성됨 (UTF-8) |
 
 ## 8. 후행 기능 (Chained)
-- 역방향: [UDA CSV 가져오기](./CSV 가져오기.md) (단 가져오기는 UDA만)
+- 역방향: [UDA CSV 가져오기](./CSV%20가져오기.md) (단 가져오기는 UDA만)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Attribute.cs:L257](../../code-reference/form1-attribute.md#btnExportAttributeCSV_Click)

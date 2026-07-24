@@ -48,16 +48,16 @@ flowchart TD
 
 | # | 단계 | 트리거 | 결과 상태 | 문서 |
 |---|---|---|---|---|
-| 1 | VIZCore3D 초기화 | 앱 시작 → 이벤트 | SDK 이벤트 핸들러 구독 완료 | [vizcore3d-initialized](./기능/BOM/VIZCore3D 초기화.md) |
-| 2 | 모델 로드 | btnOpen | `vizcore3d.Model.IsOpened = true` | [open-model](./기능/BOM/모델 열기.md) |
-| 3 | BOM 수집 | btnMainDimension → `CollectBOMData` | `bomList` 채워짐, 홀/슬롯 감지 | [collect-bom](./기능/BOM/BOM 수집.md) |
-| 4 | 간섭 검사 | btnMainDimension → `DetectClash` | 비동기 검사 시작 | [detect-clash](./기능/간섭검사/간섭검사 실행.md) |
-| 5 | 간섭 완료 콜백 + 연결성 판정 | Event | `clashList` 정렬·완성, 연결 성분 1개 확인 후 통과 | [clash-finished-event](./기능/간섭검사/간섭검사 완료 이벤트.md) |
-| 6 | Osnap 수집 | `CompleteMainDimensionPostClash` | `osnapPointsWithNames` 채워짐 | [collect-osnap](./기능/2D도면/Osnap 수집.md) |
-| 7 | 체인 치수 | `CompleteMainDimensionPostClash` | `chainDimensionList` 생성 (3D 뷰에는 미표시) | [main-dimension](./기능/BOM/메인 치수 추출.md) |
-| 8 | 시트 분할 | `GenerateDrawingSheets` | BFS로 `drawingSheets` 자동 생성 | [generate-sheets](./기능/도면시트/시트 자동 생성.md) |
-| 9 | 시트별 2D | btnGenerateSheet2D | 2D 도면 렌더 | [generate-sheet-2d](./기능/도면시트/시트 2D 렌더.md) |
-| 10 | PDF 출력 | btnExportSheet2DPDF / btnExtractDrawingList | 벡터 PDF 파일 | [export-sheet-2d-pdf](./기능/도면시트/시트 PDF 출력.md) |
+| 1 | VIZCore3D 초기화 | 앱 시작 → 이벤트 | SDK 이벤트 핸들러 구독 완료 | [vizcore3d-initialized](./기능/BOM/VIZCore3D%20초기화.md) |
+| 2 | 모델 로드 | btnOpen | `vizcore3d.Model.IsOpened = true` | [open-model](./기능/BOM/모델%20열기.md) |
+| 3 | BOM 수집 | btnMainDimension → `CollectBOMData` | `bomList` 채워짐, 홀/슬롯 감지 | [collect-bom](./기능/BOM/BOM%20수집.md) |
+| 4 | 간섭 검사 | btnMainDimension → `DetectClash` | 비동기 검사 시작 | [detect-clash](./기능/간섭검사/간섭검사%20실행.md) |
+| 5 | 간섭 완료 콜백 + 연결성 판정 | Event | `clashList` 정렬·완성, 연결 성분 1개 확인 후 통과 | [clash-finished-event](./기능/간섭검사/간섭검사%20완료%20이벤트.md) |
+| 6 | Osnap 수집 | `CompleteMainDimensionPostClash` | `osnapPointsWithNames` 채워짐 | [collect-osnap](./기능/2D도면/Osnap%20수집.md) |
+| 7 | 체인 치수 | `CompleteMainDimensionPostClash` | `chainDimensionList` 생성 (3D 뷰에는 미표시) | [main-dimension](./기능/BOM/메인%20치수%20추출.md) |
+| 8 | 시트 분할 | `GenerateDrawingSheets` | BFS로 `drawingSheets` 자동 생성 | [generate-sheets](./기능/도면시트/시트%20자동%20생성.md) |
+| 9 | 시트별 2D | btnGenerateSheet2D | 2D 도면 렌더 | [generate-sheet-2d](./기능/도면시트/시트%202D%20렌더.md) |
+| 10 | PDF 출력 | btnExportSheet2DPDF / btnExtractDrawingList | 벡터 PDF 파일 | [export-sheet-2d-pdf](./기능/도면시트/시트%20PDF%20출력.md) |
 
 3~8단계는 `btnMainDimension_Click` 한 번으로 자동 실행됩니다. 같은 단계를 개별로 실행하는 버튼(`btnCollectBOM_Click`·`btnClashDetection_Click`·`btnCollectOsnap_Click`)도 그대로 남아 있어, 특정 단계만 다시 돌릴 때 사용합니다.
 

@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-07-24 — 문서 링크 경로 공백 236건 인코딩
+
+**유형**: docs
+**커밋**: `pending`
+**관련 TASK**: T-090 (문서 링크 경로 공백 일괄 인코딩)
+**관련 ISSUE**: GitHub issue #52
+**변경 사항**:
+- `docs/**/*.md` 로컬 링크 경로의 원문 공백 236건을 `%20`으로 변경해 CommonMark 렌더러에서 링크가 형성되도록 수정
+- 기능 135건·사용자 매뉴얼 38건·코드 참조 34건·tracking 19건·파이프라인 10건, 현재 저장소 기준 97개 파일 반영
+- fenced code block 예시 3건과 외부 URL·앵커 전용 링크·기존 `%20`은 보존하고 변경 대상 파일 부재 0건 확인
+
+**영향 범위**: 문서 링크 표기만 변경. 문서 본문·코드·파일 구조·링크 앵커는 유지
+
 ## 2026-07-24 — tracking 문서 상대 경로 링크 깊이 수정
 
 **유형**: docs
@@ -4159,7 +4172,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - ❌ 여전히 안 보이면 → 좌표 스케일 / 카메라 시점 추가 진단 필요
    - 외곽 테두리(CrateTemplateBorder)가 캔버스에 보이는지도 같이 확인 — 그게 보이면 캔버스 활성화 성공 신호
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 3 흐름에 2D 모드 진입 시퀀스 추가
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 3 흐름에 2D 모드 진입 시퀀스 추가
 
 ---
 
@@ -4215,7 +4228,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - 일부만 보임 → 좌표/스케일 분석
    - ❌ 안 보임 → ShapeDrawing이 *모델 좌표 공간*에 그려졌을 가능성. 카메라 시점 또는 모드 진입 필요
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 3 흐름 + 핵심 SDK API 표 갱신
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 3 흐름 + 핵심 SDK API 표 갱신
 
 ---
 
@@ -4261,7 +4274,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - (c) DiagLog에 출력된 SDK TemplatePath 안의 SHI 경로
 5. 결과: 2D View 캔버스에 셀 그려지는 후보 찾기 → 그게 SDK의 진짜 적용 API
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 2 흐름 + SDK reflection 분석 표 + 검증 결과 표 갱신
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 2 흐름 + SDK reflection 분석 표 + 검증 결과 표 갱신
 
 ---
 
@@ -4293,7 +4306,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - "엑셀 PoC" 버튼 클릭 → 인덱스 입력 (기본 3) → 2D View 캔버스에 SHI 그려지는지
 - 안 보이면 다른 인덱스(0, 1, 2, 4, 5...) 순회 → SHI 적용되는 인덱스 발견 시 코드에 하드코딩
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) 갱신 (Step 1.5 흐름, SDK API 가시성 확정)
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) 갱신 (Step 1.5 흐름, SDK API 가시성 확정)
 
 ---
 
@@ -4326,7 +4339,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - "엑셀 PoC" 버튼 클릭 → 2D View 캔버스에 엑셀 셀 구조(테두리·텍스트·라벨)가 그려지는지
 - 안 그려지면 Step 2에서 추가 호출(`RenderTemplate` 등) 탐색
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) 신규, [TASKS.md](TASKS.md) T-012 격상
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) 신규, [TASKS.md](TASKS.md) T-012 격상
 
 ---
 
@@ -4591,8 +4604,8 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - `Form1.MfgDrawing.cs:1703` — 가공도 EA
 
 **docs**:
-- 신설: [docs/기술 노트/치수 텍스트 위치.md](../기술 노트/치수 텍스트 위치.md) (T-058 통합 사양)
-- 변경 이력: [선택 치수 표시.md](../기능/치수/선택 치수 표시.md), [메인 치수 추출.md](../기능/BOM/메인 치수 추출.md), [가공도 단일.md](../기능/가공도/가공도 단일.md)
+- 신설: [docs/기술 노트/치수 텍스트 위치.md](../기술%20노트/치수%20텍스트%20위치.md) (T-058 통합 사양)
+- 변경 이력: [선택 치수 표시.md](../기능/치수/선택%20치수%20표시.md), [메인 치수 추출.md](../기능/BOM/메인%20치수%20추출.md), [가공도 단일.md](../기능/가공도/가공도%20단일.md)
 - TASKS.md 머릿주석 회사 doc 표 — 상 5 행을 DONE으로 표시
 - TASKS.md DONE 섹션에 T-058 항목 추가
 
@@ -4654,7 +4667,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 
 **결정**: 사용자 BBox.MaxZ 현행 유지. Osnap 기준 변경하지 않음.
 
-**이유**: A2Z 일반 데이터셋(직립 H빔·플레이트·앵글)에서 `BBox.MaxZ == max(Osnap.Z)`가 성립해 정렬 결과 동등. 차이 발생 케이스(경사·곡면 Body)도 정렬 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 [Sheet1 명명 기준.md](../기술 노트/Sheet1 명명 기준.md) § 7 단답을 그대로 사용 — "BBox 기준이지만 일반 형상에선 명세와 동일 결과"임을 설명. 차후 회사가 Osnap 자체를 강하게 요구하면 그때 신규 작업으로 변경(`Form1.BOM.cs:688` osnapList 1줄 교체) 진행.
+**이유**: A2Z 일반 데이터셋(직립 H빔·플레이트·앵글)에서 `BBox.MaxZ == max(Osnap.Z)`가 성립해 정렬 결과 동등. 차이 발생 케이스(경사·곡면 Body)도 정렬 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 [Sheet1 명명 기준.md](../기술%20노트/Sheet1%20명명%20기준.md) § 7 단답을 그대로 사용 — "BBox 기준이지만 일반 형상에선 명세와 동일 결과"임을 설명. 차후 회사가 Osnap 자체를 강하게 요구하면 그때 신규 작업으로 변경(`Form1.BOM.cs:688` osnapList 1줄 교체) 진행.
 
 **Tracking 갱신**:
 - TASKS.md 검토 대기 항목 2 + T-056 본문 — 결정 반영
@@ -5052,7 +5065,7 @@ T-036 MfgDrawing bom=11 sizeXYZ=(65,65,1050) longestAxis=Z
 **관련 TASK**: T-036
 **배경**: 직전 커밋(`537f07c`)은 "Z 최장축 세로 배치"로 해석해 L215 180° 스킵 가드 추가. 사용자 실기 재보고 "45도 대각 ISO 뷰로 보게 된다" → Z 축 방향이 아닌 **카메라 방향 자체가 ISO**라는 다른 증상 확인
 
-**원인 확정**: [LvDrawingSheet_SelectedIndexChanged](../기능/도면시트/시트 선택.md) 공통부의 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 직전 글로벌 ISO 버튼 상태)을 **그대로 유지한 채 객체로 이동**. 그 후 호출되는 `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 SDK 비동기 렌더 사이에 묻혀 덮어쓰지 못하는 현상으로 추정
+**원인 확정**: [LvDrawingSheet_SelectedIndexChanged](../기능/도면시트/시트%20선택.md) 공통부의 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 직전 글로벌 ISO 버튼 상태)을 **그대로 유지한 채 객체로 이동**. 그 후 호출되는 `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 SDK 비동기 렌더 사이에 묻혀 덮어쓰지 못하는 현상으로 추정
 
 **변경 사항**:
 - [Form1.DrawingSheets.cs `LvDrawingSheet_SelectedIndexChanged` L542~](../../A2Z/Form1.DrawingSheets.cs): 가공도(-3) 시트일 땐 `FlyToObject3d` **스킵**. `ExecuteMfgDrawing`이 자체 카메라·FitToView·visibility를 모두 세팅하므로 충돌 제거

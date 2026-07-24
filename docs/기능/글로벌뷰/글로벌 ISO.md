@@ -76,8 +76,8 @@ flowchart TD
 | `XRay.Enable` | 이전 | Selected경로만 true, FullModel경로는 false |
 
 ## 8. 후행 기능 (Chained)
-- [풍선 위치 조정](../치수/풍선 위치 조정.md)
-- [X/Y/Z 축 뷰](./글로벌 X축.md)
+- [풍선 위치 조정](../치수/풍선%20위치%20조정.md)
+- [X/Y/Z 축 뷰](./글로벌%20X축.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.GlobalViews.cs:L17](../../code-reference/form1-global-views.md#btnGlobalISO_Click)

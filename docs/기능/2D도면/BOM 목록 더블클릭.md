@@ -47,8 +47,8 @@ code_reference: /docs/code-reference/form1-drawing2d.md#LvBOM_DoubleClick
 | 카메라 | 이전 | 해당 부재 확대 |
 
 ## 8. 후행 기능 (Chained)
-- [선택 부재 가공도](../가공도/가공도 단일.md)
-- [속성 조회](../부재속성/객체 선택 이벤트.md) — SDK가 자동 호출
+- [선택 부재 가공도](../가공도/가공도%20단일.md)
+- [속성 조회](../부재속성/객체%20선택%20이벤트.md) — SDK가 자동 호출
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L123](../../code-reference/form1-drawing2d.md#LvBOM_DoubleClick)

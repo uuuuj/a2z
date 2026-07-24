@@ -30,7 +30,7 @@ ISO(등각 투영) 뷰로 전환한다. ISO 뷰에서는 치수가 아닌 **풍�
 | 2 | 내부: 풍선 생성 | Form1 | `CreateIsoBalloonNotes(indices)` (ISO일 때만) |
 
 ## 5. 주요 분기 처리
-[X축 뷰](./X축 치수 표시.md)와 동일하되, "ISO"인 경우 풍선 생성 경로로 분기.
+[X축 뷰](./X축%20치수%20표시.md)와 동일하되, "ISO"인 경우 풍선 생성 경로로 분기.
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |
@@ -47,7 +47,7 @@ ISO(등각 투영) 뷰로 전환한다. ISO 뷰에서는 치수가 아닌 **풍�
 | `currentBalloonView` | 이전 | "ISO" |
 
 ## 8. 후행 기능 (Chained)
-- [풍선 위치 조정](./풍선 위치 조정.md)
+- [풍선 위치 조정](./풍선%20위치%20조정.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Dimensions.cs:L230](../../code-reference/form1-dimensions.md#btnShowISO_Click)

@@ -82,7 +82,7 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 | `DrawingSheetData` BOM 캐시 | 미준비 | 행 목록·Body 그룹 맵·준비 플래그 |
 
 ## 8. 후행 기능 (Chained)
-- [시트별 2D 생성](../도면시트/시트 2D 렌더.md) — 내부적으로 `CollectBOMInfo(false, sheet)` 호출
+- [시트별 2D 생성](../도면시트/시트%202D%20렌더.md) — 내부적으로 `CollectBOMInfo(false, sheet)` 호출
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Clash.cs:L15](../../code-reference/form1-clash.md#btnCollectBOMInfo_Click)

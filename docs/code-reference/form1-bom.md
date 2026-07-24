@@ -12,13 +12,13 @@
 - **라인**: L136~L166
 - **트리거**: `vizcore3d.OnInitializedVIZCore3D`
 - **핵심**: `InitializeLicense()` 위임(Form1.License.cs) → ToolbarDrawing2D·ModelTree 표시 → Clash/Object3D 이벤트 구독 → 엣지 데이터 생성 활성화
-- **흐름 문서**: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D 초기화.md)
+- **흐름 문서**: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D%20초기화.md)
 
 ### <a id="btnOpen_Click"></a>btnOpen_Click
 - **라인**: L168~L248
 - **트리거**: `btnOpen` 버튼 클릭
 - **핵심**: OpenFileDialog → 상태 완전 초기화 → `Model.Open` → FitToView + SilhouetteEdge + BuildBodyToPartNameMap
-- **흐름 문서**: [기능/BOM/모델 열기.md](../기능/BOM/모델 열기.md)
+- **흐름 문서**: [기능/BOM/모델 열기.md](../기능/BOM/모델%20열기.md)
 
 ### <a id="btnResetToInitial_Click"></a>btnResetToInitial_Click
 - **라인**: L250~L270
@@ -30,13 +30,13 @@
 - **라인**: L332~L412
 - **트리거**: `btnMainDimension` 버튼 클릭
 - **핵심**: 취소 가능한 작업 시작·재진입 차단 → BOM 재수집 → `DetectClash(includeOutsideNeighbors: true)` 비동기 시작 → 완료 이벤트에서 Osnap·치수·시트 생성
-- **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인 치수 추출.md)
+- **흐름 문서**: [기능/BOM/메인 치수 추출.md](../기능/BOM/메인%20치수%20추출.md)
 
 ### <a id="btnCollectBOM_Click"></a>btnCollectBOM_Click
 - **라인**: L958~L971
 - **트리거**: `btnCollectBOM` 버튼 클릭
 - **핵심**: `CollectBOMData()` 위임 + 결과 알림
-- **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM 수집.md)
+- **흐름 문서**: [기능/BOM/BOM 수집.md](../기능/BOM/BOM%20수집.md)
 
 ---
 
