@@ -3,132 +3,130 @@
 .nw .iw{ position:relative; width:100%; max-height:100%; }
 .nw .iw img{ width:100%; height:100%; display:block; object-fit:fill; }
 .nw .shot{ padding:.8cqh .6cqw; }
-.nw .mk{ width:2.9cqh; height:2.9cqh; font-size:1.42cqh; }
-.nw .mklist{ overflow:hidden; }
-.nw .mkitem{ font-size:1.4cqh; }
-.nw .mkitem .n{ width:2.3cqh; height:2.3cqh; font-size:1.16cqh; }
+.nw .mk{ width:3.1cqh; height:3.1cqh; font-size:1.55cqh; }
+
+/* 마커 설명 — 이름 한 줄, 설명 한 줄 */
+.nw .mklist{ overflow:hidden; justify-content:center; gap:1.25cqh; }
+.nw .mkitem{ align-items:flex-start; gap:.85cqw; }
+.nw .mkitem .n{ width:3.2cqh; height:3.2cqh; font-size:1.6cqh; margin-top:.15cqh; }
+.nw .mkitem .tx{ min-width:0; }
+.nw .mkitem .tx b{ display:block; font-size:2.35cqh; font-weight:800; line-height:1.2; }
+.nw .mkitem .tx span{ display:block; font-size:1.95cqh; color:var(--muted); line-height:1.3; margin-top:.2cqh; }
+/* 항목이 적은 장 — 더 크게 */
+.nw .mklist.big{ gap:2.2cqh; }
+.nw .mklist.big .mkitem .n{ width:3.8cqh; height:3.8cqh; font-size:1.9cqh; }
+.nw .mklist.big .mkitem .tx b{ font-size:3cqh; }
+.nw .mklist.big .mkitem .tx span{ font-size:2.4cqh; }
+.nw .mkitem.off .n{ background:var(--faint); }
+.nw .mk.off{ background:var(--faint); }
+.nw .stepmk .mkitem .n{ background:var(--keep); }
+.nw .stepmk .mk{ background:var(--keep); }
 
 /* 표지 */
-.nw main.cover{ grid-template-columns:1fr 1.02fr; gap:3cqw; padding:3cqh 4cqw 1.6cqh; align-items:center; }
-.nw .cov-lead{ font-size:2.05cqh; line-height:1.55; color:var(--muted); }
-.nw .cov-lead b{ color:var(--ink); font-weight:800; }
-.nw .cov-flow{ margin-top:2.2cqh; display:flex; align-items:center; gap:.7cqw; }
-.nw .cov-flow .cf{ font-size:1.5cqh; font-weight:800; padding:.6cqh 1cqw; border-radius:7px; background:var(--panel); border:1px solid var(--line); }
-.nw .cov-flow .ar{ color:var(--faint); font-weight:800; }
-.nw .toc{ display:flex; flex-direction:column; gap:.85cqh; }
-.nw .tc{ display:flex; align-items:center; gap:1cqw; padding:.95cqh 1.1cqw; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; background:#fff; }
-.nw .tc .tn{ font-size:2.2cqh; font-weight:800; color:var(--accent-ink); font-variant-numeric:tabular-nums; }
-.nw .tc .tt{ font-size:1.85cqh; font-weight:800; }
-.nw .tc .td{ font-size:1.42cqh; color:var(--muted); margin-top:.15cqh; }
-.nw .tc .tp{ margin-left:auto; font-size:1.3cqh; font-weight:800; color:var(--faint); white-space:nowrap; }
+.nw .slide.cover-slide{ grid-template-rows:1fr; }
+.nw main.cover{ place-content:center; justify-items:center; text-align:center; gap:2.6cqh; }
+.nw .cov-title{ font-size:9.5cqh; font-weight:800; letter-spacing:-.02em; line-height:1.08; }
+.nw .cov-rule{ width:14cqw; height:.6cqh; background:var(--accent); border-radius:3px; }
+.nw .cov-meta{ font-size:2.1cqh; font-weight:700; color:var(--faint); letter-spacing:.06em; }
+
+/* 목차 */
+.nw main.m-toc{ place-content:center; padding:2cqh 8cqw; }
+.nw .toc{ display:flex; flex-direction:column; gap:1.5cqh; width:100%; }
+.nw .tc{ display:flex; align-items:center; gap:1.6cqw; padding:1.7cqh 1.6cqw; border:1px solid var(--line);
+         border-left:5px solid var(--accent); border-radius:9px; background:#fff; }
+.nw .tc .tn{ font-size:3.4cqh; font-weight:800; color:var(--accent-ink); font-variant-numeric:tabular-nums; min-width:2.6cqw; }
+.nw .tc .tt{ font-size:2.9cqh; font-weight:800; }
+.nw .tc .tp{ margin-left:auto; font-size:1.8cqh; font-weight:800; color:var(--faint); white-space:nowrap; }
 .nw .tc.c2{ border-left-color:var(--fab); } .nw .tc.c2 .tn{ color:var(--fab); }
 .nw .tc.c3{ border-left-color:var(--mfg); } .nw .tc.c3 .tn{ color:var(--mfg); }
 .nw .tc.c4{ border-left-color:var(--ins); } .nw .tc.c4 .tn{ color:var(--ins); }
 .nw .tc.c5{ border-left-color:var(--keep); } .nw .tc.c5 .tn{ color:var(--keep); }
 
-/* 순서 마커 리스트 */
-.nw .stepmk .mkitem .n{ background:var(--keep); }
-.nw .stepmk .mk{ background:var(--keep); }
-.nw .mkitem.off .n{ background:var(--faint); }
-.nw .mk.off{ background:var(--faint); }
-
 /* 예시 모델 */
-.nw main.m-model{ grid-template-columns:.92fr 1.35fr; gap:2.4cqw; padding:2.4cqh 4cqw 1.3cqh; }
+.nw main.m-model{ grid-template-columns:.9fr 1.4fr; gap:2.6cqw; padding:2.6cqh 4cqw 2.2cqh; }
 .nw .mdlbox{ display:flex; flex-direction:column; min-height:0; }
 .nw .mdlbox .frame{ flex:1; min-height:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; display:flex; align-items:center; justify-content:center; padding:1cqh 1cqw; }
 .nw .mdlbox .frame img{ max-width:100%; max-height:100%; object-fit:contain; }
-.nw .split{ display:flex; flex-direction:column; min-height:0; gap:1.1cqh; }
-.nw table.parts{ font-size:1.5cqh; }
+.nw .mdlbox .cap{ font-size:1.75cqh; }
+.nw .split{ display:flex; flex-direction:column; min-height:0; gap:2cqh; }
+.nw table.parts{ font-size:1.85cqh; }
 .nw table.parts td.l{ text-align:left; }
-.nw .sheetmap{ display:grid; grid-template-columns:repeat(4,1fr); gap:.9cqw; }
-.nw .sm{ border:1px solid var(--line); border-top:3px solid var(--accent); border-radius:8px; padding:.85cqh .8cqw; background:var(--panel); }
-.nw .sm h5{ font-size:1.6cqh; font-weight:800; }
-.nw .sm .sn{ font-size:1.28cqh; color:var(--faint); font-weight:700; }
-.nw .sm .sd{ font-size:1.36cqh; color:var(--muted); margin-top:.45cqh; line-height:1.32; }
+.nw .sheetmap{ display:grid; grid-template-columns:repeat(4,1fr); gap:1cqw; }
+.nw .sm{ border:1px solid var(--line); border-top:4px solid var(--accent); border-radius:8px; padding:1.2cqh 1cqw; background:var(--panel); }
+.nw .sm h5{ font-size:2.1cqh; font-weight:800; }
+.nw .sm .sn{ font-size:1.6cqh; color:var(--faint); font-weight:800; margin-top:.2cqh; }
+.nw .sm .sd{ font-size:1.55cqh; color:var(--muted); margin-top:.7cqh; line-height:1.3; }
 .nw .sm.s-fab{ border-top-color:var(--fab); } .nw .sm.s-fab h5{ color:var(--fab); }
 .nw .sm.s-asm{ border-top-color:var(--asm); } .nw .sm.s-asm h5{ color:var(--asm); }
 .nw .sm.s-ins{ border-top-color:var(--ins); } .nw .sm.s-ins h5{ color:var(--ins); }
 .nw .sm.s-mfg{ border-top-color:var(--mfg); } .nw .sm.s-mfg h5{ color:var(--mfg); }
 
 /* 조립도 2장 */
-.nw main.m-asm2{ grid-template-columns:1fr 1fr .82fr; gap:1.6cqw; padding:2.4cqh 4cqw 1.3cqh; }
-.nw .shotcap{ font-size:1.32cqh; font-weight:800; color:var(--muted); text-align:center; margin-top:.5cqh; }
+.nw main.m-asm2{ grid-template-columns:1fr 1fr .86fr; gap:1.6cqw; padding:2.4cqh 4cqw 2cqh; }
+.nw .shotcap{ font-size:1.62cqh; font-weight:800; color:var(--muted); text-align:center; margin-top:.6cqh; }
 
-/* 값의 출처 */
-.nw main.m-src{ grid-template-columns:1fr 1.22fr; gap:2.4cqw; padding:2.4cqh 4cqw 1.3cqh; }
-.nw table.src{ font-size:1.44cqh; }
-.nw table.src th,.nw table.src td{ padding:.5cqh .45cqw; }
-.nw table.src td.l,.nw table.src th.l{ text-align:left; }
-.nw table.src code{ font-family:"Consolas","Courier New",monospace; font-size:1.3cqh; background:var(--line2); padding:.05cqh .35cqw; border-radius:3px; color:var(--ink); }
-.nw .st-ok{ color:var(--keep); font-weight:800; }
-.nw .st-part{ color:var(--warn); font-weight:800; }
-.nw .st-tmp{ color:var(--drop); font-weight:800; }
-.nw .legend{ display:flex; gap:1.2cqw; font-size:1.34cqh; margin-top:.9cqh; }
-.nw .legend span{ font-weight:800; }
+/* 값의 출처 — 한 장 표 */
+.nw main.m-src{ padding:2cqh 4cqw 1.6cqh; }
+.nw table.src{ font-size:1.62cqh; }
+.nw table.src th,.nw table.src td{ padding:.42cqh .5cqw; text-align:left; }
+.nw table.src thead th{ font-size:1.55cqh; }
+.nw table.src tbody td{ font-weight:700; }
+.nw table.src td.k{ font-weight:800; color:var(--ink); white-space:nowrap; }
+.nw table.src td.v{ color:var(--muted); font-weight:600; }
+.nw table.src code{ font-family:"Consolas","Courier New",monospace; font-size:1.44cqh; background:var(--line2); padding:.05cqh .35cqw; border-radius:3px; color:var(--ink); }
+.nw tr.grp td{ background:var(--panel2); font-size:1.5cqh; font-weight:800; color:var(--accent-ink);
+               letter-spacing:.06em; padding:.5cqh .5cqw; border-bottom:1.5px solid var(--line); }
+.nw .st-ok{ color:var(--keep); font-weight:800; white-space:nowrap; }
+.nw .st-part{ color:var(--warn); font-weight:800; white-space:nowrap; }
+.nw .st-tmp{ color:var(--drop); font-weight:800; white-space:nowrap; }
+.nw .hr .meta{ font-size:1.4cqh; }
 </style>
 
 <!-- ============ 1 · 표지 ============ -->
 <section class="page nw" data-sec="표지">
-<div class="slide">
-  <header>
-    <div>
-      <div class="kicker">3D 모델에서 2D 도면까지 · 설명 자료</div>
-      <h1>2D 자동 제작도 <span class="sub">— 쓰는 법과, 그렇게 그려지는 근거</span></h1>
-    </div>
-    <div class="hr">
-      <div class="pgnum">발표 통합본</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
-    </div>
-  </header>
+<div class="slide cover-slide">
   <main class="cover">
-    <section>
-      <div class="cov-lead">
-        3D 모델 하나를 열어 <b>제작도·조립도·설치도·가공도</b> 네 종류를 자동으로 뽑는 프로그램입니다.<br>
-        이 자료는 <b>무엇을 눌러 무엇이 나오는지</b>부터, 그렇게 나온 도면의 <b>수치와 값이 어디서 왔는지</b>까지를 순서대로 설명합니다.
-      </div>
-      <div class="cov-flow">
-        <span class="cf">3D 모델</span><span class="ar">›</span>
-        <span class="cf">부재 목록 · 간섭 검사</span><span class="ar">›</span>
-        <span class="cf">치수 · 시트 분할</span><span class="ar">›</span>
-        <span class="cf">2D 도면 PDF</span>
-      </div>
-    </section>
-    <section class="toc">
-      <div class="tc"><span class="tn">1</span><span><span class="tt">화면</span><div class="td">어디에 무엇이 있나</div></span><span class="tp">1장</span></div>
-      <div class="tc c2"><span class="tn">2</span><span><span class="tt">사용 방법</span><div class="td">실제로 누르는 순서와, 그때 안에서 벌어지는 일</div></span><span class="tp">3장</span></div>
-      <div class="tc c3"><span class="tn">3</span><span><span class="tt">결과물 도면</span><div class="td">예시 모델의 부재 분할 · 제작도 · 조립도 · 설치도 · 가공도</div></span><span class="tp">5장</span></div>
-      <div class="tc c4"><span class="tn">4</span><span><span class="tt">값의 출처</span><div class="td">도면에 채워지는 수치·문자가 어느 데이터에서 오나</div></span><span class="tp">2장</span></div>
-      <div class="tc c5"><span class="tn">5</span><span><span class="tt">룰북</span><div class="td">각 요소를 무엇을 가져와 어떤 기준으로 그리나</div></span><span class="tp">10장</span></div>
-    </section>
+    <div class="cov-title">2D 자동 제작도 메뉴얼</div>
+    <div class="cov-rule"></div>
+    <div class="cov-meta">2026-07-27</div>
   </main>
-  <footer class="foot3">
-    <div class="fcard">
-      <div class="ft"><span class="ic">⌨️</span> 넘기기</div>
-      <p><b>→ ← 방향키</b> 또는 <b>스페이스</b>, 화면 클릭. 위 목차 항목을 눌러도 이동합니다.</p>
-    </div>
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔢</span> 수치의 출처</div>
-      <p>적힌 값은 전부 <b>코드 선언부 기준</b>이며 각 장 하단에 파일·라인을 남겼습니다. 사양 문서·주석의 옛 값은 근거로 쓰지 않았습니다.</p>
-    </div>
-    <div class="fcard warn">
-      <div class="ft"><span class="ic">🗓️</span> 기준일</div>
-      <p>수치는 시점에 따라 바뀝니다. 각 장의 <b>기준일</b>을 먼저 보고, 오래됐으면 코드와 대조하십시오.</p>
-    </div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 2 · 화면 ============ -->
+<!-- ============ 2 · 목차 ============ -->
+<section class="page nw" data-sec="목차">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">메뉴얼</div>
+      <h1>목차</h1>
+    </div>
+    <div class="hr">
+      <div class="pgnum">전체 22장</div>
+    </div>
+  </header>
+  <main class="m-toc">
+    <div class="toc">
+      <div class="tc"><span class="tn">1</span><span class="tt">프로그램 UI 구성요소</span><span class="tp">1장</span></div>
+      <div class="tc c2"><span class="tn">2</span><span class="tt">실행 순서</span><span class="tp">3장</span></div>
+      <div class="tc c3"><span class="tn">3</span><span class="tt">결과물 도면</span><span class="tp">5장</span></div>
+      <div class="tc c4"><span class="tn">4</span><span class="tt">도면 정보의 출처</span><span class="tp">1장</span></div>
+      <div class="tc c5"><span class="tn">5</span><span class="tt">룰북</span><span class="tp">10장</span></div>
+    </div>
+  </main>
+</div>
+</section>
+
+<!-- ============ 3 · 화면 ============ -->
 <section class="page nw" data-sec="화면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">화면 · 어디에 무엇이 있나</div>
-      <h1>프로그램 화면 <span class="sub">— 왼쪽에서 만들고, 오른쪽에서 확인한다</span></h1>
+      <div class="kicker">메뉴얼</div>
+      <h1>프로그램 UI 구성요소</h1>
     </div>
     <div class="hr">
-      <div class="pgnum">화면 01</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
+      <div class="pgnum">화면</div>
     </div>
   </header>
   <main class="markers">
@@ -149,36 +147,32 @@
       </div>
     </div>
     <div class="mklist">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>뷰 전환 · 초기화</b> <span>— ISO·X축·Y축·Z축으로 3D를 돌려 본다. 모든 탭에서 쓸 수 있다</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>파일 열기</b> <span>— 3D 모델(.vizx / .viz)을 불러온다</span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>치수 추출</b> <span>— 한 번 누르면 부재 목록부터 시트 분할까지 자동으로 이어진다</span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>탭 3개</b> <span>— 도면정보 / 작업·데이터 / 부재 정보</span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>구조물(STRU) 목록</b> <span>— 모델 트리에서 뽑은 구조물 단위. 행을 고르면 3D에서 강조된다</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>구조물 검색</b> <span>— 이름으로 찾아 해당 구조물만 화면에 맞춘다</span></span></div>
-      <div class="mkitem"><span class="n">7</span><span class="tx"><b>도면 시트 목록</b> <span>— 도면번호 · 기준부재 · 포함부재 · 부재수. <b>몇 장이 나올지가 여기서 정해진다</b></span></span></div>
-      <div class="mkitem"><span class="n">8</span><span class="tx"><b>BOM 정보</b> <span>— 부재 목록과 규격·재질·중량. 도면 오른쪽 위 표로 그대로 들어간다</span></span></div>
-      <div class="mkitem"><span class="n">9</span><span class="tx"><b>출력 버튼</b> <span>— 가공도 / 2D 출력 / PDF 출력 / 도면 일괄 출력 / 제작도 · 조립도 · 설치도</span></span></div>
-      <div class="mkitem"><span class="n">10</span><span class="tx"><b>모델 트리</b> <span>— 구조물 → 부재의 계층. 체크로 보이기·숨기기</span></span></div>
-      <div class="mkitem"><span class="n">11</span><span class="tx"><b>3D 화면</b> <span>— 지금 보이는 상태가 곧 도면의 대상이 된다</span></span></div>
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>뷰 전환 · 초기화</b><span>ISO · X · Y · Z축 전환</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>파일 열기</b><span>3D 모델 불러오기</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>치수 추출</b><span>부재 목록부터 시트 분할까지 자동 실행</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>탭 3개</b><span>도면정보 · 작업/데이터 · 부재 정보</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>구조물 목록</b><span>구조물 단위 선택 · 3D 강조</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>구조물 검색</b><span>이름으로 찾아 화면 맞춤</span></span></div>
+      <div class="mkitem"><span class="n">7</span><span class="tx"><b>도면 시트 목록</b><span>도면번호 · 기준부재 · 포함부재 · 부재수</span></span></div>
+      <div class="mkitem"><span class="n">8</span><span class="tx"><b>BOM 정보</b><span>부재 목록 · 규격 · 재질 · 중량</span></span></div>
+      <div class="mkitem"><span class="n">9</span><span class="tx"><b>출력 버튼</b><span>가공도 · 2D 출력 · PDF 출력 · 일괄 출력 · 제작도 · 조립도 · 설치도</span></span></div>
+      <div class="mkitem"><span class="n">10</span><span class="tx"><b>모델 트리</b><span>구조물 → 부재 계층 · 표시 전환</span></span></div>
+      <div class="mkitem"><span class="n">11</span><span class="tx"><b>3D 화면</b><span>현재 표시 상태 = 도면 대상</span></span></div>
     </div>
   </main>
-  <footer class="foot1">
-    <div class="concl">왼쪽 패널은 <b>위에서 아래로 작업 순서</b>대로 놓여 있다 — 열기 → 추출 → 시트 고르기 → 출력.</div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 3 · 사용 방법 (마커 순서) ============ -->
+<!-- ============ 4 · 실행 순서 ============ -->
 <section class="page nw" data-sec="사용 방법">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">사용 방법 · 누르는 순서</div>
-      <h1>이 순서대로 누르면 도면이 나온다 <span class="sub">— 버튼 다섯 번</span></h1>
+      <div class="kicker">메뉴얼</div>
+      <h1>실행 순서</h1>
     </div>
     <div class="hr">
-      <div class="pgnum">사용 방법 01</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
+      <div class="pgnum">사용 방법</div>
     </div>
   </header>
   <main class="markers">
@@ -195,56 +189,41 @@
         <div class="mk off" style="left:8.5%;top:93.6%">8</div>
       </div>
     </div>
-    <div class="mklist stepmk">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>파일 열기</b> <span>— 3D 모델을 연다</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>치수 추출</b> <span>— 부재 목록 → 간섭 검사 → 기준점 → 치수 → 시트 분할까지 <b>한 번에 자동</b></span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>시트 고르기</b> <span>— 도면 시트 목록에서 뽑을 도면을 선택. 고른 순간 3D가 그 시트 기준으로 맞춰진다</span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>2D 출력</b> <span>— 고른 시트 한 장을 2D 도면으로 만든다</span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>PDF 출력</b> <span>— 만들어진 도면을 파일로 저장</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>종류별 출력</b> <span>— 제작도 · 조립도 · 설치도 버튼은 <b>그 종류의 시트만 골라 한꺼번에</b> PDF까지</span></span></div>
-      <div class="mkitem off"><span class="n">7</span><span class="tx"><b>가공도는 별도 경로</b> <span>— 이 순서를 타지 않는다. 부재 목록만 있으면 부재를 골라 바로 뽑는다</span></span></div>
-      <div class="mkitem off"><span class="n">8</span><span class="tx"><b>도면 일괄 출력</b> <span>— 네 종류를 한 번에. 중간에 <b>취소</b>하면 그때까지 저장된 PDF만 남는다</span></span></div>
+    <div class="mklist big stepmk">
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>파일 열기</b><span>3D 모델 불러오기</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>치수 추출</b><span>부재 목록 · 간섭 검사 · 기준점 · 치수 · 시트 분할 자동 진행</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>시트 고르기</b><span>뽑을 도면 선택 · 3D 자동 정렬</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>2D 출력</b><span>고른 시트 한 장을 2D 도면으로</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>PDF 출력</b><span>파일로 저장</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>종류별 출력</b><span>제작도 · 조립도 · 설치도를 종류째 한 번에</span></span></div>
+      <div class="mkitem off"><span class="n">7</span><span class="tx"><b>가공도 — 별도 경로</b><span>부재 목록만 있으면 바로 출력</span></span></div>
+      <div class="mkitem off"><span class="n">8</span><span class="tx"><b>도면 일괄 출력</b><span>네 종류 한 번에 · 취소 시 저장된 것만 유지</span></span></div>
     </div>
   </main>
-  <footer class="foot3">
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔁</span> 다시 뽑을 때</div>
-      <p>부재를 숨기거나 골라 둔 <b>화면 상태가 바뀌면 부재 번호가 달라진다</b>. 같은 번호로 다시 뽑으려면 같은 상태에서 치수 추출부터 다시.</p>
-    </div>
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔎</span> 큰 모델일 때</div>
-      <p>대상 부재가 <b>5,000개를 넘으면</b> 오래 걸린다는 안내가 먼저 뜬다. 구조물 검색으로 <b>범위를 좁혀 놓고</b> 추출하는 편이 빠르다.</p>
-    </div>
-    <div class="fcard warn">
-      <div class="ft"><span class="ic">⚠️</span> 순서를 건너뛰면</div>
-      <p>부재 목록 없이 2D를 누르면 <b>"BOM 데이터가 없습니다"</b>로 막힌다. 시트 목록은 <b>간섭 검사가 끝나야</b> 만들어진다.</p>
-    </div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 6 · 예시 모델과 부재 분할 ============ -->
+<!-- ============ 7 · 예시 모델 ============ -->
 <section class="page nw" data-sec="결과물 도면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">결과물 도면 · 예시 모델</div>
-      <h1>이 모델 하나가 <span class="sub">— 몇 장의 도면으로 나뉘나</span></h1>
+      <div class="kicker">결과물 도면</div>
+      <h1>예시 모델과 부재 분할</h1>
     </div>
     <div class="hr">
       <div class="pgnum">도면 00</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
     </div>
   </header>
   <main class="m-model">
     <div class="mdlbox">
       <div class="sect-label">예시 모델</div>
       <div class="frame"><img src="{{IMG:예시모델.png}}" alt="예시 모델 3D"></div>
-      <div class="cap">앵글 <b>2개</b>와 어스보스 <b>1개</b>가 붙어 있는 받침. 이후 모든 도면은 이 모델에서 나온 것이다.</div>
+      <div class="cap">앵글 <b>2개</b> + 어스보스 <b>1개</b></div>
     </div>
     <div class="split">
       <div>
-        <div class="sect-label">부재 목록 — 번호는 여기서 한 번 매겨지고 끝까지 유지된다</div>
+        <div class="sect-label">부재 목록 — 번호는 여기서 정해져 끝까지 유지</div>
         <table class="parts">
           <thead><tr><th>No.</th><th>ITEM</th><th>MATERIAL</th><th class="l">SIZE</th><th>T/W</th></tr></thead>
           <tbody>
@@ -255,56 +234,44 @@
         </table>
       </div>
       <div>
-        <div class="sect-label">이 3개가 도면 네 종류로 이렇게 나뉜다</div>
+        <div class="sect-label">부재 3개 → 도면 네 종류</div>
         <div class="sheetmap">
           <div class="sm s-fab">
-            <h5>제작도</h5><div class="sn">Sheet 1 · 1장</div>
-            <div class="sd"><b>전체 한 장.</b> BOM에 1·2·3이 모두 들어간다</div>
+            <h5>제작도</h5><div class="sn">1장</div>
+            <div class="sd">전체 한 장<br>BOM 1 · 2 · 3</div>
           </div>
           <div class="sm s-asm">
-            <h5>조립도</h5><div class="sn">Sheet 2~N · 2장</div>
-            <div class="sd"><b>기준부재 + 닿아 있는 이웃</b>만. 1·2 / 2·3 두 장으로 나뉜다</div>
+            <h5>조립도</h5><div class="sn">2장</div>
+            <div class="sd">기준부재 + 닿는 이웃<br>1·2 / 2·3</div>
           </div>
           <div class="sm s-ins">
             <h5>설치도</h5><div class="sn">1장</div>
-            <div class="sd">이 구조물은 <b>실선</b>, 밖에서 붙는 부재는 <b>점선</b></div>
+            <div class="sd">구조물 실선<br>외부 부재 점선</div>
           </div>
           <div class="sm s-mfg">
-            <h5>가공도</h5><div class="sn">부재당 1행</div>
-            <div class="sd"><b>부재 3개 = 3행.</b> 뷰 배치가 아니라 행 구조</div>
+            <h5>가공도</h5><div class="sn">3행</div>
+            <div class="sd">부재당 한 행<br>뷰 배치 아님</div>
           </div>
         </div>
       </div>
     </div>
   </main>
-  <footer class="foot3">
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔢</span> 번호는 한 번만 매긴다</div>
-      <p>제작도(Sheet 1)에서 매긴 번호를 조립도·가공도가 <b>그대로 물려받는다</b>. 조립도 두 번째 장의 BOM이 <b>2번부터 시작</b>하는 이유.</p>
-    </div>
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔗</span> 몇 장이 될지는 간섭 검사가 정한다</div>
-      <p>어느 부재끼리 닿는지 조사한 결과로 <b>기준부재별 묶음</b>이 만들어지고, 그 묶음 수가 곧 조립도 장 수가 된다.</p>
-    </div>
-    <div class="fcard warn">
-      <div class="ft"><span class="ic">⚠️</span> 1번 부재의 ITEM</div>
-      <p>같은 1번이 제작도에서는 <b>EA</b>, 가공도에서는 <b>EBOS</b>(어스보스)로 나온다. 표기 기준 확인이 필요한 항목.</p>
-    </div>
+  <footer class="foot1">
+    <div class="concl">부재 번호는 <b>제작도에서 한 번만</b> 매겨진다 — 조립도 두 번째 장의 BOM이 <b>2번부터 시작</b>하는 이유.</div>
   </footer>
 </div>
 </section>
 
-<!-- ============ 7 · 제작도 ============ -->
+<!-- ============ 8 · 제작도 ============ -->
 <section class="page nw" data-sec="결과물 도면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">결과물 도면 · 제작도</div>
-      <h1>제작도 <span class="sub">— 부재 전체를 한 장에, 네 방향에서</span></h1>
+      <div class="kicker">결과물 도면</div>
+      <h1>제작도</h1>
     </div>
     <div class="hr">
       <div class="pgnum">도면 01</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
     </div>
   </header>
   <main class="markers">
@@ -324,35 +291,31 @@
       </div>
     </div>
     <div class="mklist">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>ISO</b> <span>— 전체 형상을 비스듬히</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>LOOKING "-Z"</b> <span>— 위에서 내려다본 평면도</span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>LOOKING "-X"</b> <span>— 정면도</span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>LOOKING "-Y"</b> <span>— 측면도</span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>치수</b> <span>— 형상점(Osnap)을 기준으로 이어 붙인 체인 치수. <b>275 = 50 + 225</b>처럼 부분과 전체가 같이 나온다</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>부재번호 풍선</b> <span>— 오른쪽 위 BOM의 No.와 <b>같은 번호</b></span></span></div>
-      <div class="mkitem"><span class="n">7</span><span class="tx"><b>붙어 있는 주변 부재</b> <span>— 이 시트 밖 부재는 <b>점선</b>으로 그리고 이름을 접촉점에 붙인다</span></span></div>
-      <div class="mkitem"><span class="n">8</span><span class="tx"><b>BILL OF MATERIAL</b> <span>— 이 시트에 들어간 부재 목록</span></span></div>
-      <div class="mkitem"><span class="n">9</span><span class="tx"><b>표제부</b> <span>— 프로젝트·선박번호·Paint Code·도면 종류·TAG NO·REV</span></span></div>
-      <div class="mkitem"><span class="n">10</span><span class="tx"><b>방위표</b> <span>— 선박 기준 방향</span></span></div>
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>ISO</b><span>전체 형상</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>LOOKING "-Z"</b><span>평면도</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>LOOKING "-X"</b><span>정면도</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>LOOKING "-Y"</b><span>측면도</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>치수</b><span>형상점 기준 체인 치수 · 275 = 50 + 225</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>부재번호 풍선</b><span>BOM No.와 동일</span></span></div>
+      <div class="mkitem"><span class="n">7</span><span class="tx"><b>주변 부재 이름</b><span>시트 밖 부재는 점선 + 접촉점에 이름</span></span></div>
+      <div class="mkitem"><span class="n">8</span><span class="tx"><b>BOM 표</b><span>이 시트의 부재 목록</span></span></div>
+      <div class="mkitem"><span class="n">9</span><span class="tx"><b>표제부</b><span>프로젝트 · 선박번호 · 도면 이름 · TAG · REV</span></span></div>
+      <div class="mkitem"><span class="n">10</span><span class="tx"><b>방위표</b><span>선박 기준 방향</span></span></div>
     </div>
   </main>
-  <footer class="foot1">
-    <div class="concl">네 뷰의 <b>배치·축척·치수 기준은 네 종류 도면이 모두 같다</b> — 다른 것은 <b>어떤 부재를 실선으로 넣느냐</b>뿐.</div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 8 · 조립도 ============ -->
+<!-- ============ 9 · 조립도 ============ -->
 <section class="page nw" data-sec="결과물 도면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">결과물 도면 · 조립도</div>
-      <h1>조립도 <span class="sub">— 기준부재 하나씩, 붙어 있는 것만 데리고</span></h1>
+      <div class="kicker">결과물 도면</div>
+      <h1>조립도</h1>
     </div>
     <div class="hr">
       <div class="pgnum">도면 02</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
     </div>
   </header>
   <main class="m-asm2">
@@ -372,32 +335,28 @@
       </div>
       <div class="shotcap">Sheet 3 — 기준부재 2 + 이웃 3</div>
     </div>
-    <div class="mklist">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>기준부재 + 닿아 있는 부재</b>만 <span>— 간섭 검사에서 나온 이웃 관계로 묶는다. 묶음 수 = 장 수</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>부재번호는 제작도 그대로</b> <span>— 새로 1번부터 매기지 않는다</span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>Sheet 2의 BOM</b> <span>— 1번·2번</span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>Sheet 3의 BOM</b> <span>— <b>2번·3번</b>. 번호가 2부터 시작하는 것이 정상</span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>TAG NO</b> <span>— 구조물 UDA에서 채워진다</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>뷰 배치·치수 기준은 제작도와 동일</b> <span>— ISO · 평면 · 정면 · 측면</span></span></div>
+    <div class="mklist big">
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>기준부재 + 닿는 부재</b><span>간섭 검사 결과로 묶음 · 묶음 수 = 장 수</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>부재번호</b><span>제작도 번호 그대로</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>Sheet 2 BOM</b><span>1번 · 2번</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>Sheet 3 BOM</b><span>2번 · 3번 — 2부터 시작이 정상</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>TAG No.</b><span>구조물 속성에서 자동</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>뷰 배치</b><span>제작도와 동일</span></span></div>
     </div>
   </main>
-  <footer class="foot1">
-    <div class="concl">부재가 많아질수록 <b>조립도 장 수가 늘어난다</b> — 이 예시는 3개 부재 → <b>2장</b>.</div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 9 · 설치도 ============ -->
+<!-- ============ 10 · 설치도 ============ -->
 <section class="page nw" data-sec="결과물 도면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">결과물 도면 · 설치도</div>
-      <h1>설치도 <span class="sub">— 밖에서 붙는 부재가 어디에 오는지</span></h1>
+      <div class="kicker">결과물 도면</div>
+      <h1>설치도</h1>
     </div>
     <div class="hr">
       <div class="pgnum">도면 03</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
     </div>
   </header>
   <main class="markers">
@@ -412,32 +371,28 @@
         <div class="mk" style="left:93.5%;top:5.0%">6</div>
       </div>
     </div>
-    <div class="mklist">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>선택한 구조물은 실선</b> <span>— 지금 만드는 대상</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>연결부재 이름</b> <span>— 밖에서 붙는 부재의 이름을 <b>접촉점</b>에 붙인다</span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>위치 치수</b> <span>— 실선 부재의 <b>끝단에서 연결부재 모서리까지</b>. 전체 길이가 아니라 <b>붙는 자리까지의 거리</b></span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>밖에서 붙는 부재는 점선</b> <span>— 길게 뻗은 부재는 <b>접합 주변만 잘라</b> 보여준다</span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>그 축이 길이로 보이는 뷰에만</b> <span>— 같은 치수를 세 뷰에 중복해 넣지 않는다</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>BOM·표제부</b> <span>— 다른 도면과 같은 자리·같은 형식</span></span></div>
+    <div class="mklist big">
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>선택 구조물</b><span>실선</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>연결부재 이름</b><span>접촉점에 표시</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>위치 치수</b><span>실선 부재 끝단 → 연결부재 모서리</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>외부 연결부재</b><span>점선 · 접합 주변만 남김</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>치수 배정</b><span>그 축이 길이로 보이는 뷰에만</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>BOM · 표제부</b><span>다른 도면과 같은 자리</span></span></div>
     </div>
   </main>
-  <footer class="foot1">
-    <div class="concl">설치도의 질문은 하나다 — <b>"이 구조물을 어디에 대고 붙이나"</b>. 그래서 치수가 <b>접합부까지</b>만 나온다.</div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 10 · 가공도 ============ -->
+<!-- ============ 11 · 가공도 ============ -->
 <section class="page nw" data-sec="결과물 도면">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">결과물 도면 · 가공도</div>
-      <h1>가공도 <span class="sub">— 부재 하나하나를 펼쳐서, 자르고 뚫을 수 있게</span></h1>
+      <div class="kicker">결과물 도면</div>
+      <h1>가공도</h1>
     </div>
     <div class="hr">
       <div class="pgnum">도면 04</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
     </div>
   </header>
   <main class="markers">
@@ -452,139 +407,59 @@
         <div class="mk" style="left:68.5%;top:11.6%">6</div>
       </div>
     </div>
-    <div class="mklist">
-      <div class="mkitem"><span class="n">1</span><span class="tx"><b>부재 이름</b> <span>— 어느 구조물의 몇 번째 부재인지 왼쪽에 적는다</span></span></div>
-      <div class="mkitem"><span class="n">2</span><span class="tx"><b>부재당 한 행</b> <span>— 제작도처럼 네 뷰로 나누지 않고, <b>부재를 위에서 아래로 쌓는다</b>. 3부재 = 3행</span></span></div>
-      <div class="mkitem"><span class="n">3</span><span class="tx"><b>앵글(EA)은 상·하 두 뷰</b> <span>— 두 면을 각각 봐야 하므로 한 부재가 두 줄로 나온다</span></span></div>
-      <div class="mkitem"><span class="n">4</span><span class="tx"><b>치수</b> <span>— 길이·폭·두께. 부재 크기가 달라도 <b>종이 위 글자 크기와 간격은 항상 같다</b></span></span></div>
-      <div class="mkitem"><span class="n">5</span><span class="tx"><b>홀·슬롯 풍선</b> <span>— 구멍의 규격과 개수. <b>가공도에만</b> 표시한다</span></span></div>
-      <div class="mkitem"><span class="n">6</span><span class="tx"><b>BOM</b> <span>— 1번이 <b>EBOS</b>(어스보스). 제작도와 같은 번호 체계</span></span></div>
+    <div class="mklist big">
+      <div class="mkitem"><span class="n">1</span><span class="tx"><b>부재 이름</b><span>구조물 · 부재 번호</span></span></div>
+      <div class="mkitem"><span class="n">2</span><span class="tx"><b>부재당 한 행</b><span>뷰 배치 아님 · 3부재 = 3행</span></span></div>
+      <div class="mkitem"><span class="n">3</span><span class="tx"><b>앵글은 상·하 두 뷰</b><span>두 면을 각각 표시</span></span></div>
+      <div class="mkitem"><span class="n">4</span><span class="tx"><b>치수</b><span>종이 절대 크기 — 부재 크기와 무관하게 동일</span></span></div>
+      <div class="mkitem"><span class="n">5</span><span class="tx"><b>홀 · 슬롯 풍선</b><span>규격과 개수 · 가공도에만</span></span></div>
+      <div class="mkitem"><span class="n">6</span><span class="tx"><b>BOM 표</b><span>1번 = 어스보스(EBOS)</span></span></div>
     </div>
   </main>
-  <footer class="foot3">
-    <div class="fcard">
-      <div class="ft"><span class="ic">📏</span> 종이 절대 크기</div>
-      <p>치수 글자 <b>10mm</b>·풍선 글자 <b>6mm</b>는 <b>종이 위 실제 크기</b>로 고정된다. 큰 부재와 작은 부재를 한 장에 섞어도 표기가 같아 보이는 이유.</p>
-    </div>
-    <div class="fcard">
-      <div class="ft"><span class="ic">🔀</span> 별도 경로</div>
-      <p>가공도는 치수 추출 → 시트 분할 순서를 <b>타지 않는다</b>. 부재 목록만 있으면 부재를 골라 바로 뽑는다.</p>
-    </div>
-    <div class="fcard warn">
-      <div class="ft"><span class="ic">🗓️</span> 남은 항목</div>
-      <p>모떼기·라운드 형상 표시와 앵글 촬영 방향 기준은 <b>아직 확정 전</b>이다.</p>
-    </div>
-  </footer>
 </div>
 </section>
 
-<!-- ============ 11 · 값의 출처 ① ============ -->
-<section class="page nw" data-sec="값의 출처">
+<!-- ============ 12 · 도면 정보의 출처 ============ -->
+<section class="page nw" data-sec="도면 정보">
 <div class="slide">
   <header>
     <div>
-      <div class="kicker">값의 출처 · 뷰와 BOM</div>
-      <h1>도면의 이 값은 어디서 왔나 <span class="sub">— 뷰 4개와 BOM 8칸</span></h1>
+      <div class="kicker">도면 정보</div>
+      <h1>값의 출처</h1>
     </div>
     <div class="hr">
-      <div class="pgnum">출처 01</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
+      <div class="pgnum">출처</div>
+      <div class="meta"><span class="st-ok">■ 확정</span> <span class="st-part">■ 보강</span> <span class="st-tmp">■ 임시</span></div>
     </div>
   </header>
   <main class="m-src">
-    <section>
-      <div class="sect-label">뷰 4개 — 어느 방향에서 찍은 것인가</div>
-      <table class="src">
-        <thead><tr><th class="l">도면 위 이름</th><th>보는 방향</th><th>자리</th></tr></thead>
-        <tbody>
-          <tr><td class="l">ISO</td><td><code>ISO_PLUS</code></td><td>왼쪽 위</td></tr>
-          <tr><td class="l">LOOKING "-Z" · 평면도</td><td><code>Z_MINUS</code></td><td>오른쪽 위</td></tr>
-          <tr><td class="l">LOOKING "-X" · 정면도</td><td><code>X_MINUS</code></td><td>왼쪽 아래</td></tr>
-          <tr><td class="l">LOOKING "-Y" · 측면도</td><td><code>Y_MINUS</code></td><td>오른쪽 아래</td></tr>
-        </tbody>
-      </table>
-      <div class="cap" style="margin-top:1.4cqh">네 종류 도면이 <b>같은 배치</b>를 쓴다. 가공도만 이 배치 대신 <b>부재별 행</b> 구조.</div>
-      <div class="sect-label" style="margin-top:2.2cqh">치수는 어디서 오나</div>
-      <div class="cap">모델의 <b>형상점(Osnap)</b>을 뽑아 축별로 이어 붙인다. 도면에 손으로 적는 값이 아니라 <b>모델 좌표에서 계산된 값</b>이다. 자세한 기준은 뒤 룰북 참조.</div>
-    </section>
-    <section>
-      <div class="sect-label">BOM 8칸 — 각 칸이 채워지는 경로</div>
-      <table class="src">
-        <thead><tr><th class="l">칸</th><th class="l">지금 나오는 값</th><th class="l">어디서</th><th>상태</th></tr></thead>
-        <tbody>
-          <tr><td class="l">No.</td><td class="l">1 · 2 · 3</td><td class="l">부재 목록 순번</td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">ITEM</td><td class="l">EA · EBOS</td><td class="l">UDA <code>SPREF</code> 앞 구간</td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">MATERIAL</td><td class="l">SS275</td><td class="l">UDA <code>MATREF</code></td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">SIZE</td><td class="l">50x50x6x298.25</td><td class="l"><code>SPREF</code> 뒷부분 + 시작·끝 좌표 거리</td><td class="st-part">형식 검증</td></tr>
-          <tr><td class="l">Q'TY</td><td class="l">1</td><td class="l">항상 1 — 집계 규칙 미정</td><td class="st-tmp">임시값</td></tr>
-          <tr><td class="l">T/W</td><td class="l">1.39</td><td class="l">UDA <code>GWEI</code></td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">MA</td><td class="l">L</td><td class="l">의미·출처 미정</td><td class="st-tmp">임시값</td></tr>
-          <tr><td class="l">FA</td><td class="l">F</td><td class="l">의미·출처 미정</td><td class="st-tmp">임시값</td></tr>
-        </tbody>
-      </table>
-      <div class="legend">
-        <span class="st-ok">■ 확정</span> 모델 데이터에서 실제로 읽는 값
-        <span class="st-part">■ 형식 검증</span> 값은 오지만 표기 형식 확인 필요
-        <span class="st-tmp">■ 임시값</span> 생산에 쓸 수 없는 고정값
-      </div>
-    </section>
-  </main>
-  <footer class="foot1">
-    <div class="concl">BOM 8칸 중 <b>4칸은 모델에서 실제로 읽고</b>, <b>3칸은 아직 임시값</b>이다 — Q'TY · MA · FA의 <b>업무 규칙 확정</b>이 필요하다.</div>
-  </footer>
-</div>
-</section>
+    <table class="src">
+      <thead><tr><th style="width:16%">항목</th><th style="width:24%">지금 나오는 값</th><th style="width:45%">어디서 오나</th><th style="width:15%">상태</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="4">BOM 표 — 도면 오른쪽 위</td></tr>
+        <tr><td class="k">No.</td><td class="v">1 · 2 · 3</td><td class="v">부재 목록 순번</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">ITEM</td><td class="v">EA · EBOS</td><td class="v">부재 속성 <code>SPREF</code> 앞 구간</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">MATERIAL</td><td class="v">SS275</td><td class="v">부재 속성 <code>MATREF</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">SIZE</td><td class="v">50x50x6x298.25</td><td class="v"><code>SPREF</code> 뒷부분 + 시작·끝 좌표 거리</td><td class="st-part">형식 검증</td></tr>
+        <tr><td class="k">Q'TY</td><td class="v">1</td><td class="v">항상 1 — 집계 규칙 미정</td><td class="st-tmp">임시값</td></tr>
+        <tr><td class="k">T/W</td><td class="v">1.39</td><td class="v">부재 속성 <code>GWEI</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">MA · FA</td><td class="v">L · F</td><td class="v">의미·출처 미정</td><td class="st-tmp">임시값</td></tr>
 
-<!-- ============ 12 · 값의 출처 ② ============ -->
-<section class="page nw" data-sec="값의 출처">
-<div class="slide">
-  <header>
-    <div>
-      <div class="kicker">값의 출처 · 표제부</div>
-      <h1>표제부의 이 칸들 <span class="sub">— 무엇이 연결됐고 무엇이 아직 비어 있나</span></h1>
-    </div>
-    <div class="hr">
-      <div class="pgnum">출처 02</div>
-      <div class="meta"><b>기준일</b> 2026-07-27</div>
-    </div>
-  </header>
-  <main class="m-src" style="grid-template-columns:1.1fr 1fr">
-    <section>
-      <div class="sect-label">표제부 칸별 출처</div>
-      <table class="src">
-        <thead><tr><th class="l">칸</th><th class="l">지금 나오는 값</th><th class="l">어디서</th><th>상태</th></tr></thead>
-        <tbody>
-          <tr><td class="l">PAINT CODE</td><td class="l">EX2</td><td class="l">구조물 상위 UDA <code>PNT</code></td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">TAG NO</td><td class="l">/M02-A-ES-P0813A-SHI</td><td class="l">조상 UDA <code>STRU</code></td><td class="st-part">보강 필요</td></tr>
-          <tr><td class="l">도면 종류</td><td class="l">제작도 · 조립도 · 설치도 · 가공도</td><td class="l">앱이 시트 종류로 결정</td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">CLIENT / 프로젝트</td><td class="l">CEDAR FLNG</td><td class="l">코드에 고정</td><td class="st-tmp">하드코딩</td></tr>
-          <tr><td class="l">선박번호</td><td class="l">SN2688</td><td class="l">코드에 고정</td><td class="st-tmp">하드코딩</td></tr>
-          <tr><td class="l">DP No.</td><td class="l">Test</td><td class="l">시험용 고정값</td><td class="st-tmp">임시값</td></tr>
-          <tr><td class="l">REV · DATE · DESCRIPTION</td><td class="l">빈칸</td><td class="l">입력 기능 미개발</td><td class="st-tmp">미구현</td></tr>
-          <tr><td class="l">DRAWN · CHECKED · APPROVED</td><td class="l">빈칸</td><td class="l">입력 기능 미개발</td><td class="st-tmp">미구현</td></tr>
-          <tr><td class="l">NOTE</td><td class="l">자리만</td><td class="l">입력 기능 미개발</td><td class="st-tmp">미구현</td></tr>
-          <tr><td class="l">회사 로고</td><td class="l">삼성중공업</td><td class="l">고정 이미지</td><td class="st-ok">확정</td></tr>
-          <tr><td class="l">고객 이미지</td><td class="l">Client Test Image</td><td class="l">시험용 고정 이미지</td><td class="st-part">교체 미구현</td></tr>
-        </tbody>
-      </table>
-    </section>
-    <section>
-      <div class="sect-label">정리하면</div>
-      <div class="cap" style="font-size:1.62cqh; line-height:1.6">
-        표제부에서 <b>모델 데이터와 실제로 연결된 칸</b>은 Paint Code와 TAG NO 둘이다.<br><br>
-        프로젝트명·선박번호·DP No.는 <b>지금 코드에 박혀 있는 값</b>이라 다른 프로젝트에 그대로 쓰면 틀린 값이 나온다. 어느 데이터에서 가져올지 <b>정해 주셔야</b> 연결할 수 있다.<br><br>
-        REV·NOTE는 <b>입력 화면 자체가 없다.</b> 무엇을 몇 자까지 적을지 정해지면 만든다.
-      </div>
-      <div class="sect-label" style="margin-top:2cqh">확정이 필요한 것 — 한눈에</div>
-      <div class="gates">
-        <div class="gate warn"><span class="n">1</span><span class="lab">BOM <b>Q'TY · MA · FA</b>의 의미와 데이터 출처</span></div>
-        <div class="gate warn"><span class="n">2</span><span class="lab">프로젝트명 · 선박번호 · <b>DP No.</b>를 어느 데이터에서 가져올지</span></div>
-        <div class="gate warn"><span class="n">3</span><span class="lab"><b>NOTE·REV</b> 입력 항목과 글자 수 정책</span></div>
-      </div>
-    </section>
+        <tr class="grp"><td colspan="4">풍선 — 도면 위 표시</td></tr>
+        <tr><td class="k">부재번호 풍선</td><td class="v">1 · 2 · 3</td><td class="v">BOM No.와 같은 번호</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">홀 · 슬롯 풍선</td><td class="v">규격 · 개수</td><td class="v">모델의 홀 정보 — 가공도에만</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">연결부재 이름</td><td class="v">/M02-2-P10S-4024A</td><td class="v">닿아 있는 부재의 상위 이름</td><td class="st-ok">확정</td></tr>
+
+        <tr class="grp"><td colspan="4">도면 정보 — 오른쪽 아래 표제부</td></tr>
+        <tr><td class="k">도면 이름</td><td class="v">제작도 · 조립도 · 설치도 · 가공도</td><td class="v">시트 종류로 자동 결정</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">PAINT CODE</td><td class="v">EX2</td><td class="v">구조물 속성 <code>PNT</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">TAG No.</td><td class="v">/M02-A-ES-P0813A-SHI</td><td class="v">상위 구조물 속성 <code>STRU</code></td><td class="st-part">보강 필요</td></tr>
+        <tr><td class="k">프로젝트명</td><td class="v">CEDAR FLNG</td><td class="v">프로그램에 고정</td><td class="st-tmp">하드코딩</td></tr>
+        <tr><td class="k">프로젝트 번호</td><td class="v">SN2688</td><td class="v">프로그램에 고정</td><td class="st-tmp">하드코딩</td></tr>
+        <tr><td class="k">DP No.</td><td class="v">Test</td><td class="v">시험용 고정값</td><td class="st-tmp">임시값</td></tr>
+        <tr><td class="k">REV · NOTE</td><td class="v">빈칸</td><td class="v">입력 기능 미개발</td><td class="st-tmp">미구현</td></tr>
+      </tbody>
+    </table>
   </main>
-  <footer class="foot1">
-    <div class="concl">도면의 <b>모양</b>은 모델에서 자동으로 나온다 — 남은 것은 <b>생산 정보를 어디서 읽을지</b>를 정하는 일이다.</div>
-  </footer>
 </div>
 </section>

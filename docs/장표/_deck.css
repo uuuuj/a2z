@@ -86,6 +86,7 @@ tbody tr:last-child td{ border-bottom:none; }
 /* ---------- 꼬리말 ---------- */
 footer{ border-top:1px solid var(--line); background:linear-gradient(180deg,#fbfcfe,#f6f9fd); }
 footer.foot3{ display:grid; grid-template-columns:1.35fr 1.3fr 1.05fr; gap:2.2cqw; padding:1.7cqh 4cqw 2.3cqh; }
+footer.foot2{ display:grid; grid-template-columns:1fr 1fr; gap:2.6cqw; padding:1.7cqh 4cqw 2.3cqh; }
 footer.foot1{ display:flex; align-items:center; justify-content:center; padding:2cqh 4cqw; }
 .fcard{ font-size:1.46cqh; line-height:1.4; }
 .fcard .ft{ font-size:1.48cqh; font-weight:800; color:var(--ink); margin-bottom:.5cqh; display:flex; align-items:center; gap:.5cqw; }

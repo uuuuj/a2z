@@ -8,7 +8,13 @@
 <style>
   /* 이 장표 전용 — 공통 뼈대는 _deck.css */
   main.m-kinds{ grid-template-rows:auto 1fr; gap:1.8cqh; padding:2.4cqh 4cqw 1.3cqh; }
-  .dcard .cnt{ margin-top:auto; padding-top:.7cqh; font-size:1.36cqh; font-weight:800; }
+  /* 카드 글자 확대 — 발표용 시인성 */
+  .dcard{ padding:1.6cqh 1.3cqw; }
+  .dcard h4{ font-size:2.5cqh; }
+  .dcard .id{ font-size:1.6cqh; margin-top:.3cqh; }
+  .dcard .how{ font-size:1.95cqh; margin-top:1.2cqh; }
+  .dcard .note{ font-size:1.66cqh; margin-top:.7cqh; }
+  .dcard .cnt{ margin-top:auto; padding-top:.9cqh; font-size:1.75cqh; font-weight:800; }
   .d-fab .cnt{ color:var(--fab);} .d-asm .cnt{ color:var(--asm);}
   .d-ins .cnt{ color:var(--ins);} .d-mfg .cnt{ color:var(--mfg);}
   .example{ display:flex; flex-direction:column; min-height:0; }
@@ -21,8 +27,8 @@
   <div class="slide" role="img" aria-label="제작도는 전체를 한 장, 조립도는 부재마다 이웃을 묶어 한 장씩, 설치도는 연결된 전체를 한 장, 가공도는 부재 하나씩 한 장으로 만들어지며 부재 네 개짜리 모델에서 몇 장이 나오는지 예로 보인 슬라이드">
     <header>
       <div>
-        <div class="kicker">사용 안내 · 도면 종류</div>
-        <h1>도면 4종은 각각 무엇인가 <span class="sub">— 그리고 몇 장 나오나</span></h1>
+        <div class="kicker">메뉴얼 · 도면 종류</div>
+        <h1>도면 4종</h1>
       </div>
       <div class="hr">
         <div class="pgnum">메뉴얼 03</div>
@@ -143,14 +149,10 @@
 
     </main>
 
-    <footer class="foot3">
+    <footer class="foot2">
       <div class="fcard">
         <div class="ft"><span class="ic">🧩</span> 왜 부재마다 조립도를</div>
         <p>예전엔 <b>다른 도면에 이미 나온 부재는 기준이 될 수 없게</b> 막았지만, 현장에서는 <b>모든 부재가 자기 기준 도면을 하나씩</b> 가져야 했다. 지금은 전부 만들고 겹치는 것만 정리한다.</p>
-      </div>
-      <div class="fcard">
-        <div class="ft"><span class="ic">📍</span> 근거</div>
-        <p class="srcline">시트 생성·중복 정리 <code>Form1.DrawingSheets.cs:24-260</code> · 종류 구분 <code>Form1.Stru.cs:1050-1063</code></p>
       </div>
       <div class="fcard warn">
         <div class="ft"><span class="ic">⚠️</span> 가공도는 순서가 다르다</div>

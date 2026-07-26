@@ -91,18 +91,18 @@ for idx, (fn, sec) in enumerate(SOURCES):
 
 # ---------- 순서 조립 ----------
 order = [
-    new_pages[0],                       # 1 표지
-    new_pages[1],                       # 2 화면
-    new_pages[2],                       # 3 사용 방법 (마커)
-    *imported['02-작업-순서.html'],      # 4 작업 순서 상세
-    *imported['03-도면-4종.html'],       # 5 도면 4종
-    new_pages[3],                       # 6 예시 모델 · 부재 분할
-    new_pages[4],                       # 7 제작도
-    new_pages[5],                       # 8 조립도
-    new_pages[6],                       # 9 설치도
-    new_pages[7],                       # 10 가공도
-    new_pages[8],                       # 11 값의 출처 ①
-    new_pages[9],                       # 12 값의 출처 ②
+    new_pages[0],                       # 1  표지
+    new_pages[1],                       # 2  목차
+    new_pages[2],                       # 3  프로그램 UI 구성요소
+    new_pages[3],                       # 4  실행 순서 (마커)
+    *imported['02-작업-순서.html'],      # 5  작업 순서
+    *imported['03-도면-4종.html'],       # 6  도면 4종
+    new_pages[4],                       # 7  예시 모델 · 부재 분할
+    new_pages[5],                       # 8  제작도
+    new_pages[6],                       # 9  조립도
+    new_pages[7],                       # 10 설치도
+    new_pages[8],                       # 11 가공도
+    new_pages[9],                       # 12 값의 출처
     *imported['11-룰북-Osnap.html'],
     *imported['12-룰북-보조선.html'],
     *imported['13-룰북-치수선별.html'],
@@ -158,7 +158,7 @@ NAV_JS = """
     if(e.target.closest('a,.tc')) return;
     go(e.clientX < window.innerWidth*0.22 ? cur-1 : cur+1);
   });
-  var jump=[1,2,5,10,12];
+  var jump=[2,3,6,11,12];
   [].slice.call(document.querySelectorAll('.toc .tc')).forEach(function(el,i){
     el.addEventListener('click',function(e){ e.stopPropagation(); go(jump[i]); });
   });

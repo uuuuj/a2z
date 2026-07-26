@@ -19,8 +19,8 @@
   <div class="slide" role="img" aria-label="도면 우측 BOM 표의 품명·재질·규격·중량이 부재 속성에서 오며, 부재에 값이 없으면 부모로 최대 열 단계까지 거슬러 찾고, 규격 참조 문자열을 품명과 규격으로 쪼갠 뒤 시작·끝 좌표로 길이를 계산해 붙이는 흐름을 정리한 슬라이드">
     <header>
       <div>
-        <div class="kicker">도면 표현 규칙 · BOM ②</div>
-        <h1>도면의 BOM 표는 어떻게 채워지는가 <span class="sub">— 속성에서 표까지</span></h1>
+        <div class="kicker">룰북 · BOM ②</div>
+        <h1>도면 BOM 표 작성</h1>
       </div>
       <div class="hr">
         <div class="pgnum">1 / 1</div>
@@ -165,14 +165,10 @@
 
     </main>
 
-    <footer class="foot3">
+    <footer class="foot2">
       <div class="fcard">
         <div class="ft"><span class="ic">🌳</span> 왜 부모까지 뒤지나</div>
         <p>재질·중량 같은 값은 <b>부재 하나하나가 아니라 상위 묶음에 한 번만</b> 붙어 있는 경우가 많다. 부재에서 못 찾으면 위로 거슬러 올라가야 표가 빈칸으로 남지 않는다.</p>
-      </div>
-      <div class="fcard">
-        <div class="ft"><span class="ic">📍</span> 근거</div>
-        <p class="srcline">속성 읽기·파싱 <code>Form1.Clash.cs:224-330</code> · 표 조립 <code>:332-413</code> · 14행 제한 <code>Form1.DrawingSheets.cs:1751</code></p>
       </div>
       <div class="fcard warn">
         <div class="ft"><span class="ic">⚠️</span> 표가 비면 모델을 보라</div>
