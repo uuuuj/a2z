@@ -28,8 +28,8 @@
   <div class="slide" role="img" aria-label="체인 치수 후보 중 전체 길이와 설치 위치는 무조건 남기고 나머지는 축 안에서 크기 순위를 매겨 겹치지 않는 것부터 축당 8개까지 채우며, 겹치면 2단으로 내리고 2단에서도 겹치면 버리는 규칙을 정리한 슬라이드">
     <header>
       <div>
-        <div class="kicker">도면 표현 규칙 · 치수 선별</div>
-        <h1>어떤 치수를 남기고 버리는가 <span class="sub">— 다 그리면 못 읽는다</span></h1>
+        <div class="kicker">룰북 · 치수 선별</div>
+        <h1>치수 선별 기준</h1>
       </div>
       <div class="hr">
         <div class="pgnum">1 / 1</div>
@@ -161,14 +161,10 @@
 
     </main>
 
-    <footer class="foot3">
+    <footer class="foot2">
       <div class="fcard">
         <div class="ft"><span class="ic">📏</span> 겹침은 이렇게 판정</div>
         <p>글자 폭을 <b>자릿수로 추정</b>해(최소 25 mm, 자릿수×5+10) 두 치수의 <b>중심 거리가 두 폭의 절반 합보다 가까우면</b> 겹친 것으로 본다. SDK에 글자 폭을 재는 기능이 없어 추정한다.</p>
-      </div>
-      <div class="fcard">
-        <div class="ft"><span class="ic">📍</span> 근거</div>
-        <p class="srcline">순위·선별 <code>Form1.Dimensions.cs:1495-1699</code> · 짧은 치수 병합 <code>:1704</code> · 호출값(축당 8·간격 25) <code>Form1.Dimensions.cs:456</code>·<code>Form1.MfgDrawing.cs:1224</code> · 글자 위치 <code>docs/기술 노트/치수 텍스트 위치.md</code></p>
       </div>
       <div class="fcard warn">
         <div class="ft"><span class="ic">⚠️</span> 축당 8개는 축마다 따로</div>
