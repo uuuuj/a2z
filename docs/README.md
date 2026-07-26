@@ -19,7 +19,7 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 ## 문서 내비게이션
 
 ### 개괄
-- [**설명 장표**](./장표/index.html) — 앱 쓰는 법(메뉴얼)부터 각 요소가 그렇게 그려지는 근거(룰북)까지, 16:9 슬라이드로 한눈에
+- [**설명 장표**](./장표/발표.html) — 앱 쓰는 법(메뉴얼)부터 각 요소가 그렇게 그려지는 근거(룰북)까지, 16:9 슬라이드 22장. PPT 판은 [발표.pptx](./장표/발표.pptx)
 - [End-to-End 파이프라인](./_pipeline.md) — 모델 로드부터 PDF 출력까지 전체 흐름
 - [용어집](./_glossary.md) — UDA, Osnap, BOM, Clash, Hidden Line 등
 - [문서 작성 가이드](./_authoring-guide.md) — 신규 기능 문서 작성 규칙 (R1~R7)
