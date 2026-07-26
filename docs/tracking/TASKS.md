@@ -8,15 +8,16 @@
 
 | 상태 | 파일 | 작업 수 | 내용 |
 |---|---|---|---|
-| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 11 | 진행 중 — 실기 확인 및 최종 산출물 생성 |
+| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 9 | 진행 중 — 실기 확인 및 최종 산출물 생성 |
 | ⬜ TODO | [tasks/TODO.md](./tasks/TODO.md) | 21 | 대기 — API·분석·개발 착수 대기 |
 | 🔴 BLOCKED | [tasks/BLOCKED.md](./tasks/BLOCKED.md) | 1 | 차단됨 (재현 조건 수집 중) |
-| ✅ DONE | [tasks/DONE.md](./tasks/DONE.md) | 61 | 완료 이력 |
+| ✅ DONE | [tasks/DONE.md](./tasks/DONE.md) | 63 | 완료 이력 |
 
 - ID 체계(`T-`/`FB-`/`REQ-`)·전체 워크플로우: [README.md](./README.md)
 - 입력: [FEEDBACK.md](./FEEDBACK.md)(담당자) · [REQUESTS.md](./REQUESTS.md)(본인) / 출력: [CHANGELOG.md](./CHANGELOG.md)
 
 > 2026-07-24 동기화: GitHub 종료·Excel 완료 항목 10건을 DONE으로 이동하고, API 대기·요청 필요·분석 필요 상태를 TODO로 재분류. 열린 GitHub Issue별 tracking 항목을 보강.
+> 2026-07-26 동기화: 사내 실기 검증 3건(가공도 치수·풍선 종이 절대 정규화, 장시간 작업 취소 응답성, 설치도 연결부재·외부 Assembly 점선 표시) 정상 확인. 앞 2건을 DONE으로 이동하고 Excel 실기 검증 대기를 0건으로 정리.
 
 ## 형식 예시
 
