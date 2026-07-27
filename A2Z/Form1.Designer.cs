@@ -115,7 +115,6 @@ namespace A2Z
             this.btnGenerate2D = new System.Windows.Forms.Button();
             this.btnClashDetection = new System.Windows.Forms.Button();
             this.btnCollectBOM = new System.Windows.Forms.Button();
-            this.btnExcelTemplatePoC = new System.Windows.Forms.Button();
             this.tabPageAttribute = new System.Windows.Forms.TabPage();
             this.dgvAttributes = new System.Windows.Forms.DataGridView();
             this.panelAttributeButtons = new System.Windows.Forms.Panel();
@@ -956,7 +955,6 @@ namespace A2Z
             this.groupBox1.Controls.Add(this.btnGenerate2D);
             this.groupBox1.Controls.Add(this.btnClashDetection);
             this.groupBox1.Controls.Add(this.btnCollectBOM);
-            this.groupBox1.Controls.Add(this.btnExcelTemplatePoC);
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox1.Location = new System.Drawing.Point(3, 3);
             this.groupBox1.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
@@ -1038,18 +1036,6 @@ namespace A2Z
             this.btnCollectBOM.Text = "BOM";
             this.btnCollectBOM.UseVisualStyleBackColor = true;
             this.btnCollectBOM.Click += new System.EventHandler(this.btnCollectBOM_Click);
-            // 
-            // btnExcelTemplatePoC
-            // 
-            this.btnExcelTemplatePoC.Font = new System.Drawing.Font("맑은 고딕", 8F);
-            this.btnExcelTemplatePoC.Location = new System.Drawing.Point(446, 20);
-            this.btnExcelTemplatePoC.Margin = new System.Windows.Forms.Padding(1);
-            this.btnExcelTemplatePoC.Name = "btnExcelTemplatePoC";
-            this.btnExcelTemplatePoC.Size = new System.Drawing.Size(78, 25);
-            this.btnExcelTemplatePoC.TabIndex = 11;
-            this.btnExcelTemplatePoC.Text = "엑셀 PoC";
-            this.btnExcelTemplatePoC.UseVisualStyleBackColor = true;
-            this.btnExcelTemplatePoC.Click += new System.EventHandler(this.btnExcelTemplatePoC_Click);
             // 
             // tabPageAttribute
             // 
@@ -1408,7 +1394,6 @@ namespace A2Z
         private System.Windows.Forms.Button btnExportPDF;
         private System.Windows.Forms.Button btnCollectOsnap;
         private System.Windows.Forms.Button btnExtractDimension;
-        private System.Windows.Forms.Button btnExcelTemplatePoC;
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.ListView lvDimension;
         private System.Windows.Forms.ColumnHeader colDimNo;
