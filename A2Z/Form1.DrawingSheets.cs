@@ -2142,14 +2142,18 @@ namespace A2Z
                 if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
+                // REV 표 첫 기재행(194~199) — REV.=0 / 출력일 / 나머지는 공백(괘선만 보존) (#64 Phase 1).
+                //   이 경로는 제작도·조립도·설치도 3종이 공유하므로 한 번 호출로 모두 적용된다.
+                //   미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다. 헬퍼: Form1.ExcelTemplate.cs
+                FillRevisionTable(data, BuildCurrentRevisionHistory());
 
                 // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행)을 첫 행으로 포함한다 (#67).
                 //   1~20행: 기존 태그(열별 20연속, 4~163). 21~25행: 신규 태그(201~240, 열별 5연속) — 2026-07-22 Input 200+ 확장.
+                //   요약행이 1행을 쓰므로 데이터행 정원은 25 → 24행 (2026-07-28 사용자 확정).
                 int bomMapped = 0;
                 if (lvDrawingBOMInfo.Items.Count > 0)
                 {
                     int n = Math.Min(lvDrawingBOMInfo.Items.Count, 25);
-                //   요약행이 1행을 쓰므로 데이터행 정원은 25 → 24행 (2026-07-28 사용자 확정).
                     for (int i = 0; i < n; i++)
                     {
                         ListViewItem item = lvDrawingBOMInfo.Items[i];

@@ -232,4 +232,18 @@ namespace A2Z
         public string Ma { get; set; }
         public string Fa { get; set; }
     }
+
+    /// <summary>
+    /// 표제부 REV 이력 표 한 행 (#64). 6칸 = REV./DATE/DESCRIPTION/DRAWN/CHECKED/APPROVED.
+    /// Phase 1은 첫 기재행 1건만 쓰고, 이력 누적(Phase 3)에서 여러 건을 오름차순으로 넘긴다.
+    /// </summary>
+    public class RevisionEntry
+    {
+        public string Rev { get; set; }
+        public string Date { get; set; }
+        public string Description { get; set; }
+        public string Drawn { get; set; }
+        public string Checked { get; set; }
+        public string Approved { get; set; }
+    }
 }
