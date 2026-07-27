@@ -4,7 +4,7 @@ feature_name: BOM 정보 수집 (Clash 탭)
 category: Clash
 trigger_type: User Action
 owner_module: Form1.Clash.cs
-last_updated: 2026-07-23
+last_updated: 2026-07-28
 code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 ---
 
@@ -30,8 +30,8 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 | 1 | 대상 시트 결정 | Form1 | `sheetOverride` 우선, 없으면 현재 선택 시트 |
 | 2 | 준비 캐시 확인 | Form1 | 대상 시트의 `BomPrepared`가 true면 SDK 조회 없이 단계 7로 이동 |
 | 3 | 관련 Part 결정 | Form1 | `bodyToPartIndexMap`으로 대상 Body를 Part로 매핑. 대상 시트가 없을 때만 전체 Part 조회 |
-| 4 | 필요한 UDA 키 선별 | SDK | `UDA.Keys`에서 SPREF/MATREF/GWEI/POSSTART/POSEND 5개만 선별 |
-| 5 | Part별 UDA 파싱 | Form1 | 현재 Part부터 부모 10단계까지 필요한 빈 값만 조회. Part별 한 번 수행 |
+| 4 | 필요한 UDA 키 선별 | SDK | `UDA.Keys`에서 SPREF/MATREF/GWEI/POSSTART/POSEND/STRU 6개만 선별 |
+| 5 | Part별 UDA 파싱 | Form1 | 현재 Part부터 부모 10단계까지 필요한 빈 값만 조회. Part별 한 번 수행. 이 walk-up에서 요약행 T/W용 **조상 STRU 노드의 GWEI**도 같이 수집한다 |
 | 6 | 시트 스냅샷 구성 | Form1 | BOM 행과 Body→그룹 번호를 메모리에서 생성해 시트에 저장 |
 | 7 | ListView 적용 | UI | 준비된 문자열 행과 그룹 맵을 즉시 복사 |
 
@@ -65,7 +65,26 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 | SPREF 키 없음·null·빈 문자열·공백 | ITEM에 `unset` 표시 |
 | SPREF를 파싱했지만 ITEM 부분이 비어 있음 | ITEM에 `unset` 표시 |
 
-실제 BOM 데이터 행은 ITEM의 상태와 관계없이 MATERIAL·SIZE·Q'TY·T/W·MA·FA의 최종 출력값을 각각 검사한다. 값이 null·빈 문자열·공백이면 해당 셀만 `-`로 표시하고, `0`·`F`·`L` 등 값이 있으면 그대로 유지한다. ITEM이 `unset`인 행은 No와 ITEM을 유지하고 뒤쪽 열을 모두 `-`로 표시한다. 별도의 `Support&Seat` 합계 행과 사용하지 않는 빈 템플릿 행은 변경하지 않는다. 이 값은 시트별 BOM 스냅샷에 저장되므로 제작도·조립도·설치도·가공도 출력이 같은 규칙을 사용한다.
+실제 BOM 데이터 행은 ITEM의 상태와 관계없이 MATERIAL·SIZE·Q'TY·T/W·MA·FA의 최종 출력값을 각각 검사한다. 값이 null·빈 문자열·공백이면 해당 셀만 `-`로 표시하고, `0`·`F`·`L` 등 값이 있으면 그대로 유지한다. ITEM이 `unset`인 행은 No와 ITEM을 유지하고 뒤쪽 열을 모두 `-`로 표시한다. 사용하지 않는 빈 템플릿 행은 변경하지 않는다. 이 값은 시트별 BOM 스냅샷에 저장되므로 제작도·조립도·설치도·가공도 출력이 같은 규칙을 사용한다.
+
+### [분기 E] 요약행(첫 행) 값
+
+요약행은 데이터 행과 규칙이 다르다. 빈칸 3열은 `-`로 바뀌지 않고 빈칸 그대로 나간다.
+
+| 열 | 값 |
+|---|---|
+| No. | `00` 고정 |
+| ITEM | `Support&Seat` (배관/전장 서포트 구분이 확정될 때까지의 기본값) |
+| MATERIAL · SIZE · Q'TY | 빈칸. `""`로 채워 보내야 `{Input}`이 남지 않아 템플릿 괘선이 보존된다 |
+| T/W | 조상 STRU 노드 자체의 `GWEI` |
+| MA · FA | `F` |
+
+| T/W 조건 | 처리 |
+|---|---|
+| 조상에 STRU 노드가 있고 `GWEI` 값 있음 | 그 값을 소수 2자리로 정규화해 사용 |
+| STRU `GWEI` 없음 | 부재별 무게 합산으로 폴백하고 `DiagLog`에 폴백 사실을 남김 |
+
+요약행은 출력에서도 BOM 표 1행을 차지한다. 템플릿 BOM 정원이 25행이므로 데이터 행은 24행까지 나간다.
 
 ## 6. 예외 / 에러 처리
 
@@ -91,6 +110,7 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-28 | 관련: #67 (BOM 요약행 값 확정) — 요약행 No.를 `00`으로 고정하고 T/W를 부재 무게 합산에서 조상 STRU 노드의 `GWEI`로 교체. STRU GWEI는 부재 UDA walk-up에서 같이 수집해 도면 출력 시점에는 추가 조회가 없다. 요약행이 제작·조립·설치·가공도 출력에 실제로 나가도록 매핑을 넓히고 데이터행 정원을 25 → 24행으로 조정. ITEM은 배관/전장 구분 확정 전까지 `Support&Seat` 기본값 유지 | Claude |
 | 2026-07-23 | 관련: T-081 (BOM 빈 후속 데이터 표시) — 정상 ITEM 행도 MATERIAL·SIZE·Q'TY·T/W·MA·FA 중 null·빈 문자열·공백인 셀만 `-`로 표시. 정상 값과 Support&Seat 합계 행은 유지 | Codex |
 | 2026-07-22 | 관련: T-081 (BOM ITEM SPREF 미설정 표시) — 유효한 SPREF ITEM은 기존대로 유지하고, 키 없음·null·빈 문자열·공백·빈 ITEM 파싱 결과는 노드명 대신 `unset`으로 통일. 후속 요청으로 `unset` 행의 MATERIAL·SIZE·Q'TY·T/W·MA·FA는 모두 `-`로 표시. 모든 시트 BOM 스냅샷과 출력 경로에 공통 적용 | Codex |
 | 2026-07-21 | 시트별 BOM 캐시 추가. 모델 로드 때 만든 Body→Part 매핑을 재사용하고 관련 Part의 UDA 5개를 한 번만 읽어 모든 시트 행을 준비. 시트 선택·2D 출력의 `CollectBOMInfo`는 준비 데이터 즉시 적용 경로로 전환 | Codex |

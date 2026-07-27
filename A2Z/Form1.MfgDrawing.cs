@@ -110,13 +110,13 @@ namespace A2Z
         /// 호출자: GenerateMfgDrawingManual 진입부 (CollectBOMInfo 직후 1회).
         /// 목적: 페이지 루프에서 live ListView 의존 끊기 → UI race 차단.
         /// </summary>
-        /// <returns>각 행의 8컬럼 문자열 배열 리스트. Row 0(요약행) 제외.</returns>
+        /// <returns>각 행의 8컬럼 문자열 배열 리스트. Row 0(요약행)을 첫 원소로 포함한다 (#67).</returns>
         private List<string[]> SnapshotBomRows()
         {
             var rows = new List<string[]>();
-            if (lvDrawingBOMInfo.Items.Count <= 1) return rows;
+            if (lvDrawingBOMInfo.Items.Count == 0) return rows;
 
-            for (int i = 1; i < lvDrawingBOMInfo.Items.Count; i++)
+            for (int i = 0; i < lvDrawingBOMInfo.Items.Count; i++)
             {
                 ListViewItem item = lvDrawingBOMInfo.Items[i];
                 rows.Add(new string[]
@@ -184,6 +184,7 @@ namespace A2Z
             {
                 int n = Math.Min(bomSnapshot.Count, 25);
                 for (int i = 0; i < n; i++)
+            //   snapshot[0]은 요약행이라 1행=요약행, 2~25행=데이터행 24개다 (#67). BOM 표는 전 페이지 동일 내용.
                 {
                     string[] row = bomSnapshot[i];
                     int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
@@ -2581,7 +2582,8 @@ namespace A2Z
                     "가공도 BOM 수집 후");
 
                 var bomSnapshot = SnapshotBomRows();
-                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20);
+                // SnapshotBomRows가 요약행을 포함하므로 기대치도 요약행 1행을 더한다 (#67).
+                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20) + 1;
                 result.BomRows = bomSnapshot.Count;
                 result.ExpectedBomRows = expectedBomRows;
 
@@ -2589,7 +2591,7 @@ namespace A2Z
                 {
                     DiagLog($"[GenMfgManual] WARN BOM snapshot mismatch: {bomSnapshot.Count} vs 예상 {expectedBomRows}");
                     if (bomSnapshot.Count > expectedBomRows)
-                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 첫 20행만 사용");
+                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 요약행 포함 첫 25행만 사용");
                 }
 
                 bool bomSnapshotInsufficient = bomSnapshot.Count < expectedBomRows;
