@@ -164,6 +164,11 @@ namespace A2Z
                 : "가공도";
             if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
 
+            // ── REV 표 첫 기재행 (Input_194~199) ──
+            //   제작도와 같은 공통 헬퍼(Form1.ExcelTemplate.cs) — REV.=0 / 출력일 / 나머지 공백 (#64 Phase 1).
+            //   다중 페이지도 같은 값이다. 미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다.
+            FillRevisionTable(data, BuildCurrentRevisionHistory());
+
             // ── 부재명 5칸 (Input_241~Input_245, 각 View 왼쪽 라벨) ──
             //   [2026-07-23] 195~199는 제작도처럼 REV 표 첫 기재행 전용으로 되돌리고, 부재명은 241~245로 분리
             //   (200+ 크래시 해소 후 가능). 번호 충돌·REV 표 부재명 누수 제거.
@@ -179,12 +184,12 @@ namespace A2Z
             // ── 우측 BOM 표 8컬럼 × 25행 (snapshot 사용) ──
             //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 1~20행=열별 20연속(4~163),
             //   21~25행=신규 태그(201~240, 열별 5연속). 2026-07-23 Input 200+ 확장(크래시 해소 후).
+            //   snapshot[0]은 요약행이라 1행=요약행, 2~25행=데이터행 24개다 (#67). BOM 표는 전 페이지 동일 내용.
             int bomMapped = 0;
             if (bomSnapshot != null)
             {
                 int n = Math.Min(bomSnapshot.Count, 25);
                 for (int i = 0; i < n; i++)
-            //   snapshot[0]은 요약행이라 1행=요약행, 2~25행=데이터행 24개다 (#67). BOM 표는 전 페이지 동일 내용.
                 {
                     string[] row = bomSnapshot[i];
                     int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
@@ -332,9 +337,10 @@ namespace A2Z
 
                 ResetCanvasForMfgPage();
                 var data = new Dictionary<int, string>();
-                for (int k = 1; k <= 199; k++) data[k] = "";   // 200 이상 금지 (SDK 메모리 손상 — BuildMfgPageData 주석)
+                for (int k = 1; k <= 199; k++) data[k] = "";   // 검증용 프로브라 선초기화 유지 (본 출력 경로 아님)
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
-                data[195] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (195~199 대역)
+                // 부재명 슬롯 — 195는 REV 표(#64) 대역이라 241~245로 이전 완료(2026-07-23). 200+ 크래시도 해소됨.
+                data[241] = bom.Name ?? "";
                 var probeImageMapping = new Dictionary<int, string[]>
                 {
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },

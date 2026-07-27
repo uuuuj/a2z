@@ -26,12 +26,12 @@
 
 ---
 
-## 2026-07-28 — 표제부 REV 표 첫 기재행 채우기 + BOM 요약행
+## 2026-07-28 — 표제부 REV 표 첫 기재행 채우기
 
 **유형**: feat
-**커밋**: `cfbefc9` (병렬 세션의 `git add -A`로 두 작업이 한 커밋에 묶임 — 커밋 메시지는 BOM 요약행만 언급하나 REV 표 변경도 같은 커밋에 포함)
+**커밋**: `pending`
 **관련 TASK**: T-101 (표제부 REV 표 채우기)
-**관련 ISSUE**: GitHub issue #64 (REV 표 채우기 로직) · #118 (개발 계획) · #67 (BOM 요약행)
+**관련 ISSUE**: GitHub issue #64 (REV 표 채우기 로직) · #118 (개발 계획)
 **변경 사항**:
 - 표제부 REV 이력 표 슬롯(`Input_170~199`)을 채우는 공통 헬퍼 `FillRevisionTable` / `BuildCurrentRevisionHistory` 신설 (`Form1.ExcelTemplate.cs`) — 기재행별 슬롯 시작 번호 `RevRowSlotBase = {194, 188, 182, 176, 170}`(엑셀 44행 → 40행), 한 행은 REV./DATE/DESCRIPTION/DRAWN/CHECKED/APPROVED 6칸 연속
 - 첫 기재행 값은 REV.=`0` 고정, DATE=출력일 `yyyy-mm-dd`(InvariantCulture). DESCRIPTION·DRAWN·CHECKED·APPROVED는 입력 수단·기본 문구가 미정이라 공백 1칸으로 괘선만 보존
@@ -39,9 +39,8 @@
 - 호출 배선 2곳: `GenerateSheetDrawing2D_WithExcelTemplate`(제작도·조립도·설치도 공유 경로) · `BuildMfgPageData`(가공도, 다중 페이지 동일 값)
 - `Models.cs`에 `RevisionEntry` 추가 (REV 표 한 행 = 6칸)
 - 검증용 `RunMfgCameraSignProbe`의 부재명 잔재 `data[195]`를 `data[241]`로 정리 — 195~199는 REV 표 대역이고 부재명은 2026-07-23에 241~245로 이전됨
-- BOM 요약행(#67): UDA 선별에 `STRU` 추가, Part walk-up에서 조상 STRU 노드의 `GWEI`를 요약행 T/W용으로 수집. 요약행은 No.=`00`·ITEM=`Support&Seat`이고 MATERIAL·SIZE·Q'TY는 `-` 대체 없이 빈칸으로 내보내 괘선 보존
 
-**영향 범위**: 제작도·조립도·설치도·가공도 4종 PDF의 표제부 REV 표와 BOM 표 첫 행. 실기 확인 시 REV 첫 기재행 괘선이 정상이면 issue #33(빈 REV 행 괘선 보존, T-095)은 실질 해소로 종결 검토.
+**영향 범위**: 제작도·조립도·설치도·가공도 4종 PDF의 표제부 REV 표. 실기 확인 시 REV 첫 기재행 괘선이 정상이면 issue #33(빈 REV 행 괘선 보존, T-095)은 실질 해소로 종결 검토.
 
 ## 2026-07-26 — 사내 실기 검증 3건 정상 확인
 
