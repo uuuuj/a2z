@@ -73,15 +73,39 @@ def issue_meta():
     return out
 
 
+def tracking_map():
+    """docs/tracking 표기에서 읽은 {이슈번호: {Excel No....}} — 메타가 없는 옛 이슈용 보조 자료"""
+    out = {}
+    for f in glob.glob(os.path.join(ROOT, 'docs/tracking/tasks/*.md')):
+        s = io.open(f, encoding='utf-8').read()
+        idx = [m.start() for m in re.finditer(r'^### T-\d+', s, re.M)]
+        for a, b in zip(idx, idx[1:] + [len(s)]):
+            blk = s[a:b]
+            ex = set(re.findall(r'\d+', ' '.join(re.findall(r'Excel No\.([\d,\s·]+)', blk))))
+            for i in re.findall(r'issue #(\d+)', blk):
+                out.setdefault(i, set()).update(ex)
+    return out
+
+
+def mapping():
+    """{이슈번호: {Excel No....}}.
+
+    이슈 본문의 excel-meta 가 우선이고, 메타가 없는 이슈만 tracking 표기로 보완한다.
+    한 tracking 블록에 이슈가 여럿 적히면 그 블록의 Excel No.가 모두에게 붙어 섞이므로,
+    메타가 있으면 tracking 은 보지 않는다.
+    """
+    meta, trk = issue_meta(), tracking_map()
+    out = dict(meta)
+    for i, nos in trk.items():
+        if i not in meta:
+            out[i] = set(nos)
+    return out
+
+
 def linked_nos():
-    """이미 GitHub 이슈가 연결된 Excel No. 집합 — tracking 표기 + 이슈 본문 메타"""
-    txt = ''.join(io.open(f, encoding='utf-8').read()
-                  for f in glob.glob(os.path.join(ROOT, 'docs/tracking/tasks/*.md')))
+    """이미 GitHub 이슈가 연결된 Excel No. 집합"""
     got = set()
-    for m in re.finditer(r'Excel No\.([\d·,\s]+)', txt):
-        if re.findall(r'issue #(\d+)', txt[max(0, m.start() - 400):m.start()]):
-            got |= set(re.findall(r'\d+', m.group(1)))
-    for nos in issue_meta().values():
+    for nos in mapping().values():
         got |= nos
     return got
 
