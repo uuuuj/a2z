@@ -615,8 +615,7 @@ namespace A2Z
             //   사유: 수동(btnGenerateSheet2D_Click) 경로에도 동일 사전 조건 필요 — DRY + 단일 지점 보장
             try
             {
-                string solutionPath = GetSolutionPath();
-                string logoPath = System.IO.Path.Combine(solutionPath, "assets", "Logo.png");
+                string logoPath = ResolveDrawingAssetPath("Logo.png");
                 if (System.IO.File.Exists(logoPath))
                 {
                     vizcore3d.Drawing2D.Template.Set2DViewTemplateMark(logoPath, logoPath);

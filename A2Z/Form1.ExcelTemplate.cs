@@ -14,8 +14,9 @@ namespace A2Z
         /// 메인 도면 흐름(GenerateSheetDrawing2D)은 다른 에이전트가 수정 중이라 건드리지 않음.
         /// 이 핸들러로 엑셀 템플릿이 정상 적용되는지 사내 PC 시각 검증 → 결과 따라 메인 흐름 전환 결정.
         ///
-        /// 의존 리소스 (솔루션 루트):
+        /// 의존 리소스 (실행 폴더 우선 → 솔루션 폴백, ResolveDrawingTemplatePath/AssetPath 경유):
         ///   - 사용자템플릿_엑셀_제작도.xlsx  (메인 4면도 템플릿)
+        ///     ⚠ 이 파일은 현재 레포에 없어 이 PoC 핸들러는 어느 환경에서도 진입 즉시 에러로 끝난다 (#71 확인).
         ///   - Logo.png                              ({Image} 슬롯용)
         /// </summary>
         private void btnExcelTemplatePoC_Click(object sender, EventArgs e)
@@ -27,9 +28,8 @@ namespace A2Z
                 return;
             }
 
-            string solutionPath = GetSolutionPath();
-            string xlsxPath = Path.Combine(solutionPath, "사용자템플릿_엑셀_제작도.xlsx");
-            string logoPath = Path.Combine(solutionPath, "assets", "Logo.png");
+            string xlsxPath = ResolveDrawingTemplatePath("사용자템플릿_엑셀_제작도.xlsx");
+            string logoPath = ResolveDrawingAssetPath("Logo.png");
 
             if (!File.Exists(xlsxPath))
             {

@@ -56,6 +56,7 @@ namespace A2Z
             public int SuccessPdfs;               // 성공 저장 PDF 수
             public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 PDF 수 (성공 PDF 중 일부)
             public bool TemplateMissing;          // 가공도 엑셀 템플릿 누락 → PDF 0개
+            public string TemplatePath;           // 실제 탐색한 템플릿 경로 (누락 안내 문구가 재계산하지 않도록)
             public int BomRows;                   // 실제 snapshot BOM 행 수
             public int ExpectedBomRows;           // 예상 BOM 행 수 = Min(allMfgBomIndices.Count, 15)
             public bool Canceled;                  // 안전 체크포인트에서 사용자 취소
@@ -2501,7 +2502,9 @@ namespace A2Z
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
-            string xlsxPath = Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx");
+            // 실행 폴더 templates\ 우선 — 배포 패키지(.sln 없음)에서도 템플릿을 찾도록 (#71)
+            string xlsxPath = ResolveDrawingTemplatePath("가공도_도면_1.xlsx");
+            result.TemplatePath = xlsxPath;
             if (!File.Exists(xlsxPath))
             {
                 DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
@@ -2874,7 +2877,7 @@ namespace A2Z
             if (result.TemplateMissing)
             {
                 MessageBox.Show(
-                    $"가공도 엑셀 템플릿 누락:\n{Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx")}\n\nPDF 생성 안 됨.",
+                    $"가공도 엑셀 템플릿 누락:\n{result.TemplatePath}\n\nPDF 생성 안 됨.",
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }

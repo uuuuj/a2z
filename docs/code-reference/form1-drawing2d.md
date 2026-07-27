@@ -29,7 +29,7 @@
 
 | 메서드 | 라인 | 역할 |
 |---|---|---|
-| `GetSolutionPath` | ~L20 | 솔루션 경로 탐색 (로고 이미지용) |
+| `GetSolutionPath` | L16 | `.sln`을 위로 탐색해 레포 루트 반환. **개발 편의용 폴백 전용** — 도면 리소스 경로는 `ResolveDrawingResourcePath`(실행 폴더 우선)를 거치며, 이 함수는 실행 폴더에서 못 찾았을 때만 호출된다 |
 | `CollectOsnapForSelectedNodes` | L472 | 선택된 노드만 대상 Osnap 수집 (자동 호출용) |
 | `ExtractDimensionForSelectedNodes` | (헬퍼) | Osnap 기반 체인 치수 재추출 |
 | `Clear2DView` | L926 | 2D 뷰 완전 초기화 (Model3D ↔ Both 토글 + 2회 삭제 + GC) |
