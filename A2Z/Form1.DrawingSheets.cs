@@ -1329,6 +1329,9 @@ namespace A2Z
                 saveDir = GetDefaultDrawingSaveDir();
                 string timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
 
+                // [issue #116] 출력 후 로딩 무한 대기 추적 — 대상 개수부터 남긴다.
+                DiagLog($"[{kindLabel} 출력] 시작 targets={targetSheets.Count} saveDir={saveDir}");
+
                 for (int i = 0; i < targetSheets.Count; i++)
                 {
                     ListViewItem item = targetSheets[i].Key;
@@ -1374,10 +1377,13 @@ namespace A2Z
                     finally
                     {
                         bool keepFinalCanvas = i == targetSheets.Count - 1 && sheetSucceeded;
+                        DiagLog($"[{kindLabel} 출력] 시트 {i + 1}/{targetSheets.Count} 종료 " +
+                                $"ok={sheetSucceeded} keepFinalCanvas={keepFinalCanvas}");
                         if (!keepFinalCanvas)
                             CleanupDrawingSheetExportCanvas();
                     }
                 }
+                DiagLog($"[{kindLabel} 출력] 루프 종료 success={successCount} failures={failures.Count}");
             }
             catch (OperationCanceledException)
             {
@@ -1390,15 +1396,22 @@ namespace A2Z
             }
             finally
             {
+                // [issue #116] finally 각 단계를 개별로 남긴다 — 어느 호출에서 멈추는지 특정용.
+                DiagLog($"[{kindLabel} 출력] finally 진입 canceled={canceled} started={cancelableOperationStarted}");
                 if (cancelableOperationStarted)
                 {
-                    try { HideBusyOverlay(); } catch { }
+                    try { HideBusyOverlay(); } catch (Exception ex) { DiagLog($"[{kindLabel} 출력] HideBusyOverlay 실패 {ex.Message}"); }
+                    DiagLog($"[{kindLabel} 출력] HideBusyOverlay 완료");
                     EndCancelableOperation();
+                    DiagLog($"[{kindLabel} 출력] EndCancelableOperation 완료");
                 }
                 RestoreDrawingExportControlStates(previousEnabledStates);
+                DiagLog($"[{kindLabel} 출력] 컨트롤 상태 복원 완료");
             }
 
+            DiagLog($"[{kindLabel} 출력] 결과 표시 직전 success={successCount}");
             ShowDrawingSheetExportResult(kindLabel, saveDir, successCount, failures, canceled);
+            DiagLog($"[{kindLabel} 출력] 결과 표시 완료 — 정상 종료");
         }
 
         private List<KeyValuePair<ListViewItem, DrawingSheetData>> GetDrawingSheetExportTargets(
@@ -1531,14 +1544,23 @@ namespace A2Z
 
         private void CleanupDrawingSheetExportCanvas()
         {
+            // [issue #116] 이 정리 단계가 무한 대기 1순위 후보다.
+            //   GC.WaitForPendingFinalizers()를 UI 스레드에서 부르면, 파이널라이저가 UI 스레드로
+            //   마샬링을 시도할 때 서로 기다리는 데드락이 난다 (VIZCore3D는 대형 네이티브 SDK라
+            //   모델 교체 직후 대기 중인 파이널라이저가 많다). 단계별 로그로 지점을 특정한다.
             try
             {
+                DiagLog("[정리] Clear2DView 진입");
                 Clear2DView();
+                DiagLog("[정리] Clear2DView 완료 — GC 진입");
                 GC.Collect();
+                DiagLog("[정리] GC.Collect 1 완료 — WaitForPendingFinalizers 진입");
                 GC.WaitForPendingFinalizers();
+                DiagLog("[정리] WaitForPendingFinalizers 완료");
                 GC.Collect();
                 Application.DoEvents();
                 System.Threading.Thread.Sleep(100);
+                DiagLog("[정리] 완료");
             }
             catch (Exception ex)
             {
