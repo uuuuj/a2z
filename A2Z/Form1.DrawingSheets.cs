@@ -793,7 +793,7 @@ namespace A2Z
             if (lvDrawingBOMInfo.SelectedItems.Count == 0) return;
             ListViewItem row = lvDrawingBOMInfo.SelectedItems[0];
 
-            // 요약행(Row 0)은 No. 컬럼이 공란 — 스킵
+            // 요약행(Row 0)은 대응 부재가 없으므로 스킵 (No.는 "00", #67 — 인덱스로 걸러 값과 무관)
             if (row.Index == 0) return;
 
             // No. 컬럼 파싱 → bomList 순서(i+1)와 일치 (CollectBOMInfo 매핑 기준)
@@ -2143,15 +2143,16 @@ namespace A2Z
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
 
-                // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행) 제외.
+                // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행)을 첫 행으로 포함한다 (#67).
                 //   1~20행: 기존 태그(열별 20연속, 4~163). 21~25행: 신규 태그(201~240, 열별 5연속) — 2026-07-22 Input 200+ 확장.
                 int bomMapped = 0;
-                if (lvDrawingBOMInfo.Items.Count > 1)
+                if (lvDrawingBOMInfo.Items.Count > 0)
                 {
-                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 25);
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count, 25);
+                //   요약행이 1행을 쓰므로 데이터행 정원은 25 → 24행 (2026-07-28 사용자 확정).
                     for (int i = 0; i < n; i++)
                     {
-                        ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
+                        ListViewItem item = lvDrawingBOMInfo.Items[i];
                         int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
                         if (i < 20)
                         {

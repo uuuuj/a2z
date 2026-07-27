@@ -31,6 +31,8 @@ namespace A2Z
             public string Material;
             public string WeightDisplay;
             public double Weight;
+            /// <summary>조상 STRU 노드 자체의 GWEI 표시값 (요약행 T/W용, #67). 부재 UDA walk-up에서 같이 수집한다.</summary>
+            public string StruWeightDisplay;
         }
 
         private sealed class DrawingBomPreparationContext
@@ -158,7 +160,8 @@ namespace A2Z
                             normalized.Equals("MATREF", StringComparison.OrdinalIgnoreCase) ||
                             normalized.Equals("GWEI", StringComparison.OrdinalIgnoreCase) ||
                             normalized.Equals("POSSTART", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("POSEND", StringComparison.OrdinalIgnoreCase))
+                            normalized.Equals("POSEND", StringComparison.OrdinalIgnoreCase) ||
+                            normalized.Equals("STRU", StringComparison.OrdinalIgnoreCase))
                         {
                             wantedUdaKeys[normalized] = key;
                         }
@@ -167,6 +170,10 @@ namespace A2Z
             }
             catch { }
 
+            // 조상 노드는 부재끼리 공유하므로 STRU 판정·GWEI 조회를 노드당 1회로 memo (#67).
+            //   값 "" = "STRU 노드가 아니거나 GWEI가 비었다" — 둘 다 "계속 위로 올라간다"로 동작이 같아 구분하지 않는다.
+            var struGweiByNode = new Dictionary<int, string>();
+
             foreach (int partIndex in relevantPartIndices.OrderBy(x => x))
             {
                 VIZCore3D.NET.Data.Node node = null;
@@ -174,7 +181,7 @@ namespace A2Z
                 catch { }
                 if (node == null) continue;
 
-                context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys);
+                context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys, struGweiByNode);
             }
 
             foreach (var pair in bodyToPartIndexMap)
@@ -223,13 +230,15 @@ namespace A2Z
 
         private DrawingBomPartData ReadDrawingBomPartData(
             VIZCore3D.NET.Data.Node node,
-            Dictionary<string, string> udaKeys)
+            Dictionary<string, string> udaKeys,
+            Dictionary<int, string> struGweiByNode)
         {
             string sprefVal = "";
             string matrefVal = "";
             string gweiVal = "";
             string posStartVal = "";
             string posEndVal = "";
+            string struGweiVal = "";
 
             int currentIdx = node.Index;
             for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
@@ -240,8 +249,25 @@ namespace A2Z
                 posStartVal = ReadDrawingBomUdaValue(currentIdx, "POSSTART", posStartVal, udaKeys);
                 posEndVal = ReadDrawingBomUdaValue(currentIdx, "POSEND", posEndVal, udaKeys);
 
+                // 요약행 T/W(#67) — 이 노드가 STRU 노드면 "그 노드 자체의" GWEI를 잡는다.
+                //   위 gweiVal walk-up은 첫 비어있지 않은 값에서 멈춰 부재 무게를 잡으므로 그대로 쓰면 안 된다.
+                if (string.IsNullOrEmpty(struGweiVal))
+                {
+                    string cached;
+                    if (!struGweiByNode.TryGetValue(currentIdx, out cached))
+                    {
+                        string struTag = ReadDrawingBomUdaValue(currentIdx, "STRU", "", udaKeys);
+                        cached = string.IsNullOrEmpty(struTag)
+                            ? ""
+                            : ReadDrawingBomUdaValue(currentIdx, "GWEI", "", udaKeys);
+                        struGweiByNode[currentIdx] = cached;
+                    }
+                    struGweiVal = cached;
+                }
+
                 if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal) &&
-                    !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal))
+                    !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal) &&
+                    !string.IsNullOrEmpty(struGweiVal))
                     break;
 
                 try
@@ -286,17 +312,11 @@ namespace A2Z
             if (!string.IsNullOrEmpty(materialVal) && materialVal.StartsWith("/"))
                 materialVal = materialVal.Substring(1);
 
-            double weight = 0;
-            string weightDisplay = gweiVal;
-            if (!string.IsNullOrEmpty(gweiVal))
-            {
-                string number = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray()).Replace(',', '.');
-                if (double.TryParse(number, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out weight))
-                {
-                    weightDisplay = Math.Round(weight, 2).ToString("F2");
-                }
-            }
+            double weight;
+            string weightDisplay = FormatDrawingBomWeight(gweiVal, out weight);
+
+            double struWeight;
+            string struWeightDisplay = FormatDrawingBomWeight(struGweiVal, out struWeight);
 
             return new DrawingBomPartData
             {
@@ -305,8 +325,27 @@ namespace A2Z
                 Size = sizeVal,
                 Material = materialVal,
                 WeightDisplay = weightDisplay,
-                Weight = weight
+                Weight = weight,
+                StruWeightDisplay = struWeightDisplay
             };
+        }
+
+        /// <summary>
+        /// GWEI 원문에서 숫자만 남겨 소수 2자리 표시값으로 정규화한다.
+        /// 숫자로 못 읽으면 원문을 그대로 돌려주고 weight는 0.
+        /// </summary>
+        private static string FormatDrawingBomWeight(string gweiVal, out double weight)
+        {
+            weight = 0;
+            if (string.IsNullOrEmpty(gweiVal)) return gweiVal;
+
+            string number = new string(gweiVal.Where(c => char.IsDigit(c) || c == '.' || c == '-' || c == ',').ToArray()).Replace(',', '.');
+            if (double.TryParse(number, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out weight))
+            {
+                return Math.Round(weight, 2).ToString("F2");
+            }
+            return gweiVal;
         }
 
         private string ReadDrawingBomUdaValue(
@@ -356,15 +395,36 @@ namespace A2Z
                 .ToList();
 
             var snapshot = new DrawingBomSnapshot();
-            double totalWeight = parts.Sum(p => p.Weight);
+
+            // 요약행 T/W(#67) — STRU 노드 자체의 GWEI를 쓴다. 부재 UDA를 읽을 때 같이 수집해 둔 값이라
+            //   도면 출력 시점에는 추가 SDK 조회 없이 바로 꽂힌다.
+            //   값이 없을 때만 기존 부재 무게 합산으로 폴백하고, 폴백 사실을 로그에 남긴다.
+            string struWeight = parts
+                .Select(p => p.StruWeightDisplay)
+                .FirstOrDefault(v => !string.IsNullOrEmpty(v));
+
+            string summaryWeight;
+            if (!string.IsNullOrEmpty(struWeight))
+            {
+                summaryWeight = struWeight;
+            }
+            else
+            {
+                double totalWeight = parts.Sum(p => p.Weight);
+                summaryWeight = totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "";
+                DiagLog($"BOM 요약행 T/W: STRU GWEI 없음 → 부재 합산 폴백 (parts={parts.Count} sum='{summaryWeight}')");
+            }
+
+            // ITEM은 배관/전장 서포트 구분이 확정될 때까지 기본값 Support&Seat 유지 (#67).
+            // MATERIAL·SIZE·Q'TY는 확정 사양대로 빈칸. ""로 넣어야 {Input}이 안 남아 괘선이 보존된다 (#60).
             snapshot.Rows.Add(new DrawingBomRowData
             {
-                No = "",
+                No = "00",
                 Item = "Support&Seat",
                 Material = "",
                 Size = "",
                 Quantity = "",
-                TotalWeight = totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "",
+                TotalWeight = summaryWeight,
                 Ma = "F",
                 Fa = "F"
             });
