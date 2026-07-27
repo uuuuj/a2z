@@ -2011,7 +2011,7 @@ namespace A2Z
         ///   5) GetViewAreasFromExcel — {View_n} 영역 좌표 파싱
         ///   6) 각 View 영역에 모델 투영 (카메라 회전 + Create2DViewObjectWithModelHiddenLine + fit + MoveObjectTo)
         ///
-        /// PoC 패턴 (btnExcelTemplatePoC_Click)을 메인 도면 흐름에 적용.
+        /// 옛 "엑셀 PoC" 버튼에서 검증한 패턴을 메인 도면 흐름에 적용한 것 (PoC는 역할을 다해 2026-07-28 제거).
         /// 시트 부재는 *현재 visible*이라는 조건 — ProcessSingleStruFull/옵션B에서 격리·시트 선택 처리됨.
         /// </summary>
         private void GenerateSheetDrawing2D_WithExcelTemplate(DrawingSheetData sheet)
