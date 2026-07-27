@@ -1841,9 +1841,10 @@ namespace A2Z
 
                 // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
                 VIZCore3D.NET.Data.TemplateTableData tableInfo = new VIZCore3D.NET.Data.TemplateTableData(2, 2);
-                tableInfo.SetText(0, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
+                string infoLogoPath = ResolveDrawingAssetPath("Logo.png");
+                tableInfo.SetText(0, 0, infoLogoPath);
                 tableInfo.SetText(0, 1, "Project Name:\nProject No:");
-                tableInfo.SetText(1, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
+                tableInfo.SetText(1, 0, infoLogoPath);
                 tableInfo.SetText(1, 1, "Title:");
                 tableInfo.IsTextWrapped = true;
                 // 열 너비 합 77mm (흰선 내부 폭 추가 축소, 기존 81→77)
@@ -2091,9 +2092,8 @@ namespace A2Z
                 // D1 (2026-05-18): sheet 명시 전달 — _WithExcelTemplate 함수 인자 그대로 위임
                 CollectBOMInfo(false, sheet);
 
-                // ── 2. 엑셀 파일 경로 ──
-                string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
+                // ── 2. 엑셀 파일 경로 (실행 폴더 templates\ 우선 — 배포 패키지 대응) ──
+                string xlsxPath = ResolveDrawingTemplatePath("제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
@@ -3506,16 +3506,59 @@ namespace A2Z
             return paintCode;
         }
 
+        /// <summary>
+        /// 배포 패키지에서 엑셀 템플릿이 놓이는 실행 폴더 하위 폴더.
+        /// csproj Content 항목의 Link 경로와 반드시 일치해야 한다 (A2Z.csproj).
+        /// </summary>
+        private const string TemplateOutputFolderName = "templates";
+
+        /// <summary>
+        /// 도면 리소스 경로 해결 — **실행 폴더 우선, 솔루션 폴더는 개발 편의용 폴백**.
+        /// 배포 패키지(exe + 리소스만, .sln 없음)에서도 리소스를 찾게 하는 공통 기반이다.
+        /// (2026-07-28 #71) 이전에는 GetSolutionPath()로 .sln을 찾아 레포 루트를 기준으로 삼았기에
+        ///   .sln이 없는 배포 환경에서 템플릿·이미지를 전부 놓쳤다.
+        /// </summary>
+        /// <param name="fileName">파일명 (경로 없이)</param>
+        /// <param name="outputSubDir">실행 폴더 기준 배포 표준 하위 폴더 (루트 배치면 null)</param>
+        /// <param name="solutionSubDir">솔루션 폴더 기준 하위 폴더 (레포 루트 직속이면 null)</param>
+        private string ResolveDrawingResourcePath(string fileName, string outputSubDir, string solutionSubDir)
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            // ── 1순위: 실행 폴더 — 배포 패키지에서 유일하게 유효한 경로 ──
+            var outputCandidates = new List<string>();
+            if (!string.IsNullOrEmpty(outputSubDir))
+                outputCandidates.Add(Path.Combine(baseDir, outputSubDir, fileName));
+            outputCandidates.Add(Path.Combine(baseDir, fileName));      // 하위 폴더 규칙 이전 배포본 호환
+            if (!string.IsNullOrEmpty(solutionSubDir))
+                outputCandidates.Add(Path.Combine(baseDir, solutionSubDir, fileName));
+
+            foreach (string candidate in outputCandidates)
+            {
+                string full = Path.GetFullPath(candidate);
+                if (File.Exists(full)) return full;
+            }
+
+            // ── 2순위: 솔루션 폴더 — 개발 PC 전용 폴백 (.sln 탐색 비용은 여기서만 발생) ──
+            string devPath = Path.GetFullPath(string.IsNullOrEmpty(solutionSubDir)
+                ? Path.Combine(GetSolutionPath(), fileName)
+                : Path.Combine(GetSolutionPath(), solutionSubDir, fileName));
+            if (File.Exists(devPath)) return devPath;
+
+            // 어디에도 없음 — 배포 표준 위치를 돌려줘 에러 메시지가 "있어야 할 자리"를 가리키게 한다
+            return Path.GetFullPath(outputCandidates[0]);
+        }
+
+        /// <summary>도면 이미지 리소스 — 실행 폴더 루트 → 실행 폴더 assets\ → 솔루션 assets\</summary>
         private string ResolveDrawingAssetPath(string fileName)
         {
-            string outputPath = Path.GetFullPath(
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName));
-            if (File.Exists(outputPath))
-                return outputPath;
+            return ResolveDrawingResourcePath(fileName, null, "assets");
+        }
 
-            string solutionPath = Path.GetFullPath(
-                Path.Combine(GetSolutionPath(), "assets", fileName));
-            return File.Exists(solutionPath) ? solutionPath : outputPath;
+        /// <summary>도면 엑셀 템플릿 — 실행 폴더 templates\ → 실행 폴더 루트 → 솔루션 루트</summary>
+        private string ResolveDrawingTemplatePath(string fileName)
+        {
+            return ResolveDrawingResourcePath(fileName, TemplateOutputFolderName, null);
         }
 
         /// <summary>

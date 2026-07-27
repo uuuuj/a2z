@@ -1,6 +1,6 @@
 # Form1.DrawingSheets.cs — 코드 레퍼런스
 
-**경로**: `A2Z/Form1.DrawingSheets.cs` (약 3,951 라인)
+**경로**: `A2Z/Form1.DrawingSheets.cs` (약 4,057 라인)
 
 **책임**: Clash 그래프 기반 BFS 시트 분할, 시트 선택 시 X-Ray + 치수 표시, 시트별 2D 생성, 단일·종류별 PDF 내보내기, ISO 풍선 노트 생성.
 
@@ -90,12 +90,20 @@
 - **라인**: L3413+
 - **역할**: `UDA.Keys`를 `BeginUpdate` 밖인 출력 데이터 구성 시점에만 호출하고, 첫 조회 결과를 같은 도면 목록의 모든 `DrawingSheetData.PaintCode`에 저장한다. 빈 문자열도 조회 완료 상태로 캐시해 제작도·조립도·설치도·가공도가 같은 값 또는 같은 빈 상태를 사용한다.
 
+### <a id="ResolveDrawingResourcePath"></a>ResolveDrawingResourcePath(fileName, outputSubDir, solutionSubDir)
+- **라인**: L3524+
+- **역할**: 도면 리소스 경로 해결 공통 기반. **실행 폴더 우선**(`{exe}\{outputSubDir}\` → `{exe}\` → `{exe}\{solutionSubDir}\`) 탐색 후 전부 miss일 때만 솔루션 폴더로 fallback. `.sln`이 없는 배포 패키지에서도 리소스를 찾게 한다. 어디에도 없으면 배포 표준 위치(첫 후보)를 반환해 에러 문구가 정상 위치를 가리키게 함
+
 ### <a id="ResolveDrawingAssetPath"></a>ResolveDrawingAssetPath(fileName)
-- **라인**: L3447+
-- **역할**: 실행 폴더의 이미지 파일을 우선 사용하고, 개발 환경에서는 솔루션 루트 파일로 fallback
+- **라인**: L3553+
+- **역할**: 도면 이미지 리소스 경로. `ResolveDrawingResourcePath(fileName, null, "assets")` 위임 — 실행 폴더 루트 → 실행 폴더 `assets\` → 솔루션 `assets\`
+
+### <a id="ResolveDrawingTemplatePath"></a>ResolveDrawingTemplatePath(fileName)
+- **라인**: L3559+
+- **역할**: 도면 엑셀 템플릿 경로. `ResolveDrawingResourcePath(fileName, "templates", null)` 위임 — 실행 폴더 `templates\` → 실행 폴더 루트 → 솔루션 루트. 하위 폴더명 상수는 `TemplateOutputFolderName`(L3513)이며 csproj Content의 Link 경로와 일치해야 함
 
 ### <a id="PlaceImageInTemplateArea"></a>PlaceImageInTemplateArea(imagePath, area, margin=1)
-- **라인**: L3463+
+- **라인**: L3568+
 - **역할**: `TemplateTableData` 이미지 셀을 영역 크기에 종횡비 유지 fit 후 중앙 좌표에 직접 렌더링. 실패 시 절대경로 로그 후 도면 출력 계속
 
 ### <a id="SanitizeFileName"></a>SanitizeFileName
