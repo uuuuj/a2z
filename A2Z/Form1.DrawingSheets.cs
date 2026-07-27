@@ -2342,12 +2342,25 @@ namespace A2Z
                     {
                         if (sheet.BaseMemberIndex >= 0 && bomList != null && bomList.Count > 1)   // 조립도
                         {
-                            // #7 재오픈(㉠): 실선 대상 = 기준부재만 → BOM 테이블 부재 전체.
-                            //   실선이 BOM 전체가 되면 점선 배경(전체−기준)이 비므로 점선 없이 단일 실선 캡처로 단순화.
-                            isoSolidTargets = new List<int>();
-                            foreach (var b in bomList) isoSolidTargets.Add(b.Index);
-                            isoDashedTargets = null;   // 점선 배경 없음
-                            isoFitByDashed = false;
+                            // [2026-07-28 사용자 정정] 실선 = 조립도에 표현되는 부재(= 시트 부재), 점선 = 그 외 전체.
+                            //   #7 재오픈 때 "BOM 테이블 부재 전체"를 전역 bomList로 해석한 게 오류였다.
+                            //   bomList는 CollectBOMData가 채우는 STRU 전체 BOM(lvBOM 탭)이라 시트와 무관하다.
+                            //   도면에 인쇄되는 BOM 표는 시트별 lvDrawingBOMInfo이고 그 모수가 sheet.MemberIndices다.
+                            //   → 실선은 시트 부재로 한정하고, 점선 배경(전체−시트)을 되살려 두 겹 캡처로 복귀.
+                            isoSolidTargets = new List<int>(sheet.MemberIndices);
+                            var assemblySheetMembers = new HashSet<int>(sheet.MemberIndices);
+                            isoDashedTargets = bomList
+                                .Select(b => b.Index)
+                                .Where(index => !assemblySheetMembers.Contains(index))
+                                .Distinct()
+                                .ToList();
+                            if (isoDashedTargets.Count == 0)
+                                isoDashedTargets = null;   // 시트가 BOM 전체를 덮으면 단일 실선 캡처로 폴백
+                            // 프레임은 전체(점선+실선) 기준 fit — 조립도는 주변 구조 속 위치를 보여야 한다.
+                            isoFitByDashed = isoDashedTargets != null;
+                            DiagLog($"P2 ISO 조립도 실선/점선 sheet#={sheet.SheetNumber} " +
+                                    $"solid={isoSolidTargets.Count} dashed={isoDashedTargets?.Count ?? 0} " +
+                                    $"bomListTotal={bomList.Count} fitByDashed={isoFitByDashed}");
                         }
                         else if (sheet.BaseMemberIndex == -1)   // 제작도
                         {
@@ -2371,7 +2384,8 @@ namespace A2Z
                     }
                     else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
                     {
-                        // #7 재오픈(㉠): 조립도 단일 실선 — 실선 대상(BOM 전체) 기준 fit
+                        // 점선 배경이 없는 경우(설치도·제작도 이웃 0개, 조립도가 BOM 전체를 덮는 경우)
+                        //   실선 대상 기준 단일 fit. 조립도 두 겹은 위 isoFitByDashed 분기가 처리한다.
                         vizcore3d.View.FlyToObject3d(isoSolidTargets, 1.25f);
                     }
                     else
@@ -2550,8 +2564,8 @@ namespace A2Z
                     }
                     else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
                     {
-                        // #7 재오픈(㉠): 조립도 단일 실선 캡처 전, 실선 대상(BOM 전체)만 표시
-                        //   (앞 풍선 단계는 sheet.MemberIndices만 보였으므로 여기서 BOM 전체로 교체)
+                        // 점선 배경이 없는 단일 캡처 폴백 — 실선 대상만 표시.
+                        //   (앞 풍선 단계도 sheet.MemberIndices만 보였으므로 조립도에서는 사실상 동일 집합)
                         vizcore3d.BeginUpdate();
                         vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                         vizcore3d.Object3D.Show(isoSolidTargets, true);
