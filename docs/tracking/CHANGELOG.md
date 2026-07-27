@@ -6,6 +6,43 @@
 
 ---
 
+## 2026-07-28 — BOM 요약행 값 확정 (No.=00, T/W=STRU GWEI) + 출력 반영
+
+**유형**: feat
+**커밋**: `pending`
+**관련 ISSUE**: GitHub issue #67
+**변경 사항**:
+- 요약행 No.를 빈칸 → `00` 고정. 데이터행 정렬(`dataRows`만 정렬)과 행 클릭 매핑(`row.Index == 0` 인덱스 가드)은 값과 무관해 영향 없음을 코드로 확인
+- 요약행 T/W를 부재 무게 합산 → **조상 STRU 노드 자체의 `GWEI`**로 교체. 값이 없을 때만 기존 합산으로 폴백하고 폴백 사실을 `DiagLog`에 기록
+- STRU GWEI를 부재 UDA walk-up에서 같이 수집하도록 구성 — 도면 출력 시점에는 추가 SDK 조회가 없다. 조상 노드는 부재끼리 공유하므로 `struGweiByNode`로 노드당 1회만 판정·조회
+- 부재용 GWEI walk-up은 첫 비어있지 않은 값에서 멈춰 부재 무게를 잡으므로 요약행에 재사용 불가 — STRU 노드를 먼저 찾고 그 노드에서만 읽는 경로를 분리
+- 무게 표시 정규화를 `FormatDrawingBomWeight`로 공용화 (부재/STRU 동일 규칙)
+- **요약행이 실제로 도면에 출력되도록 매핑 확장** — 기존에는 제작·조립·설치도(`Items[i + 1]`)와 가공도(`SnapshotBomRows`의 `i = 1`)가 모두 첫 행을 건너뛰어 화면에만 보이고 도면에는 나가지 않았다
+- 템플릿 BOM 정원 25행 유지 → 요약행 1행 + 데이터행 24행 (사용자 확정)
+- ITEM은 배관/전장 서포트 구분이 확정될 때까지 기본값 `Support&Seat` 유지 (사용자 확정)
+- MATERIAL·SIZE·Q'TY는 빈칸 유지. `""`로 채워 보내 `{Input}`이 남지 않아 템플릿 괘선이 보존된다 (#60 동작)
+
+**영향 범위**: `Form1.Clash.cs`(BOM 스냅샷 생성) · `Form1.DrawingSheets.cs`(제작·조립·설치도 슬롯 매핑) · `Form1.MfgDrawing.cs`(가공도 스냅샷·기대행수). 제작도·조립도·설치도·가공도 4종 실기 확인 대기.
+
+---
+
+## 2026-07-28 — 표제부 REV 표 첫 기재행 채우기 + BOM 요약행
+
+**유형**: feat
+**커밋**: `cfbefc9` (병렬 세션의 `git add -A`로 두 작업이 한 커밋에 묶임 — 커밋 메시지는 BOM 요약행만 언급하나 REV 표 변경도 같은 커밋에 포함)
+**관련 TASK**: T-101 (표제부 REV 표 채우기)
+**관련 ISSUE**: GitHub issue #64 (REV 표 채우기 로직) · #118 (개발 계획) · #67 (BOM 요약행)
+**변경 사항**:
+- 표제부 REV 이력 표 슬롯(`Input_170~199`)을 채우는 공통 헬퍼 `FillRevisionTable` / `BuildCurrentRevisionHistory` 신설 (`Form1.ExcelTemplate.cs`) — 기재행별 슬롯 시작 번호 `RevRowSlotBase = {194, 188, 182, 176, 170}`(엑셀 44행 → 40행), 한 행은 REV./DATE/DESCRIPTION/DRAWN/CHECKED/APPROVED 6칸 연속
+- 첫 기재행 값은 REV.=`0` 고정, DATE=출력일 `yyyy-mm-dd`(InvariantCulture). DESCRIPTION·DRAWN·CHECKED·APPROVED는 입력 수단·기본 문구가 미정이라 공백 1칸으로 괘선만 보존
+- 기재행은 6칸 전부 `data`에 키를 넣고 미사용 이력행(170~193)은 키를 넣지 않는다 — 값이 있으면 `{Input}`이 남지 않아 `RemoveEmptyTemplateBorders`가 괘선을 못 지운다는 벤더 규칙(issue #60)을 그대로 이용
+- 호출 배선 2곳: `GenerateSheetDrawing2D_WithExcelTemplate`(제작도·조립도·설치도 공유 경로) · `BuildMfgPageData`(가공도, 다중 페이지 동일 값)
+- `Models.cs`에 `RevisionEntry` 추가 (REV 표 한 행 = 6칸)
+- 검증용 `RunMfgCameraSignProbe`의 부재명 잔재 `data[195]`를 `data[241]`로 정리 — 195~199는 REV 표 대역이고 부재명은 2026-07-23에 241~245로 이전됨
+- BOM 요약행(#67): UDA 선별에 `STRU` 추가, Part walk-up에서 조상 STRU 노드의 `GWEI`를 요약행 T/W용으로 수집. 요약행은 No.=`00`·ITEM=`Support&Seat`이고 MATERIAL·SIZE·Q'TY는 `-` 대체 없이 빈칸으로 내보내 괘선 보존
+
+**영향 범위**: 제작도·조립도·설치도·가공도 4종 PDF의 표제부 REV 표와 BOM 표 첫 행. 실기 확인 시 REV 첫 기재행 괘선이 정상이면 issue #33(빈 REV 행 괘선 보존, T-095)은 실질 해소로 종결 검토.
+
 ## 2026-07-26 — 사내 실기 검증 3건 정상 확인
 
 **유형**: docs
