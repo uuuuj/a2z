@@ -58,21 +58,41 @@ def load_rows():
     return out
 
 
+def issue_meta():
+    """이슈 본문의 excel-meta 에서 읽은 {이슈번호: {Excel No....}}"""
+    out = {}
+    raw = subprocess.run(['gh', 'issue', 'list', '--state', 'all', '--limit', '300',
+                          '--json', 'number,body'], capture_output=True, text=True,
+                         encoding='utf-8').stdout
+    for i in json.loads(raw or '[]'):
+        m = re.search(r'<!-- excel-meta(.*?)-->', i['body'] or '', re.S)
+        if not m:
+            continue
+        n = re.search(r'no:\s*([\d,\s·-]+)', m.group(1))
+        out[str(i['number'])] = set(re.findall(r'\d+', n.group(1))) if n else set()
+    return out
+
+
 def linked_nos():
-    """이미 GitHub 이슈가 연결된 Excel No. 집합"""
+    """이미 GitHub 이슈가 연결된 Excel No. 집합 — tracking 표기 + 이슈 본문 메타"""
     txt = ''.join(io.open(f, encoding='utf-8').read()
                   for f in glob.glob(os.path.join(ROOT, 'docs/tracking/tasks/*.md')))
     got = set()
     for m in re.finditer(r'Excel No\.([\d·,\s]+)', txt):
         if re.findall(r'issue #(\d+)', txt[max(0, m.start() - 400):m.start()]):
             got |= set(re.findall(r'\d+', m.group(1)))
+    for nos in issue_meta().values():
+        got |= nos
     return got
 
 
 def title(row):
     name = row['name']
-    if len(name) < 10 and row['cat']:          # 'Q'TY' 처럼 짧은 이름은 대분류를 붙여 구분한다
-        name = '%s %s' % (row['cat'], name)
+    cat = row['cat']
+    # 'Q'TY' 처럼 짧은 이름은 대분류를 붙여 구분한다.
+    # 단 이름에 이미 대분류가 들어 있거나(치수 대각선 표시) 대분류가 한 글자면 붙이지 않는다.
+    if len(name) < 10 and len(cat) >= 2 and cat.split()[0] not in name:
+        name = '%s %s' % (cat, name)
     pre = STATUS.get(row['status'], (None,))[0]
     return '[%s] %s' % (pre, name) if pre else name
 
@@ -109,6 +129,10 @@ def body(row):
            ('완료 확인일', row['done']), ('최근 변경일', row['changed'])]
     L += ['## 이력 · 판정', '| 항목 | 값 |', '|---|---|']
     L += ['| %s | %s |' % (k, v) for k, v in tbl if v]
+    if STATUS.get(row['status'], (0, 0, False))[2]:
+        L += ['', '## 관련 기록',
+              '변경 이력은 [`docs/tracking/CHANGELOG.md`](../blob/HYI/docs/tracking/CHANGELOG.md)에서 '
+              '`%s`(으)로 검색하십시오.' % row['name']]
     L += ['', '---',
           '*이슈 관리 도입(%s) 전에 개발 현황 Excel(No.%s)과 docs로 관리하던 항목을 옮긴 것입니다. '
           'GitHub 등록·종료일은 옮긴 날짜이며, 실제 일자는 위 이력 표를 따릅니다.*' % (MOVED, row['no'])]
@@ -159,13 +183,44 @@ def create(row, dry):
     return num
 
 
+def attach(row, num, dry):
+    """이미 있는 이슈에 excel-meta 만 얹는다 (새 이슈를 만들지 않는다)."""
+    cur = subprocess.run(['gh', 'issue', 'view', num, '--json', 'body,title'],
+                         capture_output=True, text=True, encoding='utf-8').stdout
+    j = json.loads(cur)
+    if 'excel-meta' in (j['body'] or ''):
+        print('  #%-3s 이미 메타 있음 — 건너뜀' % num)
+        return
+    meta = re.search(r'<!-- excel-meta.*?-->', body(row), re.S).group(0)
+    new = meta + '\n\n' + (j['body'] or '')
+    if dry:
+        print('  No.%-3s → #%-3s %s\n%s\n' % (row['no'], num, j['title'][:44], meta))
+        return
+    tmp = os.path.join(ROOT, '.tmp-issue-body.md')
+    io.open(tmp, 'w', encoding='utf-8', newline='\n').write(new)
+    subprocess.run(['gh', 'issue', 'edit', num, '--body-file', tmp],
+                   capture_output=True, text=True, encoding='utf-8')
+    os.remove(tmp)
+    print('  No.%-3s → #%-3s %s' % (row['no'], num, j['title'][:50]))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dry', action='store_true')
     ap.add_argument('--only', default='')
+    ap.add_argument('--map', default='', help='기존 이슈에 연결만: "76:40,8:14"')
     a = ap.parse_args()
 
     rows = load_rows()
+    by_no = {r['no']: r for r in rows}
+
+    if a.map:
+        print('기존 이슈에 Excel 연결\n')
+        for pair in a.map.split(','):
+            no, num = (s.strip() for s in pair.split(':'))
+            attach(by_no[no], num, a.dry)
+        return
+
     done = linked_nos()
     todo = [r for r in rows if r['no'] not in done]
     if a.only:
