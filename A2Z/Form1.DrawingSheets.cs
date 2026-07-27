@@ -2084,19 +2084,23 @@ namespace A2Z
                 //   4..23 = BOM No (20행), 24..43 = ITEM, 44..63 = MATERIAL, 64..83 = SIZE,
                 //   84..103 = Q'TY, 104..123 = T/W, 124..143 = MA, 144..163 = FA
                 Dictionary<int, string> data = new Dictionary<int, string>();
-                // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
-                //   신 템플릿 Input 사용: 4~163=BOM 1~20행, 164=Note내용, 165~168=PAINT/DP, 169=TAG NO,
-                //   170~199=Rev 표, 200=Note 라벨(AW33), 201~240=BOM 21~25행 (2026-07-22 Input 200+ 확장).
-                //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-                //   사용자 사양(2026-07-21): BOM(4~163)·Note(164)·Rev 위 4행(170~193)은 비면 지우고,
-                //   PAINT/DP/TAG(165~169)·Rev 첫 기재행(194~199, 헤더 바로 위 1행)은 빈칸으로 남긴다.
+                // [2026-07-27] 빈 슬롯 선초기화(1~240 → ""/" ") 제거 — 벤더(소프트힐스) 안내 반영.
+                //   ImportExcelWithData는 data에 값이 있으면(""·" " 포함) 치환하고, 값이 없을 때만 {Input}으로 남긴다.
+                //   그리고 {Input}으로 남은 셀만 JSON에 TextBox로 생성되는데, RemoveEmptyTemplateBorders는
+                //   그 TextBox가 있어야 괘선을 지운다. 선초기화가 전 슬롯을 채우면 {Input}이 하나도 안 남아
+                //   괘선 제거가 통째로 무동작이었다 (SDK 1.0.26.727 전달 메일 — 전문 요약은 issue #60,
+                //   원본 .eml은 gitignore로 로컬 전용).
+                //   → 미기재 슬롯은 data에 키를 넣지 않고 {Input}으로 남긴다.
+                //   ⚠ 부작용 2건 실기 확인 필요: ① 07-21 확정한 "PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199)
+                //   괘선 보존" 정책이 깨져 같이 지워질 수 있음 ② TextBox가 PDF에 {Input} 글자로 노출될 수 있음
+                //   (선초기화의 원래 목적이 그 노출 방지였음). 재발 시 보존 슬롯만 " "로 되돌리는 게 1차 대응.
+                //   슬롯: 4~163=BOM 1~20행, 164=Note내용, 165~168=PAINT/DP, 169=TAG NO,
+                //   170~199=Rev 표, 200=Note 라벨(AW33), 201~240=BOM 21~25행.
                 //   Note 라벨("Note : ")은 템플릿에서 제거됨 — 향후 Note 실데이터를 채울 땐 코드가 "Note : " 접두어까지 포함할 것.
-                for (int k = 1; k <= 240; k++)
-                    data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 200 && k <= 240)) ? "" : " ";
-                // 200(Note 라벨)도 비면 ""로 → 노트 없을 때 라벨칸 괘선까지 제거(2026-07-22 사용자). 노트 있으면 "Note"라 유지.
+                // 200(Note 라벨)은 노트가 없으면 키를 안 넣어 {Input}으로 남긴다 → 라벨칸 괘선까지 제거(2026-07-22 사용자).
                 // Note(AW33 라벨 = {Input_200}, AY33 내용 = {Input_164}) — 노트가 있을 때만 라벨 "Note" + 내용 표시.
                 //   [2026-07-22] Input 200+ 렌더 실기 통과 확인 완료(제작도 200~240 크래시 없음) → 테스트용
-                //   임시값(data[200]="Note" 항상표시) 제거. 노트 입력 기능 미구현이라 현재는 항상 빈칸(init " ").
+                //   임시값(data[200]="Note" 항상표시) 제거. 노트 입력 기능 미구현이라 현재는 미치환 상태로 둔다.
                 //   입력 소스가 생기면 아래처럼 조건부로 채운다:
                 // string sheetNote = <노트 입력 소스>;
                 // if (!string.IsNullOrEmpty(sheetNote)) { data[200] = "Note"; data[164] = sheetNote; }
@@ -2379,6 +2383,14 @@ namespace A2Z
                             }
                         }
 
+                        // [issue #62] 부재번호 풍선 미출력 진단 — 세 지점 중 어디서 0이 되는지 구분한다.
+                        //   notes=0        → CreateIsoBalloonNotes 단계 (bomList 비었거나 시트 부재가 BOM에 없음)
+                        //   visibleNotes=0 → FromScreen 가시성 필터 단계 (아래 2D 변환 자체를 건너뜀)
+                        //   둘 다 >0인데 도면에 없으면 → 2D 변환·정합 단계
+                        DiagLog($"P2 ISO 풍선 sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} " +
+                                $"notes={nodeToNoteMap.Count} visibleNodes={visibleNodes.Count} " +
+                                $"visibleNotes={visibleNoteIds.Count}");
+
                         // 풍선 생성 후 시트 부재만 보이기 (2D 캡처 준비)
                         vizcore3d.BeginUpdate();
                         vizcore3d.View.XRay.Enable = false;
@@ -2577,6 +2589,12 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 0);
                         }
                         convertedNoteIndices.AddRange(visibleNoteIds);
+                        DiagLog($"P2 {viewDir} 풍선 2D 변환 {visibleNoteIds.Count}개 (기준 실선 obj={objId})");
+                    }
+                    else if (viewDir == "ISO")
+                    {
+                        // [issue #62] ISO인데 변환할 풍선이 없음 — 위 'P2 ISO 풍선' 로그로 어느 단계에서 0이 됐는지 확인.
+                        DiagLog($"P2 {viewDir} 풍선 2D 변환 건너뜀 — visibleNoteIds 없음");
                     }
                     foreach (int nIdx in convertedNoteIndices)
                     {

@@ -143,14 +143,17 @@ namespace A2Z
         {
             var data = new Dictionary<int, string>();
 
-            // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            //   [2026-07-23] Input 200+ 크래시가 API 배포로 해소됨 → 제작도처럼 확장.
-            //   REV 표 첫 기재행(194~199)은 제작도와 동일하게 살려 " "(괘선 보존), 부재명은 241~245로 분리.
-            //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-            //   제거 대상: BOM(4~163)·Note(164)·Rev 위(170~193)·BOM 21~25행(200~240)·부재명(241~245) — 제작도와 동일 정책.
-            //   보존: PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199 = REV./DATE/DESC/DRAWN/CHECKED/APPROVED). View 1~5.
-            for (int k = 1; k <= 245; k++)
-                data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 200 && k <= 245)) ? "" : " ";
+            // [2026-07-27] 빈 슬롯 선초기화(1~245 → ""/" ") 제거 — 벤더(소프트힐스) 안내 반영.
+            //   ImportExcelWithData는 data에 값이 있으면(""·" " 포함) 치환하고, 값이 없을 때만 {Input}으로 남긴다.
+            //   그리고 {Input}으로 남은 셀만 JSON에 TextBox로 생성되는데, RemoveEmptyTemplateBorders는
+            //   그 TextBox가 있어야 괘선을 지운다. 선초기화가 전 슬롯을 채우면 {Input}이 하나도 안 남아
+            //   괘선 제거가 통째로 무동작이었다 (SDK 1.0.26.727 전달 메일이 이 파일을 지목 — 전문 요약은
+            //   issue #60, 원본 .eml은 gitignore로 로컬 전용).
+            //   → 미기재 슬롯은 data에 키를 넣지 않고 {Input}으로 남긴다. 제작도(Form1.DrawingSheets.cs)도 동일 적용.
+            //   ⚠ 부작용 2건 실기 확인 필요: ① 07-21 확정한 "PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199)
+            //   괘선 보존" 정책이 깨져 같이 지워질 수 있음 ② TextBox가 PDF에 {Input} 글자로 노출될 수 있음
+            //   (선초기화의 원래 목적이 그 노출 방지였음). 재발 시 보존 슬롯만 " "로 되돌리는 게 1차 대응.
+            //   슬롯: BOM(4~163)·Note(164)·PAINT/DP/TAG(165~169)·Rev 표(170~199)·BOM 21~25행(200~240)·부재명(241~245). View 1~5.
 
             // ── 도면정보 ──
             data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)
