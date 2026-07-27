@@ -2385,11 +2385,33 @@ namespace A2Z
 
                         // [issue #62] 부재번호 풍선 미출력 진단 — 세 지점 중 어디서 0이 되는지 구분한다.
                         //   notes=0        → CreateIsoBalloonNotes 단계 (bomList 비었거나 시트 부재가 BOM에 없음)
-                        //   visibleNotes=0 → FromScreen 가시성 필터 단계 (아래 2D 변환 자체를 건너뜀)
+                        //   visibleNotes=0 → FromScreen 가시성 필터 단계 (2D 변환을 건너뜀 → 아래 폴백)
                         //   둘 다 >0인데 도면에 없으면 → 2D 변환·정합 단계
+                        //   viewSize/splitter도 같이 남긴다 — FromScreen은 3D 뷰 화면을 훑는데 이 경로는
+                        //   직전(2010행)에 SplitterDistance를 Width*0.2로 줄여 3D 패널을 좁힌 상태다.
+                        string viewDiag;
+                        try
+                        {
+                            System.Drawing.Size vs = vizcore3d.View.Size;
+                            var sc = vizcore3d.SplitContainer;
+                            viewDiag = $"viewSize={vs.Width}x{vs.Height} mode={vizcore3d.ViewMode} " +
+                                       (sc != null ? $"splitter={sc.SplitterDistance}/{sc.Width}" : "splitter=null");
+                        }
+                        catch (Exception exDiag) { viewDiag = $"viewDiag 실패 {exDiag.Message}"; }
+
                         DiagLog($"P2 ISO 풍선 sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} " +
                                 $"notes={nodeToNoteMap.Count} visibleNodes={visibleNodes.Count} " +
-                                $"visibleNotes={visibleNoteIds.Count}");
+                                $"visibleNotes={visibleNoteIds.Count} {viewDiag}");
+
+                        // [issue #62] 가시성 필터가 빈손이면 풍선이 통째로 사라진다 (사내 실기: notes=3 visibleNodes=0).
+                        //   이 필터는 "가려진 부재의 풍선을 빼는" 최적화지 필수 단계가 아니다.
+                        //   0이면 시트 부재 전체 풍선으로 폴백한다 — 전부 없는 것보다 전부 있는 쪽이 맞다.
+                        //   ⚠ 근본 원인(FromScreen이 왜 0인지)은 미규명. 위 viewSize/splitter 로그로 계속 추적할 것.
+                        if (visibleNoteIds.Count == 0 && nodeToNoteMap.Count > 0)
+                        {
+                            visibleNoteIds.AddRange(nodeToNoteMap.Values.Distinct());
+                            DiagLog($"P2 ISO 풍선 가시성 필터 빈손 — 시트 부재 전체 {visibleNoteIds.Count}개로 폴백 (issue #62)");
+                        }
 
                         // 풍선 생성 후 시트 부재만 보이기 (2D 캡처 준비)
                         vizcore3d.BeginUpdate();
