@@ -53,8 +53,10 @@ namespace A2Z
         /// </summary>
         private sealed class MfgDrawingResult
         {
-            public int SuccessPdfs;               // 성공 저장 PDF 수
-            public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 PDF 수 (성공 PDF 중 일부)
+            public int SuccessPdfs;               // 저장된 PDF 파일 수 (#119 묶음 저장 후로는 0 또는 1)
+            public int SuccessPages;              // PDF에 담긴 도면 페이지 수 (#119)
+            public string SavedPdfPath;           // 저장된 묶음 PDF 경로 (#119, 미저장이면 null)
+            public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 페이지 수 (성공 페이지 중 일부)
             public bool TemplateMissing;          // 가공도 엑셀 템플릿 누락 → PDF 0개
             public string TemplatePath;           // 실제 탐색한 템플릿 경로 (누락 안내 문구가 재계산하지 않도록)
             public int BomRows;                   // 실제 snapshot BOM 행 수
@@ -262,9 +264,8 @@ namespace A2Z
         /// </summary>
         private void ResetCanvasForMfgPage()
         {
-            Clear2DView();
-            vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
-            vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+            // 묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+            PrepareDrawingCanvas(297, 210);
         }
 
         /// <summary>
@@ -275,31 +276,6 @@ namespace A2Z
             string dir = Path.Combine(Application.StartupPath, "Drawings");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
-        }
-
-        /// <summary>
-        /// PDF 파일명 충돌 방지 + sanitize + 길이 clamp + MAX_PATH 진단 (v7 Codex 4차).
-        /// Form1.DrawingSheets.cs SanitizeFileName 재사용.
-        /// </summary>
-        private string MakeUniquePdfPath(string saveDir, string struName, int pageIdx, int totalPages, int struIndex)
-        {
-            string safeName = SanitizeFileName(struName ?? "manual");
-            if (safeName.Length > 40) safeName = safeName.Substring(0, 40);
-
-            string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
-            string baseName = $"{safeName}_가공도_p{pageIdx}of{totalPages}_S{struIndex}_{ts}.pdf";
-            string path = Path.Combine(saveDir, baseName);
-
-            int n = 1;
-            while (File.Exists(path) && n < 1000)
-            {
-                string alt = $"{Path.GetFileNameWithoutExtension(baseName)}_{n}.pdf";
-                path = Path.Combine(saveDir, alt);
-                n++;
-            }
-            if (path.Length > 240)
-                DiagLog($"[MakeUniquePdfPath] WARN path 길이 {path.Length} (Windows MAX_PATH 260 임박): {path}");
-            return path;
         }
 
         /// <summary>
@@ -2524,6 +2500,12 @@ namespace A2Z
             DrawingSheetData previousSelectedSheet = null;
             bool prevLvEnabled = lvDrawingSheet.Enabled;
 
+            // #119: 페이지를 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+            //   도면 일괄 출력이 이 함수를 품고 호출하면 그쪽 누적에 페이지만 얹고 저장은 넘긴다.
+            bool ownsPdfAccumulation = false;
+            string mergedPdfPath = null;
+            string mfgTimeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+
             // P3 #2 패치 (2026-05-23, 사용자 보고):
             //   "가공도 출력 누르자 마자 다른 부재들이 보임" — 진입부 Show(ALL, true)가 BOM 채우기 위해
             //   모든 부재를 표시한 후 row 격리 사이의 중간 상태가 화면에 노출됨.
@@ -2550,7 +2532,11 @@ namespace A2Z
                 ResetMfgPreviewViewState("GenerateMfgDrawingManual/start");
                 vizcore3d.Review.Note.Clear();
                 ClearMfgViewAnnotations("GenerateMfgDrawingManual/start");
-                Clear2DView();
+                // #119: 여기서 이전 도면 잔재를 지우고 누적을 연다.
+                //   이미 바깥(도면 일괄 출력)이 누적 중이면 지우지 않고 페이지만 이어붙인다.
+                //   경로를 먼저 확정한다 — 누적을 연 뒤 예외가 나면 저장 경로 없이 닫히게 된다.
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, "가공도", mfgTimeStamp);
+                ownsPdfAccumulation = BeginPdfPageAccumulation("가공도");
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
                 vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
@@ -2703,26 +2689,22 @@ namespace A2Z
 
                         CheckMfgCancellation(
                             shouldCancel,
-                            $"{pageProgress} PDF 마무리 중...",
+                            $"{pageProgress} 페이지 마무리 중...",
                             $"{pageProgress} 최종 렌더 전");
                         vizcore3d.Drawing2D.Render();
                         vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                         vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
-                        string pdfPath = MakeUniquePdfPath(saveDir, struName, page.PageIdx, pages.Count, struIndex);
-                        CheckMfgCancellation(
-                            shouldCancel,
-                            $"{pageProgress} PDF 저장 중...",
-                            $"{pageProgress} PDF 저장 전");
-                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                        result.SuccessPdfs++;
+                        // #119: 페이지마다 저장하지 않는다. 이 캔버스는 그대로 쌓아두고,
+                        //   모든 페이지를 그린 뒤 finally에서 PDF 1개로 저장한다.
+                        result.SuccessPages++;
                         if (bomSnapshotInsufficient) result.InsufficientBomPdfs++;
 
-                        DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 저장: {pdfPath}");
+                        DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 페이지 완성 (누적 {result.SuccessPages}장)");
                         CheckMfgCancellation(
                             shouldCancel,
-                            $"{pageProgress} PDF 저장 완료",
-                            $"{pageProgress} PDF 저장 후");
+                            $"{pageProgress} 페이지 완료",
+                            $"{pageProgress} 페이지 완료 후");
                     }
                     catch (OperationCanceledException)
                     {
@@ -2732,6 +2714,8 @@ namespace A2Z
                     {
                         DiagLog($"[GenMfgManual] p{page.PageIdx} ERROR: {ex.Message}");
                         result.Warnings.Add($"p{page.PageIdx} 페이지 ERROR: {ex.Message}");
+                        // #119: 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다.
+                        DiscardCurrentPdfPage();
                     }
                 }
             }
@@ -2739,8 +2723,9 @@ namespace A2Z
             {
                 result.Canceled = true;
                 result.CancellationCheckpoint = ex.Message;
-                DiagLog($"[GenMfgManual] 취소: {ex.Message}, 저장 완료={result.SuccessPdfs}");
-                try { Clear2DView(); } catch { }
+                DiagLog($"[GenMfgManual] 취소: {ex.Message}, 완성 페이지={result.SuccessPages}");
+                // #119: 여기서 캔버스를 비우면 그때까지 그린 페이지가 사라진다.
+                //   취소분까지 저장한 뒤 정리는 finally가 맡는다.
             }
             catch (Exception ex)
             {
@@ -2749,6 +2734,25 @@ namespace A2Z
             }
             finally
             {
+                // #119: 쌓아둔 페이지를 PDF 1개로 저장한다. 취소·실패로 빠져나왔어도
+                //   그때까지 그린 페이지는 남긴다. 바깥이 누적 주인이면 저장을 넘긴다.
+                if (ownsPdfAccumulation)
+                {
+                    try
+                    {
+                        if (EndPdfPageAccumulation(mergedPdfPath))
+                        {
+                            result.SavedPdfPath = mergedPdfPath;
+                            result.SuccessPdfs = 1;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagLog($"[GenMfgManual] 묶음 PDF 저장 실패: {ex.Message}");
+                        result.Warnings.Add($"가공도 PDF 저장 실패: {ex.Message}");
+                    }
+                }
+
                 ReleaseActiveMfgReferenceAxis("GenerateMfgDrawingManual/finally");
 
                 // BOM UI 복원
@@ -2805,7 +2809,8 @@ namespace A2Z
                 // try { vizcore3d.EndUpdate(); } catch { }
             }
 
-            DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
+            DiagLog($"[GenMfgManual] 완료 — Pages={result.SuccessPages} Pdf={result.SuccessPdfs} " +
+                    $"BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
             return result;
         }
 
@@ -2868,8 +2873,16 @@ namespace A2Z
                 var canceledMessage = new System.Text.StringBuilder();
                 canceledMessage.AppendLine("가공도 출력을 취소했습니다.");
                 canceledMessage.AppendLine();
-                canceledMessage.AppendLine($"저장 완료 PDF: {result.SuccessPdfs}개");
-                canceledMessage.AppendLine(saveDir);
+                // #119: 취소해도 그때까지 그린 페이지는 PDF 1개로 저장된다.
+                if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
+                {
+                    canceledMessage.AppendLine($"PDF 1개에 도면 {result.SuccessPages}장 저장");
+                    canceledMessage.AppendLine(result.SavedPdfPath);
+                }
+                else
+                {
+                    canceledMessage.AppendLine("저장된 PDF가 없습니다.");
+                }
                 if (!string.IsNullOrWhiteSpace(result.CancellationCheckpoint))
                     canceledMessage.AppendLine($"중단 위치: {result.CancellationCheckpoint}");
 
@@ -2891,13 +2904,22 @@ namespace A2Z
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"가공도 PDF {result.SuccessPdfs}개 저장:");
-            sb.AppendLine(saveDir);
+            // #119: 도면 장수와 무관하게 PDF는 1개다.
+            if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
+            {
+                sb.AppendLine($"가공도 PDF 1개에 도면 {result.SuccessPages}장 저장:");
+                sb.AppendLine(result.SavedPdfPath);
+            }
+            else
+            {
+                sb.AppendLine("저장된 PDF가 없습니다.");
+                sb.AppendLine(saveDir);
+            }
 
             if (result.InsufficientBomPdfs > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine($"⚠️ BOM 부족 PDF: {result.InsufficientBomPdfs}개");
+                sb.AppendLine($"⚠️ BOM 부족 페이지: {result.InsufficientBomPdfs}장");
                 sb.AppendLine($"  (snapshot {result.BomRows}행 < 예상 {result.ExpectedBomRows}행)");
             }
 

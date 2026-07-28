@@ -655,12 +655,11 @@ namespace A2Z
 
                     try
                     {
-                        int pdfCount = ProcessSingleStruFull(
+                        ProcessSingleStruFull(
                             stru,
                             saveDir,
                             savedCount => totalPdfCount += savedCount);
                         successCount++;
-                        DiagLog($"T-064 STRU '{stru.NodeName}' 완료 — PDF {pdfCount}개 생성");
                     }
                     catch (OperationCanceledException ex)
                     {
@@ -672,6 +671,19 @@ namespace A2Z
                         failCount++;
                         errors.Add($"{stru.NodeName}: {ex.Message}");
                         DiagLog($"T-064 STRU '{stru.NodeName}' ERROR: {ex.Message}\n{ex.StackTrace}");
+                    }
+
+                    // [issue #119] STRU 하나의 도면을 PDF 1개로 저장한다.
+                    //   취소·실패로 위에서 빠져나왔어도 그때까지 그린 페이지는 남긴다.
+                    string mergedPdfPath = FlushPendingMergedPdf();
+                    if (!string.IsNullOrEmpty(mergedPdfPath))
+                    {
+                        totalPdfCount++;
+                        DiagLog($"T-064 STRU '{stru.NodeName}' 완료 — 묶음 PDF: {mergedPdfPath}");
+                    }
+                    else
+                    {
+                        DiagLog($"T-064 STRU '{stru.NodeName}' — 저장할 페이지 없음");
                     }
 
                     // STRU 간 메모리 정리
@@ -925,10 +937,20 @@ namespace A2Z
 
             string timeStamp = DateTime.Now.ToString("HHmmss");
             int pdfCount = 0;
+            int pageCount = 0;   // #119: PDF는 1개, 세는 건 도면 장수
+
+            // [issue #119] 이 STRU의 도면 4종을 캔버스에 쌓아뒀다가 PDF 1개로 저장한다.
+            //   STRU 하나가 도면 한 묶음이므로 STRU끼리는 파일을 나눈다.
+            //   저장은 호출한 쪽(btnExtractDrawingList_Click)이 STRU 처리 직후 마무리한다 —
+            //   취소가 이 함수 중간에서 예외로 튀어나와도 그때까지 그린 페이지를 남기기 위함.
+            //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
+            _pendingMergedPdfPath = BuildMergedDrawingPdfPath(
+                struSubDir, $"전체도면_{safeStruName}", timeStamp);
+            BeginPdfPageAccumulation($"도면 일괄 출력/{struNode.NodeName}");
 
             // ─── 7) 일반 시트 루프 (제작도/조립도/설치도) — 시트별 처리 ───
             // 사용자 평소 흐름: 시트 클릭 → "2D 출력" 버튼 → "PDF 출력" 버튼
-            //   = lvi.Selected=true (핸들러 자동) → GenerateSheetDrawing2D(sheet) → Export2PDFBy2DView(file)
+            //   = lvi.Selected=true (핸들러 자동) → GenerateSheetDrawing2D(sheet)
             for (int i = 0; i < lvDrawingSheet.Items.Count; i++)
             {
                 ThrowIfCancellationRequested($"일반 시트 {i + 1} 시작 전");
@@ -962,27 +984,16 @@ namespace A2Z
                     System.Threading.Thread.Sleep(200);
                     ThrowIfCancellationRequested($"일반 시트 {i + 1} 2D 생성 후");
 
-                    // = btnExportSheet2DPDF_Click 흐름 ("PDF 출력" 버튼) — SaveFileDialog 우회
-                    string safeBaseName = SanitizeFileName(sheet.BaseMemberName ?? "Unknown");
-                    string safeSheetLabel = SanitizeFileName(sheetLabel);
-                    string pdfFile = $"{safeBaseName}_{safeSheetLabel}_{timeStamp}.pdf";
-                    string pdfPath = Path.Combine(struSubDir, pdfFile);
+                    // [issue #119] 여기서 저장하지 않는다. 이 캔버스는 그대로 쌓아두고
+                    //   STRU의 도면을 다 그린 뒤 PDF 1개로 한 번에 저장한다.
                     vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                     vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                    vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                    DiagLog($"T-064 PDF saved: {pdfPath}");
-                    pdfCount++;
-                    reportPdfSaved?.Invoke(1);
-                    ThrowIfCancellationRequested($"일반 시트 {i + 1} PDF 저장 후");
+                    pageCount++;
+                    DiagLog($"T-064 페이지 추가: {sheetLabel} (누적 {pageCount}장)");
+                    ThrowIfCancellationRequested($"일반 시트 {i + 1} 페이지 완성 후");
 
-                    // 메모리 정리
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                    try { vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(); } catch { }
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
-                    Application.DoEvents();
+                    // 메모리 정리 — 쌓아둔 캔버스는 남기고 GC만 돌린다 (#119)
+                    CleanupBetweenPdfPages();
                     System.Threading.Thread.Sleep(100);
                 }
                 catch (OperationCanceledException)
@@ -992,6 +1003,8 @@ namespace A2Z
                 catch (Exception ex)
                 {
                     DiagLog($"T-064 시트 #{sheet.SheetNumber} ({sheetLabel}) ERROR: {ex.Message}");
+                    // 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다 (#119)
+                    DiscardCurrentPdfPage();
                 }
             }
 
@@ -1021,8 +1034,8 @@ namespace A2Z
                         struNode.NodeName,
                         struNode.Index,
                         () => _cancelRequested);
-                    pdfCount += mfgResult.SuccessPdfs;
-                    reportPdfSaved?.Invoke(mfgResult.SuccessPdfs);
+                    // #119: 가공도는 바깥 누적에 페이지만 얹는다 (저장은 STRU 단위로 한 번).
+                    pageCount += mfgResult.SuccessPages;
                     if (mfgResult.Canceled)
                     {
                         throw new OperationCanceledException(
@@ -1031,7 +1044,7 @@ namespace A2Z
                                 : mfgResult.CancellationCheckpoint);
                     }
                     ThrowIfCancellationRequested("가공도 출력 후");
-                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 {mfgResult.SuccessPdfs}개 저장" +
+                    DiagLog($"T-064 STRU '{struNode.NodeName}' 가공도 {mfgResult.SuccessPages}장 추가" +
                         (mfgResult.TemplateMissing ? " (템플릿 누락)" : "") +
                         (mfgResult.Warnings.Count > 0 ? $" 경고 {mfgResult.Warnings.Count}건" : ""));
                 }
@@ -1045,15 +1058,13 @@ namespace A2Z
                 }
                 finally
                 {
-                    // 다음 STRU 전 메모리 정리 (2D 상태는 GenerateMfgDrawingManual finally가 이미 복원)
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
+                    // 쌓아둔 캔버스는 저장 전이라 남기고 GC만 돌린다 (#119)
+                    CleanupBetweenPdfPages();
                 }
             }
 
             ThrowIfCancellationRequested("STRU 출력 완료 후");
-            DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 완료 — {pdfCount}개 저장");
+            DiagLog($"T-064 STRU '{struNode.NodeName}' 도면 {pageCount}장 그림 — 저장은 호출부에서 마무리");
             return pdfCount;
         }
 

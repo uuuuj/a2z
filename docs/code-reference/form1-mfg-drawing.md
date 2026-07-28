@@ -8,7 +8,7 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---:|---|
-| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2816 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
+| <a id="btnMfgDrawingSheet_Click"></a>`btnMfgDrawingSheet_Click` | L2821 | [가공도 시트 PDF 출력](../기능/가공도/가공도%20시트.md) |
 
 옛 `btnMfgDrawing_Click` 핸들러는 제거됐다. 시트 선택 미리보기는 `LvDrawingSheet_SelectedIndexChanged`가 `ExecuteMfgDrawing`을 호출한다.
 
@@ -16,20 +16,22 @@
 
 ### <a id="GenerateMfgDrawingManual"></a>GenerateMfgDrawingManual
 
-- **라인**: L2502
+- **라인**: L2478
 - 전체 가공도 BOM을 수집하고 5개씩 페이지로 나눈다(`SplitMfgIntoPages`).
 - 제작도·조립도·설치도와 같은 `DrawingSheetData.PaintCode` 공용 캐시를 사용하며, 아직 조회 전이면 안전한 출력 시점에 한 번 확정해 모든 페이지 PAINT CODE `Input_166`에 재사용한다.
 - `가공도_도면_1.xlsx`(2026-07-12 전환, 제작도와 동일 슬롯 체계)를 가져와 각 View 영역을 렌더한다(`RenderMfgRowToViewArea`). CONTRACTOR 로고는 `{Image_3}` + mfgImageMapping으로 Import 단계 처리(2026-07-21, 옛 `Set2DViewTemplateMark` 등록 폐기).
 - 템플릿 적용은 `ImportExcelWithData` 직행 — 소형 템플릿(~4천 셀)이라 수백 ms. JSON 사전변환·캐시는 2026-07-19 제거(변환 290초·태그 미보존·stale 좌표 버그). 템플릿은 엑셀에서만 수정(openpyxl 저장본은 네이티브 크래시).
 - 북쪽 화살표는 `{Image_1}`(N, AT3)·`{Image_2}`(ISO, C3) 태그 + `ImportExcelWithData(경로, data, mfgImageMapping)` 3인자로 Import 단계에서 배치한다. `EnsureViewAreasCache`는 중복 View 태그를 방어한다. SDK 1.0.26.723에서 Input 200+ 문제가 수정되어 BOM 21~25행에 Input 201~240을 사용한다.
 - Import 직후 `RemoveEmptyTemplateBorders(0.1f, RowAndColumn)`로 내용 없는 공백 셀의 괘선을 제거한다. 전역 동작이라 어느 슬롯을 `data`에 넣느냐로 칸별 괘선을 제어한다 — 선초기화 루프는 2026-07-27 제거되어(#60) 미기재 슬롯은 `{Input}`으로 남고 그 칸 괘선이 지워진다. REV 표 첫 기재행(194~199)은 `FillRevisionTable`이 6칸 전부 값(빈 값은 `" "`)으로 채워 괘선이 남고, 미사용 이력행(170~193)은 키를 넣지 않아 지워진다. PAINT/DP/TAG(165~169)는 값이 있을 때만 채운다.
-- 페이지별 PDF를 실행 파일 하위 `Drawings`에 저장한다.
-- 수동 버튼과 STRU 일괄 출력 모두 `shouldCancel`을 전달한다. 페이지·템플릿·각 행의 장면/주 뷰/EA 보조 뷰·최종 렌더·PDF 저장 전후에 `CheckMfgCancellation`을 호출하며, SDK 단일 호출은 강제 중단하지 않는다. 취소 결과에는 중단 위치와 저장 완료 PDF 수를 유지하고 미완성 Canvas를 정리한다.
+- **묶음 저장 (#119)**: 페이지마다 저장하지 않는다. `ResetCanvasForMfgPage` → `PrepareDrawingCanvas(297, 210)`가 페이지마다 캔버스를 덧붙여 쌓고, `finally`의 `EndPdfPageAccumulation`이 PDF 1개로 저장한다. 파일명은 `가공도_{모델명}_{시각}.pdf`(`BuildMergedDrawingPdfPath`), 위치는 호출자가 준 `saveDir`.
+- **누적 소유권**: 진입부 `BeginPdfPageAccumulation("가공도")`의 반환값이 `ownsPdfAccumulation`이다. `가공도` 버튼으로 직접 실행하면 `true`(자기가 저장), `도면 일괄 출력`이 부르면 이미 누적이 열려 있어 `false`(페이지만 얹고 저장은 넘김). 이 분기 덕분에 일괄 출력에서 일반 도면과 가공도가 한 파일에 들어간다.
+- **결과 필드**: `SuccessPages`(쌓인 페이지 수), `SuccessPdfs`(저장한 파일 수 — 0 또는 1), `SavedPdfPath`(저장 경로). 페이지별 파일명을 만들던 `MakeUniquePdfPath`는 2026-07-28 제거됐고, 그 충돌 회피·MAX_PATH 경고는 `BuildMergedDrawingPdfPath`가 이어받았다.
+- 수동 버튼과 STRU 일괄 출력 모두 `shouldCancel`을 전달한다. 페이지·템플릿·각 행의 장면/주 뷰/EA 보조 뷰·최종 렌더·페이지 완성 전후에 `CheckMfgCancellation`을 호출하며, SDK 단일 호출은 강제 중단하지 않는다. **취소해도 그때까지 완성된 페이지는 저장한다** — 옛 취소 경로의 `Clear2DView()`는 쌓아둔 페이지를 지우므로 제거했다. 실패한 페이지는 `DiscardCurrentPdfPage`로 그 캔버스만 버린다.
 - 출력 후 BOM UI와 선택 시트 가시성을 복원한다.
 
 ### <a id="RenderMfgRowToViewArea"></a>RenderMfgRowToViewArea
 
-- **라인**: L1321
+- **라인**: L1297
 - 일반 부재는 View 영역 전체에 한 뷰를 배치한다.
 - EA 부재는 View 영역을 위·아래로 분할하고, 코어(`BuildMfgSceneCore`)와 2차 뷰(`BuildEaSecondaryScene`)를 각각 캡처한다.
 - 첫 번째 뷰는 최장축 치수를 예약하고, 두 번째 뷰가 해당 치수를 담당한다.

@@ -4,7 +4,7 @@ feature_name: 선택 시트 PDF 내보내기
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-04-13
+last_updated: 2026-07-28 (묶음 출력 직후 동작 명시)
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF_Click
 ---
 
@@ -12,6 +12,10 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF
 
 ## 1. 개요
 선택된 시트의 2D 도면을 벡터 PDF로 저장한다. 동작은 [Drawing2D의 PDF 내보내기](../2D도면/PDF%20출력.md)와 동일(파일명 prefix만 `Sheet2D_`).
+
+> **묶음 출력 직후에 누르면 (2026-07-28, #119)**
+> 제작도·조립도·설치도·가공도 버튼이나 도면 일괄 출력을 돌린 직후에는 그 도면들이 2D 화면에 그대로 쌓여 있다. 이 상태에서 `PDF 출력`을 누르면 **쌓여 있는 도면 전체**가 원하는 위치에 다시 저장된다. 한 장만 뽑히지 않는다.
+> 한 장만 필요하면 `2D 출력`으로 그 시트만 다시 그린 뒤 저장한다 — 이때는 화면이 그 한 장으로 초기화된다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -59,4 +63,5 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnExportSheet2DPDF
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-28 | 관련: GitHub issue #119 — 묶음 출력 직후에는 쌓인 도면 전체가 저장된다는 점을 개요에 명시. 이 버튼 자체의 코드는 무변경 | Claude |
 | 2026-04-13 | 초안 작성 | — |
