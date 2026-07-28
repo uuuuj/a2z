@@ -186,6 +186,8 @@ namespace A2Z
                 context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys, struGweiByNode);
             }
 
+            DumpDrawingBomStruDiagnostics(context.PartByIndex.Keys, wantedUdaKeys);
+
             foreach (var pair in bodyToPartIndexMap)
             {
                 if (!relevantPartIndices.Contains(pair.Value)) continue;
@@ -338,6 +340,68 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 요약행 T/W용 STRU 노드를 찾기 위한 일회성 진단 덤프 (#67).
+        /// 부재 최대 3개의 조상 체인을 노드 이름·STRU·GWEI와 함께 남기고,
+        /// 첫 부재의 조상에 대해서는 비어 있지 않은 UDA를 전부 남긴다 —
+        /// 구조 전체 무게가 실제로 어느 노드의 어느 키에 들어 있는지 확인용.
+        /// </summary>
+        private void DumpDrawingBomStruDiagnostics(
+            IEnumerable<int> partIndices,
+            Dictionary<string, string> udaKeys)
+        {
+            List<string> allKeys = null;
+            try
+            {
+                var keys = vizcore3d.Object3D.UDA.Keys;
+                if (keys != null) allKeys = new List<string>(keys);
+            }
+            catch { }
+
+            int dumped = 0;
+            foreach (int partIndex in partIndices)
+            {
+                if (dumped >= 3) break;
+                dumped++;
+
+                int currentIdx = partIndex;
+                for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
+                {
+                    string name = "";
+                    int parentIdx = -1;
+                    try
+                    {
+                        VIZCore3D.NET.Data.Node n = vizcore3d.Object3D.FromIndex(currentIdx);
+                        if (n != null) { name = n.NodeName ?? ""; parentIdx = n.ParentIndex; }
+                    }
+                    catch { }
+
+                    string struVal = ReadDrawingBomUdaValue(currentIdx, "STRU", "", udaKeys);
+                    string gweiVal = ReadDrawingBomUdaValue(currentIdx, "GWEI", "", udaKeys);
+                    DiagLog($"[BOM STRU 진단] part={partIndex} depth={depth} node={currentIdx} " +
+                        $"name='{name}' STRU='{struVal}' GWEI='{gweiVal}'");
+
+                    if (dumped == 1 && depth >= 1 && allKeys != null)
+                    {
+                        foreach (string key in allKeys)
+                        {
+                            try
+                            {
+                                var v = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
+                                string vs = v != null ? v.ToString().Trim() : "";
+                                if (!string.IsNullOrEmpty(vs))
+                                    DiagLog($"[BOM STRU 진단]   UDA node={currentIdx} '{key}'='{vs}'");
+                            }
+                            catch { }
+                        }
+                    }
+
+                    if (parentIdx < 0 || parentIdx == currentIdx) break;
+                    currentIdx = parentIdx;
+                }
+            }
+        }
+
+        /// <summary>
         /// GWEI 원문에서 숫자만 남겨 소수 2자리 표시값으로 정규화한다.
         /// 숫자로 못 읽으면 원문을 그대로 돌려주고 weight는 0.
         /// </summary>
@@ -432,8 +496,16 @@ namespace A2Z
 
                 if (struNodeCount > 1)
                     DiagLog($"BOM 요약행 T/W: WARN 부재들이 서로 다른 STRU 노드 {struNodeCount}개를 가리킨다 — 중첩 STRU 의심");
-                if (struWeightValue > 0 && struWeightValue < maxPartWeight)
-                    DiagLog($"BOM 요약행 T/W: WARN STRU 무게({struWeightValue:F2})가 최대 부재 무게({maxPartWeight:F2})보다 작다 — 노드 오판 또는 단위 불일치 의심");
+
+                // STRU 전체 무게는 이 시트 부재들을 포함하므로 부재 합산보다 작을 수 없다.
+                //   작게 나오면 STRU 노드를 잘못 잡은 것이므로 합산으로 되돌린다 — 도면에 개별 부재보다
+                //   작은 요약 무게가 찍히는 것보다 합산이 항상 낫다 (2026-07-28 실기: 0.38 vs 합산 45.55).
+                if (struWeightValue > 0 && totalWeight > 0 && struWeightValue < totalWeight)
+                {
+                    DiagLog($"BOM 요약행 T/W: WARN STRU 무게({struWeightValue:F2}) < 부재 합산({totalWeight:F2}) " +
+                        $"— STRU 노드 오판으로 보고 합산으로 대체 (node={struSource.StruNodeIndex})");
+                    summaryWeight = sumDisplay;
+                }
             }
             else
             {
