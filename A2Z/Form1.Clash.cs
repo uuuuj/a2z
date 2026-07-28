@@ -33,6 +33,8 @@ namespace A2Z
             public double Weight;
             /// <summary>조상 STRU 노드 자체의 GWEI 표시값 (요약행 T/W용, #67). 부재 UDA walk-up에서 같이 수집한다.</summary>
             public string StruWeightDisplay;
+            /// <summary>StruWeightDisplay를 읽어온 조상 노드 인덱스. 못 찾으면 -1. 진단 로그·중첩 STRU 감지용.</summary>
+            public int StruNodeIndex = -1;
         }
 
         private sealed class DrawingBomPreparationContext
@@ -239,6 +241,7 @@ namespace A2Z
             string posStartVal = "";
             string posEndVal = "";
             string struGweiVal = "";
+            int struNodeIndex = -1;
 
             int currentIdx = node.Index;
             for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
@@ -251,7 +254,9 @@ namespace A2Z
 
                 // 요약행 T/W(#67) — 이 노드가 STRU 노드면 "그 노드 자체의" GWEI를 잡는다.
                 //   위 gweiVal walk-up은 첫 비어있지 않은 값에서 멈춰 부재 무게를 잡으므로 그대로 쓰면 안 된다.
-                if (string.IsNullOrEmpty(struGweiVal))
+                //   depth 0(부재 자신)은 건너뛴다 — 부재 노드에도 STRU 속성이 달려 있으면 부재 하나의 무게를
+                //   STRU 전체 무게로 착각해 요약행이 개별 부재보다 작아진다 (2026-07-28 실기 증상).
+                if (depth > 0 && string.IsNullOrEmpty(struGweiVal))
                 {
                     string cached;
                     if (!struGweiByNode.TryGetValue(currentIdx, out cached))
@@ -263,6 +268,7 @@ namespace A2Z
                         struGweiByNode[currentIdx] = cached;
                     }
                     struGweiVal = cached;
+                    if (!string.IsNullOrEmpty(struGweiVal)) struNodeIndex = currentIdx;
                 }
 
                 if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal) &&
@@ -326,7 +332,8 @@ namespace A2Z
                 Material = materialVal,
                 WeightDisplay = weightDisplay,
                 Weight = weight,
-                StruWeightDisplay = struWeightDisplay
+                StruWeightDisplay = struWeightDisplay,
+                StruNodeIndex = struNodeIndex
             };
         }
 
@@ -399,19 +406,38 @@ namespace A2Z
             // 요약행 T/W(#67) — STRU 노드 자체의 GWEI를 쓴다. 부재 UDA를 읽을 때 같이 수집해 둔 값이라
             //   도면 출력 시점에는 추가 SDK 조회 없이 바로 꽂힌다.
             //   값이 없을 때만 기존 부재 무게 합산으로 폴백하고, 폴백 사실을 로그에 남긴다.
-            string struWeight = parts
-                .Select(p => p.StruWeightDisplay)
-                .FirstOrDefault(v => !string.IsNullOrEmpty(v));
+            DrawingBomPartData struSource = parts.FirstOrDefault(p => !string.IsNullOrEmpty(p.StruWeightDisplay));
+            double totalWeight = parts.Sum(p => p.Weight);
+            string sumDisplay = totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "";
 
             string summaryWeight;
-            if (!string.IsNullOrEmpty(struWeight))
+            if (struSource != null)
             {
-                summaryWeight = struWeight;
+                summaryWeight = struSource.StruWeightDisplay;
+
+                // 진단(#67) — 요약행이 개별 부재보다 작게 나오는 증상 추적용.
+                //   중첩 STRU면 부재마다 다른 조상을 잡아 값이 흔들린다. 단위가 다르면(t vs kg) 합산과 자릿수가 어긋난다.
+                int struNodeCount = parts
+                    .Where(p => p.StruNodeIndex >= 0)
+                    .Select(p => p.StruNodeIndex)
+                    .Distinct()
+                    .Count();
+                double struWeightValue;
+                double.TryParse(summaryWeight, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out struWeightValue);
+                double maxPartWeight = parts.Count > 0 ? parts.Max(p => p.Weight) : 0;
+
+                DiagLog($"BOM 요약행 T/W: STRU node={struSource.StruNodeIndex} gwei='{summaryWeight}' " +
+                    $"부재합산={sumDisplay} 최대부재={Math.Round(maxPartWeight, 2):F2} parts={parts.Count} struNodes={struNodeCount}");
+
+                if (struNodeCount > 1)
+                    DiagLog($"BOM 요약행 T/W: WARN 부재들이 서로 다른 STRU 노드 {struNodeCount}개를 가리킨다 — 중첩 STRU 의심");
+                if (struWeightValue > 0 && struWeightValue < maxPartWeight)
+                    DiagLog($"BOM 요약행 T/W: WARN STRU 무게({struWeightValue:F2})가 최대 부재 무게({maxPartWeight:F2})보다 작다 — 노드 오판 또는 단위 불일치 의심");
             }
             else
             {
-                double totalWeight = parts.Sum(p => p.Weight);
-                summaryWeight = totalWeight > 0 ? Math.Round(totalWeight, 2).ToString("F2") : "";
+                summaryWeight = sumDisplay;
                 DiagLog($"BOM 요약행 T/W: STRU GWEI 없음 → 부재 합산 폴백 (parts={parts.Count} sum='{summaryWeight}')");
             }
 
