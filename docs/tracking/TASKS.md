@@ -8,7 +8,7 @@
 
 | 상태 | 파일 | 작업 수 | 내용 |
 |---|---|---|---|
-| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 10 | 진행 중 — 실기 확인 및 최종 산출물 생성 |
+| 🟡 IN_PROGRESS | [tasks/IN_PROGRESS.md](./tasks/IN_PROGRESS.md) | 9 | 진행 중 — 실기 확인 및 최종 산출물 생성 |
 | ⬜ TODO | [tasks/TODO.md](./tasks/TODO.md) | 21 | 대기 — API·분석·개발 착수 대기 |
 | 🔴 BLOCKED | [tasks/BLOCKED.md](./tasks/BLOCKED.md) | 1 | 차단됨 (재현 조건 수집 중) |
 | ✅ DONE | [tasks/DONE.md](./tasks/DONE.md) | 63 | 완료 이력 |
