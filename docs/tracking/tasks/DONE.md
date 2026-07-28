@@ -4,6 +4,26 @@
 
 ---
 
+### T-012 — 엑셀 템플릿 하이브리드 실험 (PoC) — 폐기
+- **생성일/착수일**: 2026-04-20 / 2026-05-12
+- **상태**: 폐기 (2026-07-28)
+- **완료 판정**: 실험 목적이 달성돼 메인 흐름에 흡수됨 — 남은 Step 2·3은 무의미해져 중단. PoC 버튼·핸들러·흐름 문서 제거 (커밋 `9a1c0b2`)
+- **관련**: REQ-002, GitHub issue #71 (작업 중 발견)
+- **배경**: SDK가 `ImportExcel`, `ImportExcelWithData`, `Draw2DViewTemplate`, `RenderTemplateOnGridStructure`를 제공 ([VIZCore3D.NET.xml:29219](../../../lib/VIZCore3D.NET.xml:29219)). 담당자가 엑셀로 양식을 관리할 수 있는지 실험. 과거 Phase 18(`790a02a`)에서 BOM 동적 행수 문제로 수동 구성으로 되돌린 이력이 있어 하이브리드로 재도전
+- **진행 결과**:
+  - [x] **Step 1 (2026-05-12)**: `btnExcelTemplatePoC` 핸들러 + `ImportExcel(path)` 단독 호출, 빌드 통과
+  - [x] **확정**: `Drawing2DTemplateManager.templateDatas`는 private/internal이라 외부 접근 불가
+  - [x] **Step 4**: `Set2DViewTemplateMark` + `ImportExcelWithData` + `GetViewAreasFromExcel` 3종 동시 검증 성공 → **이 패턴이 `GenerateSheetDrawing2D_WithExcelTemplate`로 이관돼 프로덕션 가동 중**
+  - [–] Step 2·3(셀 좌표 직접 수집 + 수동 배치): Step 4가 SDK 자동 적용으로 해결해 불필요
+  - [–] 결과 리포트 `docs/기술 노트/excel-template-experiment.md`: 미작성 — 결론이 코드와 [시트 2D 렌더.md](../../기능/도면시트/시트%202D%20렌더.md)에 반영됨
+- **폐기 시점의 상태 (2026-07-28 확인)**:
+  - 짝이던 구 템플릿 `사용자템플릿_엑셀_제작도.xlsx`(BOM 15행 체계)가 커밋 `0e94aa9`에서 삭제돼, 버튼을 눌러도 "엑셀 파일을 찾을 수 없습니다" 에러로만 끝났다
+  - 애초에 화면에도 보이지 않았다 — 아래 영향 파일의 `groupBox1 너비 +87px`가 실제로 적용되지 않아 버튼(X=446~524)이 groupBox1(폭 443) 밖으로 잘렸다. `splitContainer1` 분할선을 오른쪽으로 85px 이상 끌었을 때만 노출
+  - 현행 템플릿 `제작도_도면_1.xlsx`로 되살리려면 BOM 슬롯 240 체계 재매핑 + `{Image_1~4}` 매핑 전환이 필요한데, 그러면 메인 흐름과 거의 같은 코드가 하나 더 생긴다 → 폐기 선택
+- **영향 파일**: A2Z/Form1.ExcelTemplate.cs, A2Z/Form1.Designer.cs(버튼 1개 — `groupBox1` 너비 확장은 미적용), A2Z/A2Z.csproj, docs/기능/도면시트/엑셀 템플릿 PoC.md (삭제, git 이력 보존)
+
+---
+
 ### T-091 — 장시간 도면 작업 취소 응답성 개선
 - **생성일/착수일**: 2026-07-24
 - **상태**: DONE (2026-07-26)
