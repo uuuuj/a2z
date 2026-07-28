@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-07-28 — 도면 출력 결과를 PDF 한 개로 묶기
+
+**유형**: feat
+**관련 ISSUE**: GitHub issue #119
+
+**바뀐 동작** (사용자가 겪는 기준):
+
+| 버튼 | 전 | 후 |
+|---|---|---|
+| 제작도 | 도면 1장 → PDF 1개 | 동일 (원래 1장) |
+| 설치도 | 도면 1장 → PDF 1개 | 동일 (원래 1장) |
+| 조립도 | 도면 N장 → **PDF N개** | 도면 N장 → **PDF 1개** (N페이지) |
+| 가공도 | 페이지 N장 → **PDF N개** | 페이지 N장 → **PDF 1개** |
+| 도면 일괄 출력 | 4종 전부 → **PDF 수십 개** | STRU 하나당 **PDF 1개** |
+
+페이지 순서는 도면 목록에 보이는 순서 (제작도 → 조립도 → 설치도 → 가공도).
+
+**구현 방식**:
+- 외부 PDF 라이브러리 없이 SDK 다중 캔버스로 해결. 도면 한 장을 그린 뒤 캔버스를 지우지 않고 `AddCanvasBy2DView`로 새 캔버스를 덧붙여 다음 도면을 그린다. 저장 시 `Export2PDFBy2DView(path)`를 캔버스 번호 없이 부르면 쌓인 캔버스 전체가 페이지가 된다 (번호 있는 오버로드가 "지정한 캔버스만"으로 명시 — `VIZCore3D.NET.xml` L31013/L31019)
+- `Form1.Drawing2D.cs`에 누적 장치 신설: `BeginPdfPageAccumulation` / `PrepareDrawingCanvas` / `DiscardCurrentPdfPage` / `CleanupBetweenPdfPages` / `EndPdfPageAccumulation` / `FlushPendingMergedPdf` / `BuildMergedDrawingPdfPath`
+- `Clear2DView` 자체는 무변경 — 호출처 7곳 중 6곳이 도면 출력·정리 경로라 공용 헬퍼를 건드리지 않고, 캔버스 준비 지점만 `PrepareDrawingCanvas`로 교체
+- 누적 중이면 `SetSelectCanvas(1)` 하드코딩이 틀리므로 `_activeDrawingCanvasIdx`로 교체 (`GenerateSheetDrawing2DCore`, `GenerateSheetDrawing2D_WithExcelTemplate` 2곳)
+- 가공도는 `BeginPdfPageAccumulation` 반환값으로 누적 소유권을 판정 — 직접 실행이면 자기가 저장, 일괄 출력이 부르면 페이지만 얹고 저장을 넘긴다. 그래서 일괄 출력에서 일반 도면과 가공도가 한 파일에 들어간다
+- 일괄 출력의 저장 지점은 `ProcessSingleStruFull` 안이 아니라 **호출부의 STRU별 try/catch 바로 뒤**. 취소가 그 함수 중간에서 예외로 튀어나오므로 안에 두면 취소 시 그때까지 그린 페이지를 잃는다
+
+**취소·실패 처리**: 취소하거나 도중에 실패해도 그때까지 그린 페이지는 저장한다. 한 시트가 실패하면 그 캔버스만 버려(`DiscardCurrentPdfPage`) 반쪽짜리 페이지가 PDF에 끼지 않는다. 페이지 사이 정리는 쌓아둔 캔버스를 남기고 GC만 돌린다.
+
+**파일명**: `{종류}_{모델명}_{시각}.pdf` / 일괄 출력은 `전체도면_{STRU}_{모델명}_{시각}.pdf`. 충돌 시 `_1`, `_2` …, 경로 240자 초과 시 경고 로그.
+
+**죽은 코드 제거**: 장당 파일명을 만들던 `BuildDrawingSheetPdfFileName`(DrawingSheets), `MakeUniquePdfPath`(MfgDrawing). 충돌 회피·MAX_PATH 경고는 `BuildMergedDrawingPdfPath`가 이어받음.
+
+**변경 파일**: `Form1.Drawing2D.cs`, `Form1.DrawingSheets.cs`, `Form1.MfgDrawing.cs`, `Form1.Stru.cs` + 흐름 문서 4건·코드 레퍼런스 4건
+
+**빌드**: Debug 오류 0건. Release는 컴파일 오류 0건 (실행 중인 `bin\Release\A2Z.exe`가 잠겨 있어 별도 출력 폴더로 검증)
+
+**실기 확인 필요**:
+- 캔버스 번호 없는 저장이 실제로 전 페이지를 담는지 — 이제까지 캔버스를 항상 1개만 써서 검증된 적 없음
+- 도면 20장 이상 모델에서 캔버스를 쌓아둘 때 메모리 (모델 교체 후 2회차 무한 대기 #116과 같은 정리 단계가 얽힘 — 페이지 수·캔버스 수를 로그에 남김)
+
+---
+
 ## 2026-07-28 — "엑셀 PoC" 버튼 폐기 (역할 종료 + 이미 동작 불가)
 
 **유형**: refactor

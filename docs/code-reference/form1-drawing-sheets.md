@@ -58,16 +58,21 @@
 - **번호 매핑**: `bomNameToTableNo`로 `lvDrawingBOMInfo`의 # 번호와 동기화
 
 ### <a id="ExportSheetsByKind"></a>ExportSheetsByKind(exportKind)
-- **라인**: L1274~L1579
-- **단계**: `BaseMemberIndex`로 제작도·조립도·설치도를 필터링 → 출력 버튼·시트 목록 비활성화 → 이벤트 억제 상태에서 처리 시트 선택 → `ApplySheetSelection` 1회 → 엣지·템플릿·각 뷰 경계에서 진행/취소 확인 → 2D 생성과 200ms 안정화 → PDF 저장 → 다음 시트가 있으면 캔버스·GC 정리와 100ms 안정화
-- **완료 상태**: 마지막 시트 성공 시 2D 캔버스를 유지한다. 실패·취소 시 현재 캔버스를 정리하고 직전 성공분은 다시 렌더링하지 않는다.
+- **라인**: L1274~L1560
+- **단계**: `BaseMemberIndex`로 제작도·조립도·설치도를 필터링 → 출력 버튼·시트 목록 비활성화 → **`BeginPdfPageAccumulation`으로 누적 시작 + `BuildMergedDrawingPdfPath`로 저장 경로 확정** → 이벤트 억제 상태에서 처리 시트 선택 → `ApplySheetSelection` 1회 → 엣지·템플릿·각 뷰 경계에서 진행/취소 확인 → 2D 생성과 200ms 안정화 → **캔버스를 지우지 않고 다음 시트로** → `CleanupBetweenPdfPages`(누적 중엔 GC만)
+- **저장 (#119)**: 도면 장수와 무관하게 PDF 1개. 저장은 바깥 `finally`의 `EndPdfPageAccumulation`이 수행하므로 정상 완료·실패·취소 어느 경로로 빠져나와도 그때까지 그린 페이지가 남는다.
+- **실패 처리**: 한 시트가 실패하면 `DiscardCurrentPdfPage`로 그 캔버스만 버려 반쪽짜리 페이지가 PDF에 끼지 않게 한다.
+- **완료 상태**: 저장 후에도 캔버스를 지우지 않는다. 다음 출력이 `BeginPdfPageAccumulation` 진입 시 초기화하므로 이전 페이지가 섞이지 않는다.
+- **관련**: 페이지 누적 장치는 [form1-drawing2d.md](./form1-drawing2d.md) 참고
 
 ### <a id="GenerateSheetDrawing2D"></a>GenerateSheetDrawing2D(sheet)
-- **라인**: L1621+
+- **라인**: L1602+
 - **단계**: 엣지 생성 전후 취소 확인 → Hidden Line → 풍선/충돌회피 → 보조선 → BOM 테이블 → 도면정보 테이블 → 공통 `finally`에서 3D `Review.Measure`·`ShapeDrawing` 제거
+- **캔버스**: 진입부에서 `PrepareDrawingCanvas(297, 210)`를 호출한다. 누적이 아니면 종전대로 캔버스를 비우고 1번을 쓰고, 누적 중이면 새 캔버스를 덧붙인다. 이후 `SetSelectCanvas`는 1 대신 `_activeDrawingCanvasIdx`를 쓴다.
 
 ### <a id="GenerateSheetDrawing2D_WithExcelTemplate"></a>GenerateSheetDrawing2D_WithExcelTemplate(sheet)
-- **라인**: L2017+
+- **라인**: L1995+
+- **캔버스**: 위와 동일 — 진입부 `PrepareDrawingCanvas(297, 210)`, 템플릿 적용 후 `SetSelectCanvas(_activeDrawingCanvasIdx)`
 - **단계**: 엑셀(`제작도_도면_1.xlsx`) 데이터·이미지 치환 → 같은 도면 목록의 제작도·조립도·설치도·가공도가 공유하는 PAINT CODE를 `Input_166`에 적용 → REV 표 첫 기재행(`Input_194~199`)을 `FillRevisionTable`로 채움 → 빈 칸 괘선 제거 → `{View_1~4}` 영역 파싱 → 모델 4면도·치수·풍선 렌더. 템플릿 적용 전후, ISO/Z/X/Y 각 뷰 전후, 최종 렌더 전후에 공용 체크포인트로 진행 문구를 갱신하고 취소 요청을 처리한다. 제작도 1번 시트는 시트 Osnap의 최장 수평 LINE이 세계축에서 1° 넘게 틀어지면 `DrawingReferenceFrame`을 만들고 View마다 ReferenceAxis 카메라를 적용한다. 치수 Osnap도 같은 로컬축으로 변환해 UserAxis 치수·보조선으로 복원하며, View 종료마다 축을 Reset/Delete한다. 정상 제작도와 조립도·설치도는 기존 세계축 경로를 유지한다. ISO는 조립도/제작도 두 겹 표현을 유지하고, 부재번호 풍선과 제작도·설치도 연결 Assembly/Part 이름을 모두 3D 표면 노트에서 2D로 변환한다. SDK 1.0.26.723의 영역 정렬 API에는 최종 변환된 실제 2D 표시 객체 AABB를 캔버스 20mm 확장한 영역과 SDK offset 0을 전달해 두 종류의 라벨을 모델 크기와 무관한 도면 고정 간격으로 함께 자동 배치하며, 연결 이름의 Target은 실제 접합점에 유지한다. 개별 리뷰의 상하좌우 방향을 지정하는 공개 옵션은 없다. 설치도는 ISO/Z/X/Y 모두 선택 STRU 실선 + 직접 연결 외부 Part LONG_DASHED 점선으로 캡처하고 선택 STRU 기준 CropFit·축척·Match를 적용한다. 직교 뷰는 A/A1·전체 범위 없이 Target Body 끝단→Connected Body 모서리 치수만 투영하며, 모델 배치·Match 후 `GetObjectScale` 실측값으로 `ShowAllDimensions`를 호출해 보조선 종이 길이를 통일한다.
 
 ### <a id="FillRevisionTable"></a>FillRevisionTable / BuildCurrentRevisionHistory

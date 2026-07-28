@@ -1315,6 +1315,8 @@ namespace A2Z
             Dictionary<Control, bool> previousEnabledStates = CaptureDrawingExportControlStates();
             List<string> failures = new List<string>();
             string saveDir = null;
+            string mergedPdfPath = null;   // #119: 종류별 묶음 PDF 1개
+            string savedPdfPath = null;
             int successCount = 0;
             bool canceled = false;
             bool cancelableOperationStarted = false;
@@ -1332,6 +1334,11 @@ namespace A2Z
                 // [issue #116] 출력 후 로딩 무한 대기 추적 — 대상 개수부터 남긴다.
                 DiagLog($"[{kindLabel} 출력] 시작 targets={targetSheets.Count} saveDir={saveDir}");
 
+                // [issue #119] 장마다 저장하지 않고 캔버스에 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+                //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, kindLabel, timeStamp);
+                BeginPdfPageAccumulation(kindLabel);
+
                 for (int i = 0; i < targetSheets.Count; i++)
                 {
                     ListViewItem item = targetSheets[i].Key;
@@ -1341,28 +1348,21 @@ namespace A2Z
                     try
                     {
                         ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 시작 전");
-                        ShowBusyOverlay($"{kindLabel} PDF 출력 {i + 1}/{targetSheets.Count}: {item.Text}");
+                        ShowBusyOverlay($"{kindLabel} 도면 생성 {i + 1}/{targetSheets.Count}: {item.Text}");
 
                         SelectDrawingSheetItemForExport(item);
                         ApplySheetSelection(sheet);
                         ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 선택 후");
 
+                        // 캔버스 준비는 GenerateSheetDrawing2D 안의 PrepareDrawingCanvas가 담당한다.
+                        // 누적 중이므로 이전 페이지는 지워지지 않고 새 캔버스가 덧붙는다 (#119).
                         GenerateSheetDrawing2D(sheet);
                         Application.DoEvents();
                         System.Threading.Thread.Sleep(200);
                         ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 2D 생성 후");
 
-                        string pdfFileName = BuildDrawingSheetPdfFileName(
-                            sheet, item.Text, kindLabel, timeStamp);
-                        string pdfPath = Path.Combine(saveDir, pdfFileName);
-
-                        vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                        vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
-                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-
                         successCount++;
-                        DiagLog($"[{kindLabel} 출력] PDF saved: {pdfPath}");
-                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} PDF 저장 후");
+                        DiagLog($"[{kindLabel} 출력] 페이지 추가: {item.Text}");
                         sheetSucceeded = true;
                     }
                     catch (OperationCanceledException)
@@ -1376,11 +1376,12 @@ namespace A2Z
                     }
                     finally
                     {
-                        bool keepFinalCanvas = i == targetSheets.Count - 1 && sheetSucceeded;
-                        DiagLog($"[{kindLabel} 출력] 시트 {i + 1}/{targetSheets.Count} 종료 " +
-                                $"ok={sheetSucceeded} keepFinalCanvas={keepFinalCanvas}");
-                        if (!keepFinalCanvas)
-                            CleanupDrawingSheetExportCanvas();
+                        // #119: 성공한 페이지는 저장 때까지 캔버스에 남겨둔다.
+                        //   실패한 시트는 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다.
+                        DiagLog($"[{kindLabel} 출력] 시트 {i + 1}/{targetSheets.Count} 종료 ok={sheetSucceeded}");
+                        if (!sheetSucceeded)
+                            DiscardCurrentPdfPage();
+                        CleanupBetweenPdfPages();
                     }
                 }
                 DiagLog($"[{kindLabel} 출력] 루프 종료 success={successCount} failures={failures.Count}");
@@ -1396,6 +1397,19 @@ namespace A2Z
             }
             finally
             {
+                // [issue #119] 취소·실패로 빠져나왔어도 그때까지 그린 페이지는 저장한다.
+                //   저장은 무거운 호출이라 오버레이를 내리기 전에 끝낸다.
+                try
+                {
+                    if (!string.IsNullOrEmpty(mergedPdfPath) && EndPdfPageAccumulation(mergedPdfPath))
+                        savedPdfPath = mergedPdfPath;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add($"PDF 저장: {ex.Message}");
+                    DiagLog($"[{kindLabel} 출력] 묶음 PDF 저장 실패: {ex.Message}");
+                }
+
                 // [issue #116] finally 각 단계를 개별로 남긴다 — 어느 호출에서 멈추는지 특정용.
                 DiagLog($"[{kindLabel} 출력] finally 진입 canceled={canceled} started={cancelableOperationStarted}");
                 if (cancelableOperationStarted)
@@ -1409,8 +1423,8 @@ namespace A2Z
                 DiagLog($"[{kindLabel} 출력] 컨트롤 상태 복원 완료");
             }
 
-            DiagLog($"[{kindLabel} 출력] 결과 표시 직전 success={successCount}");
-            ShowDrawingSheetExportResult(kindLabel, saveDir, successCount, failures, canceled);
+            DiagLog($"[{kindLabel} 출력] 결과 표시 직전 pages={successCount}");
+            ShowDrawingSheetExportResult(kindLabel, savedPdfPath, successCount, failures, canceled);
             DiagLog($"[{kindLabel} 출력] 결과 표시 완료 — 정상 종료");
         }
 
@@ -1522,26 +1536,6 @@ namespace A2Z
                 state.Key.Enabled = state.Value;
         }
 
-        private string BuildDrawingSheetPdfFileName(
-            DrawingSheetData sheet,
-            string sheetLabel,
-            string kindLabel,
-            string timeStamp)
-        {
-            string safeKind = SanitizeFileName(kindLabel);
-            string safeBaseName = SanitizeFileName(
-                string.IsNullOrWhiteSpace(sheet.BaseMemberName) ? "Unknown" : sheet.BaseMemberName.Trim());
-            string safeSheetLabel = SanitizeFileName(
-                string.IsNullOrWhiteSpace(sheetLabel) ? $"Sheet {sheet.SheetNumber}" : sheetLabel.Trim());
-
-            var parts = new List<string> { safeKind };
-            if (!string.Equals(safeBaseName, safeKind, StringComparison.OrdinalIgnoreCase))
-                parts.Add(safeBaseName);
-            parts.Add(safeSheetLabel);
-            parts.Add(timeStamp);
-            return string.Join("_", parts) + ".pdf";
-        }
-
         private void CleanupDrawingSheetExportCanvas()
         {
             // [issue #116] 이 정리 단계가 무한 대기 1순위 후보다.
@@ -1570,8 +1564,8 @@ namespace A2Z
 
         private void ShowDrawingSheetExportResult(
             string kindLabel,
-            string saveDir,
-            int successCount,
+            string savedPdfPath,
+            int pageCount,
             List<string> failures,
             bool canceled)
         {
@@ -1580,9 +1574,17 @@ namespace A2Z
                 ? $"{kindLabel} 출력을 취소했습니다."
                 : $"{kindLabel} 출력이 완료되었습니다.");
             message.AppendLine();
-            message.AppendLine($"저장된 PDF: {successCount}개");
-            if (!string.IsNullOrWhiteSpace(saveDir))
-                message.AppendLine($"저장 위치: {saveDir}");
+
+            // #119: 도면 장수와 무관하게 PDF는 항상 1개다.
+            if (!string.IsNullOrWhiteSpace(savedPdfPath))
+            {
+                message.AppendLine($"PDF 1개에 도면 {pageCount}장 저장");
+                message.AppendLine(savedPdfPath);
+            }
+            else
+            {
+                message.AppendLine("저장된 PDF가 없습니다.");
+            }
 
             if (failures.Count > 0)
             {
@@ -1686,8 +1688,9 @@ namespace A2Z
                 // ── 0-1. UI ListView 초기화 (BOM 정보 — CollectBOMInfo에서 다시 수집) ──
                 lvDrawingBOMInfo.Items.Clear();
 
-                // ── 1. 2D 완전 초기화 ──
-                Clear2DView();
+                // ── 1. 이 도면을 그릴 캔버스 준비 (A4 297 x 210mm, 가로) ──
+                //   묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+                PrepareDrawingCanvas(297, 210);
 
                 // 2D 패널 크기 조정
                 if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
@@ -1695,9 +1698,6 @@ namespace A2Z
                     vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
                     Application.DoEvents();
                 }
-
-                // A4 용지 크기로 캔버스 새로 설정 (297 x 210mm, 가로)
-                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
 
                 // ── 2. 시트 부재 설정 (ApplyDrawingSheetView("ISO")와 동일한 흐름) ──
                 vizcore3d.BeginUpdate();
@@ -1748,7 +1748,7 @@ namespace A2Z
 
                 // ── 3. 그리드 구조 먼저 생성 (CrateTemplateBorder가 그리드 필요) ──
                 {
-                    int selCanvas = 1;
+                    int selCanvas = _activeDrawingCanvasIdx;   // 묶음 출력 시 1번이 아닐 수 있음 (#119)
                     vizcore3d.Drawing2D.View.SetSelectCanvas(selCanvas);
                     float tmpW = 0f, tmpH = 0f;
                     vizcore3d.Drawing2D.View.GetCanvasSize(ref tmpW, ref tmpH);
@@ -2026,17 +2026,15 @@ namespace A2Z
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
-                // ── 1. 2D 완전 초기화 (옛 코드와 동일) ──
-                Clear2DView();
+                // ── 1. 이 도면을 그릴 캔버스 준비 ──
+                //   A4 — 엑셀이 더 큰 페이지면 ImportExcelWithData가 자동 조정 가능.
+                //   묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+                PrepareDrawingCanvas(297, 210);
                 if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
                 {
                     vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
                     Application.DoEvents();
                 }
-
-                // A4 캔버스 — 엑셀이 더 큰 페이지면 ImportExcelWithData가 자동 조정 가능
-                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
-                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
 
                 // 모델/치수 라인 두께
                 vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
@@ -2206,7 +2204,7 @@ namespace A2Z
                 ProcessCancelableUiCheckpoint(
                     $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용 완료",
                     $"sheet#{sheet.SheetNumber} 템플릿 적용 후");
-                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+                vizcore3d.Drawing2D.View.SetSelectCanvas(_activeDrawingCanvasIdx);   // 묶음 출력 시 1번이 아닐 수 있음 (#119)
                 DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
 
                 // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 등 내용 없는 공백 셀의 테두리를 지운다.
