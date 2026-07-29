@@ -186,7 +186,13 @@ namespace A2Z
                 context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys, struGweiByNode);
             }
 
-            DumpDrawingBomStruDiagnostics(context.PartByIndex.Keys, wantedUdaKeys);
+            // STRUCTURE 노드를 하나도 못 찾았을 때만 조상 체인을 덤프한다.
+            //   전체 덤프는 부재 3개만 해도 ~3초라 정상 경로에서는 돌리지 않는다.
+            if (!context.PartByIndex.Values.Any(p => p.StruNodeIndex >= 0))
+            {
+                DiagLog("BOM 요약행 T/W: STRUCTURE 노드를 못 찾았다 — 조상 체인 덤프");
+                DumpDrawingBomStruDiagnostics(context.PartByIndex.Keys, wantedUdaKeys);
+            }
 
             foreach (var pair in bodyToPartIndexMap)
             {
@@ -243,6 +249,7 @@ namespace A2Z
             string posStartVal = "";
             string posEndVal = "";
             string struGweiVal = "";
+            string struTag = "";
             int struNodeIndex = -1;
 
             int currentIdx = node.Index;
@@ -254,37 +261,39 @@ namespace A2Z
                 posStartVal = ReadDrawingBomUdaValue(currentIdx, "POSSTART", posStartVal, udaKeys);
                 posEndVal = ReadDrawingBomUdaValue(currentIdx, "POSEND", posEndVal, udaKeys);
 
-                // 요약행 T/W(#67) — 이 노드가 STRU 노드면 "그 노드 자체의" GWEI를 잡는다.
-                //   위 gweiVal walk-up은 첫 비어있지 않은 값에서 멈춰 부재 무게를 잡으므로 그대로 쓰면 안 된다.
-                //   depth 0(부재 자신)은 건너뛴다 — 부재 노드에도 STRU 속성이 달려 있으면 부재 하나의 무게를
-                //   STRU 전체 무게로 착각해 요약행이 개별 부재보다 작아진다 (2026-07-28 실기 증상).
-                if (depth > 0 && string.IsNullOrEmpty(struGweiVal))
+                // 요약행 T/W(#67) — STRUCTURE 노드를 "이름"으로 찾는다.
+                //   STRU 속성은 부재가 소속 STRUCTURE를 가리키는 역참조라, STRUCTURE 노드 자신은 STRU가 비어 있다.
+                //   대신 STRU 값이 STRUCTURE 노드의 이름과 같다 (2026-07-28 실기 로그로 확인):
+                //     SHAPE/PANEL/FRMWORK …  STRU='/M02-A-ES-LS134A-SHI'
+                //     '/M02-A-ES-LS134A-SHI' STRU=''  GWEI='11.4317kg'  ← 이 노드가 STRUCTURE
+                //   "STRU 속성이 있는 노드 = STRUCTURE"로 보면 부재·FRMWORK를 잡아 요약행이 틀어진다.
+                if (string.IsNullOrEmpty(struTag))
+                    struTag = ReadDrawingBomUdaValue(currentIdx, "STRU", "", udaKeys);
+
+                VIZCore3D.NET.Data.Node currentNode = null;
+                try { currentNode = vizcore3d.Object3D.FromIndex(currentIdx); }
+                catch { }
+
+                if (struNodeIndex < 0 && !string.IsNullOrEmpty(struTag) && currentNode != null &&
+                    string.Equals((currentNode.NodeName ?? "").Trim(), struTag, StringComparison.OrdinalIgnoreCase))
                 {
                     string cached;
                     if (!struGweiByNode.TryGetValue(currentIdx, out cached))
                     {
-                        string struTag = ReadDrawingBomUdaValue(currentIdx, "STRU", "", udaKeys);
-                        cached = string.IsNullOrEmpty(struTag)
-                            ? ""
-                            : ReadDrawingBomUdaValue(currentIdx, "GWEI", "", udaKeys);
+                        cached = ReadDrawingBomUdaValue(currentIdx, "GWEI", "", udaKeys);
                         struGweiByNode[currentIdx] = cached;
                     }
                     struGweiVal = cached;
-                    if (!string.IsNullOrEmpty(struGweiVal)) struNodeIndex = currentIdx;
+                    struNodeIndex = currentIdx;
                 }
 
                 if (!string.IsNullOrEmpty(sprefVal) && !string.IsNullOrEmpty(matrefVal) && !string.IsNullOrEmpty(gweiVal) &&
                     !string.IsNullOrEmpty(posStartVal) && !string.IsNullOrEmpty(posEndVal) &&
-                    !string.IsNullOrEmpty(struGweiVal))
+                    struNodeIndex >= 0)
                     break;
 
-                try
-                {
-                    VIZCore3D.NET.Data.Node parentNode = vizcore3d.Object3D.FromIndex(currentIdx);
-                    if (parentNode == null || parentNode.ParentIndex == currentIdx) break;
-                    currentIdx = parentNode.ParentIndex;
-                }
-                catch { break; }
+                if (currentNode == null || currentNode.ParentIndex == currentIdx) break;
+                currentIdx = currentNode.ParentIndex;
             }
 
             string itemVal = "";
@@ -495,17 +504,14 @@ namespace A2Z
                     $"부재합산={sumDisplay} 최대부재={Math.Round(maxPartWeight, 2):F2} parts={parts.Count} struNodes={struNodeCount}");
 
                 if (struNodeCount > 1)
-                    DiagLog($"BOM 요약행 T/W: WARN 부재들이 서로 다른 STRU 노드 {struNodeCount}개를 가리킨다 — 중첩 STRU 의심");
+                    DiagLog($"BOM 요약행 T/W: WARN 부재들이 서로 다른 STRUCTURE {struNodeCount}개를 가리킨다");
 
-                // STRU 전체 무게는 이 시트 부재들을 포함하므로 부재 합산보다 작을 수 없다.
-                //   작게 나오면 STRU 노드를 잘못 잡은 것이므로 합산으로 되돌린다 — 도면에 개별 부재보다
-                //   작은 요약 무게가 찍히는 것보다 합산이 항상 낫다 (2026-07-28 실기: 0.38 vs 합산 45.55).
-                if (struWeightValue > 0 && totalWeight > 0 && struWeightValue < totalWeight)
-                {
-                    DiagLog($"BOM 요약행 T/W: WARN STRU 무게({struWeightValue:F2}) < 부재 합산({totalWeight:F2}) " +
-                        $"— STRU 노드 오판으로 보고 합산으로 대체 (node={struSource.StruNodeIndex})");
-                    summaryWeight = sumDisplay;
-                }
+                // 부재 합산은 STRUCTURE 무게의 하한이 아니다 — 자체 GWEI가 없는 부재는 walk-up이
+                //   조상(FRMWORK 등) 무게를 그대로 물려받아 합산이 부풀려진다 (2026-07-28 실기:
+                //   STRUCTURE 11.43인데 합산 45.55). 따라서 합산으로 덮어쓰지 않고 경고만 남긴다.
+                if (struWeightValue > 0 && totalWeight > struWeightValue)
+                    DiagLog($"BOM 요약행 T/W: NOTE 부재 합산({totalWeight:F2}) > STRUCTURE 무게({struWeightValue:F2}) " +
+                        $"— 자체 GWEI 없는 부재가 조상 무게를 물려받았을 수 있다 (부재 행 T/W 별도 확인 필요)");
             }
             else
             {
