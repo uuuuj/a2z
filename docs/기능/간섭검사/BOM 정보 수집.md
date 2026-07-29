@@ -85,14 +85,32 @@ code_reference: /docs/code-reference/form1-clash.md#btnCollectBOMInfo_Click
 | STRU `GWEI` 없음 | 부재별 무게 합산으로 폴백하고 `DiagLog`에 폴백 사실을 남김 |
 | 합산도 0 | 빈칸 |
 
-STRU 노드 판정은 **조상부터(depth ≥ 1)** 한다. 부재 노드 자신에도 `STRU` 속성이 달려 있는 모델이 있어, 부재를 STRU 노드로 오판하면 요약행에 STRU 전체 무게가 아니라 **부재 하나의 무게**가 들어가 개별 부재보다 작아진다.
+### STRUCTURE 노드를 찾는 방법
 
-`DiagLog`는 잡은 STRU 노드 인덱스·`GWEI`·부재 합산·최대 부재 무게를 남기고, 다음 두 경우에 경고를 추가한다.
+`STRU` 속성은 **부재가 소속 STRUCTURE를 가리키는 역참조**다. 따라서 STRUCTURE 노드 자신은 `STRU`가 비어 있고, "`STRU` 속성이 있는 노드 = STRUCTURE"로 보면 부재나 FRMWORK를 잡는다.
+
+대신 **`STRU` 값이 STRUCTURE 노드의 이름과 같다**. 조상을 올라가며 `NodeName`이 `STRU` 값과 일치하는 노드를 STRUCTURE로 특정한다.
+
+```
+SHAPE of PANEL 1 of FRMWORK 1 of STRUCTURE /M02-A-ES-LS134A-SHI   STRU='/M02-A-ES-LS134A-SHI'  GWEI='0.381322kg'
+PANEL 1 of FRMWORK 1 of ...                                       STRU='/M02-A-ES-LS134A-SHI'  GWEI='0.381322kg'
+FRMWORK 1 of STRUCTURE /M02-A-ES-LS134A-SHI                       STRU='/M02-A-ES-LS134A-SHI'  GWEI='11.4317kg'
+/M02-A-ES-LS134A-SHI                                              STRU=''                      GWEI='11.4317kg'  ← STRUCTURE
+```
+
+`GWEI`에는 `11.4317kg`처럼 단위가 붙어 오므로 숫자만 남겨 정규화한다.
+
+### 부재 합산은 하한이 아니다
+
+자체 `GWEI`가 없는 부재는 walk-up이 조상(FRMWORK 등) 무게를 그대로 물려받는다. 그래서 합산이 부풀려지고 **STRUCTURE 무게보다 커질 수 있다** (실기: STRUCTURE 11.43 vs 합산 45.55). 합산으로 STRUCTURE 값을 덮어쓰면 안 되고, 경고 로그로만 남긴다.
+
+`DiagLog`가 남기는 경고:
 
 | 경고 | 의미 |
 |---|---|
-| 부재들이 서로 다른 STRU 노드를 가리킴 | 중첩 STRU — 부재마다 다른 조상을 잡아 값이 흔들린다 |
-| STRU 무게 < 최대 부재 무게 | 노드 오판 또는 단위 불일치(t vs kg) |
+| 부재들이 서로 다른 STRUCTURE를 가리킴 | 한 시트에 STRUCTURE가 섞여 있음 |
+| 부재 합산 > STRUCTURE 무게 | 자체 `GWEI` 없는 부재가 조상 무게를 물려받았을 수 있음 — 부재 행 T/W 별도 확인 필요 |
+| STRUCTURE 노드를 못 찾음 | 조상 체인을 전부 덤프해 원인 확인 |
 
 요약행은 출력에서도 BOM 표 1행을 차지한다. 템플릿 BOM 정원이 25행이므로 데이터 행은 24행까지 나간다.
 
