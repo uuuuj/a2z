@@ -1,5 +1,5 @@
 ---
-description: 현재 세션을 요약하여 docs/tracking/sessions/에 저장. 다음 세션 복원용 "이어갈 지점" 포함
+description: 현재 세션을 요약하여 docs/tracking-archive/tracking-원본/sessions/에 저장. 다음 세션 복원용 "이어갈 지점" 포함
 ---
 
 # /checkpoint — 세션 체크포인트
@@ -22,7 +22,7 @@ description: 현재 세션을 요약하여 docs/tracking/sessions/에 저장. �
 - 사용자가 주제 미지정 + 대화는 2D 도면 버그 수정이었다면 → `drawing2d-bugfix`
 
 ### 3. 파일명 결정
-- 형식: `docs/tracking/sessions/YYYY-MM-DD-{주제-kebab}.md`
+- 형식: `docs/tracking-archive/tracking-원본/sessions/YYYY-MM-DD-{주제-kebab}.md`
 - 이미 같은 파일이 있으면 `-2`, `-3` 등 suffix 추가
 - 날짜는 시스템의 **오늘 날짜** (환경에서 주어진 날짜 사용)
 

@@ -44,7 +44,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#btnOsnapClearBalloon_Cli
 | `ShapeDrawing` | 구 마커 등 | 비어있음 |
 
 ## 8. 후행 기능 (Chained)
-- 필요 시 재표시 [`btnOsnapShowSelected`](./Osnap 선택 보기.md)
+- 필요 시 재표시 [`btnOsnapShowSelected`](./Osnap%20선택%20보기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L913](../../code-reference/form1-drawing2d.md#btnOsnapClearBalloon_Click)

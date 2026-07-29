@@ -10,10 +10,10 @@
 
 | 핸들러 | 라인 | 흐름 문서 |
 |---|---|---|
-| <a id="btnGlobalISO_Click"></a>`btnGlobalISO_Click` | L17 | [global-iso](../기능/글로벌뷰/글로벌 ISO.md) |
-| <a id="btnGlobalAxisX_Click"></a>`btnGlobalAxisX_Click` | L25 | [global-axis-x](../기능/글로벌뷰/글로벌 X축.md) |
-| <a id="btnGlobalAxisY_Click"></a>`btnGlobalAxisY_Click` | L33 | [global-axis-y](../기능/글로벌뷰/글로벌 Y축.md) |
-| <a id="btnGlobalAxisZ_Click"></a>`btnGlobalAxisZ_Click` | L41 | [global-axis-z](../기능/글로벌뷰/글로벌 Z축.md) |
+| <a id="btnGlobalISO_Click"></a>`btnGlobalISO_Click` | L17 | [global-iso](../기능/글로벌뷰/글로벌%20ISO.md) |
+| <a id="btnGlobalAxisX_Click"></a>`btnGlobalAxisX_Click` | L25 | [global-axis-x](../기능/글로벌뷰/글로벌%20X축.md) |
+| <a id="btnGlobalAxisY_Click"></a>`btnGlobalAxisY_Click` | L33 | [global-axis-y](../기능/글로벌뷰/글로벌%20Y축.md) |
+| <a id="btnGlobalAxisZ_Click"></a>`btnGlobalAxisZ_Click` | L41 | [global-axis-z](../기능/글로벌뷰/글로벌%20Z축.md) |
 
 모든 핸들러는 `ApplyGlobalView(direction)`으로 위임.
 
@@ -65,6 +65,8 @@
 ### SelectInstallationTargetEndForAxis(targetPoints, connectedCorner, worldAxis)
 - **라인**: L764~L791 부근
 - **핵심**: 주축 끝단 선정 로직을 임의 월드 축으로 일반화. 축 좌표 MIN/MAX 중 연결 모서리에 가까운 끝단면을 잡고, 동률 허용오차(`InstallationPlacementTieTolerance`) 내 후보 중 축 직교 평면 거리(`PerpendicularDistanceInPlane`)가 최소인 점 반환
+
+**뷰 배정** (`viewAxes`): 각 성분을 그 축이 화면 평면에 있는 직교 뷰에만 배정(`{X:[Z,Y], Y:[Z,X], Z:[Y,X]}`). 그 축을 정면으로 마주보는 뷰(X 성분↔-X)는 축이 깊이라 두 끝점이 화면상 겹쳐 보조선이 하나로 합쳐지고 치수가 뭉개진다(2026-07-23 실기 PDF). 세 뷰 모두 배정 시도는 -X에서 형강 길이 치수를 겹친 보조선으로 잘못 그려 폐기.
 
 ### ComputeInstallationDimensions(DrawingSheetData sheet)
 - **라인**: L955~L1030 부근

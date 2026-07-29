@@ -61,8 +61,8 @@ code_reference: /docs/code-reference/form1-dimensions.md#LvClash_SelectedIndexCh
 | `lvDimension.SelectedItems` | 이전 | 관련 항목으로 교체 |
 
 ## 8. 후행 기능 (Chained)
-- [선택 치수 표시](./선택 치수 표시.md)
-- [선택 Osnap 풍선 표시](../2D도면/Osnap 선택 보기.md)
+- [선택 치수 표시](./선택%20치수%20표시.md)
+- [선택 Osnap 풍선 표시](../2D도면/Osnap%20선택%20보기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Dimensions.cs:L1551](../../code-reference/form1-dimensions.md#LvClash_SelectedIndexChanged)

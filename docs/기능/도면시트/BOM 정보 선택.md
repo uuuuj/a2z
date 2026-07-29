@@ -81,7 +81,7 @@ flowchart TD
 없음 — 순수 카메라 이동.
 
 ## 9. 관련 링크
-- 선행: [도면 시트 선택](./시트 선택.md) (BOM 정보 테이블을 채움)
+- 선행: [도면 시트 선택](./시트%20선택.md) (BOM 정보 테이블을 채움)
 - BOM 수집: [Form1.Clash.cs `CollectBOMInfo`](../../code-reference/form1-clash.md#CollectBOMInfo)
 - SDK: `VIZCore3D.NET.Manager.ViewManager.FlyToObject3d(List<int>, float)`
 

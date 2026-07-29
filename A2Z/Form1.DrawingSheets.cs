@@ -10,6 +10,8 @@ namespace A2Z
 {
     public partial class Form1
     {
+        private bool _suppressSheetSelectionHandler;
+
         #region 도면 시트 생성 (BFS)
 
         /// <summary>
@@ -609,6 +611,12 @@ namespace A2Z
         /// </summary>
         private void LvDrawingSheet_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (_suppressSheetSelectionHandler)
+            {
+                DiagLog("LvDrawingSheet_SelectedIndexChanged SKIP (programmatic selection)");
+                return;
+            }
+
             if (lvDrawingSheet.SelectedItems.Count == 0)
             {
                 // [T-016 진단 로그] 빈 선택 (이벤트 두 번 발생 패턴)
@@ -785,7 +793,7 @@ namespace A2Z
             if (lvDrawingBOMInfo.SelectedItems.Count == 0) return;
             ListViewItem row = lvDrawingBOMInfo.SelectedItems[0];
 
-            // 요약행(Row 0)은 No. 컬럼이 공란 — 스킵
+            // 요약행(Row 0)은 대응 부재가 없으므로 스킵 (No.는 "00", #67 — 인덱스로 걸러 값과 무관)
             if (row.Index == 0) return;
 
             // No. 컬럼 파싱 → bomList 순서(i+1)와 일치 (CollectBOMInfo 매핑 기준)
@@ -1237,6 +1245,362 @@ namespace A2Z
             }
         }
 
+        private enum DrawingSheetExportKind
+        {
+            Fabrication,
+            Assembly,
+            Installation
+        }
+
+        private void btnExportFabricationSheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Fabrication);
+        }
+
+        private void btnExportAssemblySheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Assembly);
+        }
+
+        private void btnExportInstallationSheets_Click(object sender, EventArgs e)
+        {
+            ExportSheetsByKind(DrawingSheetExportKind.Installation);
+        }
+
+        /// <summary>
+        /// 이미 생성된 도면 목록에서 요청한 종류만 순서대로 2D 변환·PDF 저장한다.
+        /// 정상 완료한 마지막 시트는 후속 확인과 수동 PDF 재출력을 위해 캔버스에 유지한다.
+        /// </summary>
+        private void ExportSheetsByKind(DrawingSheetExportKind exportKind)
+        {
+            string kindLabel = GetDrawingSheetExportKindLabel(exportKind);
+
+            if (_cancelableOperationInProgress || !lvDrawingSheet.Enabled)
+            {
+                MessageBox.Show("다른 도면 작업이 진행 중입니다.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!vizcore3d.Model.IsOpen())
+            {
+                MessageBox.Show("먼저 모델을 열어주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (bomList == null || bomList.Count == 0)
+            {
+                MessageBox.Show("BOM 데이터가 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (lvDrawingSheet.Items.Count == 0)
+            {
+                MessageBox.Show("도면 시트 목록이 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            List<KeyValuePair<ListViewItem, DrawingSheetData>> targetSheets =
+                GetDrawingSheetExportTargets(exportKind);
+            if (targetSheets.Count == 0)
+            {
+                MessageBox.Show($"{kindLabel} 시트가 없습니다.\n먼저 '치수 추출'을 실행해주세요.", "알림",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Dictionary<Control, bool> previousEnabledStates = CaptureDrawingExportControlStates();
+            List<string> failures = new List<string>();
+            string saveDir = null;
+            string mergedPdfPath = null;   // #119: 종류별 묶음 PDF 1개
+            string savedPdfPath = null;
+            int successCount = 0;
+            bool canceled = false;
+            bool cancelableOperationStarted = false;
+
+            try
+            {
+                SetDrawingExportControlsEnabled(false);
+                BeginCancelableOperation();
+                cancelableOperationStarted = true;
+                ShowBusyOverlay($"{kindLabel} PDF 출력 준비 중...");
+
+                saveDir = GetDefaultDrawingSaveDir();
+                string timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+
+                // [issue #116] 출력 후 로딩 무한 대기 추적 — 대상 개수부터 남긴다.
+                DiagLog($"[{kindLabel} 출력] 시작 targets={targetSheets.Count} saveDir={saveDir}");
+
+                // [issue #119] 장마다 저장하지 않고 캔버스에 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+                //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, kindLabel, timeStamp);
+                BeginPdfPageAccumulation(kindLabel);
+
+                for (int i = 0; i < targetSheets.Count; i++)
+                {
+                    ListViewItem item = targetSheets[i].Key;
+                    DrawingSheetData sheet = targetSheets[i].Value;
+                    bool sheetSucceeded = false;
+
+                    try
+                    {
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 시작 전");
+                        ShowBusyOverlay($"{kindLabel} 도면 생성 {i + 1}/{targetSheets.Count}: {item.Text}");
+
+                        SelectDrawingSheetItemForExport(item);
+                        ApplySheetSelection(sheet);
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 선택 후");
+
+                        // 캔버스 준비는 GenerateSheetDrawing2D 안의 PrepareDrawingCanvas가 담당한다.
+                        // 누적 중이므로 이전 페이지는 지워지지 않고 새 캔버스가 덧붙는다 (#119).
+                        GenerateSheetDrawing2D(sheet);
+                        Application.DoEvents();
+                        System.Threading.Thread.Sleep(200);
+                        ThrowIfCancellationRequested($"{kindLabel} {i + 1}/{targetSheets.Count} 2D 생성 후");
+
+                        successCount++;
+                        DiagLog($"[{kindLabel} 출력] 페이지 추가: {item.Text}");
+                        sheetSucceeded = true;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        failures.Add($"{item.Text}: {ex.Message}");
+                        DiagLog($"[{kindLabel} 출력] sheet#={sheet.SheetNumber} ERROR: {ex.Message}");
+                    }
+                    finally
+                    {
+                        // #119: 성공한 페이지는 저장 때까지 캔버스에 남겨둔다.
+                        //   실패한 시트는 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다.
+                        DiagLog($"[{kindLabel} 출력] 시트 {i + 1}/{targetSheets.Count} 종료 ok={sheetSucceeded}");
+                        if (!sheetSucceeded)
+                            DiscardCurrentPdfPage();
+                        CleanupBetweenPdfPages();
+                    }
+                }
+                DiagLog($"[{kindLabel} 출력] 루프 종료 success={successCount} failures={failures.Count}");
+            }
+            catch (OperationCanceledException)
+            {
+                canceled = true;
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"출력 준비: {ex.Message}");
+                DiagLog($"[{kindLabel} 출력] FAIL: {ex.Message}\n{ex.StackTrace}");
+            }
+            finally
+            {
+                // [issue #119] 취소·실패로 빠져나왔어도 그때까지 그린 페이지는 저장한다.
+                //   저장은 무거운 호출이라 오버레이를 내리기 전에 끝낸다.
+                try
+                {
+                    if (!string.IsNullOrEmpty(mergedPdfPath) && EndPdfPageAccumulation(mergedPdfPath))
+                        savedPdfPath = mergedPdfPath;
+                }
+                catch (Exception ex)
+                {
+                    failures.Add($"PDF 저장: {ex.Message}");
+                    DiagLog($"[{kindLabel} 출력] 묶음 PDF 저장 실패: {ex.Message}");
+                }
+
+                // [issue #116] finally 각 단계를 개별로 남긴다 — 어느 호출에서 멈추는지 특정용.
+                DiagLog($"[{kindLabel} 출력] finally 진입 canceled={canceled} started={cancelableOperationStarted}");
+                if (cancelableOperationStarted)
+                {
+                    try { HideBusyOverlay(); } catch (Exception ex) { DiagLog($"[{kindLabel} 출력] HideBusyOverlay 실패 {ex.Message}"); }
+                    DiagLog($"[{kindLabel} 출력] HideBusyOverlay 완료");
+                    EndCancelableOperation();
+                    DiagLog($"[{kindLabel} 출력] EndCancelableOperation 완료");
+                }
+                RestoreDrawingExportControlStates(previousEnabledStates);
+                DiagLog($"[{kindLabel} 출력] 컨트롤 상태 복원 완료");
+            }
+
+            DiagLog($"[{kindLabel} 출력] 결과 표시 직전 pages={successCount}");
+            ShowDrawingSheetExportResult(kindLabel, savedPdfPath, successCount, failures, canceled);
+            DiagLog($"[{kindLabel} 출력] 결과 표시 완료 — 정상 종료");
+        }
+
+        private List<KeyValuePair<ListViewItem, DrawingSheetData>> GetDrawingSheetExportTargets(
+            DrawingSheetExportKind exportKind)
+        {
+            var result = new List<KeyValuePair<ListViewItem, DrawingSheetData>>();
+            foreach (ListViewItem item in lvDrawingSheet.Items)
+            {
+                DrawingSheetData sheet = item.Tag as DrawingSheetData;
+                if (sheet == null || sheet.MemberIndices == null || sheet.MemberIndices.Count == 0)
+                    continue;
+                if (!MatchesDrawingSheetExportKind(sheet, exportKind))
+                    continue;
+
+                result.Add(new KeyValuePair<ListViewItem, DrawingSheetData>(item, sheet));
+            }
+            return result;
+        }
+
+        private bool MatchesDrawingSheetExportKind(
+            DrawingSheetData sheet, DrawingSheetExportKind exportKind)
+        {
+            switch (exportKind)
+            {
+                case DrawingSheetExportKind.Fabrication:
+                    return sheet.BaseMemberIndex == -1;
+                case DrawingSheetExportKind.Assembly:
+                    return sheet.BaseMemberIndex >= 0;
+                case DrawingSheetExportKind.Installation:
+                    return sheet.BaseMemberIndex == -2;
+                default:
+                    return false;
+            }
+        }
+
+        private string GetDrawingSheetExportKindLabel(DrawingSheetExportKind exportKind)
+        {
+            switch (exportKind)
+            {
+                case DrawingSheetExportKind.Fabrication:
+                    return "제작도";
+                case DrawingSheetExportKind.Assembly:
+                    return "조립도";
+                case DrawingSheetExportKind.Installation:
+                    return "설치도";
+                default:
+                    return "도면";
+            }
+        }
+
+        private void SelectDrawingSheetItemForExport(ListViewItem item)
+        {
+            _suppressSheetSelectionHandler = true;
+            try
+            {
+                while (lvDrawingSheet.SelectedItems.Count > 0)
+                    lvDrawingSheet.SelectedItems[0].Selected = false;
+
+                item.Selected = true;
+                item.Focused = true;
+                item.EnsureVisible();
+            }
+            finally
+            {
+                _suppressSheetSelectionHandler = false;
+            }
+        }
+
+        private Dictionary<Control, bool> CaptureDrawingExportControlStates()
+        {
+            var result = new Dictionary<Control, bool>();
+            Control[] controls =
+            {
+                btnExportFabricationSheets,
+                btnExportAssemblySheets,
+                btnExportInstallationSheets,
+                btnMfgDrawingSheet,
+                btnGenerateSheet2D,
+                btnExportSheet2DPDF,
+                btnExtractDrawingList,
+                lvDrawingSheet
+            };
+
+            foreach (Control control in controls)
+                result[control] = control.Enabled;
+
+            return result;
+        }
+
+        private void SetDrawingExportControlsEnabled(bool enabled)
+        {
+            btnExportFabricationSheets.Enabled = enabled;
+            btnExportAssemblySheets.Enabled = enabled;
+            btnExportInstallationSheets.Enabled = enabled;
+            btnMfgDrawingSheet.Enabled = enabled;
+            btnGenerateSheet2D.Enabled = enabled;
+            btnExportSheet2DPDF.Enabled = enabled;
+            btnExtractDrawingList.Enabled = enabled;
+            lvDrawingSheet.Enabled = enabled;
+        }
+
+        private void RestoreDrawingExportControlStates(Dictionary<Control, bool> previousStates)
+        {
+            if (previousStates == null)
+                return;
+
+            foreach (KeyValuePair<Control, bool> state in previousStates)
+                state.Key.Enabled = state.Value;
+        }
+
+        private void CleanupDrawingSheetExportCanvas()
+        {
+            // [issue #116] 이 정리 단계가 무한 대기 1순위 후보다.
+            //   GC.WaitForPendingFinalizers()를 UI 스레드에서 부르면, 파이널라이저가 UI 스레드로
+            //   마샬링을 시도할 때 서로 기다리는 데드락이 난다 (VIZCore3D는 대형 네이티브 SDK라
+            //   모델 교체 직후 대기 중인 파이널라이저가 많다). 단계별 로그로 지점을 특정한다.
+            try
+            {
+                DiagLog("[정리] Clear2DView 진입");
+                Clear2DView();
+                DiagLog("[정리] Clear2DView 완료 — GC 진입");
+                GC.Collect();
+                DiagLog("[정리] GC.Collect 1 완료 — WaitForPendingFinalizers 진입");
+                GC.WaitForPendingFinalizers();
+                DiagLog("[정리] WaitForPendingFinalizers 완료");
+                GC.Collect();
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(100);
+                DiagLog("[정리] 완료");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[도면 종류별 출력] 2D 정리 경고: {ex.Message}");
+            }
+        }
+
+        private void ShowDrawingSheetExportResult(
+            string kindLabel,
+            string savedPdfPath,
+            int pageCount,
+            List<string> failures,
+            bool canceled)
+        {
+            var message = new System.Text.StringBuilder();
+            message.AppendLine(canceled
+                ? $"{kindLabel} 출력을 취소했습니다."
+                : $"{kindLabel} 출력이 완료되었습니다.");
+            message.AppendLine();
+
+            // #119: 도면 장수와 무관하게 PDF는 항상 1개다.
+            if (!string.IsNullOrWhiteSpace(savedPdfPath))
+            {
+                message.AppendLine($"PDF 1개에 도면 {pageCount}장 저장");
+                message.AppendLine(savedPdfPath);
+            }
+            else
+            {
+                message.AppendLine("저장된 PDF가 없습니다.");
+            }
+
+            if (failures.Count > 0)
+            {
+                message.AppendLine();
+                message.AppendLine($"실패: {failures.Count}개");
+                foreach (string failure in failures)
+                    message.AppendLine($"- {failure}");
+            }
+
+            MessageBoxIcon icon = canceled || failures.Count > 0
+                ? MessageBoxIcon.Warning
+                : MessageBoxIcon.Information;
+            MessageBox.Show(message.ToString(), $"{kindLabel} 출력 결과",
+                MessageBoxButtons.OK, icon);
+        }
+
         /// <summary>
         /// 파일명에 사용할 수 없는 문자 제거
         /// </summary>
@@ -1260,8 +1624,10 @@ namespace A2Z
 
         // ISO 리뷰와 실제 2D 객체 외곽 사이의 도면 고정 거리.
         private const float IsoReviewGapCanvas = 20f;
-        private const float IsoConnectionNameRowSpacingCanvas = 8f;
-        private const float IsoConnectionNameFallbackWorldOffset = 100f;
+
+        // 제작도 ISO 연결 부재 이름의 지시선 길이(모델 월드 좌표, mm).
+        // Target은 Clash HotPoint 그대로 두고 Label만 X축 방향으로 이동한다.
+        private const float IsoNeighborNoteWorldOffset = 100f;
 
         private sealed class FabricationNeighborAssemblyNote
         {
@@ -1270,24 +1636,6 @@ namespace A2Z
             public float X { get; set; }
             public float Y { get; set; }
             public float Z { get; set; }
-        }
-
-        private sealed class IsoConnectionNameRequest
-        {
-            public string Text { get; set; }
-            public VIZCore3D.NET.Data.Vector3D Target { get; set; }
-        }
-
-        private sealed class IsoProjectionContext
-        {
-            public float ObjectCenterX { get; set; }
-            public float ObjectCenterY { get; set; }
-            public float ObjectWidth { get; set; }
-            public float ObjectHeight { get; set; }
-            public float ScreenCenterX { get; set; }
-            public float ScreenCenterY { get; set; }
-            public float ScreenToCanvasX { get; set; }
-            public float ScreenToCanvasY { get; set; }
         }
 
         /// <summary>
@@ -1309,9 +1657,17 @@ namespace A2Z
 
         private void GenerateSheetDrawing2DCore(DrawingSheetData sheet)
         {
+            string sheetKind = GetSheetKindLabel(sheet);
+
             // 사전 조건: 히든라인 모델 투영용 엣지 데이터 갱신 (ISO 방향 튀어나온 모서리 누락 방지)
             // 자동(ProcessSingleStruFull)·수동(btnGenerateSheet2D_Click) 모두 이 함수 통과 → 단일 지점에서 보장
+            ProcessCancelableUiCheckpoint(
+                $"{sheetKind} 2D 생성 중... 엣지 준비",
+                $"{sheetKind} sheet#{sheet.SheetNumber} 엣지 생성 전");
             vizcore3d.Object3D.GenerateEdgeData();
+            ProcessCancelableUiCheckpoint(
+                $"{sheetKind} 2D 생성 중... 엣지 준비 완료",
+                $"{sheetKind} sheet#{sheet.SheetNumber} 엣지 생성 후");
 
             // P2 — 엑셀 템플릿 분기
             if (UseExcelTemplate)
@@ -1332,8 +1688,9 @@ namespace A2Z
                 // ── 0-1. UI ListView 초기화 (BOM 정보 — CollectBOMInfo에서 다시 수집) ──
                 lvDrawingBOMInfo.Items.Clear();
 
-                // ── 1. 2D 완전 초기화 ──
-                Clear2DView();
+                // ── 1. 이 도면을 그릴 캔버스 준비 (A4 297 x 210mm, 가로) ──
+                //   묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+                PrepareDrawingCanvas(297, 210);
 
                 // 2D 패널 크기 조정
                 if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
@@ -1341,9 +1698,6 @@ namespace A2Z
                     vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
                     Application.DoEvents();
                 }
-
-                // A4 용지 크기로 캔버스 새로 설정 (297 x 210mm, 가로)
-                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
 
                 // ── 2. 시트 부재 설정 (ApplyDrawingSheetView("ISO")와 동일한 흐름) ──
                 vizcore3d.BeginUpdate();
@@ -1394,7 +1748,7 @@ namespace A2Z
 
                 // ── 3. 그리드 구조 먼저 생성 (CrateTemplateBorder가 그리드 필요) ──
                 {
-                    int selCanvas = 1;
+                    int selCanvas = _activeDrawingCanvasIdx;   // 묶음 출력 시 1번이 아닐 수 있음 (#119)
                     vizcore3d.Drawing2D.View.SetSelectCanvas(selCanvas);
                     float tmpW = 0f, tmpH = 0f;
                     vizcore3d.Drawing2D.View.GetCanvasSize(ref tmpW, ref tmpH);
@@ -1487,9 +1841,10 @@ namespace A2Z
 
                 // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
                 VIZCore3D.NET.Data.TemplateTableData tableInfo = new VIZCore3D.NET.Data.TemplateTableData(2, 2);
-                tableInfo.SetText(0, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
+                string infoLogoPath = ResolveDrawingAssetPath("Logo.png");
+                tableInfo.SetText(0, 0, infoLogoPath);
                 tableInfo.SetText(0, 1, "Project Name:\nProject No:");
-                tableInfo.SetText(1, 0, string.Format("{0}\\assets\\Logo.png", GetSolutionPath()));
+                tableInfo.SetText(1, 0, infoLogoPath);
                 tableInfo.SetText(1, 1, "Title:");
                 tableInfo.IsTextWrapped = true;
                 // 열 너비 합 77mm (흰선 내부 폭 추가 축소, 기존 81→77)
@@ -1634,6 +1989,10 @@ namespace A2Z
                     catch { }
                 }));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 MessageBox.Show($"2D 도면 생성 중 오류:\n\n{ex.Message}\n\n{ex.StackTrace}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1652,7 +2011,7 @@ namespace A2Z
         ///   5) GetViewAreasFromExcel — {View_n} 영역 좌표 파싱
         ///   6) 각 View 영역에 모델 투영 (카메라 회전 + Create2DViewObjectWithModelHiddenLine + fit + MoveObjectTo)
         ///
-        /// PoC 패턴 (btnExcelTemplatePoC_Click)을 메인 도면 흐름에 적용.
+        /// 옛 "엑셀 PoC" 버튼에서 검증한 패턴을 메인 도면 흐름에 적용한 것 (PoC는 역할을 다해 2026-07-28 제거).
         /// 시트 부재는 *현재 visible*이라는 조건 — ProcessSingleStruFull/옵션B에서 격리·시트 선택 처리됨.
         /// </summary>
         private void GenerateSheetDrawing2D_WithExcelTemplate(DrawingSheetData sheet)
@@ -1667,17 +2026,15 @@ namespace A2Z
                 vizcore3d.Review.Measure.Clear();
                 vizcore3d.ShapeDrawing.Clear();
 
-                // ── 1. 2D 완전 초기화 (옛 코드와 동일) ──
-                Clear2DView();
+                // ── 1. 이 도면을 그릴 캔버스 준비 ──
+                //   A4 — 엑셀이 더 큰 페이지면 ImportExcelWithData가 자동 조정 가능.
+                //   묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+                PrepareDrawingCanvas(297, 210);
                 if (vizcore3d.SplitContainer != null && vizcore3d.SplitContainer.Width > 0)
                 {
                     vizcore3d.SplitContainer.SplitterDistance = (int)(vizcore3d.SplitContainer.Width * 0.2);
                     Application.DoEvents();
                 }
-
-                // A4 캔버스 — 엑셀이 더 큰 페이지면 ImportExcelWithData가 자동 조정 가능
-                vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
-                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
 
                 // 모델/치수 라인 두께
                 vizcore3d.Drawing2D.Object2D.ModelLineThickness = 3.0f;
@@ -1733,9 +2090,8 @@ namespace A2Z
                 // D1 (2026-05-18): sheet 명시 전달 — _WithExcelTemplate 함수 인자 그대로 위임
                 CollectBOMInfo(false, sheet);
 
-                // ── 2. 엑셀 파일 경로 ──
-                string solutionPath = GetSolutionPath();
-                string xlsxPath = System.IO.Path.Combine(solutionPath, "제작도_도면_1.xlsx");
+                // ── 2. 엑셀 파일 경로 (실행 폴더 templates\ 우선 — 배포 패키지 대응) ──
+                string xlsxPath = ResolveDrawingTemplatePath("제작도_도면_1.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
@@ -1748,19 +2104,23 @@ namespace A2Z
                 //   4..23 = BOM No (20행), 24..43 = ITEM, 44..63 = MATERIAL, 64..83 = SIZE,
                 //   84..103 = Q'TY, 104..123 = T/W, 124..143 = MA, 144..163 = FA
                 Dictionary<int, string> data = new Dictionary<int, string>();
-                // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그가 도면에 그대로 노출되는 것 방지 (가공도 Codex 3차 패턴).
-                //   신 템플릿 Input 사용: 4~163=BOM 1~20행, 164=Note내용, 165~168=PAINT/DP, 169=TAG NO,
-                //   170~199=Rev 표, 200=Note 라벨(AW33), 201~240=BOM 21~25행 (2026-07-22 Input 200+ 확장).
-                //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-                //   사용자 사양(2026-07-21): BOM(4~163)·Note(164)·Rev 위 4행(170~193)은 비면 지우고,
-                //   PAINT/DP/TAG(165~169)·Rev 첫 기재행(194~199, 헤더 바로 위 1행)은 빈칸으로 남긴다.
+                // [2026-07-27] 빈 슬롯 선초기화(1~240 → ""/" ") 제거 — 벤더(소프트힐스) 안내 반영.
+                //   ImportExcelWithData는 data에 값이 있으면(""·" " 포함) 치환하고, 값이 없을 때만 {Input}으로 남긴다.
+                //   그리고 {Input}으로 남은 셀만 JSON에 TextBox로 생성되는데, RemoveEmptyTemplateBorders는
+                //   그 TextBox가 있어야 괘선을 지운다. 선초기화가 전 슬롯을 채우면 {Input}이 하나도 안 남아
+                //   괘선 제거가 통째로 무동작이었다 (SDK 1.0.26.727 전달 메일 — 전문 요약은 issue #60,
+                //   원본 .eml은 gitignore로 로컬 전용).
+                //   → 미기재 슬롯은 data에 키를 넣지 않고 {Input}으로 남긴다.
+                //   ⚠ 부작용 2건 실기 확인 필요: ① 07-21 확정한 "PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199)
+                //   괘선 보존" 정책이 깨져 같이 지워질 수 있음 ② TextBox가 PDF에 {Input} 글자로 노출될 수 있음
+                //   (선초기화의 원래 목적이 그 노출 방지였음). 재발 시 보존 슬롯만 " "로 되돌리는 게 1차 대응.
+                //   슬롯: 4~163=BOM 1~20행, 164=Note내용, 165~168=PAINT/DP, 169=TAG NO,
+                //   170~199=Rev 표, 200=Note 라벨(AW33), 201~240=BOM 21~25행.
                 //   Note 라벨("Note : ")은 템플릿에서 제거됨 — 향후 Note 실데이터를 채울 땐 코드가 "Note : " 접두어까지 포함할 것.
-                for (int k = 1; k <= 240; k++)
-                    data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 200 && k <= 240)) ? "" : " ";
-                // 200(Note 라벨)도 비면 ""로 → 노트 없을 때 라벨칸 괘선까지 제거(2026-07-22 사용자). 노트 있으면 "Note"라 유지.
+                // 200(Note 라벨)은 노트가 없으면 키를 안 넣어 {Input}으로 남긴다 → 라벨칸 괘선까지 제거(2026-07-22 사용자).
                 // Note(AW33 라벨 = {Input_200}, AY33 내용 = {Input_164}) — 노트가 있을 때만 라벨 "Note" + 내용 표시.
                 //   [2026-07-22] Input 200+ 렌더 실기 통과 확인 완료(제작도 200~240 크래시 없음) → 테스트용
-                //   임시값(data[200]="Note" 항상표시) 제거. 노트 입력 기능 미구현이라 현재는 항상 빈칸(init " ").
+                //   임시값(data[200]="Note" 항상표시) 제거. 노트 입력 기능 미구현이라 현재는 미치환 상태로 둔다.
                 //   입력 소스가 생기면 아래처럼 조건부로 채운다:
                 // string sheetNote = <노트 입력 소스>;
                 // if (!string.IsNullOrEmpty(sheetNote)) { data[200] = "Note"; data[164] = sheetNote; }
@@ -1780,16 +2140,21 @@ namespace A2Z
                 if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
                 data[168] = "Test";
+                // REV 표 첫 기재행(194~199) — REV.=0 / 출력일 / 나머지는 공백(괘선만 보존) (#64 Phase 1).
+                //   이 경로는 제작도·조립도·설치도 3종이 공유하므로 한 번 호출로 모두 적용된다.
+                //   미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다. 헬퍼: Form1.ExcelTemplate.cs
+                FillRevisionTable(data, BuildCurrentRevisionHistory());
 
-                // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행) 제외.
+                // BOM 8컬럼 × 25행 — lvDrawingBOMInfo Row 0(요약행)을 첫 행으로 포함한다 (#67).
                 //   1~20행: 기존 태그(열별 20연속, 4~163). 21~25행: 신규 태그(201~240, 열별 5연속) — 2026-07-22 Input 200+ 확장.
+                //   요약행이 1행을 쓰므로 데이터행 정원은 25 → 24행 (2026-07-28 사용자 확정).
                 int bomMapped = 0;
-                if (lvDrawingBOMInfo.Items.Count > 1)
+                if (lvDrawingBOMInfo.Items.Count > 0)
                 {
-                    int n = Math.Min(lvDrawingBOMInfo.Items.Count - 1, 25);
+                    int n = Math.Min(lvDrawingBOMInfo.Items.Count, 25);
                     for (int i = 0; i < n; i++)
                     {
-                        ListViewItem item = lvDrawingBOMInfo.Items[i + 1];
+                        ListViewItem item = lvDrawingBOMInfo.Items[i];
                         int cNo, cItem, cMat, cSize, cQty, cTw, cMa, cFa;
                         if (i < 20)
                         {
@@ -1831,9 +2196,15 @@ namespace A2Z
                     { 4, new[] { ResolveDrawingAssetPath("ClientTestImage.png"), ResolveDrawingAssetPath("ClientTestImage.png") } },
                 };
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용",
+                    $"sheet#{sheet.SheetNumber} 템플릿 적용 전");
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, imageMapping);
                 swTpl.Stop();
-                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용 완료",
+                    $"sheet#{sheet.SheetNumber} 템플릿 적용 후");
+                vizcore3d.Drawing2D.View.SetSelectCanvas(_activeDrawingCanvasIdx);   // 묶음 출력 시 1번이 아닐 수 있음 (#119)
                 DiagLog($"P2 템플릿 적용 {swTpl.ElapsedMilliseconds}ms — {Path.GetFileName(xlsxPath)}");
 
                 // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 등 내용 없는 공백 셀의 테두리를 지운다.
@@ -1896,6 +2267,10 @@ namespace A2Z
                         case 4: viewDir = "Y"; break;
                         default: continue;
                     }
+
+                    ProcessCancelableUiCheckpoint(
+                        $"{GetSheetKindLabel(sheet)} 2D 생성 중... {viewDir} 뷰 ({viewsRendered + 1}/{cameraMap.Count})",
+                        $"sheet#{sheet.SheetNumber} {viewDir} 뷰 시작 전");
 
                     List<int> displayIndices = GetDrawingSheetDisplayIndices(sheet);
 
@@ -1965,11 +2340,25 @@ namespace A2Z
                     {
                         if (sheet.BaseMemberIndex >= 0 && bomList != null && bomList.Count > 1)   // 조립도
                         {
-                            isoSolidTargets = new List<int> { sheet.BaseMemberIndex };
-                            isoDashedTargets = new List<int>();
-                            foreach (var b in bomList)
-                                if (b.Index != sheet.BaseMemberIndex) isoDashedTargets.Add(b.Index);
-                            isoFitByDashed = true;
+                            // [2026-07-28 사용자 정정] 실선 = 조립도에 표현되는 부재(= 시트 부재), 점선 = 그 외 전체.
+                            //   #7 재오픈 때 "BOM 테이블 부재 전체"를 전역 bomList로 해석한 게 오류였다.
+                            //   bomList는 CollectBOMData가 채우는 STRU 전체 BOM(lvBOM 탭)이라 시트와 무관하다.
+                            //   도면에 인쇄되는 BOM 표는 시트별 lvDrawingBOMInfo이고 그 모수가 sheet.MemberIndices다.
+                            //   → 실선은 시트 부재로 한정하고, 점선 배경(전체−시트)을 되살려 두 겹 캡처로 복귀.
+                            isoSolidTargets = new List<int>(sheet.MemberIndices);
+                            var assemblySheetMembers = new HashSet<int>(sheet.MemberIndices);
+                            isoDashedTargets = bomList
+                                .Select(b => b.Index)
+                                .Where(index => !assemblySheetMembers.Contains(index))
+                                .Distinct()
+                                .ToList();
+                            if (isoDashedTargets.Count == 0)
+                                isoDashedTargets = null;   // 시트가 BOM 전체를 덮으면 단일 실선 캡처로 폴백
+                            // 프레임은 전체(점선+실선) 기준 fit — 조립도는 주변 구조 속 위치를 보여야 한다.
+                            isoFitByDashed = isoDashedTargets != null;
+                            DiagLog($"P2 ISO 조립도 실선/점선 sheet#={sheet.SheetNumber} " +
+                                    $"solid={isoSolidTargets.Count} dashed={isoDashedTargets?.Count ?? 0} " +
+                                    $"bomListTotal={bomList.Count} fitByDashed={isoFitByDashed}");
                         }
                         else if (sheet.BaseMemberIndex == -1)   // 제작도
                         {
@@ -1990,6 +2379,12 @@ namespace A2Z
                         var flyAll = new List<int>(isoDashedTargets);
                         flyAll.AddRange(isoSolidTargets);
                         vizcore3d.View.FlyToObject3d(flyAll, 1.25f);
+                    }
+                    else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
+                    {
+                        // 점선 배경이 없는 경우(설치도·제작도 이웃 0개, 조립도가 BOM 전체를 덮는 경우)
+                        //   실선 대상 기준 단일 fit. 조립도 두 겹은 위 isoFitByDashed 분기가 처리한다.
+                        vizcore3d.View.FlyToObject3d(isoSolidTargets, 1.25f);
                     }
                     else
                     {
@@ -2025,6 +2420,36 @@ namespace A2Z
                             {
                                 if (!visibleNoteIds.Contains(noteId)) visibleNoteIds.Add(noteId);
                             }
+                        }
+
+                        // [issue #62] 부재번호 풍선 미출력 진단 — 세 지점 중 어디서 0이 되는지 구분한다.
+                        //   notes=0        → CreateIsoBalloonNotes 단계 (bomList 비었거나 시트 부재가 BOM에 없음)
+                        //   visibleNotes=0 → FromScreen 가시성 필터 단계 (2D 변환을 건너뜀 → 아래 폴백)
+                        //   둘 다 >0인데 도면에 없으면 → 2D 변환·정합 단계
+                        //   viewSize/splitter도 같이 남긴다 — FromScreen은 3D 뷰 화면을 훑는데 이 경로는
+                        //   직전(2010행)에 SplitterDistance를 Width*0.2로 줄여 3D 패널을 좁힌 상태다.
+                        string viewDiag;
+                        try
+                        {
+                            System.Drawing.Size vs = vizcore3d.View.Size;
+                            var sc = vizcore3d.SplitContainer;
+                            viewDiag = $"viewSize={vs.Width}x{vs.Height} mode={vizcore3d.ViewMode} " +
+                                       (sc != null ? $"splitter={sc.SplitterDistance}/{sc.Width}" : "splitter=null");
+                        }
+                        catch (Exception exDiag) { viewDiag = $"viewDiag 실패 {exDiag.Message}"; }
+
+                        DiagLog($"P2 ISO 풍선 sheet#={sheet.SheetNumber} members={sheet.MemberIndices.Count} " +
+                                $"notes={nodeToNoteMap.Count} visibleNodes={visibleNodes.Count} " +
+                                $"visibleNotes={visibleNoteIds.Count} {viewDiag}");
+
+                        // [issue #62] 가시성 필터가 빈손이면 풍선이 통째로 사라진다 (사내 실기: notes=3 visibleNodes=0).
+                        //   이 필터는 "가려진 부재의 풍선을 빼는" 최적화지 필수 단계가 아니다.
+                        //   0이면 시트 부재 전체 풍선으로 폴백한다 — 전부 없는 것보다 전부 있는 쪽이 맞다.
+                        //   ⚠ 근본 원인(FromScreen이 왜 0인지)은 미규명. 위 viewSize/splitter 로그로 계속 추적할 것.
+                        if (visibleNoteIds.Count == 0 && nodeToNoteMap.Count > 0)
+                        {
+                            visibleNoteIds.AddRange(nodeToNoteMap.Values.Distinct());
+                            DiagLog($"P2 ISO 풍선 가시성 필터 빈손 — 시트 부재 전체 {visibleNoteIds.Count}개로 폴백 (issue #62)");
                         }
 
                         // 풍선 생성 후 시트 부재만 보이기 (2D 캡처 준비)
@@ -2135,6 +2560,15 @@ namespace A2Z
                         vizcore3d.Object3D.Show(isoSolidTargets, true);
                         vizcore3d.EndUpdate();
                     }
+                    else if (viewDir == "ISO" && isoSolidTargets != null && isoSolidTargets.Count > 0)
+                    {
+                        // 점선 배경이 없는 단일 캡처 폴백 — 실선 대상만 표시.
+                        //   (앞 풍선 단계도 sheet.MemberIndices만 보였으므로 조립도에서는 사실상 동일 집합)
+                        vizcore3d.BeginUpdate();
+                        vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
+                        vizcore3d.Object3D.Show(isoSolidTargets, true);
+                        vizcore3d.EndUpdate();
+                    }
 
                     int objId = vizcore3d.Drawing2D.Object2D
                         .Create2DViewObjectWithModelHiddenLineAtCanvasOrigin(
@@ -2216,31 +2650,78 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(objId, 0);
                         }
                         convertedNoteIndices.AddRange(visibleNoteIds);
+                        DiagLog($"P2 {viewDir} 풍선 2D 변환 {visibleNoteIds.Count}개 (기준 실선 obj={objId})");
+                    }
+                    else if (viewDir == "ISO")
+                    {
+                        // [issue #62] ISO인데 변환할 풍선이 없음 — 위 'P2 ISO 풍선' 로그로 어느 단계에서 0이 됐는지 확인.
+                        DiagLog($"P2 {viewDir} 풍선 2D 변환 건너뜀 — visibleNoteIds 없음");
                     }
                     foreach (int nIdx in convertedNoteIndices)
                     {
                         try { vizcore3d.Drawing2D.View.Set2DNoteLabelSnapBoxType(nIdx, VIZCore3D.NET.Data.SnapBoxType.CIRCLE); }
                         catch { }
                     }
-                    var isoConnectionNameRequests = new List<IsoConnectionNameRequest>();
+                    int createdIsoConnectionNameNotes = 0;
 
                     // 제작도 ISO: 연결 Part의 가장 가까운 상위 Assembly 이름을 실제 Clash 지점에 표시한다.
-                    // 이름은 번호 풍선 정렬 후 별도 2D 노트로 만들어 상단/하단에만 배치한다.
+                    // 부재번호 풍선과 같은 3D 표면 노트 경로로 만든 뒤 점선 객체에 투영해야 영역 정렬에 포함된다.
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -1 &&
                         !isoFitByDashed && dashedObjId >= 0)
                     {
                         List<FabricationNeighborAssemblyNote> neighborNotes =
                             GetFabricationNeighborAssemblyNotes(sheet.MemberIndices);
-                        foreach (FabricationNeighborAssemblyNote note in neighborNotes)
+                        int createdNeighborNotes = 0;
+
+                        if (neighborNotes.Count > 0)
                         {
-                            isoConnectionNameRequests.Add(new IsoConnectionNameRequest
+                            try
                             {
-                                Text = note.AssemblyName,
-                                Target = new VIZCore3D.NET.Data.Vector3D(note.X, note.Y, note.Z)
-                            });
+                                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                                vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
+                                vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(10.5f);   // #44 부재번호 풍선과 동일 폰트
+
+                                for (int noteOrder = 0; noteOrder < neighborNotes.Count; noteOrder++)
+                                {
+                                    FabricationNeighborAssemblyNote note = neighborNotes[noteOrder];
+                                    float offsetDirection = (noteOrder % 2 == 0) ? 1f : -1f;
+                                    var target = new VIZCore3D.NET.Data.Vertex3D(note.X, note.Y, note.Z);
+                                    var label = new VIZCore3D.NET.Data.Vertex3D(
+                                        note.X + IsoNeighborNoteWorldOffset * offsetDirection,
+                                        note.Y,
+                                        note.Z);
+
+                                    try
+                                    {
+                                        int noteId = vizcore3d.Review.Note.AddNoteSurface(
+                                            note.AssemblyName, label, target);
+                                        if (noteId >= 0)
+                                        {
+                                            vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
+                                            createdNeighborNotes++;
+                                            createdIsoConnectionNameNotes++;
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DiagLog($"P2 ISO 제작도 연결 이름 노트 실패 assembly='{note.AssemblyName}' " +
+                                                $"point=({note.X:F1},{note.Y:F1},{note.Z:F1}) {ex.Message}");
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                DiagLog($"P2 ISO 제작도 연결 이름 노트 준비 실패 obj={dashedObjId} {ex.Message}");
+                            }
+                            finally
+                            {
+                                try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
+                                catch { }
+                            }
                         }
 
-                        DiagLog($"P2 ISO 제작도 연결 이름 요청 candidates={neighborNotes.Count}");
+                        DiagLog($"P2 ISO 제작도 연결 이름 노트 obj={dashedObjId} " +
+                                $"candidates={neighborNotes.Count} created={createdNeighborNotes}");
                     }
 
                     // 설치도: 접합 중심 A1/A2는 표시하지 않는다.
@@ -2248,6 +2729,7 @@ namespace A2Z
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
                         sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
                     {
+                        int createdConnectionNotes = 0;
                         var noteGroups = sheet.InstallationConnections
                             .Where(connection => connection != null)
                             .GroupBy(connection => new
@@ -2260,43 +2742,76 @@ namespace A2Z
                             .OrderBy(group => group.Key.ConnectedAssemblyName)
                             .ThenBy(group => group.Key.ConnectedPartName)
                             .ToList();
-                        for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
+                        try
                         {
-                            var noteGroup = noteGroups[noteOrder];
-                            InstallationConnectionData connection = noteGroup.First();
-                            InstallationPlacementAnchor anchor = noteGroup
-                                .GroupBy(item => new
-                                {
-                                    item.TargetPartIndex,
-                                    item.TargetBodyIndex,
-                                    item.ConnectedPartIndex,
-                                    item.ConnectedBodyIndex
-                                })
-                                .Select(bodyGroup => BuildInstallationPlacementAnchor(bodyGroup))
-                                .Where(candidate => candidate != null)
-                                .OrderByDescending(candidate => candidate.MergedAreaCount)
-                                .ThenBy(candidate => candidate.ConnectedBodyIndex)
-                                .FirstOrDefault();
-                            if (anchor == null)
-                            {
-                                DiagLog($"설치도 ISO 연결 이름 생략 — 모서리 선별 실패 " +
-                                        $"connectedPart={connection.ConnectedPartIndex}");
-                                continue;
-                            }
+                            vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                            vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(dashedObjId, 1);
+                            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(10.5f);   // #44 부재번호 풍선과 동일 폰트
 
-                            isoConnectionNameRequests.Add(new IsoConnectionNameRequest
+                            for (int noteOrder = 0; noteOrder < noteGroups.Count; noteOrder++)
                             {
-                                Text = $"{connection.Label}. " +
-                                       $"{connection.ConnectedAssemblyName} / {connection.ConnectedPartName}",
-                                Target = anchor.ConnectedCornerPoint
-                            });
+                                var noteGroup = noteGroups[noteOrder];
+                                InstallationConnectionData connection = noteGroup.First();
+                                InstallationPlacementAnchor anchor = noteGroup
+                                    .GroupBy(item => new
+                                    {
+                                        item.TargetPartIndex,
+                                        item.TargetBodyIndex,
+                                        item.ConnectedPartIndex,
+                                        item.ConnectedBodyIndex
+                                    })
+                                    .Select(bodyGroup => BuildInstallationPlacementAnchor(bodyGroup))
+                                    .Where(candidate => candidate != null)
+                                    .OrderByDescending(candidate => candidate.MergedAreaCount)
+                                    .ThenBy(candidate => candidate.ConnectedBodyIndex)
+                                    .FirstOrDefault();
+                                if (anchor == null)
+                                {
+                                    DiagLog($"설치도 ISO 연결 이름 생략 — 모서리 선별 실패 " +
+                                            $"connectedPart={connection.ConnectedPartIndex}");
+                                    continue;
+                                }
+
+                                VIZCore3D.NET.Data.Vector3D target = anchor.ConnectedCornerPoint;
+                                float offset = IsoNeighborNoteWorldOffset *
+                                    (noteOrder % 2 == 0 ? 1f : -1f);
+                                VIZCore3D.NET.Data.Vector3D label = GetInstallationNoteLabelPoint(
+                                    target, viewDir, offset);
+                                string text = connection.ConnectedAssemblyName;   // #45 STRU 이름만 (A. 접두사·/Part 제거)
+                                try
+                                {
+                                    var targetVertex = new VIZCore3D.NET.Data.Vertex3D(
+                                        target.X, target.Y, target.Z);
+                                    var labelVertex = new VIZCore3D.NET.Data.Vertex3D(
+                                        label.X, label.Y, label.Z);
+                                    int noteId = vizcore3d.Review.Note.AddNoteSurface(
+                                        text, labelVertex, targetVertex);
+                                    if (noteId >= 0)
+                                    {
+                                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(new[] { noteId });
+                                        createdConnectionNotes++;
+                                        createdIsoConnectionNameNotes++;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    DiagLog($"설치도 접합영역 노트 실패 label={connection.Label} view={viewDir} {ex.Message}");
+                                }
+                            }
                         }
-                        DiagLog($"설치도 ISO 연결 이름 요청 parts={noteGroups.Count} " +
-                                $"areas={sheet.InstallationConnections.Count} queued={isoConnectionNameRequests.Count}");
+                        finally
+                        {
+                            try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
+                            catch { }
+                        }
+                        DiagLog($"설치도 ISO 연결 이름 노트 parts={noteGroups.Count} " +
+                                $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
                     }
 
-                    // SDK 자동 정렬은 번호 풍선에만 적용한다. 긴 연결부재 이름은 아래에서 상단/하단에 직접 배치한다.
-                    if (viewDir == "ISO" && convertedNoteIndices.Count > 0)
+                    // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
+                    // 실제 표시 객체의 외곽은 기준점으로만 쓰고, 외곽과 라벨 사이 거리는 도면 고정 20mm로 둔다.
+                    int isoReviewCount = convertedNoteIndices.Count + createdIsoConnectionNameNotes;
+                    if (viewDir == "ISO" && isoReviewCount > 0)
                     {
                         const float sdkAlignOffset = 0f;
 
@@ -2334,7 +2849,7 @@ namespace A2Z
                                 vizcore3d.Drawing2D.Object2D.Set2DViewAlignAreaReviewsPositionByOffset(
                                     rectMin, rectMax, sdkAlignOffset);
                                 DiagLog($"P2 ISO 리뷰 영역 정렬 sheet={sheet.SheetNumber} " +
-                                        $"balloons={convertedNoteIndices.Count} connectionNames=excluded " +
+                                        $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
                                         $"basis=objectBounds obj={alignObjectId} size=({objectWidth:F1}x{objectHeight:F1}) " +
                                         $"rect=({rectMin.X:F1},{rectMin.Y:F1})~({rectMax.X:F1},{rectMax.Y:F1}) " +
                                         $"gapCanvas={IsoReviewGapCanvas:F1} sdkOffset={sdkAlignOffset:F1}");
@@ -2349,19 +2864,11 @@ namespace A2Z
                         catch (Exception ex)
                         {
                             DiagLog($"P2 ISO 리뷰 영역 정렬 WARN sheet={sheet.SheetNumber} " +
-                                    $"balloons={convertedNoteIndices.Count} connectionNames=excluded " +
+                                    $"balloons={convertedNoteIndices.Count} connectionNames={createdIsoConnectionNameNotes} " +
                                     $"{ex.Message}");
                         }
                     }
 
-                    if (viewDir == "ISO" && isoConnectionNameRequests.Count > 0)
-                    {
-                        int createdConnectionNames = AddIsoConnectionNameNotesTopBottom(
-                            isoConnectionNameRequests, sheet.MemberIndices, objId);
-                        DiagLog($"P2 ISO 연결 이름 상하단 배치 sheet={sheet.SheetNumber} " +
-                                $"requested={isoConnectionNameRequests.Count} created={createdConnectionNames} " +
-                                $"gapCanvas={IsoReviewGapCanvas:F1}");
-                    }
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
 
                     // ── 치수(Measure) → 2D (X/Y/Z만) ──
@@ -2380,16 +2887,29 @@ namespace A2Z
                     viewsRendered++;
                     ReleaseActiveDrawingReferenceAxis(
                         $"sheet={sheet.SheetNumber} view={viewDir} complete");
+                    ProcessCancelableUiCheckpoint(
+                        $"{GetSheetKindLabel(sheet)} 2D 생성 중... {viewDir} 뷰 완료 ({viewsRendered}/{cameraMap.Count})",
+                        $"sheet#{sheet.SheetNumber} {viewDir} 뷰 완료 후");
                 }
 
                 // 정렬된 풍선·연결 이름 노트와 치수를 최종 캔버스에 반영한다.
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 중... 최종 렌더",
+                    $"sheet#{sheet.SheetNumber} 최종 렌더 전");
                 vizcore3d.Drawing2D.Render();
+                ProcessCancelableUiCheckpoint(
+                    $"{GetSheetKindLabel(sheet)} 2D 생성 완료",
+                    $"sheet#{sheet.SheetNumber} 최종 렌더 후");
 
                 // 3D 뷰 기본(부드러운 음영) 복원 — 도면 생성 후 은선/X-Ray 잔존 방지 (2026-06-23)
                 vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
 
                 DiagLog($"P2 GenerateSheetDrawing2D_WithExcelTemplate 완료 — sheet#={sheet.SheetNumber} views={viewsRendered}/{cameraMap.Count}");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -2401,204 +2921,6 @@ namespace A2Z
                 ReleaseActiveDrawingReferenceAxis(
                     $"sheet={(sheet != null ? sheet.SheetNumber : -1)} finally");
             }
-        }
-
-        private int AddIsoConnectionNameNotesTopBottom(
-            List<IsoConnectionNameRequest> requests,
-            List<int> referenceIndices,
-            int referenceObjectId)
-        {
-            if (requests == null || requests.Count == 0 || referenceObjectId < 0)
-                return 0;
-
-            IsoProjectionContext context;
-            if (!TryBuildIsoProjectionContext(referenceIndices, referenceObjectId, out context))
-            {
-                DiagLog($"P2 ISO 연결 이름 상하단 배치 WARN obj={referenceObjectId} " +
-                        "projectionContext 실패 → 월드 Z축 상하 배치 폴백");
-                return AddIsoConnectionNameNotesWorldFallback(requests, referenceObjectId);
-            }
-
-            int created = 0;
-            int topRow = 0;
-            int bottomRow = 0;
-            vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
-
-            foreach (IsoConnectionNameRequest request in requests)
-            {
-                try
-                {
-                    var targetWorld = new VIZCore3D.NET.Data.Vertex3D(
-                        request.Target.X, request.Target.Y, request.Target.Z);
-                    VIZCore3D.NET.Data.Vertex3D targetScreen =
-                        vizcore3d.View.WorldToScreen(targetWorld, true);
-                    float targetCanvasX = context.ObjectCenterX +
-                        (targetScreen.X - context.ScreenCenterX) * context.ScreenToCanvasX;
-                    float targetCanvasY = context.ObjectCenterY +
-                        (targetScreen.Y - context.ScreenCenterY) * context.ScreenToCanvasY;
-
-                    bool validTarget =
-                        !float.IsNaN(targetCanvasX) && !float.IsInfinity(targetCanvasX) &&
-                        !float.IsNaN(targetCanvasY) && !float.IsInfinity(targetCanvasY);
-                    if (!validTarget)
-                    {
-                        DiagLog($"P2 ISO 연결 이름 상하단 배치 WARN text='{request.Text}' " +
-                                $"invalidTarget=({targetCanvasX},{targetCanvasY})");
-                        continue;
-                    }
-
-                    bool placeTop = targetCanvasY >= context.ObjectCenterY;
-                    int row = placeTop ? topRow++ : bottomRow++;
-                    float labelCanvasY = placeTop
-                        ? context.ObjectCenterY + context.ObjectHeight / 2f +
-                          IsoReviewGapCanvas + row * IsoConnectionNameRowSpacingCanvas
-                        : context.ObjectCenterY - context.ObjectHeight / 2f -
-                          IsoReviewGapCanvas - row * IsoConnectionNameRowSpacingCanvas;
-
-                    var targetCanvas = new VIZCore3D.NET.Data.Vector3D(
-                        targetCanvasX, targetCanvasY, 0f);
-                    // 긴 이름이 좌우 View 경계를 넘지 않도록 라벨 기준점은 모델 가로 중심에 고정한다.
-                    var labelCanvas = new VIZCore3D.NET.Data.Vector3D(
-                        context.ObjectCenterX, labelCanvasY, 0f);
-                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNote(
-                        request.Text, targetCanvas, labelCanvas);
-                    if (noteIndex >= 0)
-                    {
-                        created++;
-                        DiagLog($"P2 ISO 연결 이름 상하단 배치 text='{request.Text}' " +
-                                $"side={(placeTop ? "TOP" : "BOTTOM")} row={row} " +
-                                $"target=({targetCanvasX:F1},{targetCanvasY:F1}) " +
-                                $"label=({context.ObjectCenterX:F1},{labelCanvasY:F1})");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DiagLog($"P2 ISO 연결 이름 상하단 배치 실패 text='{request.Text}' {ex.Message}");
-                }
-            }
-
-            return created;
-        }
-
-        private bool TryBuildIsoProjectionContext(
-            List<int> referenceIndices,
-            int referenceObjectId,
-            out IsoProjectionContext context)
-        {
-            context = null;
-            if (referenceIndices == null || referenceIndices.Count == 0 || referenceObjectId < 0)
-                return false;
-
-            try
-            {
-                var bounds = vizcore3d.Object3D.GetBoundBox(referenceIndices.Distinct().ToList(), false);
-                if (bounds == null) return false;
-
-                var corners = new[]
-                {
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MinY, bounds.MinZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MinY, bounds.MinZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MaxY, bounds.MinZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MinY, bounds.MaxZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MaxY, bounds.MinZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MinY, bounds.MaxZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MinX, bounds.MaxY, bounds.MaxZ),
-                    new VIZCore3D.NET.Data.Vertex3D(bounds.MaxX, bounds.MaxY, bounds.MaxZ)
-                };
-
-                float screenMinX = float.MaxValue;
-                float screenMinY = float.MaxValue;
-                float screenMaxX = float.MinValue;
-                float screenMaxY = float.MinValue;
-                foreach (VIZCore3D.NET.Data.Vertex3D corner in corners)
-                {
-                    VIZCore3D.NET.Data.Vertex3D screen =
-                        vizcore3d.View.WorldToScreen(corner, true);
-                    screenMinX = Math.Min(screenMinX, screen.X);
-                    screenMinY = Math.Min(screenMinY, screen.Y);
-                    screenMaxX = Math.Max(screenMaxX, screen.X);
-                    screenMaxY = Math.Max(screenMaxY, screen.Y);
-                }
-
-                float screenWidth = screenMaxX - screenMinX;
-                float screenHeight = screenMaxY - screenMinY;
-                float objectWidth = 0f;
-                float objectHeight = 0f;
-                float objectCenterX = 0f;
-                float objectCenterY = 0f;
-                vizcore3d.Drawing2D.Object2D.GetObjectSize(
-                    referenceObjectId, ref objectWidth, ref objectHeight);
-                vizcore3d.Drawing2D.Object2D.GetObjectCenter(
-                    referenceObjectId, ref objectCenterX, ref objectCenterY);
-
-                bool valid =
-                    screenWidth > 0f && screenHeight > 0f &&
-                    objectWidth > 0f && objectHeight > 0f &&
-                    !float.IsNaN(screenWidth) && !float.IsInfinity(screenWidth) &&
-                    !float.IsNaN(screenHeight) && !float.IsInfinity(screenHeight) &&
-                    !float.IsNaN(objectWidth) && !float.IsInfinity(objectWidth) &&
-                    !float.IsNaN(objectHeight) && !float.IsInfinity(objectHeight) &&
-                    !float.IsNaN(objectCenterX) && !float.IsInfinity(objectCenterX) &&
-                    !float.IsNaN(objectCenterY) && !float.IsInfinity(objectCenterY);
-                if (!valid) return false;
-
-                context = new IsoProjectionContext
-                {
-                    ObjectCenterX = objectCenterX,
-                    ObjectCenterY = objectCenterY,
-                    ObjectWidth = objectWidth,
-                    ObjectHeight = objectHeight,
-                    ScreenCenterX = (screenMinX + screenMaxX) / 2f,
-                    ScreenCenterY = (screenMinY + screenMaxY) / 2f,
-                    ScreenToCanvasX = objectWidth / screenWidth,
-                    ScreenToCanvasY = objectHeight / screenHeight
-                };
-                DiagLog($"P2 ISO 연결 이름 투영 기준 obj={referenceObjectId} " +
-                        $"screen=({screenWidth:F1}x{screenHeight:F1}) " +
-                        $"canvas=({objectWidth:F1}x{objectHeight:F1}) " +
-                        $"ratio=({context.ScreenToCanvasX:F4},{context.ScreenToCanvasY:F4})");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"P2 ISO 연결 이름 투영 기준 실패 obj={referenceObjectId} {ex.Message}");
-                return false;
-            }
-        }
-
-        private int AddIsoConnectionNameNotesWorldFallback(
-            List<IsoConnectionNameRequest> requests,
-            int referenceObjectId)
-        {
-            int created = 0;
-            try
-            {
-                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
-                vizcore3d.Drawing2D.Object2D.SelectObjectBy2DView(referenceObjectId, 1);
-                for (int i = 0; i < requests.Count; i++)
-                {
-                    IsoConnectionNameRequest request = requests[i];
-                    float direction = i % 2 == 0 ? 1f : -1f;
-                    float distance = IsoConnectionNameFallbackWorldOffset * (i / 2 + 1);
-                    var label = new VIZCore3D.NET.Data.Vector3D(
-                        request.Target.X,
-                        request.Target.Y,
-                        request.Target.Z + direction * distance);
-                    int noteIndex = vizcore3d.Drawing2D.View.Add2DNoteFromWorldCoordinate(
-                        request.Text, request.Target, label);
-                    if (noteIndex >= 0) created++;
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagLog($"P2 ISO 연결 이름 월드 상하 배치 폴백 실패 obj={referenceObjectId} {ex.Message}");
-            }
-            finally
-            {
-                try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
-                catch { }
-            }
-            return created;
         }
 
         private const float DrawingReferenceAxisToleranceDegrees = 1.0f;
@@ -2837,6 +3159,18 @@ namespace A2Z
             return result.Where(index => index >= 0).Distinct().ToList();
         }
 
+        private VIZCore3D.NET.Data.Vector3D GetInstallationNoteLabelPoint(
+            VIZCore3D.NET.Data.Vector3D target, string viewDirection, float offset)
+        {
+            switch (viewDirection)
+            {
+                case "X": return new VIZCore3D.NET.Data.Vector3D(target.X, target.Y + offset, target.Z);
+                case "Y": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
+                case "Z": return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
+                default: return new VIZCore3D.NET.Data.Vector3D(target.X + offset, target.Y, target.Z);
+            }
+        }
+
         /// <summary>
         /// 제작도(Sheet1) ISO 점선 대상 — Bounding Box 근접 후보에 대한 전용 Clash 결과의 연결 Part를 반환한다.
         /// 현재 시트가 검사 당시 제작 대상과 다르면 오래된 결과를 사용하지 않는다.
@@ -2891,7 +3225,7 @@ namespace A2Z
                 try { neighborPart = vizcore3d.Object3D.FromIndex(neighborPartIndex); }
                 catch { }
 
-                VIZCore3D.NET.Data.Node assembly = FindNearestParentAssembly(neighborPart);
+                VIZCore3D.NET.Data.Node assembly = FindParentStru(neighborPart) ?? FindNearestParentAssembly(neighborPart);   // #45 연결부재 STRU 단위
                 int assemblyIndex = assembly != null ? assembly.Index : neighborPartIndex;
                 if (!addedAssemblyIndices.Add(assemblyIndex)) continue;
 
@@ -2937,6 +3271,34 @@ namespace A2Z
                 currentIndex = current.ParentIndex;
             }
 
+            return null;
+        }
+
+        /// <summary>
+        /// #45: 연결부재가 속한 STRU 노드를 부모로 올라가며 찾는다.
+        /// STRU 식별은 이미 수집된 _struNodeCache(모델 로드 시 CollectStruList) 집합으로 판정.
+        /// STRU 조상이 없으면 null → 호출부에서 FindNearestParentAssembly로 폴백.
+        /// </summary>
+        private VIZCore3D.NET.Data.Node FindParentStru(VIZCore3D.NET.Data.Node part)
+        {
+            if (part == null || _struNodeCache == null || _struNodeCache.Count == 0) return null;
+
+            var struIndexSet = new HashSet<int>();
+            foreach (var s in _struNodeCache)
+                if (s != null) struIndexSet.Add(s.Index);
+
+            int currentIndex = part.ParentIndex;
+            var visited = new HashSet<int>();
+            while (currentIndex >= 0 && visited.Add(currentIndex))
+            {
+                VIZCore3D.NET.Data.Node current;
+                try { current = vizcore3d.Object3D.FromIndex(currentIndex); }
+                catch { return null; }
+                if (current == null) return null;
+                if (struIndexSet.Contains(current.Index)) return current;   // STRU 도달
+                if (current.ParentIndex == currentIndex) return null;
+                currentIndex = current.ParentIndex;
+            }
             return null;
         }
 
@@ -3161,16 +3523,59 @@ namespace A2Z
             return paintCode;
         }
 
+        /// <summary>
+        /// 배포 패키지에서 엑셀 템플릿이 놓이는 실행 폴더 하위 폴더.
+        /// csproj Content 항목의 Link 경로와 반드시 일치해야 한다 (A2Z.csproj).
+        /// </summary>
+        private const string TemplateOutputFolderName = "templates";
+
+        /// <summary>
+        /// 도면 리소스 경로 해결 — **실행 폴더 우선, 솔루션 폴더는 개발 편의용 폴백**.
+        /// 배포 패키지(exe + 리소스만, .sln 없음)에서도 리소스를 찾게 하는 공통 기반이다.
+        /// (2026-07-28 #71) 이전에는 GetSolutionPath()로 .sln을 찾아 레포 루트를 기준으로 삼았기에
+        ///   .sln이 없는 배포 환경에서 템플릿·이미지를 전부 놓쳤다.
+        /// </summary>
+        /// <param name="fileName">파일명 (경로 없이)</param>
+        /// <param name="outputSubDir">실행 폴더 기준 배포 표준 하위 폴더 (루트 배치면 null)</param>
+        /// <param name="solutionSubDir">솔루션 폴더 기준 하위 폴더 (레포 루트 직속이면 null)</param>
+        private string ResolveDrawingResourcePath(string fileName, string outputSubDir, string solutionSubDir)
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            // ── 1순위: 실행 폴더 — 배포 패키지에서 유일하게 유효한 경로 ──
+            var outputCandidates = new List<string>();
+            if (!string.IsNullOrEmpty(outputSubDir))
+                outputCandidates.Add(Path.Combine(baseDir, outputSubDir, fileName));
+            outputCandidates.Add(Path.Combine(baseDir, fileName));      // 하위 폴더 규칙 이전 배포본 호환
+            if (!string.IsNullOrEmpty(solutionSubDir))
+                outputCandidates.Add(Path.Combine(baseDir, solutionSubDir, fileName));
+
+            foreach (string candidate in outputCandidates)
+            {
+                string full = Path.GetFullPath(candidate);
+                if (File.Exists(full)) return full;
+            }
+
+            // ── 2순위: 솔루션 폴더 — 개발 PC 전용 폴백 (.sln 탐색 비용은 여기서만 발생) ──
+            string devPath = Path.GetFullPath(string.IsNullOrEmpty(solutionSubDir)
+                ? Path.Combine(GetSolutionPath(), fileName)
+                : Path.Combine(GetSolutionPath(), solutionSubDir, fileName));
+            if (File.Exists(devPath)) return devPath;
+
+            // 어디에도 없음 — 배포 표준 위치를 돌려줘 에러 메시지가 "있어야 할 자리"를 가리키게 한다
+            return Path.GetFullPath(outputCandidates[0]);
+        }
+
+        /// <summary>도면 이미지 리소스 — 실행 폴더 루트 → 실행 폴더 assets\ → 솔루션 assets\</summary>
         private string ResolveDrawingAssetPath(string fileName)
         {
-            string outputPath = Path.GetFullPath(
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName));
-            if (File.Exists(outputPath))
-                return outputPath;
+            return ResolveDrawingResourcePath(fileName, null, "assets");
+        }
 
-            string solutionPath = Path.GetFullPath(
-                Path.Combine(GetSolutionPath(), "assets", fileName));
-            return File.Exists(solutionPath) ? solutionPath : outputPath;
+        /// <summary>도면 엑셀 템플릿 — 실행 폴더 templates\ → 실행 폴더 루트 → 솔루션 루트</summary>
+        private string ResolveDrawingTemplatePath(string fileName)
+        {
+            return ResolveDrawingResourcePath(fileName, TemplateOutputFolderName, null);
         }
 
         /// <summary>

@@ -94,7 +94,7 @@
 ## 참고 링크
 - 빌드 가이드: [docs/setup/build-environment.md](../../setup/build-environment.md)
 - 자가 진단: [scripts/check-build-env.ps1](../../../scripts/check-build-env.ps1)
-- 검증 보고서: [Osnap 기준.md](../../기술 노트/Osnap 기준.md), [Sheet1 명명 기준.md](../../기술 노트/Sheet1 명명 기준.md), [치수 보조선 사양.md](../../기술 노트/치수 보조선 사양.md)
+- 검증 보고서: [Osnap 기준.md](../../기술%20노트/Osnap%20기준.md), [Sheet1 명명 기준.md](../../기술%20노트/Sheet1%20명명%20기준.md), [치수 보조선 사양.md](../../기술%20노트/치수%20보조선%20사양.md)
 - 트래킹 진입: [TASKS.md](../TASKS.md) (머릿주석에 4개 카테고리 매핑 표)
 - 정책: [CLAUDE.md](../../../CLAUDE.md) R12
 - 직전 세션: [2026-05-02-build-environment-recovery.md](./2026-05-02-build-environment-recovery.md)

@@ -87,7 +87,7 @@ flowchart TD
 
 ## 8. 후행 기능 (Chained)
 - 자동: `ExtractDimensionForSelectedNodes()`
-- 수동: [선택 Osnap 풍선 표시](./Osnap 선택 보기.md)
+- 수동: [선택 Osnap 풍선 표시](./Osnap%20선택%20보기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L179](../../code-reference/form1-drawing2d.md#btnCollectOsnap_Click)

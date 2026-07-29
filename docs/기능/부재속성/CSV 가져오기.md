@@ -100,7 +100,7 @@ flowchart TD
 | `dgvAttributes` | 이전 | 갱신됨 |
 
 ## 8. 후행 기능 (Chained)
-- [속성 CSV 내보내기](./CSV 내보내기.md) — 백업/공유
+- [속성 CSV 내보내기](./CSV%20내보내기.md) — 백업/공유
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Attribute.cs:L485](../../code-reference/form1-attribute.md#btnUdaImportCSV_Click), [ParseCsvLine](../../code-reference/form1-attribute.md#ParseCsvLine)

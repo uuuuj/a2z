@@ -1,5 +1,5 @@
 ---
-description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱신 + 커밋 + 자동 push 수행
+description: 변경사항을 검토하여 docs 동기화 + 관련 이슈 코멘트·라벨 갱신 + 커밋 + 자동 push 수행
 ---
 
 # /commit — 통합 커밋 워크플로우
@@ -24,38 +24,33 @@ description: 변경사항을 검토하여 docs 동기화 + CHANGELOG/TASKS 갱�
 
 판단 애매하면 사용자에게 물어봐라.
 
-### 3. TASKS 갱신 (상태별 파일 — `docs/tracking/tasks/`)
-- 작업은 상태별 파일로 분리됨: `tasks/TODO.md` · `tasks/IN_PROGRESS.md` · `tasks/BLOCKED.md` · `tasks/DONE.md`. 인덱스는 `docs/tracking/TASKS.md`.
-- 이번 커밋으로 완료된 작업이 있으면 해당 `T-xxx` 항목 **블록 전체**를:
-  - `tasks/IN_PROGRESS.md` 또는 `tasks/TODO.md`에서 **잘라내** `tasks/DONE.md` 최상단으로 이동
-  - 완료일 + 커밋 해시(일단 `pending`, 커밋 후 실제 해시로 업데이트) 기입
-  - 이동으로 파일별 작업 수가 바뀌면 인덱스 `TASKS.md`의 "작업 수" 표도 갱신
-- 부분 완료면 원래 파일에서 체크박스만 업데이트하고 이동 안 함
-- 커밋과 무관한 TASK는 건드리지 마라
+### 3. 이슈 갱신 (**GitHub 이슈가 정본** — `docs/tracking`은 2026-07-28 폐지)
+- 이번 커밋과 관련된 이슈에 **코멘트로 완료 내역을 남긴다** — 증상·원인·조치·검증. 커밋 해시 포함
+- 상태가 바뀌었으면 `상태:` 라벨 교체 (`gh issue edit <N> --add-label "상태: 실기 확인" --remove-label "상태: 개발 중"`)
+- 완료면 이슈를 닫는다 (`gh issue close <N> --reason completed`). 닫으면 워크플로우가 제목 접두사를 정리한다
+- 부분 완료면 코멘트만 남기고 라벨·상태는 유지
+- 커밋과 무관한 이슈는 건드리지 마라
+- **별도 CHANGELOG 파일은 쓰지 않는다** — 기록을 두 곳에 남기지 말 것
 
-### 4. FEEDBACK.md / REQUESTS.md 갱신 (해당 시)
-- TASK가 `FB-xxx`에서 유래했고 이번 커밋으로 해당 FEEDBACK이 전체 해결된 경우:
-  - FEEDBACK.md에서 `FB-xxx` 항목을 `DONE` 섹션으로 이동
-- TASK가 `REQ-xxx`에서 유래했고 이번 커밋으로 해당 REQUEST가 전체 해결된 경우:
-  - REQUESTS.md에서 `REQ-xxx` 항목을 `DONE` 섹션으로 이동
-- 부분 해결이면 이동하지 말고 상태만 `ACCEPTED` 유지
+### 4. 출처 이슈 갱신 (해당 시)
+작업이 `출처: 담당자 피드백` 또는 `출처: 내부 요청` 이슈에서 갈라져 나온 경우:
+- 그 출처 이슈에도 **어느 이슈로 해결됐는지 코멘트로 링크**를 남긴다
+- 출처가 전체 해결됐으면 출처 이슈도 닫는다. 부분 해결이면 열어 둔다
 
-### 5. CHANGELOG.md 항목 추가
-상단에 새 섹션 추가 (기존 내용 위에):
+### 5. 이슈 코멘트 작성
+관련 이슈에 남길 코멘트를 이 형식으로 준비한다 (커밋 후 실제 해시로 등록):
 ```
-## YYYY-MM-DD — {한 줄 요약}
+### YYYY-MM-DD — {한 줄 요약}
 
 **유형**: {feat/fix/docs/refactor/chore/style}
-**커밋**: `pending` (커밋 후 업데이트)
-**관련 TASK**: T-xxx
-**관련 FEEDBACK**: FB-xxx (있을 때만)
-**관련 REQUEST**: REQ-xxx (있을 때만)
+**커밋**: `{짧은 해시}`
 **변경 사항**:
 - 항목 1
 - 항목 2
 
 **영향 범위**: {간단히}
 ```
+관련 이슈가 여럿이면 각각에 등록한다. **6개 이상으로 퍼질 것 같으면** 대표 이슈 하나에만 남기고 나머지는 그 이슈를 링크한다 (소음 방지).
 
 ### 6. 커밋 메시지 작성
 CLAUDE.md의 커밋 메시지 형식을 따른다:
@@ -76,9 +71,9 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 
 ### 8. 커밋 해시 반영
 커밋 성공 직후:
-- CHANGELOG.md의 `pending` 부분을 실제 짧은 해시(`git rev-parse --short HEAD`)로 교체
-- `tasks/DONE.md`의 해당 항목 커밋 해시도 마찬가지로 교체
-- **이 수정분은 다음 커밋에 포함시키지 말고**, 사용자에게 보고 후 다음 `/commit` 호출 시 함께 반영되도록 둔다 (누적 방지)
+- 실제 짧은 해시(`git rev-parse --short HEAD`)를 넣어 **이슈 코멘트를 등록**한다
+- 상태가 바뀌었으면 `상태:` 라벨 교체, 완료면 이슈 닫기
+- 이슈는 저장소 파일이 아니므로 추가 커밋이 생기지 않는다
 
 ### 9. 자동 push (CLAUDE.md R5)
 커밋 성공 직후 `git push` 실행:
@@ -92,7 +87,7 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 ### 10. 보고
 사용자에게 요약:
 - 커밋 해시 + 메시지 첫 줄
-- 갱신한 tracking 파일 목록
+- 코멘트·라벨을 갱신한 이슈 번호
 - push 결과 (성공 시 원격 경로, 실패 시 원인)
 
 ## 금지 사항

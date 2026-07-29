@@ -66,7 +66,7 @@ code_reference: /docs/code-reference/form1-drawing2d.md#btnExportPDF_Click
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Drawing2D.cs:L82](../../code-reference/form1-drawing2d.md#btnExportPDF_Click)
-- 선행: [전체 2D 생성](./2D 생성.md)
+- 선행: [전체 2D 생성](./2D%20생성.md)
 - 용어집: [PDF (벡터)](../../_glossary.md#pdf-벡터)
 
 ## 10. 변경 이력

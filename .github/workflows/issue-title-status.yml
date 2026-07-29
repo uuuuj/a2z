@@ -14,6 +14,13 @@ permissions:
   contents: read
   issues: write
 
+# 같은 이슈에 대한 실행을 직렬화한다.
+#   스크립트로 이슈를 만들고 곧바로 닫으면 opened·closed 이벤트가 1초 안에 연달아 발생해
+#   두 실행이 겹친다. 취소하지 않고 줄을 세워야 closed 처리가 마지막에 오게 된다.
+concurrency:
+  group: issue-title-status-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   sync-title-prefix:
     runs-on: ubuntu-latest
@@ -32,10 +39,25 @@ jobs:
               { label: '상태: 실기 확인', prefix: '[실기 확인]' },
             ];
 
-            const issue = context.payload.issue;
-            const currentLabels = issue.labels.map((label) => label.name);
+            // ⚠ context.payload.issue 는 이벤트 발생 순간의 스냅샷이다. 그것만 믿으면
+            //   "열림" 스냅샷으로 실행된 잡이 늦게 끝나면서, 이미 닫힌 이슈에
+            //   기본 상태 라벨과 제목 접두사를 박아버린다(실측: 41건 발생).
+            //   그래서 실제 상태는 API로 다시 읽는다.
+            const number = context.payload.issue.number;
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+            });
+
+            const currentLabels = issue.labels.map((label) =>
+              typeof label === 'string' ? label : label.name
+            );
             const incomingLabel = context.payload.label?.name;
+            // 라벨 부여 이벤트라도, 그 라벨이 실제로 아직 붙어 있을 때만 의도로 인정한다.
+            // (부여 직후 제거된 경우 스냅샷만 보고 되살리는 것을 막는다)
             const incomingStatus = context.payload.action === 'labeled'
+              && currentLabels.includes(incomingLabel)
               ? statuses.find((status) => status.label === incomingLabel)
               : undefined;
             const knownPrefixes = [
@@ -53,7 +75,7 @@ jobs:
                   await github.rest.issues.removeLabel({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    issue_number: issue.number,
+                    issue_number: number,
                     name: status.label,
                   });
                 } catch (error) {
@@ -65,10 +87,12 @@ jobs:
                 await github.rest.issues.update({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: issue.number,
+                  issue_number: number,
                   title: cleanTitle,
                 });
               }
+
+              core.info(`#${number} 닫힘 — 상태 라벨·접두사 정리 완료`);
               return;
             }
 
@@ -79,9 +103,10 @@ jobs:
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issue.number,
+                issue_number: number,
                 labels: [selected.label],
               });
+              core.info(`#${number} 상태 라벨 없음 — 기본값 ${selected.label} 부여`);
             }
 
             for (const status of statuses) {
@@ -93,7 +118,7 @@ jobs:
                 await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: issue.number,
+                  issue_number: number,
                   name: status.label,
                 });
               } catch (error) {
@@ -107,7 +132,7 @@ jobs:
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issue.number,
+                issue_number: number,
                 title: desiredTitle,
               });
             }

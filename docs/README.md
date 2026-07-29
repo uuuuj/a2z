@@ -19,6 +19,7 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 ## 문서 내비게이션
 
 ### 개괄
+- [**설명 장표**](./장표/발표.html) — 앱 쓰는 법(메뉴얼)부터 각 요소가 그렇게 그려지는 근거(룰북)까지, 16:9 슬라이드 22장. PPT 판은 [발표.pptx](./장표/발표.pptx)
 - [End-to-End 파이프라인](./_pipeline.md) — 모델 로드부터 PDF 출력까지 전체 흐름
 - [용어집](./_glossary.md) — UDA, Osnap, BOM, Clash, Hidden Line 등
 - [문서 작성 가이드](./_authoring-guide.md) — 신규 기능 문서 작성 규칙 (R1~R7)
@@ -36,14 +37,21 @@ VIZCore3D.NET SDK 기반 3D→2D 도면 자동화 WinForms 앱의 **로직 흐�
 | [Osnap 기준](./기술%20노트/Osnap%20기준.md) | Osnap 추출 임계값·필터링·축별 분기 |
 | [Sheet1 명명 기준](./기술%20노트/Sheet1%20명명%20기준.md) | Sheet1 기준부재 이름 부여 규칙 (Z-MAX 정렬 등) |
 
-### 개발 현황 추적
-- [tracking/](./tracking/README.md) — FEEDBACK / REQUESTS / TASKS / CHANGELOG / sessions 5축 관리
-- [FEEDBACK.md](./tracking/FEEDBACK.md) — 담당자 피드백 inbox (FB-xxx)
-- [REQUESTS.md](./tracking/REQUESTS.md) — 본인 수정 요청 inbox (REQ-xxx)
-- [TASKS.md](./tracking/TASKS.md) — 현재 할 일 (TODO/IN_PROGRESS/DONE)
-- [CHANGELOG.md](./tracking/CHANGELOG.md) — 완료 이력 (날짜 역순)
-- [sessions/](./tracking/sessions/) — 세션별 작업 요약 (`/checkpoint`로 저장)
-- Claude Code 작업 규칙: 루트의 [CLAUDE.md](../CLAUDE.md)
+### 개발 현황 추적 — **GitHub 이슈가 정본** (2026-07-28 전환)
+
+진행 상태·할 일·완료 이력은 모두 GitHub 이슈에 있습니다. 상태는 `상태:` 라벨로 관리하고, 도면 구분은 `도면:` 라벨, 생산 차단 요소는 `생산 필수` 라벨을 씁니다. 담당자 피드백과 내부 요청은 `출처:` 라벨로 구분합니다.
+
+| 보는 곳 | 용도 |
+|---|---|
+| GitHub 이슈 | **정본** — 상태 변경은 여기서만 |
+| [개발 현황.xlsx](../개발%20현황.xlsx) | 한눈에 보는 표 · 이슈에서 자동 생성 (**손으로 고치지 말 것**) |
+| [개발현황-보고.html](./장표/개발현황-보고.html) | 경영 보고용 집계 장표 |
+| [STATUS.md](../STATUS.md) | PC 간 인수인계 · 다음에 할 것 |
+| [tracking-archive/](./tracking-archive/README.md) | 폐지된 tracking 원본 + 이슈 JSON 백업 (읽기 전용) |
+
+갱신 명령: `python scripts/build_status_xlsx.py` (Excel + 백업 동시 생성)
+
+Claude Code 작업 규칙: 루트의 [CLAUDE.md](../CLAUDE.md)
 
 ### 기능 카테고리
 

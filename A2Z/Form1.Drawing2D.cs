@@ -965,6 +965,209 @@ namespace A2Z
             catch { }
         }
 
+        // ── 다중 페이지 PDF 누적 (#119) ────────────────────────────────────────
+        //   도면 한 장을 그릴 때마다 캔버스를 비우면 PDF도 한 장씩 따로 떨어진다.
+        //   누적 중에는 장마다 캔버스를 덧붙여 쌓아두고, 마지막에 한 번만 저장한다.
+        //   저장 API에 캔버스 번호를 주지 않으면 쌓인 캔버스 전체가 한 PDF의 페이지가 된다
+        //   (VIZCore3D.NET.xml — 번호 있는 오버로드가 "지정한 캔버스만"으로 명시됨).
+        private bool _pdfPageAccumulating = false;
+        private int _pdfPageCount = 0;
+
+        /// <summary>현재 도면을 그리고 있는 캔버스 번호. 누적이 아니면 항상 1.</summary>
+        private int _activeDrawingCanvasIdx = 1;
+
+        /// <summary>
+        /// 도면 일괄 출력이 STRU 하나를 다 그린 뒤 저장할 묶음 PDF 경로.
+        /// 취소가 STRU 처리 중간에서 예외로 튀어나오므로, 저장은 호출한 쪽에서 마무리한다.
+        /// </summary>
+        private string _pendingMergedPdfPath = null;
+
+        /// <summary>
+        /// 페이지 누적을 시작한다. 이전 도면 잔재는 여기서 한 번만 지운다.
+        /// 이미 누적 중이면 중첩을 만들지 않고 false를 돌려준다
+        /// (도면 일괄 출력이 가공도 묶음을 품는 구조 — 바깥 누적이 끝까지 주인).
+        /// </summary>
+        private bool BeginPdfPageAccumulation(string ownerLabel)
+        {
+            if (_pdfPageAccumulating)
+            {
+                DiagLog($"[PDF묶음] {ownerLabel} — 이미 누적 중이라 이어붙임 (pages={_pdfPageCount})");
+                return false;
+            }
+
+            Clear2DView();
+            _pdfPageAccumulating = true;
+            _pdfPageCount = 0;
+            _activeDrawingCanvasIdx = 1;
+            DiagLog($"[PDF묶음] {ownerLabel} 누적 시작");
+            return true;
+        }
+
+        /// <summary>
+        /// 도면 한 장을 그리기 직전 캔버스를 준비한다.
+        /// 누적 중이 아니면 종전대로 캔버스를 비우고 1번만 쓴다.
+        /// 누적 중이면 이전 장을 남겨둔 채 새 캔버스를 덧붙인다.
+        /// </summary>
+        private void PrepareDrawingCanvas(int widthMm, int heightMm)
+        {
+            if (!_pdfPageAccumulating)
+            {
+                Clear2DView();
+                vizcore3d.Drawing2D.View.SetCanvasSize(widthMm, heightMm);
+                vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+                _activeDrawingCanvasIdx = 1;
+                return;
+            }
+
+            int canvasIdx = vizcore3d.Drawing2D.View.AddCanvasBy2DView(widthMm, heightMm);
+            if (canvasIdx <= 0)
+                canvasIdx = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView();
+
+            vizcore3d.Drawing2D.View.SetSelectCanvas(canvasIdx);
+            _activeDrawingCanvasIdx = canvasIdx;
+            _pdfPageCount++;
+            DiagLog($"[PDF묶음] 페이지 {_pdfPageCount} 준비 — 캔버스 #{canvasIdx}");
+        }
+
+        /// <summary>
+        /// 방금 그린 페이지를 버린다 (도면 생성 실패 시).
+        /// 실패한 반쪽짜리 캔버스가 PDF 페이지로 남지 않게 한다.
+        /// </summary>
+        private void DiscardCurrentPdfPage()
+        {
+            if (!_pdfPageAccumulating || _pdfPageCount == 0) return;
+
+            try
+            {
+                vizcore3d.Drawing2D.View.RemoveCanvasBy2DView(_activeDrawingCanvasIdx, true);
+                _pdfPageCount--;
+                DiagLog($"[PDF묶음] 페이지 버림 — 캔버스 #{_activeDrawingCanvasIdx} 남은 pages={_pdfPageCount}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[PDF묶음] 페이지 버리기 실패(계속 진행): {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 페이지 사이 메모리 정리. 누적 중에는 쌓아둔 캔버스를 지우면 안 되므로 GC만 돌린다.
+        /// </summary>
+        private void CleanupBetweenPdfPages()
+        {
+            if (!_pdfPageAccumulating)
+            {
+                CleanupDrawingSheetExportCanvas();
+                return;
+            }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Application.DoEvents();
+        }
+
+        /// <summary>
+        /// 쌓아둔 페이지를 PDF 한 개로 저장하고 누적을 끝낸다.
+        /// 페이지가 하나도 없으면 저장하지 않고 false.
+        /// </summary>
+        private bool EndPdfPageAccumulation(string pdfPath)
+        {
+            try
+            {
+                if (_pdfPageCount == 0)
+                {
+                    DiagLog("[PDF묶음] 페이지 0건 — 저장 생략");
+                    return false;
+                }
+
+                vizcore3d.Drawing2D.Render();
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+
+                int canvasCount = -1;
+                try { canvasCount = vizcore3d.Drawing2D.View.GetCanvasCountBy2DView(); } catch { }
+                DiagLog($"[PDF묶음] 저장 완료 pages={_pdfPageCount} canvases={canvasCount} → {pdfPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[PDF묶음] 저장 실패: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                _pdfPageAccumulating = false;
+                _activeDrawingCanvasIdx = 1;
+            }
+        }
+
+        /// <summary>
+        /// 예약해둔 묶음 PDF를 저장하고 누적을 끝낸다.
+        /// 취소·실패로 중단됐어도 그때까지 그린 페이지는 남긴다.
+        /// 저장했으면 그 경로, 저장할 게 없으면 null.
+        /// </summary>
+        private string FlushPendingMergedPdf()
+        {
+            string path = _pendingMergedPdfPath;
+            _pendingMergedPdfPath = null;
+
+            if (!_pdfPageAccumulating)
+                return null;
+
+            if (string.IsNullOrEmpty(path))
+            {
+                // 저장은 못 하더라도 누적은 닫아야 다음 출력이 깨끗하게 시작한다.
+                DiagLog("[PDF묶음] 예약 경로 없음 — 저장 없이 누적만 종료");
+                _pdfPageAccumulating = false;
+                _pdfPageCount = 0;
+                _activeDrawingCanvasIdx = 1;
+                return null;
+            }
+
+            try
+            {
+                return EndPdfPageAccumulation(path) ? path : null;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[PDF묶음] 예약 저장 실패: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 묶음 PDF 경로 — {폴더}\{종류}_{모델명}_{시각}.pdf
+        /// 같은 이름이 있으면 뒤에 번호를 붙이고, 경로가 MAX_PATH에 가까우면 로그를 남긴다.
+        /// </summary>
+        private string BuildMergedDrawingPdfPath(string saveDir, string kindLabel, string timeStamp)
+        {
+            string safeKind = SanitizeFileName(
+                string.IsNullOrWhiteSpace(kindLabel) ? "도면" : kindLabel.Trim());
+            if (safeKind.Length > 40) safeKind = safeKind.Substring(0, 40);
+
+            string modelName = !string.IsNullOrEmpty(currentFilePath)
+                ? SanitizeFileName(System.IO.Path.GetFileNameWithoutExtension(currentFilePath))
+                : "Unknown";
+            if (modelName.Length > 40) modelName = modelName.Substring(0, 40);
+
+            string baseName = $"{safeKind}_{modelName}_{timeStamp}.pdf";
+            string path = System.IO.Path.Combine(saveDir, baseName);
+
+            int n = 1;
+            while (System.IO.File.Exists(path) && n < 1000)
+            {
+                path = System.IO.Path.Combine(
+                    saveDir, $"{System.IO.Path.GetFileNameWithoutExtension(baseName)}_{n}.pdf");
+                n++;
+            }
+
+            if (path.Length > 240)
+                DiagLog($"[PDF묶음] WARN 경로 길이 {path.Length} (Windows MAX_PATH 260 임박): {path}");
+
+            return path;
+        }
+
         /// <summary>
         /// 2D 뷰 완전 초기화 — 모든 2D 객체, 템플릿, 그리드를 삭제하고 뷰 모드를 리셋
         /// </summary>

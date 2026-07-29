@@ -6,6 +6,354 @@
 
 ---
 
+## 2026-07-28 — 상태 관리를 GitHub 이슈로 일원화 + 데이터 매핑 문서 이관
+
+**유형**: docs
+**커밋**: `0395f1b` (동시 세션의 #67 커밋에 함께 담김 — 커밋 메시지는 #67만 설명하므로 이 항목으로 기록을 보완한다)
+
+**배경**: 개발 현황 Excel을 지워도 되는지 검토. 결론은 **지우지 않고 읽기 전용 스냅샷으로 보관**.
+
+**확인·조치 5건**:
+- **Excel↔이슈 연결은 이미 완결** — 백필 스크립트 `--dry` 결과 85행 전부 연결(미연결 0). 앞서 "29행 미연결"로 본 것은 `excel-meta`만 확인한 오판. 실제 분포는 `excel-meta` 58행 + `docs/tracking` 표기 27행이고 스크립트가 양쪽을 읽는다
+- **생산 필수 라벨 누락 21건 보정** (고유 이슈 17개: #7 #8 #9 #10 #12 #19 #21 #24 #28 #33 #37 #39 #41 #42 #43 #45 #46). 보정 후 Excel `○` 56행이 전부 라벨된 이슈로 대응. 라벨 총계 59건이 56과 다른 것은 이슈:행이 1:1이 아니어서이며 불일치가 아니다. `△`(조건부·문서정보) 4건은 라벨 미부여 — **라벨은 `○`만을 뜻한다**
+- **`요구사항·UDA` 시트 이관** → [데이터 매핑 기준](../기술%20노트/데이터%20매핑%20기준.md) 신설. 뷰 매핑 / BOM 컬럼 출처 / 표제부 배선 / 형상·출력 기준 4개 표 + 템플릿 슬롯 번호표 + 현업 확정 필요 10건. `ISO3 = ISO_PLUS`, TAG NO 센티넬 문제 등 판정 주의사항 포함
+- **`현황 요약` 시트 고유 정보 전부 이관 확인** — 최우선 차단 7건은 보고 장표(긴급도·중요도 매트릭스)가, 판정 주의사항은 데이터 매핑 문서가 대체
+- **Excel 보관 방침 명시** — `docs/tracking/README.md` 상단과 `STATUS.md`에 출처 방침·연결 정보 위치 기록
+
+**Excel을 남긴 이유**: 판정 컬럼·날짜가 이슈 본문에 이관됐지만, `완료 확인일` 기준 시점 분석(출장 전후 등)은 GitHub만으로 재현할 수 없다 — **모든 이슈가 2026-07-21 이후 생성**이기 때문. 감사 추적용으로 보관한다.
+
+**영향 범위**: 문서·이슈 라벨만. 앱 실행 코드는 변경하지 않았다.
+
+## 2026-07-28 — 도면 출력 결과를 PDF 한 개로 묶기
+
+**유형**: feat
+**관련 ISSUE**: GitHub issue #119
+
+**바뀐 동작** (사용자가 겪는 기준):
+
+| 버튼 | 전 | 후 |
+|---|---|---|
+| 제작도 | 도면 1장 → PDF 1개 | 동일 (원래 1장) |
+| 설치도 | 도면 1장 → PDF 1개 | 동일 (원래 1장) |
+| 조립도 | 도면 N장 → **PDF N개** | 도면 N장 → **PDF 1개** (N페이지) |
+| 가공도 | 페이지 N장 → **PDF N개** | 페이지 N장 → **PDF 1개** |
+| 도면 일괄 출력 | 4종 전부 → **PDF 수십 개** | STRU 하나당 **PDF 1개** |
+
+페이지 순서는 도면 목록에 보이는 순서 (제작도 → 조립도 → 설치도 → 가공도).
+
+**구현 방식**:
+- 외부 PDF 라이브러리 없이 SDK 다중 캔버스로 해결. 도면 한 장을 그린 뒤 캔버스를 지우지 않고 `AddCanvasBy2DView`로 새 캔버스를 덧붙여 다음 도면을 그린다. 저장 시 `Export2PDFBy2DView(path)`를 캔버스 번호 없이 부르면 쌓인 캔버스 전체가 페이지가 된다 (번호 있는 오버로드가 "지정한 캔버스만"으로 명시 — `VIZCore3D.NET.xml` L31013/L31019)
+- `Form1.Drawing2D.cs`에 누적 장치 신설: `BeginPdfPageAccumulation` / `PrepareDrawingCanvas` / `DiscardCurrentPdfPage` / `CleanupBetweenPdfPages` / `EndPdfPageAccumulation` / `FlushPendingMergedPdf` / `BuildMergedDrawingPdfPath`
+- `Clear2DView` 자체는 무변경 — 호출처 7곳 중 6곳이 도면 출력·정리 경로라 공용 헬퍼를 건드리지 않고, 캔버스 준비 지점만 `PrepareDrawingCanvas`로 교체
+- 누적 중이면 `SetSelectCanvas(1)` 하드코딩이 틀리므로 `_activeDrawingCanvasIdx`로 교체 (`GenerateSheetDrawing2DCore`, `GenerateSheetDrawing2D_WithExcelTemplate` 2곳)
+- 가공도는 `BeginPdfPageAccumulation` 반환값으로 누적 소유권을 판정 — 직접 실행이면 자기가 저장, 일괄 출력이 부르면 페이지만 얹고 저장을 넘긴다. 그래서 일괄 출력에서 일반 도면과 가공도가 한 파일에 들어간다
+- 일괄 출력의 저장 지점은 `ProcessSingleStruFull` 안이 아니라 **호출부의 STRU별 try/catch 바로 뒤**. 취소가 그 함수 중간에서 예외로 튀어나오므로 안에 두면 취소 시 그때까지 그린 페이지를 잃는다
+
+**취소·실패 처리**: 취소하거나 도중에 실패해도 그때까지 그린 페이지는 저장한다. 한 시트가 실패하면 그 캔버스만 버려(`DiscardCurrentPdfPage`) 반쪽짜리 페이지가 PDF에 끼지 않는다. 페이지 사이 정리는 쌓아둔 캔버스를 남기고 GC만 돌린다.
+
+**파일명**: `{종류}_{모델명}_{시각}.pdf` / 일괄 출력은 `전체도면_{STRU}_{모델명}_{시각}.pdf`. 충돌 시 `_1`, `_2` …, 경로 240자 초과 시 경고 로그.
+
+**죽은 코드 제거**: 장당 파일명을 만들던 `BuildDrawingSheetPdfFileName`(DrawingSheets), `MakeUniquePdfPath`(MfgDrawing). 충돌 회피·MAX_PATH 경고는 `BuildMergedDrawingPdfPath`가 이어받음.
+
+**변경 파일**: `Form1.Drawing2D.cs`, `Form1.DrawingSheets.cs`, `Form1.MfgDrawing.cs`, `Form1.Stru.cs` + 흐름 문서 4건·코드 레퍼런스 4건
+
+**빌드**: Debug 오류 0건. Release는 컴파일 오류 0건 (실행 중인 `bin\Release\A2Z.exe`가 잠겨 있어 별도 출력 폴더로 검증)
+
+**실기 확인 필요**:
+- 캔버스 번호 없는 저장이 실제로 전 페이지를 담는지 — 이제까지 캔버스를 항상 1개만 써서 검증된 적 없음
+- 도면 20장 이상 모델에서 캔버스를 쌓아둘 때 메모리 (모델 교체 후 2회차 무한 대기 #116과 같은 정리 단계가 얽힘 — 페이지 수·캔버스 수를 로그에 남김)
+
+---
+
+## 2026-07-28 — "엑셀 PoC" 버튼 폐기 (역할 종료 + 이미 동작 불가)
+
+**유형**: refactor
+**관련 ISSUE**: GitHub issue #71 (작업 중 발견)
+**관련**: T-012 (엑셀 템플릿 하이브리드 실험) → 폐기 처리
+
+**폐기 사유**:
+- PoC 목적(엑셀 템플릿을 SDK 신 API 3종으로 캔버스에 적용할 수 있는가)은 달성됐고, 그 패턴이 `GenerateSheetDrawing2D_WithExcelTemplate`에 반영돼 프로덕션에서 돌고 있다
+- 짝이던 구 템플릿 `사용자템플릿_엑셀_제작도.xlsx`(BOM 15행 체계)가 커밋 `0e94aa9`에서 삭제돼, 버튼을 눌러도 "엑셀 파일을 찾을 수 없습니다" 에러로만 끝나는 상태였다
+- 애초에 **화면에 보이지도 않았다** — T-012 계획의 `groupBox1 너비 +87px`가 실제로 적용되지 않아 버튼(X=446~524)이 groupBox1(폭 443) 밖으로 잘렸다. `splitContainer1` 분할선을 오른쪽으로 85px 이상 끌었을 때만 노출됨
+- 현행 템플릿 `제작도_도면_1.xlsx`로 되살리려면 BOM 슬롯을 240 체계로 재매핑하고 `Set2DViewTemplateMark`(plain `{Image}`, 현행 템플릿에 0개) 대신 `{Image_1~4}` 매핑으로 바꿔야 하는데, 그러면 메인 흐름과 거의 같은 코드가 하나 더 생긴다
+
+**변경 사항**:
+- `btnExcelTemplatePoC_Click` 핸들러 제거 (`Form1.ExcelTemplate.cs` 182줄). 같은 파일의 REV 표 함수·`SafeSubItem`은 유지
+- Designer에서 버튼 필드·`groupBox1.Controls.Add`·속성 블록·필드 선언 제거
+- 흐름 문서 `docs/기능/도면시트/엑셀 템플릿 PoC.md` 삭제 (내용은 git 이력에 보존)
+- `시트 2D 렌더.md`의 구 템플릿 관련 주석을 폐기 사실로 갱신, `IN_PROGRESS.md`의 T-012를 폐기로 표시하고 끊긴 링크 정리
+
+**영향 범위**: UI 버튼 1개 제거. 도면 출력 경로(제작도·조립도·설치도·가공도)는 무변경 — 이 핸들러는 어느 흐름에서도 호출되지 않았다. Release 빌드 오류 0개, 경고 7개(기존 SDK deprecation·도달불가 코드)로 변동 없음
+
+---
+
+## 2026-07-28 — BOM 요약행 값 확정 (No.=00, T/W=STRU GWEI) + 출력 반영
+
+**유형**: feat
+**커밋**: `455b1ab`
+**관련 ISSUE**: GitHub issue #67
+**변경 사항**:
+- 요약행 No.를 빈칸 → `00` 고정. 데이터행 정렬(`dataRows`만 정렬)과 행 클릭 매핑(`row.Index == 0` 인덱스 가드)은 값과 무관해 영향 없음을 코드로 확인
+- 요약행 T/W를 부재 무게 합산 → **조상 STRU 노드 자체의 `GWEI`**로 교체. 값이 없을 때만 기존 합산으로 폴백하고 폴백 사실을 `DiagLog`에 기록
+- STRU GWEI를 부재 UDA walk-up에서 같이 수집하도록 구성 — 도면 출력 시점에는 추가 SDK 조회가 없다. 조상 노드는 부재끼리 공유하므로 `struGweiByNode`로 노드당 1회만 판정·조회
+- 부재용 GWEI walk-up은 첫 비어있지 않은 값에서 멈춰 부재 무게를 잡으므로 요약행에 재사용 불가 — STRU 노드를 먼저 찾고 그 노드에서만 읽는 경로를 분리
+- 무게 표시 정규화를 `FormatDrawingBomWeight`로 공용화 (부재/STRU 동일 규칙)
+- **요약행이 실제로 도면에 출력되도록 매핑 확장** — 기존에는 제작·조립·설치도(`Items[i + 1]`)와 가공도(`SnapshotBomRows`의 `i = 1`)가 모두 첫 행을 건너뛰어 화면에만 보이고 도면에는 나가지 않았다
+- 템플릿 BOM 정원 25행 유지 → 요약행 1행 + 데이터행 24행 (사용자 확정)
+- ITEM은 배관/전장 서포트 구분이 확정될 때까지 기본값 `Support&Seat` 유지 (사용자 확정)
+- MATERIAL·SIZE·Q'TY는 빈칸 유지. `""`로 채워 보내 `{Input}`이 남지 않아 템플릿 괘선이 보존된다 (#60 동작)
+
+**영향 범위**: `Form1.Clash.cs`(BOM 스냅샷 생성) · `Form1.DrawingSheets.cs`(제작·조립·설치도 슬롯 매핑) · `Form1.MfgDrawing.cs`(가공도 스냅샷·기대행수). 제작도·조립도·설치도·가공도 4종 실기 확인 대기.
+
+---
+
+## 2026-07-28 — 표제부 REV 표 첫 기재행 채우기
+
+**유형**: feat
+**커밋**: `306d4d0` (커밋 메시지에 BOM 요약행 항목이 잘못 포함됨 — 해당 변경의 실제 커밋은 `455b1ab`)
+**관련 TASK**: T-101 (표제부 REV 표 채우기)
+**관련 ISSUE**: GitHub issue #64 (REV 표 채우기 로직) · #118 (개발 계획)
+**변경 사항**:
+- 표제부 REV 이력 표 슬롯(`Input_170~199`)을 채우는 공통 헬퍼 `FillRevisionTable` / `BuildCurrentRevisionHistory` 신설 (`Form1.ExcelTemplate.cs`) — 기재행별 슬롯 시작 번호 `RevRowSlotBase = {194, 188, 182, 176, 170}`(엑셀 44행 → 40행), 한 행은 REV./DATE/DESCRIPTION/DRAWN/CHECKED/APPROVED 6칸 연속
+- 첫 기재행 값은 REV.=`0` 고정, DATE=출력일 `yyyy-mm-dd`(InvariantCulture). DESCRIPTION·DRAWN·CHECKED·APPROVED는 입력 수단·기본 문구가 미정이라 공백 1칸으로 괘선만 보존
+- 기재행은 6칸 전부 `data`에 키를 넣고 미사용 이력행(170~193)은 키를 넣지 않는다 — 값이 있으면 `{Input}`이 남지 않아 `RemoveEmptyTemplateBorders`가 괘선을 못 지운다는 벤더 규칙(issue #60)을 그대로 이용
+- 호출 배선 2곳: `GenerateSheetDrawing2D_WithExcelTemplate`(제작도·조립도·설치도 공유 경로) · `BuildMfgPageData`(가공도, 다중 페이지 동일 값)
+- `Models.cs`에 `RevisionEntry` 추가 (REV 표 한 행 = 6칸)
+- 검증용 `RunMfgCameraSignProbe`의 부재명 잔재 `data[195]`를 `data[241]`로 정리 — 195~199는 REV 표 대역이고 부재명은 2026-07-23에 241~245로 이전됨
+
+**영향 범위**: 제작도·조립도·설치도·가공도 4종 PDF의 표제부 REV 표. 실기 확인 시 REV 첫 기재행 괘선이 정상이면 issue #33(빈 REV 행 괘선 보존, T-095)은 실질 해소로 종결 검토.
+
+## 2026-07-26 — 사내 실기 검증 3건 정상 확인
+
+**유형**: docs
+**커밋**: `1a3dd92`
+**관련 TASK**: T-089 (가공도 치수·풍선 종이 절대 정규화) · T-091 (장시간 작업 취소 응답성) · T-075 (설치도 연결부재·외부 Assembly 점선 표시)
+**관련 ISSUE**: GitHub issue #46 종료
+**변경 사항**:
+- 출장 사내 PC 실기 검증에서 가공도 치수·풍선 종이 절대 정규화, 장시간 작업 취소 응답성·진행률, 설치도 연결부재·외부 Assembly 점선 표시 3건이 모두 정상 동작 확인
+- 가공도 정규화·취소 응답성 두 작업을 IN_PROGRESS에서 DONE으로 이동하고 실기 확인 항목을 모두 완료 처리
+- 개발 현황 Excel 갱신 — 완료 50 → 53건, 실기 검증 대기 3 → 0건, 생산 필수 미확인 24 → 22건
+- 현황 요약의 최우선 차단 목록에서 실기 대기 2건을 제거해 9건 → 7건으로 재정렬하고 기준일을 2026-07-26으로 변경
+- 남은 최우선 항목은 API 대기 3건(2D 형상 누락·UserAxis 문자 각도·모떼기/라운드), 업무 규칙 확정 3건(앵글 촬영 방향·BOM Q'TY/MA/FA·표제부 DP No/Note/Rev), 최종 산출물 생성 1건
+
+**영향 범위**: 개발 현황 Excel, tracking 상태·작업 목록, GitHub Issue 상태. 앱 실행 코드는 변경하지 않음.
+
+## 2026-07-24 — GitHub·Excel·tracking 상태 기준 통합
+
+**유형**: docs
+**커밋**: `7b78804`
+**관련 TASK**: T-005·T-013·T-039·T-040·T-043·T-048·T-067·T-075·T-077·T-078·T-079·T-084·T-085·T-086·T-087·T-092~T-100
+**변경 사항**:
+- GitHub 종료와 Excel 완료가 일치하는 실기 대기 항목 10건을 tracking DONE으로 이동
+- 접합 각도는 API 대기와 자체 구현 시도 병행으로 통합하고, 참조축 정렬 완료와 UserAxis 문자 각도 API 대기를 분리
+- 모떼기·라운드·2D 형상 누락·REV 괘선 API 대기와 디자인·Note·파일명·API 요청 필요 항목을 열린 Issue별 tracking 항목으로 보강
+- 최종 생산 PDF와 설명 자료는 개발 대기에서 최종 산출물 생성 중으로 전환
+- GitHub Issue 종료 시 활성 상태 라벨·접두사를 제거하고, 열린 Issue의 라벨 변경이 되돌아가지 않도록 제목 동기화 Action 수정
+
+**영향 범위**: GitHub Issue 상태 자동화, 개발 현황 Excel, tracking 상태·작업 목록. 앱 실행 코드는 변경하지 않음.
+
+## 2026-07-24 — 장시간 도면 작업 취소 응답성 개선
+
+**유형**: fix
+**커밋**: `47059eb`
+**관련 TASK**: T-091 (장시간 도면 작업 취소 응답성 개선)
+**관련 ISSUE**: GitHub issue #51
+**변경 사항**:
+- 전체 BODY 대상 확인·BOM·홀·Osnap 수집 루프에 현재/전체 진행 수와 UI 취소 체크포인트 추가
+- 대상 BODY 5,000개 이상은 STRU 격리를 권장하는 사전 확인을 표시하고 취소 시 작업 상태를 원상 복원
+- 제작도·조립도·설치도의 엣지·템플릿·4개 뷰와 수동/일괄 가공도의 페이지·행·주/보조 뷰·PDF 경계까지 안전 취소 세분화
+- 취소 버튼 문구 단순화, 부분 BOM·도면 상태 정리, 가공도 저장 완료 PDF 수·중단 위치 보존
+
+**영향 범위**: 메인 치수 추출, 도면 종류별/일괄 출력, 수동 가공도의 장시간 처리 진행 표시·취소·정리 흐름
+
+## 2026-07-24 — 가공도 EA 두 뷰 주석 예약 높이 공통화
+
+**유형**: fix
+**커밋**: `d5eb33e`
+**관련 TASK**: T-089 (가공도 EA 두 뷰 배율 회귀 수정)
+**관련 ISSUE**: GitHub issue #46
+**변경 사항**:
+- 첫 번째·두 번째 풍선 목록의 최대 행 수와 가능한 최대 치수 외곽으로 공통 주석 예약 높이를 한 번 계산
+- 공통 예약 높이를 두 EA pose에 적용해 한쪽 풍선 목록이 비어도 두 뷰의 모델 fit 높이를 동일하게 유지
+- 단일 뷰의 기존 예약 계산과 각 뷰의 실제 치수 외곽 기준 풍선 위치 계산은 유지
+
+**영향 범위**: 가공도 EA 상·하 두 뷰의 모델 배율과 주석 여백. 일반 가공도 단일 뷰는 영향 없음
+
+## 2026-07-24 — 문서 링크 경로 공백 236건 인코딩
+
+**유형**: docs
+**커밋**: `05fc359`
+**관련 TASK**: T-090 (문서 링크 경로 공백 일괄 인코딩)
+**관련 ISSUE**: GitHub issue #52
+**변경 사항**:
+- `docs/**/*.md` 로컬 링크 경로의 원문 공백 236건을 `%20`으로 변경해 CommonMark 렌더러에서 링크가 형성되도록 수정
+- 기능 135건·사용자 매뉴얼 38건·코드 참조 34건·tracking 19건·파이프라인 10건, 현재 저장소 기준 97개 파일 반영
+- fenced code block 예시 3건과 외부 URL·앵커 전용 링크·기존 `%20`은 보존하고 변경 대상 파일 부재 0건 확인
+
+**영향 범위**: 문서 링크 표기만 변경. 문서 본문·코드·파일 구조·링크 앵커는 유지
+
+## 2026-07-24 — tracking 문서 상대 경로 링크 깊이 수정
+
+**유형**: docs
+**커밋**: `951a7bb`
+**관련**: md-link-checker 검증 결과 (TASKS.md → `tracking/tasks/` 분할 시 `../` 깊이 한 단계 누락)
+**변경 사항**:
+- `tasks/DONE.md` 18곳 — `../../A2Z/` → `../../../A2Z/` (9), `../기능/`·`../기술 노트/` → `../../` (7), `../_glossary.md`·`../README.md` → `../../` (2)
+- `tasks/IN_PROGRESS.md` 3곳 — `../../A2Z/`·`../../lib/` → `../../../`, `../기능/` → `../../기능/`
+- `CHANGELOG.md` 2곳 — `_glossary.md` → `../_glossary.md`, `../../VIZCore3D.NET.xml` → `../../lib/VIZCore3D.NET.xml` (`lib/` 세그먼트 누락 오타)
+- 공백 포함 경로 8곳을 `%20` 인코딩 — 깊이만 고치면 CommonMark가 링크로 파싱하지 않아 렌더러에서 링크 미형성 (commonmark 렌더링으로 실증 확인)
+- `기능/BOM/BOM 수집.md` 앵커 `#CollectBOMData` → `#btnCollectBOM_Click` — 전자는 form1-bom.md에 부재. docs/기능/ 전체가 예외 없이 핸들러 앵커를 쓰는 관례와 일치
+- `기능/BOM/모델 열기.md` 앵커 `#vizx-viz` → `#vizx--viz` — 헤딩 `.vizx / .viz`의 실제 GitHub 슬러그는 하이픈 2개
+
+**보존 결정** (수정하지 않음):
+- `CHANGELOG.md`의 저장소 루트 기준 링크 123건(`[Form1.MfgDrawing.cs](A2Z/…)`) — 최신 항목엔 이미 안 쓰이는 옛 관례이고 날짜 역순 이력 파일이라 사용자가 유지 결정
+- `sessions/` 3건의 `scripts/check-build-env.ps1` — 커밋 `cdd6806`에 실존했다가 `4887a2c` 폴더 정리로 삭제. 세션 기록은 당시 사실이라 보존
+- `lib/VIZCore3D.NET.xml` — `.gitignore:14`로 커밋 제외되는 벤더 SDK 파일. 경로 자체는 정확
+
+**영향 범위**: docs만. 코드 변경 없음. 남은 공백 경로 236건(107개 파일)은 별도 판단 대기
+
+## 2026-07-24 — 치수 추출 파이프라인 문서 순서 정정
+
+**유형**: docs
+**커밋**: `pending`
+**변경 사항**:
+- `docs/_pipeline.md` — 흐름도·단계별 설명 표의 순서를 코드(`btnMainDimension_Click` → `CompleteMainDimensionPostClash`) 기준으로 정정. 기존 `BOM → Osnap → 치수 → 간섭 검사 → 시트 분할`은 실제와 달랐고, 실제는 `BOM → 간섭 검사 → 연결성 판정 → Osnap → 치수 → 시트 분할`
+- 흐름도를 개별 버튼 나열에서 "치수 추출 버튼 한 번으로 자동 실행" 서브그래프로 재구성. 단계별 표의 트리거도 내부 호출 메서드명(`CollectBOMData`·`DetectClash`·`CollectAllOsnap` 등)으로 교체
+- 단일 부재·Clash 이벤트 미발동 시 `CompleteMainDimensionPostClash(isSingleMember: true)` 우회 경로 주석 추가. 개별 실행 버튼(`btnCollectBOM_Click` 등)이 여전히 존재함을 명시
+- `docs/사용자-매뉴얼/README.md` — 목차의 치수 추출 설명을 `BOM→간섭 검사→특징점→치수→도면 시트`로 정정
+- `docs/사용자-매뉴얼/1.기본-작업/치수 추출.md` — "한 줄로" 요약도 같은 오류가 있어 함께 정정. 2026-04-22 순서 변경 때 상세 섹션만 갱신되고 요약이 누락돼 있었음
+- 세 문서 모두 `last_updated` + 변경 이력 갱신 (R1). 수정한 mermaid는 mermaid 11 파서로 구문 검증 통과
+
+**영향 범위**: 문서만. 코드 변경 없음. `docs/기능/BOM/메인 치수 추출.md`(개발자 문서)는 이미 올바른 순서여서 미변경
+
+## 2026-07-24 — 가공도 풍선 종이 절대 정규화·EA 뷰별 배정
+
+**유형**: fix
+**커밋**: `8837586`, `3c73984` (기능 코드·문서 자동 동기화 포함)
+**관련 TASK**: T-089 (가공도 풍선 종이 절대 정규화·EA 뷰별 독립 배정)
+**관련 ISSUE**: GitHub issue #46
+**변경 사항**:
+- Hole/SlotHole 관통축과 EA 두 뷰의 실제 깊이축을 비교해 뷰를 먼저 정한 뒤 뷰별 규격·개수를 그룹화
+- 모델 span 비례 4분면 풍선 배치를 제거하고 각 캡처의 실측 배율로 치수 외곽→풍선 6mm·풍선 행 8mm를 역산
+- 풍선과 같은 화면 위·아래 쪽의 치수선·문자·풍선 행 높이를 모델 fit 전에 예약해 잘림과 EA 반대 뷰 침범 방지
+- 첫 번째·두 번째 Note 목록을 격리하고 EarthBoss를 첫 번째 뷰 지연 생성으로 통합, 2D 글자 높이는 종이 고정값 유지
+
+**영향 범위**: 가공도 PDF의 Hole·SlotHole·EarthBoss 풍선 배정·지시선 거리·행 간격. 3D 미리보기와 일반 제작도 출력은 유지
+
+## 2026-07-24 — STRU 검색 버튼이 화면에 보이지 않던 문제 수정
+
+**유형**: fix
+**커밋**: `pending`
+**관련 ISSUE**: GitHub issue #48 (검색 버튼 전용 실행), #25 (검색창 배치)
+**변경 사항**:
+- `InitStruSearchUI`에서 자식 컨트롤을 먼저 넣고 패널을 나중에 붙이던 순서를 반대로 변경. 패널이 기본 폭(200px)인 상태에서 Right Anchor 자식을 넣으면 이후 Dock 폭 확장분(≈+237px)이 그대로 밀려 검색 버튼이 패널 밖(x≈571)으로 나가 보이지 않았음
+- 라벨·입력창·버튼 위치를 패널의 실제 `ClientSize.Width` 기준으로 계산하고 최소 폭 가드 추가. 배치 값은 `DiagLog`로 기록
+- `clbStruList.SendToBack()` 제거 — Fill 컨트롤을 z-order 맨 뒤로 보내면 도킹 계산에서 먼저 처리돼 목록이 상단 헤더 영역까지 겹쳐 확장됨
+
+**영향 범위**: STRU 목록의 검색 입력창 배치만. 검색 동작·목록 클릭/체크·치수 추출 흐름 변화 없음. 하단 검색 패널과 목록 마지막 행이 겹치는 문제는 배치 이슈(#25)에서 정리 예정
+
+## 2026-07-24 — STRU 검색과 치수 추출 분리
+
+**유형**: feat
+**커밋**: `a73dd16`
+**관련 TASK**: T-088 (STRU 검색 버튼 전용 실행·치수 추출 분리)
+**관련 ISSUE**: GitHub issue #48
+**변경 사항**:
+- STRU 검색 버튼 문구를 `치수 추출`에서 `검색`으로 변경하고 Enter 키 자동 실행 제거
+- 검색 성공 시 STRU 격리·목록 선택·카메라 fit까지만 수행하고 메인 치수 추출 자동 호출 제거
+- 같은 STRU 재검색 시 선택 이벤트가 발생하지 않아도 직접 fit하도록 보완하고 기존 자동완성·이름 매칭·오류 안내 유지
+
+**영향 범위**: STRU 목록 하단 검색 입력창과 검색 동작. 기존 치수 추출 버튼·도면 생성·일괄 출력 및 검색창 배치는 유지
+
+## 2026-07-24 — 도면 종류별 PDF 출력 버튼 추가
+
+**유형**: feat
+**커밋**: `2071e1d`
+**관련 TASK**: T-087 (도면 종류별 출력 버튼)
+**관련 ISSUE**: GitHub issue #47
+**변경 사항**:
+- 도면정보 탭에 제작도·조립도·설치도 버튼을 추가하고 기존 가공도 출력 문구를 가공도로 변경
+- 기존 시트 목록을 `BaseMemberIndex`로 필터링해 선택 종류만 PDF로 연속 저장하고, 선택 이벤트 중복·출력 재진입·취소 예외를 안전하게 처리
+- 마지막 성공 시트의 2D 캔버스 유지, 설치도 파일명 중복 제거, SDK 안정화 대기와 종류별 결과 요약 반영
+
+**영향 범위**: 도면정보 탭 버튼 배치와 제작도·조립도·설치도 수동 PDF 출력. 기존 가공도·2D/PDF·도면 일괄 출력 엔진은 유지
+
+## 2026-07-23 — 설치도 위치 치수 뷰 배정 2뷰로 복원 (직전 3뷰 배정 폐기)
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-075 (설치도 끝단→연결 위치 치수) 실기 피드백 7차
+**관련 ISSUE**: GitHub issue #12
+**변경 사항**:
+- 직전 "세 뷰 모두 배정"(`df02f77`) 폐기 — 실기 PDF에서 -X 뷰에 형강 길이 치수를 넣으니 X축이 깊이 방향이라 치수 두 끝점이 화면상 겹쳐 **보조선이 하나로 합쳐지고 치수가 뭉개짐**
+- `viewAxes`를 2뷰 배정(`{X:[Z,Y], Y:[Z,X], Z:[Y,X]}`)으로 복원 — 길이 치수는 길이가 화면 평면에 보이는 뷰(-Y·평면도)에만, 그 축을 정면으로 마주보는 뷰엔 배정하지 않음
+- 형강 끝→Tray 거리는 -Y·평면도에서 정상 표시. -X(끝면 방향)엔 물리적으로 그릴 수 없음(정투상 원리)
+
+**영향 범위**: 설치도 X/Y/Z 뷰 위치 치수 배정. 제작도·조립도·가공도 무영향
+
+## 2026-07-23 — 설치도 위치 치수 세 직교 뷰 모두 배정
+
+**유형**: fix
+**커밋**: `pending`
+**관련 TASK**: T-075 (설치도 끝단→연결 위치 치수) 실기 피드백 6차
+**관련 ISSUE**: GitHub issue #12
+**변경 사항**:
+- 실기 PDF 확인: 설치도가 형강을 각 뷰에서 가로로 눕혀, -X 뷰에서도 형강 길이가 화면에 보이는데(-Y와 동일 모습) 옛 월드축 뷰 필터가 -X에서 길이 치수(형강 끝→Tray 거리)를 빠뜨림
+- `viewAxes`를 세 축 모두로 확장 — 위치 치수를 세 직교 뷰 모두에 배정. 성분 축정렬 투영 덕에 그 축이 화면에 안 보이는 뷰에선 점으로 접혀 부작용 없이 "보이는 뷰마다" 표시
+- Tray(케이블 트레이)가 형강을 가로지르는 부재에서 -X 뷰에도 위치 치수 표시
+
+**영향 범위**: 설치도 X/Y/Z 뷰 위치 치수 배정. 제작도·조립도·가공도 무영향
+
+## 2026-07-23 — 연결부재 이름 라벨 폰트 부재번호 풍선과 동일 (#44)
+
+**유형**: fix
+**커밋**: `39247ff`
+**관련 ISSUE**: GitHub issue #44
+**변경 사항**:
+- 제작도·설치도 ISO 연결부재 이름 라벨 폰트를 7f → **10.5f**로 (부재번호 풍선 BOM 숫자와 동일). `Form1.DrawingSheets.cs:2241`(제작도)·`:2308`(설치도)
+- 연결 노트는 원형 스냅박스 없는 순수 텍스트라 별도 원/박스 크기 변경 없음 — 폰트 확대가 라벨 크기 정합
+
+**영향 범위**: 제작도·설치도 ISO 연결부재 이름 라벨 폰트. 부재번호 풍선·치수·다른 경로 무변경
+
+## 2026-07-23 — 가공도 홀·슬롯 최종 화면 하단 배치
+
+**유형**: fix
+**커밋**: `7bf9b5d` (+ 대기 모델·최종 화면 배치 헬퍼 auto-sync 선반영)
+**관련 TASK**: T-086 (가공도 홀·슬롯 최종 화면 하단 배치)
+**관련 ISSUE**: GitHub issue #39
+**변경 사항**:
+- Hole/SlotHole 노트를 회전 전에 즉시 생성하지 않고 `MfgViewPose.PendingHoleNotes`에 수집한 뒤, `ProbeAndRollLandscape`의 최종 가로 전환 이후 생성하도록 순서 변경
+- ORIENTATION ReferenceAxis 로컬축과 실패 폴백 화면 roll, 추가 90도 가로화 roll을 합산한 최종 화면 기저로 모델 하단과 홀 중심의 수평 위치 계산
+- 회전 없는 정상 부재는 기존 하단 공식과 같은 결과를 유지하고, `[HoleNote]` 로그로 생성 수·회전각·최종 수직 폭 기록
+
+**영향 범위**: 가공도 PDF 첫 번째 뷰의 Hole/SlotHole 위치. EarthBoss·3D 미리보기·가공도 치수·다른 도면 종류는 기존 유지
+
+## 2026-07-23 — 연결부재 이름 STRU 단위 표시 (#45)
+
+**유형**: feat
+**커밋**: `52f4166` (+ 제작도측·헬퍼 auto-sync 선반영)
+**관련 ISSUE**: GitHub issue #45
+**변경 사항**:
+- 연결부재 이름을 가장 가까운 상위 어셈블리 → **STRU 단위**로 변경. 신규 헬퍼 `FindParentStru`(부모로 올라가며 `_struNodeCache` STRU 집합 판정), STRU 조상 없으면 `FindNearestParentAssembly` 폴백
+- 제작도 ISO(`Form1.DrawingSheets.cs`)·설치도 ISO(`Form1.GlobalViews.cs`) 양쪽 이름 조회 교체
+- 설치도 라벨 `A. 어셈블리 / Part` → `STRU` (접합 기호 `A.`·`/ Part` 제거)
+- 흐름 문서 `ISO 도면.md` 동기화
+
+**영향 범위**: 제작도·설치도 ISO 연결부재 이름 라벨. 부재번호 풍선·치수·다른 도면 경로 무변경
+
+## 2026-07-23 — ISO 풍선·연결 이름 20mm 자동 정렬
+
+**유형**: fix
+**커밋**: `e79d129`
+**관련 TASK**: T-083 (ISO 부재번호 풍선 View 영역 자동 정렬)
+**관련 ISSUE**: GitHub issue #4
+**변경 사항**:
+- 부재번호 풍선 SDK 자동 정렬 영역을 실제 2D 객체 외곽 + 캔버스 10mm에서 20mm로 확대
+- 연결부재 이름을 기존 3D 표면 노트 → 2D 변환 경로로 유지해 부재번호 풍선과 같은 SDK 자동 정렬 규칙 적용
+- 특정 연결 이름의 상/하 방향 강제는 공개 API 직접 지원이 없어 GitHub issue #38(추후 요청)로 분리
+
+**영향 범위**: 제작도·설치도 ISO PDF의 부재번호 풍선·연결부재 이름 간격. X/Y/Z 치수·3D 미리보기·가공도는 변경 없음
+
 ## 2026-07-23 — 도면 일괄 출력·치수 추출 중간 취소
 
 **유형**: feat
@@ -2820,7 +3168,7 @@ BeginUpdate → try { RestoreColorAll → Select(true,false) → FlyToObject3d(1
 - `docs/technical-notes/` → `docs/기술 노트/` + 4개 파일: `dimension-extension-line.md → 치수 보조선 사양.md`, `dimension-text-position.md → 치수 텍스트 위치.md`, `osnap-criteria.md → Osnap 기준.md`, `sheet1-naming-criteria.md → Sheet1 명명 기준.md`
 - `_index.md` → `_인덱스.md` (8개)
 - [docs/README.md](README.md) 이모지 전부 제거 + **"기준·사양" 진입점 섹션 신규** (보조선/치수/Osnap/Sheet1 4개 본진 한 클릭 접근) + 카테고리 표 한글화
-- [docs/_glossary.md](_glossary.md): "보조선"/"Osnap"/"Chain Dimension"/"Drawing Sheet" 항목에 본진 문서 링크 4개 추가
+- [docs/_glossary.md](../_glossary.md): "보조선"/"Osnap"/"Chain Dimension"/"Drawing Sheet" 항목에 본진 문서 링크 4개 추가
 - CLAUDE.md (R1 경로 + 파일 구조 트리), `.claude/commands/{commit,checkpoint}.md`, `.claude/hooks/docs-sync-reminder.sh` 경로 참조 갱신
 - 일괄 치환 PowerShell 3패스 (디렉토리 → 파일 슬러그 → 절대경로·anchor·substring 충돌 복구) + md-link-checker 3회 검증 → **잔존 깨진 링크 0건**
 
@@ -3997,7 +4345,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - ❌ 여전히 안 보이면 → 좌표 스케일 / 카메라 시점 추가 진단 필요
    - 외곽 테두리(CrateTemplateBorder)가 캔버스에 보이는지도 같이 확인 — 그게 보이면 캔버스 활성화 성공 신호
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 3 흐름에 2D 모드 진입 시퀀스 추가
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 3 흐름에 2D 모드 진입 시퀀스 추가
 
 ---
 
@@ -4053,7 +4401,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - 일부만 보임 → 좌표/스케일 분석
    - ❌ 안 보임 → ShapeDrawing이 *모델 좌표 공간*에 그려졌을 가능성. 카메라 시점 또는 모드 진입 필요
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 3 흐름 + 핵심 SDK API 표 갱신
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 3 흐름 + 핵심 SDK API 표 갱신
 
 ---
 
@@ -4099,7 +4447,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
    - (c) DiagLog에 출력된 SDK TemplatePath 안의 SHI 경로
 5. 결과: 2D View 캔버스에 셀 그려지는 후보 찾기 → 그게 SDK의 진짜 적용 API
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) Step 2 흐름 + SDK reflection 분석 표 + 검증 결과 표 갱신
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) Step 2 흐름 + SDK reflection 분석 표 + 검증 결과 표 갱신
 
 ---
 
@@ -4131,7 +4479,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - "엑셀 PoC" 버튼 클릭 → 인덱스 입력 (기본 3) → 2D View 캔버스에 SHI 그려지는지
 - 안 보이면 다른 인덱스(0, 1, 2, 4, 5...) 순회 → SHI 적용되는 인덱스 발견 시 코드에 하드코딩
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) 갱신 (Step 1.5 흐름, SDK API 가시성 확정)
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) 갱신 (Step 1.5 흐름, SDK API 가시성 확정)
 
 ---
 
@@ -4164,7 +4512,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - "엑셀 PoC" 버튼 클릭 → 2D View 캔버스에 엑셀 셀 구조(테두리·텍스트·라벨)가 그려지는지
 - 안 그려지면 Step 2에서 추가 호출(`RenderTemplate` 등) 탐색
 
-**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀 템플릿 PoC.md) 신규, [TASKS.md](TASKS.md) T-012 격상
+**docs**: [엑셀 템플릿 PoC.md](../기능/도면시트/엑셀%20템플릿%20PoC.md) 신규, [TASKS.md](TASKS.md) T-012 격상
 
 ---
 
@@ -4429,8 +4777,8 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 - `Form1.MfgDrawing.cs:1703` — 가공도 EA
 
 **docs**:
-- 신설: [docs/기술 노트/치수 텍스트 위치.md](../기술 노트/치수 텍스트 위치.md) (T-058 통합 사양)
-- 변경 이력: [선택 치수 표시.md](../기능/치수/선택 치수 표시.md), [메인 치수 추출.md](../기능/BOM/메인 치수 추출.md), [가공도 단일.md](../기능/가공도/가공도 단일.md)
+- 신설: [docs/기술 노트/치수 텍스트 위치.md](../기술%20노트/치수%20텍스트%20위치.md) (T-058 통합 사양)
+- 변경 이력: [선택 치수 표시.md](../기능/치수/선택%20치수%20표시.md), [메인 치수 추출.md](../기능/BOM/메인%20치수%20추출.md), [가공도 단일.md](../기능/가공도/가공도%20단일.md)
 - TASKS.md 머릿주석 회사 doc 표 — 상 5 행을 DONE으로 표시
 - TASKS.md DONE 섹션에 T-058 항목 추가
 
@@ -4492,7 +4840,7 @@ PoC가 이 시퀀스 없이 ShapeDrawing.AddLine + Add2DObjectFromShapeDrawing�
 
 **결정**: 사용자 BBox.MaxZ 현행 유지. Osnap 기준 변경하지 않음.
 
-**이유**: A2Z 일반 데이터셋(직립 H빔·플레이트·앵글)에서 `BBox.MaxZ == max(Osnap.Z)`가 성립해 정렬 결과 동등. 차이 발생 케이스(경사·곡면 Body)도 정렬 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 [Sheet1 명명 기준.md](../기술 노트/Sheet1 명명 기준.md) § 7 단답을 그대로 사용 — "BBox 기준이지만 일반 형상에선 명세와 동일 결과"임을 설명. 차후 회사가 Osnap 자체를 강하게 요구하면 그때 신규 작업으로 변경(`Form1.BOM.cs:688` osnapList 1줄 교체) 진행.
+**이유**: A2Z 일반 데이터셋(직립 H빔·플레이트·앵글)에서 `BBox.MaxZ == max(Osnap.Z)`가 성립해 정렬 결과 동등. 차이 발생 케이스(경사·곡면 Body)도 정렬 1~2칸 변동 수준으로 실용 영향 작음. 회사 회신은 [Sheet1 명명 기준.md](../기술%20노트/Sheet1%20명명%20기준.md) § 7 단답을 그대로 사용 — "BBox 기준이지만 일반 형상에선 명세와 동일 결과"임을 설명. 차후 회사가 Osnap 자체를 강하게 요구하면 그때 신규 작업으로 변경(`Form1.BOM.cs:688` osnapList 1줄 교체) 진행.
 
 **Tracking 갱신**:
 - TASKS.md 검토 대기 항목 2 + T-056 본문 — 결정 반영
@@ -4890,7 +5238,7 @@ T-036 MfgDrawing bom=11 sizeXYZ=(65,65,1050) longestAxis=Z
 **관련 TASK**: T-036
 **배경**: 직전 커밋(`537f07c`)은 "Z 최장축 세로 배치"로 해석해 L215 180° 스킵 가드 추가. 사용자 실기 재보고 "45도 대각 ISO 뷰로 보게 된다" → Z 축 방향이 아닌 **카메라 방향 자체가 ISO**라는 다른 증상 확인
 
-**원인 확정**: [LvDrawingSheet_SelectedIndexChanged](../기능/도면시트/시트 선택.md) 공통부의 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 직전 글로벌 ISO 버튼 상태)을 **그대로 유지한 채 객체로 이동**. 그 후 호출되는 `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 SDK 비동기 렌더 사이에 묻혀 덮어쓰지 못하는 현상으로 추정
+**원인 확정**: [LvDrawingSheet_SelectedIndexChanged](../기능/도면시트/시트%20선택.md) 공통부의 `FlyToObject3d(sheet.MemberIndices, 1.2f)`가 이전 카메라 방향(예: 직전 글로벌 ISO 버튼 상태)을 **그대로 유지한 채 객체로 이동**. 그 후 호출되는 `ExecuteMfgDrawing`의 `MoveCamera(X/Y/Z_PLUS)`가 SDK 비동기 렌더 사이에 묻혀 덮어쓰지 못하는 현상으로 추정
 
 **변경 사항**:
 - [Form1.DrawingSheets.cs `LvDrawingSheet_SelectedIndexChanged` L542~](../../A2Z/Form1.DrawingSheets.cs): 가공도(-3) 시트일 땐 `FlyToObject3d` **스킵**. `ExecuteMfgDrawing`이 자체 카메라·FitToView·visibility를 모두 세팅하므로 충돌 제거
@@ -5360,7 +5708,7 @@ T-036 MfgDrawing bom=11 sizeXYZ=(65,65,1050) longestAxis=Z
   - objId를 bgFinalScale과 동기 스케일링 (`RescaleObject`)
   - objId 중심을 `bgCanvas + (objScreen - bgScreen)`로 이동 (`MoveObject`)
 - DiagLog `OPT-B` 라벨로 3D 중심 / 화면 좌표 / 이동량 / 최종 스케일 모두 기록 — 다음 테스트 결과 즉시 검증 가능
-- SDK API 근거: [VIZCore3D.NET.xml:63853](../../VIZCore3D.NET.xml) `ViewManager.WorldToScreen`
+- SDK API 근거: [VIZCore3D.NET.xml:63853](../../lib/VIZCore3D.NET.xml) `ViewManager.WorldToScreen`
 
 **영향 범위**: Sheet2 이상 시트의 ISO 뷰 렌더링만. 비-ISO / Sheet1 미영향
 
