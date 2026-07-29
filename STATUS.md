@@ -40,7 +40,9 @@ Debug·Release 양쪽 빌드 통과(에러 0), bin 3곳 모두 SDK 727 반영 �
 - ⚠ **선초기화 제거 부작용 감시** — 원래 목적이 미치환 `{Input_N}` 태그 노출 방지였음. PDF에 `{Input}` 글자가 보이면 즉시 롤백 후보
 - **하드코딩 잔존**: 프로젝트명 `CEDAR FLNG`, 선박번호 `SN2688`, DP No `Test` — 정식 데이터 소스 확정 필요
 - **BOM 임시값**: Q'TY 항상 1, MA 데이터행 L·요약행 F, FA 항상 F — 생산값 아님
-- **상태 관리 출처 = GitHub 이슈** (2026-07-28 전환). 상태 변경은 이슈 `상태:` 라벨로. **Excel은 읽기 전용 스냅샷**(기준일 07-26)이며 더 이상 갱신하지 않음 — 시점 분석용으로만 보관. 방침·연결 정보는 [docs/tracking/README.md](docs/tracking/README.md) 상단 참조
+- **상태 관리 출처 = GitHub 이슈** (2026-07-28 전환, `docs/tracking` 폐지). 상태 변경은 이슈 `상태:` 라벨로만 한다
+- **`개발 현황.xlsx`는 이슈에서 생성되는 읽기 전용 뷰** — 손으로 고치면 다음 생성에 덮어써진다. 갱신: `python scripts/build_status_xlsx.py` (Excel + `docs/tracking-archive/issues.json` 백업 동시 생성)
+- **폐지된 tracking 원본**은 [docs/tracking-archive/](docs/tracking-archive/README.md)에 읽기 전용 보관 — 이관 경위와 07-26 Excel 스냅샷 포함
 - **데이터 매핑 계약**: [docs/기술 노트/데이터 매핑 기준.md](docs/기술%20노트/데이터%20매핑%20기준.md) — 뷰 매핑·BOM 출처·표제부 배선·슬롯 번호. Excel `요구사항·UDA` 시트 이관본
 - **계획서 위치**: `docs/리팩토링/도면-출력-통합.md` (v3.1), `docs/리팩토링/가공도-템플릿-설계.md` (v2.1), `docs/리팩토링/왼쪽-패널-재설계.md` (승인 대기)
 - **설명 자료**: `docs/장표/` HTML 8종 (메뉴얼 2 + 룰북 6), `docs/사용자-매뉴얼/`
