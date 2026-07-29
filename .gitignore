@@ -20,6 +20,10 @@ VIZCore3D*.dll
 *.eml
 *.msg
 
+## Python 캐시 (scripts/ 실행 부산물)
+__pycache__/
+*.pyc
+
 ## Build results
 [Dd]ebug/
 [Dd]ebugPublic/
