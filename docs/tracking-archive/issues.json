@@ -1,5 +1,41 @@
 [
  {
+  "body": "닫힌 이슈에 상태 라벨·접두사가 남는 경합이 해결됐는지 확인하는 임시 이슈입니다. 확인 후 닫습니다.",
+  "closedAt": "2026-07-29T03:12:25Z",
+  "comments": [
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "워크플로우 경합 수정 검증 완료. 생성·닫기가 1초 차이로 발생했고(Actions 실행 03:12:26 / 03:12:27) **상태 라벨과 접두사가 붙지 않았습니다.** 수정 전이라면 `상태: 개발 대기` + `[개발 대기]`가 남았을 상황입니다.\n\n검증용 임시 이슈이므로 이 코멘트로 기록만 남깁니다.",
+    "createdAt": "2026-07-29T03:14:40Z",
+    "id": "IC_kwDORMsH0M8AAAABMLiceA",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/196#issuecomment-5112372344",
+    "viewerDidAuthor": true
+   }
+  ],
+  "createdAt": "2026-07-29T03:12:24Z",
+  "labels": [
+   {
+    "color": "C5DEF5",
+    "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
+    "id": "LA_kwDORMsH0M8AAAACtvttMQ",
+    "name": "tracking-migrated"
+   }
+  ],
+  "number": 196,
+  "state": "CLOSED",
+  "stateReason": "NOT_PLANNED",
+  "title": "[테스트] 워크플로우 경합 검증 — 즉시 삭제 예정",
+  "updatedAt": "2026-07-29T03:14:42Z",
+  "url": "https://github.com/uuuuj/a2z/issues/196"
+ },
+ {
   "body": "작업 번호(T-xxx)가 붙지 않은 CHANGELOG 항목, 그리고 인용된 작업이 이슈로 남지 않은 항목을 내용 보존을 위해 이곳 코멘트로 모았습니다.\n\n대부분 문서·잡무 커밋이며 커밋 이력으로도 확인할 수 있습니다. 개별 이슈로 관리할 성격이 아니라 이 이슈 하나에 모아 닫아 둡니다.\n\n*이관일 2026-07-28*",
   "closedAt": "2026-07-29T01:38:04Z",
   "comments": [
@@ -803,13 +839,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 194,
   "state": "OPEN",
   "stateReason": "",
   "title": "[분석 필요] PDF 저장 경로 설정 가능하게",
-  "updatedAt": "2026-07-29T01:37:59Z",
+  "updatedAt": "2026-07-29T01:43:43Z",
   "url": "https://github.com/uuuuj/a2z/issues/194"
  },
  {
@@ -839,13 +881,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 193,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "실사용자(담당자)가 읽을 수 있는 사용자 매뉴얼 작성",
-  "updatedAt": "2026-07-29T01:37:58Z",
+  "updatedAt": "2026-07-29T01:43:45Z",
   "url": "https://github.com/uuuuj/a2z/issues/193"
  },
  {
@@ -935,13 +983,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 192,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "2D 도면 템플릿의 엑셀 외부화 (하이브리드)",
-  "updatedAt": "2026-07-29T01:37:57Z",
+  "updatedAt": "2026-07-29T01:43:47Z",
   "url": "https://github.com/uuuuj/a2z/issues/192"
  },
  {
@@ -971,13 +1025,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 191,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "Osnap 좌표목록 컬럼을 6개로 축소 (No, 축, 부재이름, X, Y, Z만)",
-  "updatedAt": "2026-07-29T01:37:50Z",
+  "updatedAt": "2026-07-29T01:43:49Z",
   "url": "https://github.com/uuuuj/a2z/issues/191"
  },
  {
@@ -1007,13 +1067,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 190,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "Osnap 좌표목록 행 선택 시 부재 3D 강조 + 카메라 fit",
-  "updatedAt": "2026-07-29T01:37:49Z",
+  "updatedAt": "2026-07-29T01:43:51Z",
   "url": "https://github.com/uuuuj/a2z/issues/190"
  },
  {
@@ -1043,13 +1109,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 189,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "체인치수 ListView 행 선택 시 두 부재 3D 강조 + 카메라 fit",
-  "updatedAt": "2026-07-29T01:37:47Z",
+  "updatedAt": "2026-07-29T01:43:53Z",
   "url": "https://github.com/uuuuj/a2z/issues/189"
  },
  {
@@ -1079,13 +1151,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 188,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "Clash Detection 결과 행 선택 시 두 부재 3D 강조 + 카메라 fit",
-  "updatedAt": "2026-07-29T01:37:46Z",
+  "updatedAt": "2026-07-29T01:43:54Z",
   "url": "https://github.com/uuuuj/a2z/issues/188"
  },
  {
@@ -1105,13 +1183,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "BFD4F2",
+    "description": "본인·팀 내부 개선 요청 (구 REQ-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0vvA",
+    "name": "출처: 내부 요청"
    }
   ],
   "number": 187,
   "state": "OPEN",
   "stateReason": "",
   "title": "[분석 필요] 앱 시작 시간 단축 (라이브러리 매번 추출 → 조건부)",
-  "updatedAt": "2026-07-29T01:25:02Z",
+  "updatedAt": "2026-07-29T01:43:56Z",
   "url": "https://github.com/uuuuj/a2z/issues/187"
  },
  {
@@ -1147,13 +1231,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "D876E3",
+    "description": "담당자에게서 들어온 피드백 (구 FB-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0viA",
+    "name": "출처: 담당자 피드백"
    }
   ],
   "number": 186,
   "state": "OPEN",
   "stateReason": "",
   "title": "[분석 필요] 풍선이 겹쳐 보임",
-  "updatedAt": "2026-07-29T01:37:45Z",
+  "updatedAt": "2026-07-29T01:43:58Z",
   "url": "https://github.com/uuuuj/a2z/issues/186"
  },
  {
@@ -1258,13 +1348,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "D876E3",
+    "description": "담당자에게서 들어온 피드백 (구 FB-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0viA",
+    "name": "출처: 담당자 피드백"
    }
   ],
   "number": 185,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "뷰 내부 모델 최대화 + 라벨·풍선 영역 확보",
-  "updatedAt": "2026-07-29T01:37:43Z",
+  "updatedAt": "2026-07-29T01:44:00Z",
   "url": "https://github.com/uuuuj/a2z/issues/185"
  },
  {
@@ -1278,13 +1374,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "D876E3",
+    "description": "담당자에게서 들어온 피드백 (구 FB-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0viA",
+    "name": "출처: 담당자 피드백"
    }
   ],
   "number": 184,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "2D 도면 템플릿 그리드 영역 크기 고정",
-  "updatedAt": "2026-07-29T01:24:56Z",
+  "updatedAt": "2026-07-29T01:44:02Z",
   "url": "https://github.com/uuuuj/a2z/issues/184"
  },
  {
@@ -1329,13 +1431,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "D876E3",
+    "description": "담당자에게서 들어온 피드백 (구 FB-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0viA",
+    "name": "출처: 담당자 피드백"
    }
   ],
   "number": 183,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "치수 배치를 Osnap 외곽 방향으로",
-  "updatedAt": "2026-07-29T01:37:35Z",
+  "updatedAt": "2026-07-29T01:44:04Z",
   "url": "https://github.com/uuuuj/a2z/issues/183"
  },
  {
@@ -1365,13 +1473,19 @@
     "description": "docs/tracking에서 이관된 항목 (2026-07-28)",
     "id": "LA_kwDORMsH0M8AAAACtvttMQ",
     "name": "tracking-migrated"
+   },
+   {
+    "color": "D876E3",
+    "description": "담당자에게서 들어온 피드백 (구 FB-xxx)",
+    "id": "LA_kwDORMsH0M8AAAACtv0viA",
+    "name": "출처: 담당자 피드백"
    }
   ],
   "number": 182,
   "state": "CLOSED",
   "stateReason": "COMPLETED",
   "title": "ALL 출력 후 시트별 도면 즉시 미리보기",
-  "updatedAt": "2026-07-29T01:37:33Z",
+  "updatedAt": "2026-07-29T01:44:05Z",
   "url": "https://github.com/uuuuj/a2z/issues/182"
  },
  {
@@ -5066,13 +5180,19 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6Ong",
     "name": "backfill"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 111,
   "state": "OPEN",
   "stateReason": "",
   "title": "[개발 대기] PNOD / No Paint 표시",
-  "updatedAt": "2026-07-27T07:57:47Z",
+  "updatedAt": "2026-07-29T03:12:06Z",
   "url": "https://github.com/uuuuj/a2z/issues/111"
  },
  {
@@ -8675,13 +8795,19 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
     "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 43,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 라운드(필렛) 형상 검출·표시",
-  "updatedAt": "2026-07-28T14:27:10Z",
+  "updatedAt": "2026-07-29T03:12:04Z",
   "url": "https://github.com/uuuuj/a2z/issues/43"
  },
  {
@@ -8701,13 +8827,19 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
     "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 42,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 모떼기(챔퍼) 형상 검출·표시",
-  "updatedAt": "2026-07-28T14:27:08Z",
+  "updatedAt": "2026-07-29T03:11:56Z",
   "url": "https://github.com/uuuuj/a2z/issues/42"
  },
  {
@@ -8788,13 +8920,19 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
     "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 41,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 부재간 접합 각도 자동 측정·표시 — 자체 구현 시도 병행",
-  "updatedAt": "2026-07-29T01:34:24Z",
+  "updatedAt": "2026-07-29T03:11:58Z",
   "url": "https://github.com/uuuuj/a2z/issues/41"
  },
  {
@@ -9527,13 +9665,19 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
     "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 30,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 2D 출력 실선·은선·모서리·홀 표현 누락 (재발)",
-  "updatedAt": "2026-07-27T08:17:24Z",
+  "updatedAt": "2026-07-29T03:12:00Z",
   "url": "https://github.com/uuuuj/a2z/issues/30"
  },
  {
@@ -12074,13 +12218,19 @@
     "description": "API 추가·수정·배포 또는 회신을 기다리는 상태",
     "id": "LA_kwDORMsH0M8AAAACsyhHZw",
     "name": "상태: API 대기"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
    }
   ],
   "number": 5,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 간섭 결과·치수 텍스트 충돌",
-  "updatedAt": "2026-07-29T01:32:54Z",
+  "updatedAt": "2026-07-29T03:12:02Z",
   "url": "https://github.com/uuuuj/a2z/issues/5"
  },
  {
