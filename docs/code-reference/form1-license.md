@@ -44,5 +44,5 @@
 
 ## 관련 문서
 - 분리 전 위치: [Form1.BOM.cs](./form1-bom.md)
-- 흐름 문서: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D 초기화.md)
+- 흐름 문서: [기능/BOM/VIZCore3D 초기화.md](../기능/BOM/VIZCore3D%20초기화.md)
 - 분리 배경: TASKS T-017 (2026-04-22 완료)

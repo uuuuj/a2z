@@ -56,8 +56,8 @@ code_reference: /docs/code-reference/form1-attribute.md#btnUdaAdd_Click
 | `dgvAttributes` | 이전 | 갱신됨 (UDA 섹션에 새 행) |
 
 ## 8. 후행 기능 (Chained)
-- [UDA 편집](./UDA 편집.md) / [삭제](./UDA 삭제.md)
-- [CSV 내보내기](./CSV 내보내기.md)
+- [UDA 편집](./UDA%20편집.md) / [삭제](./UDA%20삭제.md)
+- [CSV 내보내기](./CSV%20내보내기.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.Attribute.cs:L364](../../code-reference/form1-attribute.md#btnUdaAdd_Click)

@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisX_Click
 # 글로벌 X축 뷰
 
 ## 1. 개요
-공용 함수 `ApplyGlobalView("X")` 호출. 분기 경로는 [ISO 뷰](./글로벌 ISO.md)와 동일하되 치수만 표시되고 풍선은 표시되지 않음.
+공용 함수 `ApplyGlobalView("X")` 호출. 분기 경로는 [ISO 뷰](./글로벌%20ISO.md)와 동일하되 치수만 표시되고 풍선은 표시되지 않음.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -28,10 +28,10 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisX_Click
 |---|---|---|---|
 | 1 | 공용 호출 | Form1 | `ApplyGlobalView("X")` |
 
-내부 분기는 [글로벌 ISO 뷰 §5](./글로벌 ISO.md#5-주요-분기-처리) 참고. X축은 풍선 대신 `ShowAllDimensions("X")` 실행.
+내부 분기는 [글로벌 ISO 뷰 §5](./글로벌%20ISO.md#5-주요-분기-처리) 참고. X축은 풍선 대신 `ShowAllDimensions("X")` 실행.
 
 ## 5. 주요 분기 처리
-[글로벌 ISO 뷰 §5](./글로벌 ISO.md#5-주요-분기-처리)와 동일.
+[글로벌 ISO 뷰 §5](./글로벌%20ISO.md#5-주요-분기-처리)와 동일.
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |

@@ -21,7 +21,7 @@ code_reference: /docs/code-reference/form1-bom.md#btnCollectBOM_Click
 | 위치 | 메인 폼 > BOM 탭 |
 
 ## 3. 사전 조건
-- [ ] 3D 모델 로드됨 ([BOM-002](./모델 열기.md) 완료)
+- [ ] 3D 모델 로드됨 ([BOM-002](./모델%20열기.md) 완료)
 
 ## 4. 전체 동작 흐름 (Happy Path)
 
@@ -38,7 +38,7 @@ code_reference: /docs/code-reference/form1-bom.md#btnCollectBOM_Click
 4. BOMData 인스턴스 생성 및 `bomList`에 추가
 5. `lvBOM` ListView 갱신
 
-> 구현 상세는 [코드 레퍼런스](../../code-reference/form1-bom.md#CollectBOMData) 참고
+> 구현 상세는 [코드 레퍼런스](../../code-reference/form1-bom.md#btnCollectBOM_Click) 참고
 
 ## 5. 주요 분기 처리
 
@@ -67,10 +67,10 @@ code_reference: /docs/code-reference/form1-bom.md#btnCollectBOM_Click
 | `lvBOM` | 이전 또는 빈 항목 | 수집된 BOM 행 표시 |
 
 ## 8. 후행 기능 (Chained)
-- [메인 치수 추출](./메인 치수 추출.md)
-- [전체 2D 생성](../2D도면/2D 생성.md)
-- [선택 부재 가공도](../가공도/가공도 단일.md)
-- [Clash 검사](../간섭검사/간섭검사 실행.md)
+- [메인 치수 추출](./메인%20치수%20추출.md)
+- [전체 2D 생성](../2D도면/2D%20생성.md)
+- [선택 부재 가공도](../가공도/가공도%20단일.md)
+- [Clash 검사](../간섭검사/간섭검사%20실행.md)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.BOM.cs:L1418](../../code-reference/form1-bom.md#btnCollectBOM_Click)

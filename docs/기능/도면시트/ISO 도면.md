@@ -11,7 +11,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 # 시트 ISO 뷰 + 풍선 노트
 
 ## 1. 개요
-선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)만 생성한다. 설치도 3D 미리보기는 선택 STRU와 직접 연결된 외부 Part를 함께 표시한다. 설치 위치 치수 데이터는 X/Y/Z와 2D 도면용으로 유지하지만 ISO 3D 화면에는 그리지 않는다. PDF의 ISO 부재번호 풍선과 연결부재 이름 라벨은 2D 변환 후 실제 표시 객체 외곽에서 도면 기준 10mm 떨어진 영역으로 함께 정렬한다. 설치도 PDF는 선택 STRU를 기준으로 맞추고 연결 Part만 점선으로 남기며, 연결 Part당 `A. Assembly / Part` 이름을 접합측 실제 모서리에 한 번 표시한다.
+선택된 도면 시트를 ISO 방향으로 보여주고 ISO 전용 풍선 노트(`CreateIsoBalloonNotes`)만 생성한다. 설치도 3D 미리보기는 선택 STRU와 직접 연결된 외부 Part를 함께 표시한다. 설치 위치 치수 데이터는 X/Y/Z와 2D 도면용으로 유지하지만 ISO 3D 화면에는 그리지 않는다. PDF의 ISO 부재번호 풍선과 연결부재 이름 라벨은 2D 변환 후 실제 표시 객체 외곽에서 도면 기준 20mm 떨어진 영역으로 함께 자동 정렬한다. 설치도 PDF는 선택 STRU를 기준으로 맞추고 연결 Part만 점선으로 남기며, 연결 Part당 `STRU` 이름(연결부재의 STRU 단위까지만, 접합 기호 `A.`·`/ Part` 미표기)을 접합측 실제 모서리에 한 번 표시한다.
 
 ## 2. 트리거
 | 항목 | 값 |
@@ -45,7 +45,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 |---|---|
 | 일반/제작/조립 시트 | `MemberIndices`만 표시하고 기존 풍선 생성 |
 | 설치도 | 선택 STRU와 직접 연결된 외부 Part를 표시하고 끝단→모서리 위치 치수 데이터만 준비. ISO 3D 화면은 선택 STRU 풍선만, PDF는 연결 Part당 이름 1개 표시 |
-| PDF ISO 리뷰 라벨 | 부재번호 풍선과 연결 이름을 모두 3D 표면 노트에서 2D로 변환한 뒤 `Set2DViewAlignAreaReviewsPositionByOffset`으로 함께 정렬. 실제 2D 객체 AABB를 도면 기준 10mm 확장한 영역을 사용하고 SDK 추가 offset은 0. 지시 대상점은 유지하고 라벨만 모델 밖·View 안쪽에 배치 |
+| PDF ISO 리뷰 라벨 | 부재번호 풍선과 연결 이름을 모두 3D 표면 노트에서 2D로 변환한 뒤 `Set2DViewAlignAreaReviewsPositionByOffset`으로 함께 정렬. 실제 2D 객체 AABB를 도면 기준 20mm 확장한 영역을 사용하고 SDK 추가 offset은 0. 지시 대상점은 유지하고 라벨만 모델 밖으로 이동. 각 라벨이 상하좌우 중 어느 쪽으로 갈지는 SDK 내부 자동 배치이며 공개된 방향 지정 옵션·우선순위 규칙은 없음 |
 
 ## 6. 예외 / 에러 처리
 | ID | 조건 | 동작 | 사용자 피드백 | 결과 상태 |
@@ -74,6 +74,10 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingISO_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-07-23 | 연결부재 이름 라벨 폰트를 7f → 10.5f로 부재번호 풍선(BOM 숫자)과 동일하게 (#44). 연결 노트는 원형 스냅박스 없는 텍스트라 별도 원 크기 변경 없음 | Claude |
+| 2026-07-23 | 설치도 연결 이름에서 접합 기호 `A.` 접두사 제거 — STRU 이름만 표시 (#45) | Claude |
+| 2026-07-23 | 연결부재 이름을 가장 가까운 상위 어셈블리 → **STRU 단위**로 변경(`FindParentStru`)하고 설치도 라벨의 `/ Part` 제거 (#45). STRU 조상 없으면 기존 어셈블리 폴백 | Claude |
+| 2026-07-23 | 부재번호 풍선·연결 이름의 실제 2D 객체 외곽 간격을 20mm로 확대. 개별 연결 이름의 상/하 방향 강제는 SDK 직접 지원이 없어 별도 향후 요청으로 분리하고 현재 자동 정렬 유지 | Codex |
 | 2026-07-23 | 사용자 조정에 따라 실제 2D 객체 외곽과 풍선·연결 이름 사이의 도면 고정 간격을 5mm에서 10mm로 확대. SDK 영역 정렬 offset은 0 유지 | Codex |
 | 2026-07-23 | 실기 이미지에서 fit 70% 사각형 때문에 풍선이 멀어지고 월드 좌표 직접 생성 연결 이름이 이동하지 않는 현상 확인. 실제 2D 객체 외곽 + 도면 고정 5mm로 변경하고 연결 이름도 3D 표면 노트 변환 경로로 통일 | Codex |
 | 2026-07-23 | 연결부재 이름 노트를 풍선과 동일한 모델 fit 70% 영역 정렬에 포함. 실제 접합점 Target은 유지하고 이름 라벨만 모델 외곽으로 이동 | Codex |

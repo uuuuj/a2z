@@ -16,6 +16,14 @@ VIZCore3D*.dll
 *.vizx
 *.viz
 
+## 벤더 전달 메일 (SDK 배포 안내 등 — 로컬 참고용, 내용은 관련 issue에 요약)
+*.eml
+*.msg
+
+## Python 캐시 (scripts/ 실행 부산물)
+__pycache__/
+*.pyc
+
 ## Build results
 [Dd]ebug/
 [Dd]ebugPublic/

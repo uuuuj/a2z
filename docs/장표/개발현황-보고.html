@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D 자동 도면 개발 현황 보고 · 2026-07-28</title>
+<style>
+*{ margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --ink:#17233a; --muted:#5c6a82; --faint:#8a97ac;
+  --line:#dce3ee; --line2:#eef2f8;
+  --bg:#eef1f6; --panel:#f6f9fd; --panel2:#eef4fb;
+  --accent:#2563eb; --accent-ink:#1d4ed8;
+  --fab:#64748b; --asm:#0d9488; --mfg:#2563eb; --ins:#9333ea;
+  --done:#0f766e;  --done-bg:#eafaf4; --done-line:#bfe3d8;
+  --urg:#dc2626;   --urg-bg:#fdecec;  --urg-line:#f3c9c9;
+  --warn:#b45309;  --warn-bg:#fdf4e3; --warn-line:#f0d9a8;
+  --wait:#7c3aed;  --wait-bg:#f4efff; --wait-line:#ddd0f7;
+  --ext:#0369a1;   --ext-bg:#e8f4fb;  --ext-line:#bcdcef;
+}
+html{ scroll-behavior:smooth; }
+body{ font-family:"Malgun Gothic","맑은 고딕","Segoe UI",system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
+.deck{ height:100vh; overflow-y:auto; scroll-snap-type:y mandatory; }
+.page{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; scroll-snap-align:start; }
+.slide{ position:relative; width:min(97vw, calc((100vh - 32px) * 16 / 9)); aspect-ratio:16/9;
+  background:#fff; border-radius:14px; box-shadow:0 18px 50px rgba(20,35,60,.18), 0 2px 6px rgba(20,35,60,.08);
+  overflow:hidden; container-type:size; display:grid; grid-template-rows:auto 1fr auto; }
+header{ display:flex; align-items:flex-start; justify-content:space-between; padding:3.1cqh 4cqw 2cqh; border-bottom:1px solid var(--line); }
+.kicker{ font-size:1.85cqh; letter-spacing:.14em; font-weight:700; color:var(--accent-ink); text-transform:uppercase; margin-bottom:.65cqh; }
+h1{ font-size:4.1cqh; font-weight:800; letter-spacing:-.01em; line-height:1.05; }
+.sub{ font-size:2cqh; color:var(--muted); margin-top:.85cqh; font-weight:500; }
+.hr{ text-align:right; font-size:1.78cqh; color:var(--faint); font-weight:600; line-height:1.5; }
+main{ padding:2.4cqh 4cqw; overflow:hidden; }
+footer{ padding:1.4cqh 4cqw; border-top:1px solid var(--line2); display:flex; justify-content:space-between; font-size:1.55cqh; color:var(--faint); }
+
+.cover-slide{ display:flex; align-items:center; justify-content:center; grid-template-rows:none; background:linear-gradient(150deg,#fff 0%,#f4f8ff 100%); }
+.cover{ text-align:center; padding:0 6cqw; }
+.cov-tag{ font-size:2.1cqh; letter-spacing:.2em; font-weight:700; color:var(--accent-ink); margin-bottom:2.4cqh; }
+.cov-title{ font-size:7.2cqh; font-weight:800; letter-spacing:-.02em; line-height:1.1; }
+.cov-rule{ width:12cqw; height:.55cqh; background:var(--accent); margin:3.3cqh auto; border-radius:2px; }
+.cov-meta{ font-size:2.25cqh; color:var(--muted); font-weight:500; line-height:1.8; }
+
+.kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:1.6cqw; margin-bottom:2.4cqh; }
+.kpi{ border:1px solid var(--line); border-radius:10px; padding:2cqh 1.5cqw; background:var(--panel); text-align:center; }
+.kpi .lab{ font-size:1.72cqh; color:var(--muted); font-weight:600; margin-bottom:.95cqh; }
+.kpi .val{ font-size:5.8cqh; font-weight:800; line-height:1; letter-spacing:-.02em; }
+.kpi .unit{ font-size:2.4cqh; font-weight:700; }
+.kpi .note{ font-size:1.55cqh; color:var(--faint); margin-top:.9cqh; font-weight:500; }
+.kpi.k-done{ background:var(--done-bg); border-color:var(--done-line); } .kpi.k-done .val{ color:var(--done); }
+.kpi.k-urg{ background:var(--urg-bg);  border-color:var(--urg-line);  } .kpi.k-urg .val{ color:var(--urg); }
+.kpi.k-warn{ background:var(--warn-bg); border-color:var(--warn-line);} .kpi.k-warn .val{ color:var(--warn); }
+.kpi.k-ext{ background:var(--ext-bg);  border-color:var(--ext-line);  } .kpi.k-ext .val{ color:var(--ext); }
+
+.bar-wrap{ margin-bottom:1.9cqh; }
+.bar-head{ display:flex; justify-content:space-between; font-size:1.82cqh; font-weight:600; margin-bottom:.85cqh; }
+.bar{ height:3.1cqh; border-radius:6px; overflow:hidden; display:flex; border:1px solid var(--line); background:#fff; }
+.bar span{ display:flex; align-items:center; justify-content:center; font-size:1.42cqh; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; }
+.legend{ display:flex; gap:1.4cqw; flex-wrap:wrap; margin-top:1cqh; font-size:1.58cqh; color:var(--muted); }
+.legend i{ display:inline-block; width:1.05cqh; height:1.05cqh; border-radius:2px; margin-right:.42cqw; vertical-align:middle; }
+
+table{ width:100%; border-collapse:collapse; font-size:1.72cqh; }
+th{ text-align:left; font-weight:700; color:var(--muted); font-size:1.58cqh; padding:.8cqh .75cqw; border-bottom:2px solid var(--line); white-space:nowrap; }
+td{ padding:.85cqh .75cqw; border-bottom:1px solid var(--line2); vertical-align:top; line-height:1.4; }
+tr:last-child td{ border-bottom:none; }
+.tag{ display:inline-block; padding:.22cqh .55cqw; border-radius:4px; font-size:1.42cqh; font-weight:700; white-space:nowrap; }
+.t-urg{ background:var(--urg-bg); color:var(--urg); border:1px solid var(--urg-line); }
+.t-warn{ background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn-line); }
+.t-done{ background:var(--done-bg); color:var(--done); border:1px solid var(--done-line); }
+.t-ext{ background:var(--ext-bg); color:var(--ext); border:1px solid var(--ext-line); }
+.t-wait{ background:var(--wait-bg); color:var(--wait); border:1px solid var(--wait-line); }
+.must{ color:var(--urg); font-weight:800; }
+
+.cards{ display:grid; gap:1.35cqw; }
+.c4{ grid-template-columns:repeat(4,1fr); }
+.c3{ grid-template-columns:repeat(3,1fr); }
+.c2{ grid-template-columns:repeat(2,1fr); }
+.card{ border:1px solid var(--line); border-radius:10px; padding:1.8cqh 1.3cqw; background:var(--panel); }
+.card h3{ font-size:2cqh; font-weight:800; margin-bottom:1cqh; display:flex; align-items:center; justify-content:space-between; gap:.5cqw; }
+.card .cnt{ font-size:1.58cqh; font-weight:700; color:#fff; background:var(--faint); border-radius:20px; padding:.15cqh .7cqw; }
+.card ul{ list-style:none; }
+.card li{ font-size:1.58cqh; line-height:1.48; padding:.45cqh 0; border-bottom:1px dashed var(--line2); }
+.card li:last-child{ border-bottom:none; }
+.card .why{ font-size:1.5cqh; color:var(--muted); margin-top:1cqh; padding-top:.95cqh; border-top:1px solid var(--line); line-height:1.5; }
+.card.urg{ background:var(--urg-bg); border-color:var(--urg-line); } .card.urg h3{ color:var(--urg); } .card.urg .cnt{ background:var(--urg); }
+.card.warn{ background:var(--warn-bg); border-color:var(--warn-line); } .card.warn h3{ color:var(--warn); } .card.warn .cnt{ background:var(--warn); }
+.card.ext{ background:var(--ext-bg); border-color:var(--ext-line); } .card.ext h3{ color:var(--ext); } .card.ext .cnt{ background:var(--ext); }
+.card.done{ background:var(--done-bg); border-color:var(--done-line); } .card.done h3{ color:var(--done); } .card.done .cnt{ background:var(--done); }
+
+.callout{ border-left:.5cqw solid var(--accent); background:var(--panel2); padding:1.4cqh 1.5cqw; border-radius:0 8px 8px 0; font-size:1.8cqh; line-height:1.55; margin-top:1.7cqh; }
+.callout b{ color:var(--accent-ink); }
+.callout.risk{ border-left-color:var(--urg); background:var(--urg-bg); } .callout.risk b{ color:var(--urg); }
+.callout.good{ border-left-color:var(--done); background:var(--done-bg); } .callout.good b{ color:var(--done); }
+.note-s{ font-size:1.48cqh; color:var(--faint); margin-top:1.1cqh; line-height:1.5; }
+.two{ display:grid; grid-template-columns:1fr 1fr; gap:1.9cqw; }
+.mini-h{ font-size:1.95cqh; font-weight:800; margin-bottom:1cqh; padding-bottom:.6cqh; border-bottom:2px solid var(--line); }
+
+/* 흐름 도식 */
+.flow{ display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:center; gap:1cqw; margin-bottom:2.2cqh; }
+.fbox{ border:1px solid var(--line); border-radius:10px; padding:1.7cqh 1cqw; text-align:center; background:var(--panel); }
+.fbox .fn{ font-size:4.6cqh; font-weight:800; line-height:1; }
+.fbox .fl{ font-size:1.62cqh; color:var(--muted); font-weight:600; margin-top:.8cqh; }
+.farrow{ font-size:3cqh; color:var(--faint); font-weight:700; }
+.fbox.b-old{ background:#f1f5f9; border-color:#d9e1ea; } .fbox.b-old .fn{ color:var(--fab); }
+.fbox.b-new{ background:var(--wait-bg); border-color:var(--wait-line); } .fbox.b-new .fn{ color:var(--wait); }
+.fbox.b-ok{ background:var(--done-bg); border-color:var(--done-line); } .fbox.b-ok .fn{ color:var(--done); }
+.fbox.b-left{ background:var(--urg-bg); border-color:var(--urg-line); } .fbox.b-left .fn{ color:var(--urg); }
+
+/* 매트릭스 */
+.mtx{ display:grid; grid-template-columns:auto 1fr 1fr; grid-template-rows:auto 1fr 1fr; gap:.9cqw; height:100%; }
+.mtx .axis{ display:flex; align-items:center; justify-content:center; font-size:1.6cqh; font-weight:800; color:var(--muted); }
+.mtx .axis.v{ writing-mode:vertical-rl; transform:rotate(180deg); }
+.q{ border:1px solid var(--line); border-radius:10px; padding:1.4cqh 1.1cqw; }
+.q h4{ font-size:1.85cqh; font-weight:800; margin-bottom:.85cqh; }
+.q ul{ list-style:none; }
+.q li{ font-size:1.55cqh; line-height:1.45; padding:.35cqh 0; }
+.q1{ background:var(--urg-bg); border-color:var(--urg-line); } .q1 h4{ color:var(--urg); }
+.q2{ background:var(--warn-bg); border-color:var(--warn-line); } .q2 h4{ color:var(--warn); }
+.q3{ background:var(--ext-bg); border-color:var(--ext-line); } .q3 h4{ color:var(--ext); }
+.q4{ background:var(--panel); } .q4 h4{ color:var(--muted); }
+
+@media print{
+  body{ background:#fff; }
+  .deck{ height:auto; overflow:visible; }
+  .page{ min-height:auto; page-break-after:always; padding:0; }
+  .slide{ box-shadow:none; border:1px solid var(--line); width:100%; }
+}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 표지 -->
+<section class="page">
+<div class="slide cover-slide">
+  <main class="cover">
+    <div class="cov-tag">개발 현황 보고</div>
+    <div class="cov-title">2D 자동 도면 생성<br>개발 현황</div>
+    <div class="cov-rule"></div>
+    <div class="cov-meta">
+      제작도 · 조립도 · 설치도 · 가공도<br>
+      2026-07-28 기준 · 소프트힐스 출장(7/20~) 성과 포함
+    </div>
+  </main>
+</div>
+</section>
+
+<!-- 1. 한눈에 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Executive Summary</div>
+      <h1>한눈에</h1>
+      <div class="sub">관리 항목 <b>85건</b> 전수 · 코드 구현과 생산 출력 확인을 분리해 판정</div>
+    </div>
+    <div class="hr">2026-07-28</div>
+  </header>
+  <main>
+    <div class="kpis">
+      <div class="kpi k-done">
+        <div class="lab">완료</div>
+        <div class="val">53<span class="unit">/85</span></div>
+        <div class="note">진행률 62%</div>
+      </div>
+      <div class="kpi k-done" style="background:#e6f6f1">
+        <div class="lab">출장 중 해결</div>
+        <div class="val">41</div>
+        <div class="note">전체 완료의 77%</div>
+      </div>
+      <div class="kpi k-urg">
+        <div class="lab">생산 필수 잔여</div>
+        <div class="val">22<span class="unit">/56</span></div>
+        <div class="note">생산 투입 차단 요소</div>
+      </div>
+      <div class="kpi k-ext">
+        <div class="lab">외부 의존</div>
+        <div class="val">25<span class="unit">/32</span></div>
+        <div class="note">잔여의 78%가 손 밖</div>
+      </div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-head"><span>관리 항목 85건 상태 분포</span><span style="color:var(--muted)">완료 53 · 미완 32</span></div>
+      <div class="bar">
+        <span style="width:62.4%;background:#0f766e">완료 53</span>
+        <span style="width:10.6%;background:#0369a1">API 대기 9</span>
+        <span style="width:8.2%;background:#b45309">개발 필요 7</span>
+        <span style="width:7.1%;background:#d97706">분석 6</span>
+        <span style="width:5.9%;background:#eab308;color:#3b2f00">부분 5</span>
+        <span style="width:5.8%;background:#94a3b8"></span>
+      </div>
+      <div class="legend">
+        <span><i style="background:#0f766e"></i>완료 53</span>
+        <span><i style="background:#0369a1"></i>API 대기 9</span>
+        <span><i style="background:#b45309"></i>개발 필요 7</span>
+        <span><i style="background:#d97706"></i>분석 필요 6</span>
+        <span><i style="background:#eab308"></i>부분 구현 5</span>
+        <span><i style="background:#94a3b8"></i>API 요청 2 · 개발 대기 1 · 개발 중 1 · 적용 제외 1</span>
+      </div>
+    </div>
+
+    <div class="callout risk">
+      <b>핵심 메시지</b> — 도면 4종의 <b>형상·치수·레이아웃 자동 생성 본체는 완성</b>됐고,
+      그 대부분이 <b>이번 출장에서 풀렸습니다</b>. 다만 남은 32건 중 25건은
+      <b>벤더 API 수정과 현업 규칙 확정</b>에 걸려 있어 개발팀 단독으로는 진행률을 더 올리기 어렵습니다.
+    </div>
+  </main>
+  <footer><span>2D 자동 도면 개발 현황</span><span>1 / 8</span></footer>
+</div>
+</section>
+
+<!-- 2. 출장 성과 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Trip Impact · 7/20 ~</div>
+      <h1>소프트힐스 출장 전후</h1>
+      <div class="sub">SDK 신버전 배포와 현장 협업으로 <b>정체돼 있던 항목이 대거 해소</b>됐습니다</div>
+    </div>
+    <div class="hr">출장 전 완료 12건<br>→ 현재 53건</div>
+  </header>
+  <main>
+    <div class="flow">
+      <div class="fbox b-old"><div class="fn">54</div><div class="fl">출장 전부터 있던 항목</div></div>
+      <div class="farrow">+</div>
+      <div class="fbox b-new"><div class="fn">31</div><div class="fl">출장 중 새로 생긴 항목</div></div>
+      <div class="farrow">=</div>
+      <div class="fbox"><div class="fn">85</div><div class="fl">전체 관리 항목</div></div>
+    </div>
+
+    <div class="two">
+      <div>
+        <div class="mini-h">해결 — 출장 중 41건</div>
+        <table>
+          <tbody>
+            <tr><td style="width:24%"><span class="tag t-done">기존 병목 해소</span></td>
+                <td><b>18건</b> — 출장 전부터 막혀 있던 항목이 풀림<br>
+                <span style="color:var(--muted);font-size:1.5cqh">4종 도면 PDF 자동 출력, 가공도 일괄 출력, 형상 풍선 3종, PAINT CODE 등</span></td></tr>
+            <tr><td><span class="tag t-done">신규 발견·해결</span></td>
+                <td><b>23건</b> — 출장 중 발견해 그 자리에서 처리<br>
+                <span style="color:var(--muted);font-size:1.5cqh">연결부재 점선 CropFit, BOM 25행 확장, 출력 깜빡임 제거, EA 두 뷰 일관성 등</span></td></tr>
+            <tr><td><span class="tag t-wait">출장 전 완료</span></td>
+                <td><b>12건</b> — 그 이전에 이미 완료돼 있던 항목</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="mini-h">미해결 — 32건</div>
+        <table>
+          <tbody>
+            <tr><td style="width:24%"><span class="tag t-urg">기존 잔존</span></td>
+                <td><b>24건</b> — 출장 갔는데도 못 푼 것<br>
+                <span style="color:var(--muted);font-size:1.5cqh">대부분 벤더 API 대기이거나, 현업 규칙이 정해지지 않아 착수 자체가 불가</span></td></tr>
+            <tr><td><span class="tag t-warn">신규 잔존</span></td>
+                <td><b>8건</b> — 출장 중 새로 드러났으나 미해결<br>
+                <span style="color:var(--muted);font-size:1.5cqh">앵글 형강 촬영 방향, DP No, Tag No, UserAxis 문자 각도, REV 괘선 등</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout good" style="margin-top:1.5cqh;font-size:1.7cqh">
+          출장 성과 — 전체 완료 53건 중 <b>41건(77%)이 출장 기간에 처리</b>됐습니다.
+          출장 전 완료는 12건이었습니다.
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer><span>출장 성과</span><span>2 / 8</span></footer>
+</div>
+</section>
+
+<!-- 3. 기존 병목 → 해결 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Resolved Bottlenecks</div>
+      <h1>7/20 이전 병목 → 출장 중 해결</h1>
+      <div class="sub">막혀 있던 <b>18건</b> · ★ = 생산 필수</div>
+    </div>
+    <div class="hr">SDK 신버전 배포<br>+ 현장 협업 효과</div>
+  </header>
+  <main>
+    <div class="cards c3">
+      <div class="card done">
+        <h3>출력 흐름 <span class="cnt">5</span></h3>
+        <ul>
+          <li>제작도 PDF 자동 출력 <span class="must">★</span></li>
+          <li>조립도 PDF 자동 출력 <span class="must">★</span></li>
+          <li>설치도 PDF 자동 출력 <span class="must">★</span></li>
+          <li>가공도 수동 PDF 출력 <span class="must">★</span></li>
+          <li>가공도 자동 일괄 출력 <span class="must">★</span></li>
+        </ul>
+        <div class="why">4종 도면 <b>자동 출력 파이프라인이 이번에 완성</b>됐습니다.
+          과제의 핵심 산출 경로</div>
+      </div>
+
+      <div class="card done">
+        <h3>형상·치수 <span class="cnt">7</span></h3>
+        <ul>
+          <li>Hole 정보·풍선 <span class="must">★</span></li>
+          <li>SlotHole 정보·풍선 <span class="must">★</span></li>
+          <li>EarthBoss 정보·풍선 <span class="must">★</span></li>
+          <li>평면·정면·측면 기본/체인 치수 <span class="must">★</span></li>
+          <li>보조선 종이 절대 길이·간격 <span class="must">★</span></li>
+          <li>가공도 모델 축 틀어짐 현상 <span class="must">★</span></li>
+          <li>ISO3 뷰 사양 일치 <span class="must">★</span></li>
+        </ul>
+        <div class="why">가공도 형상 정보 3종이 API 전환으로 정리되고,
+          치수 기준이 <b>종이 절대 단위로 통일</b>됨</div>
+      </div>
+
+      <div class="card done">
+        <h3>템플릿·표제부·기타 <span class="cnt">6</span></h3>
+        <ul>
+          <li>템플릿 Input 다량 적용 시 메모리 충돌 <span class="must">★</span></li>
+          <li>PAINT CODE (STRU UDA PNT) <span class="must">★</span></li>
+          <li>BOM ITEM <span class="must">★</span></li>
+          <li>STRU 단위 4종 도면 일괄 출력 <span class="must">★</span></li>
+          <li>ISO 풍선 배치 영역 고정 API</li>
+          <li>BOM 텍스트 줄바꿈·열 너비</li>
+        </ul>
+        <div class="why"><b>메모리 충돌</b>은 슬롯 확장을 막던 최대 걸림돌 —
+          해소로 BOM 25행 확장이 가능해짐</div>
+      </div>
+    </div>
+
+    <div class="callout good">
+      <b>무엇이 풀리게 만들었나</b> — 출장 중 <b>SDK 신버전이 연속 배포</b>되면서
+      다중 이미지 태그, 두 겹 객체 정합, 노드 기준 자르기, 빈 셀 테두리 제거 같은
+      <b>그동안 우회할 수 없던 기능이 제공</b>됐습니다. 벤더와 같은 자리에서 즉시 확인·수정한 것이 결정적이었습니다.
+    </div>
+  </main>
+  <footer><span>해결된 병목</span><span>3 / 8</span></footer>
+</div>
+</section>
+
+<!-- 4. 긴급도 · 중요도 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Priority Matrix</div>
+      <h1>긴급도 · 중요도</h1>
+      <div class="sub">가로축 = 긴급도 · 세로축 = 중요도(생산 영향)</div>
+    </div>
+    <div class="hr">좌상단부터<br>처리</div>
+  </header>
+  <main>
+    <div class="mtx">
+      <div></div>
+      <div class="axis">긴급 ▲</div>
+      <div class="axis">덜 긴급</div>
+
+      <div class="axis v">중요 ▲</div>
+      <div class="q q1">
+        <h4>① 지금 즉시 — 막고 있음</h4>
+        <ul>
+          <li><b>배포 블로커</b> — 개발 PC 밖에서 출력 불가 <span class="tag t-warn">실기 확인</span></li>
+          <li><b>출력 후 로딩 무한 대기</b> — 모델 교체 후 재출력 시 앱 정지</li>
+          <li><b>2D 선·홀·모서리 미표시</b> — 형상 누락, 우회 불가 <span class="tag t-ext">API</span></li>
+          <li><b>최종 생산 PDF 3종 + 설명 자료</b> — 과제 완료 기준</li>
+        </ul>
+      </div>
+      <div class="q q2">
+        <h4>② 계획 착수 — 생산 성립 조건</h4>
+        <ul>
+          <li><b>BOM Q'TY · MA · FA</b> — 현재 임시값 <span class="tag t-warn">규칙</span></li>
+          <li><b>표제부 DP No · Note · Rev · PNOD</b> <span class="tag t-warn">규칙</span></li>
+          <li><b>프로젝트명 · 선박번호</b> — 하드코딩</li>
+          <li><b>가공도 단면·은선 정책</b> <span class="tag t-ext">API</span></li>
+          <li><b>가공도 앵글 촬영 방향 기준</b></li>
+        </ul>
+      </div>
+
+      <div class="axis v">덜 중요</div>
+      <div class="q q3">
+        <h4>③ 빠르게 마감 — 확인만 남음</h4>
+        <ul>
+          <li><b>조립도 실선/점선 정정</b> — 수정 완료, 실기 대기</li>
+          <li><b>BOM 요약행 값 확정</b> — 실기 대기</li>
+          <li><b>라이선스 서버 폴백</b> — 실기 대기</li>
+          <li><b>제작도 풍선 근본 원인</b> — 증상은 해소, 원인 추적 중</li>
+        </ul>
+      </div>
+      <div class="q q4">
+        <h4>④ 여유 있게</h4>
+        <ul>
+          <li>왼쪽 패널 UI 재설계 <span style="color:var(--muted)">(사양 확정, 승인 대기)</span></li>
+          <li>모떼기 · 라운드 표시 <span style="color:var(--muted)">(8월 API 배포 예정)</span></li>
+          <li>PDF 파일명 정규화 · docs 구조 정리</li>
+          <li>치수 텍스트 겹침 회피 · 템플릿 Bold</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+  <footer><span>긴급도 · 중요도</span><span>4 / 8</span></footer>
+</div>
+</section>
+
+<!-- 5. 병목 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Bottleneck</div>
+      <h1>🟠 병목 — 왜 62%에서 멈춰 있나</h1>
+      <div class="sub">잔여 32건을 <b>누가 움직여야 풀리는지</b>로 나눴습니다</div>
+    </div>
+    <div class="hr">외부·선행 의존 25건<br>자체 진행 7건</div>
+  </header>
+  <main>
+    <div class="cards c4">
+      <div class="card ext">
+        <h3>① 벤더 API <span class="cnt">11</span></h3>
+        <ul>
+          <li>2D 선·홀·모서리 미표시 <span class="must">★</span></li>
+          <li>가공도 단면·은선 정책 <span class="must">★</span></li>
+          <li>모떼기 · 라운드 표시 <span class="must">★</span></li>
+          <li>부재 접합 각도 표시 <span class="must">★</span></li>
+          <li>UserAxis 치수 문자 각도 <span class="must">★</span></li>
+          <li>REV 표 첫 기재행 괘선 <span class="must">★</span></li>
+          <li>치수 텍스트 겹침 · 템플릿 Bold</li>
+          <li style="color:var(--urg)">요청 <b>미전달 2건</b> — 치수선 길이 제어, 풍선 방향 지정</li>
+        </ul>
+        <div class="why">SDK 수정 없이는 우회 불가.<br><b>조치</b> = 일정 확답 + 미전달 2건 발송</div>
+      </div>
+
+      <div class="card warn">
+        <h3>② 규칙 확정 <span class="cnt">7</span></h3>
+        <ul>
+          <li>BOM Q'TY <span class="must">★</span></li>
+          <li>BOM MA <span class="must">★</span></li>
+          <li>BOM FA <span class="must">★</span></li>
+          <li>PNOD / No Paint 표시 <span class="must">★</span></li>
+          <li>Note 입력·저장·출력 <span class="must">★</span></li>
+          <li>Rev 입력·이력·출력 <span class="must">★</span></li>
+          <li>DP No <span class="must">★</span></li>
+        </ul>
+        <div class="why"><b>7건 전부 생산 필수.</b> 기술 난이도 아님 — 데이터 출처만 정하면 됨.<br><b>조치</b> = 확정 회의 1회</div>
+      </div>
+
+      <div class="card">
+        <h3>③ 분석·정책 <span class="cnt">6</span></h3>
+        <ul>
+          <li>가공도 앵글 촬영 방향 기준 <span class="must">★</span></li>
+          <li>가공도 EA 상하 2뷰 배치 <span class="must">★</span></li>
+          <li>긴 Note 처리 정책 <span class="must">★</span></li>
+          <li>Grinding / Welding 공법 표시</li>
+          <li>가공도 텍스트-모델 충돌</li>
+          <li>자동 저장 PDF 파일명 정규화</li>
+        </ul>
+        <div class="why">재현·기준 정의가 선행돼야 착수.<br><b>★ 3건 생산 필수</b></div>
+      </div>
+
+      <div class="card done">
+        <h3>④ 자체 진행 <span class="cnt">8</span></h3>
+        <ul>
+          <li>최종 생산 PDF 3종 <span style="color:var(--done);font-weight:700">과제 완료 기준</span></li>
+          <li>BOM SIZE <span class="must">★</span></li>
+          <li>Tag No <span class="must">★</span></li>
+          <li>프로젝트명 <span class="must">★</span></li>
+          <li>선박번호 / Project No <span class="must">★</span></li>
+          <li>고객·프로젝트 이미지</li>
+          <li>왼쪽 탭·테이블 디자인 개선</li>
+          <li style="color:var(--muted)">치수 대각선 표시 (적용 제외)</li>
+        </ul>
+        <div class="why">외부 입력 없이 착수 가능.<br>부분 구현 4건은 <b>출력 확인만 남음</b></div>
+      </div>
+    </div>
+
+    <div class="callout risk">
+      <b>가장 큰 리스크</b> — 벤더 API 11건은 <b>일정을 우리가 통제할 수 없고 6건이 생산 필수</b>입니다.
+      특히 2D 형상 누락과 가공도 은선 정책은 <b>우회로가 없는 생산 도면 성립 조건</b>입니다.
+      더구나 API 요청 2건은 <b>아직 전달조차 하지 않았습니다</b> — 이건 우리 쪽 액션입니다.
+    </div>
+  </main>
+  <footer><span>병목</span><span>5 / 8</span></footer>
+</div>
+</section>
+
+<!-- 6. 생산 필수 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Production Critical</div>
+      <h1>생산 필수 — 무엇이 남았나</h1>
+      <div class="sub">생산 필수 56건 중 <b>34건 확인 완료 · 22건 잔여</b></div>
+    </div>
+    <div class="hr">진행률 61%</div>
+  </header>
+  <main>
+    <div class="bar-wrap">
+      <div class="bar">
+        <span style="width:60.7%;background:#0f766e">확인 완료 34</span>
+        <span style="width:12.5%;background:#b45309">규칙 7</span>
+        <span style="width:12.5%;background:#0369a1">API 7</span>
+        <span style="width:7.2%;background:#eab308;color:#3b2f00">부분 4</span>
+        <span style="width:5.3%;background:#d97706">분석 3</span>
+        <span style="width:1.8%;background:#2563eb"></span>
+      </div>
+    </div>
+    <div class="two">
+      <div>
+        <div class="mini-h">잔여 22건 — 무엇에 걸려 있나</div>
+        <table>
+          <tbody>
+            <tr><td style="width:22%"><span class="tag t-warn">규칙</span></td><td><b>7건</b> — BOM Q'TY·MA·FA, PNOD, Note, Rev, DP No<br><span style="color:var(--muted);font-size:1.5cqh">데이터 출처만 정해지면 즉시 착수</span></td></tr>
+            <tr><td><span class="tag t-ext">API</span></td><td><b>7건</b> — 2D 형상 누락, 가공도 은선, 모떼기·라운드, 접합 각도, 문자 각도, REV 괘선 <span class="must">우회 불가</span></td></tr>
+            <tr><td><span class="tag t-wait">부분 구현</span></td><td><b>4건</b> — BOM SIZE, 프로젝트명, 선박번호, Tag No<br><span style="color:var(--muted);font-size:1.5cqh">코드는 있고 출력 확인만 남음</span></td></tr>
+            <tr><td><span class="tag t-urg">분석</span></td><td><b>3건</b> — 가공도 앵글 촬영 방향, EA 2뷰 배치, 긴 Note 정책</td></tr>
+            <tr><td><span class="tag t-done">개발 중</span></td><td><b>1건</b> — 최종 생산 PDF 3종</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="mini-h">지금 쓰이는 임시값 — 생산 투입 불가 사유</div>
+        <table>
+          <thead><tr><th>항목</th><th>현재 값</th><th>필요</th></tr></thead>
+          <tbody>
+            <tr><td>BOM Q'TY</td><td class="must">항상 1</td><td>집계 규칙</td></tr>
+            <tr><td>BOM MA</td><td class="must">데이터행 L / 요약행 F</td><td>UDA 출처</td></tr>
+            <tr><td>BOM FA</td><td class="must">항상 F</td><td>UDA 출처</td></tr>
+            <tr><td>DP No</td><td class="must">"Test" 고정</td><td>UDA 키</td></tr>
+            <tr><td>프로젝트명</td><td class="must">CEDAR FLNG 고정</td><td>데이터 소스</td></tr>
+            <tr><td>선박번호</td><td class="must">SN2688 고정</td><td>데이터 소스</td></tr>
+          </tbody>
+        </table>
+        <div class="callout" style="margin-top:1.3cqh;font-size:1.66cqh">
+          이 6개는 <b>코드가 이미 자리를 잡아뒀고</b> 값의 출처만 정해지면 바로 연결됩니다.
+          도면은 지금도 나오지만 <b>이 값들 때문에 현장에 그대로 쓸 수 없습니다</b>.
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer><span>생산 필수</span><span>6 / 8</span></footer>
+</div>
+</section>
+
+<!-- 7. 다음 액션 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Next Actions</div>
+      <h1>다음에 할 것 — 주체별</h1>
+      <div class="sub">누가 움직여야 풀리는지로 나눴습니다</div>
+    </div>
+    <div class="hr">개발팀 · 현업 · 벤더</div>
+  </header>
+  <main>
+    <div class="cards c3">
+      <div class="card done">
+        <h3>개발팀 <span class="cnt">즉시</span></h3>
+        <ul>
+          <li><b>1.</b> 출력 후 무한 대기 — 재현 로그로 지점 확정 <span class="must">최우선</span></li>
+          <li><b>2.</b> 배포 블로커 실기 확인 — 개발 PC 밖 출력 검증</li>
+          <li><b>3.</b> 실기 확인 3건 마감 — 조립도 실선, BOM 요약행, 라이선스 폴백</li>
+          <li><b>4.</b> <b>최종 생산 PDF 3종</b> 생성·점검</li>
+          <li><b>5.</b> 제작도 풍선 근본 원인 — 사내 환경 렌더링 차이 추적</li>
+          <li><b>6.</b> 벤더 API 요청 2건 정리·발송</li>
+        </ul>
+        <div class="why">최종 산출물은 <b>과제 완료 기준</b>이며 외부 입력 없이 진행 가능한 유일한 최우선 항목</div>
+      </div>
+
+      <div class="card warn">
+        <h3>현업 결정 <span class="cnt">회의 1회</span></h3>
+        <ul>
+          <li><b>BOM</b> Q'TY 집계 규칙 / MA · FA 데이터 출처</li>
+          <li><b>표제부</b> Note 입력 방식 / Rev 이력 범위 / PNOD 표기</li>
+          <li><b>DP No</b> UDA 키 확정</li>
+          <li><b>프로젝트명 · 선박번호</b> 데이터 소스</li>
+          <li><b>TAG No</b> 생산설계 모델 이름 기준</li>
+          <li><b>가공도 앵글</b> 기준면 · 열린 방향 · 미러 규칙</li>
+        </ul>
+        <div class="why">규칙만 정해지면 <b>코드는 이미 자리를 잡아둔 상태</b>라 연결은 짧습니다.
+          확정 회의 <b>1회로 생산 필수 7건</b>이 풀리고, 부분 구현 4건도 함께 마감</div>
+      </div>
+
+      <div class="card ext">
+        <h3>벤더(소프트힐스) <span class="cnt">일정 확답</span></h3>
+        <ul>
+          <li><b>2D 선·홀·모서리 미표시</b> <span class="must">★ 우회 불가</span></li>
+          <li><b>가공도 단면·은선 정책</b> <span class="must">★ 우회 불가</span></li>
+          <li>모떼기 · 라운드 — 8월 배포 확인</li>
+          <li>부재 접합 각도 표시</li>
+          <li>UserAxis 치수 문자 각도</li>
+          <li>REV 표 첫 기재행 괘선 보존</li>
+          <li>치수 텍스트 겹침 · 템플릿 Bold</li>
+        </ul>
+        <div class="why">일정을 통제할 수 없는 유일한 영역.
+          <b>★ 2건은 생산 도면 성립 조건</b>이므로 확답 우선순위 최상</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>요약</b> — 개발팀은 <b>버그 마감 + 최종 산출물</b>에 집중하고,
+      현업 확정 회의 <b>1회</b>로 생산 필수 7건, 벤더 일정 확답으로 나머지가 풀리는 구조입니다.
+    </div>
+  </main>
+  <footer><span>다음 액션</span><span>7 / 8</span></footer>
+</div>
+</section>
+
+<!-- 8. 종합 판단 -->
+<section class="page">
+<div class="slide">
+  <header>
+    <div>
+      <div class="kicker">Assessment</div>
+      <h1>종합 판단</h1>
+    </div>
+    <div class="hr">2026-07-28</div>
+  </header>
+  <main>
+    <div class="two">
+      <div>
+        <div class="mini-h">잘 되고 있는 것</div>
+        <table>
+          <tbody>
+            <tr><td><span class="tag t-done">완성</span></td><td><b>도면 4종 자동 생성 본체</b> — 형상 캡처, 치수 자동 추출·배치, BOM 표, 템플릿 적용, PDF 출력까지 전 경로 동작</td></tr>
+            <tr><td><span class="tag t-done">성과</span></td><td><b>출장에서 41건 해결</b> — 전체 완료의 77%. 특히 4종 PDF 자동 출력 파이프라인과 가공도 형상 정보가 이번에 완성</td></tr>
+            <tr><td><span class="tag t-done">완성</span></td><td><b>성능</b> — 도면 리스트 첫 클릭 즉시 조회, 2D 출력 깜빡임 제거(페이지당 600ms 단축)</td></tr>
+            <tr><td><span class="tag t-done">개선</span></td><td><b>상태 관리 이슈화</b> — 개발 현황 85행을 GitHub 이슈로 백필. 상태 갱신을 이슈에서 하도록 전환</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="mini-h">솔직하게 봐야 할 것</div>
+        <table>
+          <tbody>
+            <tr><td><span class="tag t-urg">리스크</span></td><td><b>생산 투입은 아직 불가</b> — BOM 생산정보와 표제부가 임시값. 도면은 나오지만 <b>그대로 현장에 못 씁니다</b></td></tr>
+            <tr><td><span class="tag t-urg">리스크</span></td><td><b>벤더 의존 6건이 생산 필수</b> — 2D 형상 누락·가공도 은선은 우회로가 없고 일정 통제 불가</td></tr>
+            <tr><td><span class="tag t-warn">주의</span></td><td><b>출장으로도 못 푼 24건</b> — 대부분 기술이 아니라 규칙·API 문제라, 같은 방식의 출장으로는 더 줄지 않습니다</td></tr>
+            <tr><td><span class="tag t-warn">주의</span></td><td><b>환경 편차</b> — 사내 PC에서만 풍선 미출력·템플릿 3배 지연. 배포 환경 검증이 별도로 필요</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="callout risk">
+      <b>한 줄 결론</b> — 출장으로 <b>엔진은 완성 단계(62%)</b>에 올라섰습니다.
+      그러나 남은 38%는 기술이 아니라 <b>데이터 규칙 확정(현업)</b>과 <b>SDK 수정(벤더)</b>에 걸려 있어,
+      개발팀 단독으로 올릴 수 있는 진행률은 한계에 가깝습니다.
+      <b>규칙 확정 회의와 벤더 일정 확답이 다음 단계의 전제</b>입니다.
+    </div>
+    <div class="note-s">
+      <b>집계 기준</b> — 본 장표의 모든 수치는 <b>개발 현황 관리 항목 85건</b>(요구사항 단위, 기준일 2026-07-26) 전수 집계입니다.
+      상태는 GitHub 이슈 현재값(2026-07-28)으로 확인했고, 출장 전후 구분은 최초 구현일·완료 확인일 기준(경계 2026-07-20)입니다.<br>
+      <b>이슈 수(115건)와 다른 이유</b> — 관리 항목은 <b>요구사항 단위</b>, 이슈는 <b>실행 작업 단위</b>입니다.
+      ① 개발 중 발생한 버그·인프라·문서 작업은 관리 항목에 없고 이슈로만 존재 ② 한 항목이 여러 이슈로 분할된 경우가 있음
+      (예: 2D 형상 누락 → 2D 형상 / 가공도 은선 정책).<br>
+      <b>연결 상태</b> — 85행 <b>전부 이슈에 연결</b>돼 있습니다(미연결 0). 연결 정보가 두 곳에 나뉘어 있을 뿐입니다 —
+      이슈 본문 <code>excel-meta</code> 58행 + <code>docs/tracking</code> 표기 27행.<br>
+      <b>생산 필수 라벨</b> — 누락분 21건을 보정해 관리 항목 <code>○</code> 56행이 전부 라벨된 이슈로 대응됩니다(누락 0).
+      이슈 라벨 총계(59건)가 56과 다른 것은 한 이슈가 여러 항목을 덮거나 관리 항목에 없는 이슈에도 라벨이 붙기 때문이며, 불일치가 아닙니다.
+      <code>△</code>(조건부·문서정보) 4건은 라벨을 붙이지 않습니다 — 라벨은 <code>○</code>만을 뜻합니다.
+    </div>
+  </main>
+  <footer><span>종합 판단</span><span>8 / 8</span></footer>
+</div>
+</section>
+
+</div>
+</body>
+</html>

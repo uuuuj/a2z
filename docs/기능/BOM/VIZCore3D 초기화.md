@@ -65,8 +65,8 @@ VIZCore3D 컨트롤이 완전히 초기화된 직후 발생하는 이벤트. 라
 
 ## 8. 후행 기능 (Chained)
 이 이벤트 완료 이후 사용 가능:
-- [모델 파일 열기](./모델 열기.md)
-- [3D 객체 선택 이벤트](../부재속성/객체 선택 이벤트.md) (이후 자동 수신)
+- [모델 파일 열기](./모델%20열기.md)
+- [3D 객체 선택 이벤트](../부재속성/객체%20선택%20이벤트.md) (이후 자동 수신)
 
 ## 9. 관련 링크
 - 코드 구현: [Form1.BOM.cs `Vizcore3d_OnInitializedVIZCore3D`](../../code-reference/form1-bom.md#vizcore3d-oninitialized)

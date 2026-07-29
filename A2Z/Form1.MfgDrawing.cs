@@ -53,14 +53,36 @@ namespace A2Z
         /// </summary>
         private sealed class MfgDrawingResult
         {
-            public int SuccessPdfs;               // 성공 저장 PDF 수
-            public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 PDF 수 (성공 PDF 중 일부)
+            public int SuccessPdfs;               // 저장된 PDF 파일 수 (#119 묶음 저장 후로는 0 또는 1)
+            public int SuccessPages;              // PDF에 담긴 도면 페이지 수 (#119)
+            public string SavedPdfPath;           // 저장된 묶음 PDF 경로 (#119, 미저장이면 null)
+            public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 페이지 수 (성공 페이지 중 일부)
             public bool TemplateMissing;          // 가공도 엑셀 템플릿 누락 → PDF 0개
+            public string TemplatePath;           // 실제 탐색한 템플릿 경로 (누락 안내 문구가 재계산하지 않도록)
             public int BomRows;                   // 실제 snapshot BOM 행 수
             public int ExpectedBomRows;           // 예상 BOM 행 수 = Min(allMfgBomIndices.Count, 15)
+            public bool Canceled;                  // 안전 체크포인트에서 사용자 취소
+            public string CancellationCheckpoint; // 실제 중단 위치
             public List<string> Warnings = new List<string>();   // 사용자에게 보일 경고 텍스트
 
             public bool HasIssues => Warnings.Count > 0 || InsufficientBomPdfs > 0 || TemplateMissing;
+        }
+
+        private void CheckMfgCancellation(
+            Func<bool> shouldCancel,
+            string progressMessage,
+            string checkpoint)
+        {
+            if (shouldCancel == null)
+                return;
+
+            if (_cancelableOperationInProgress)
+                ProcessCancelableUiCheckpoint(progressMessage, checkpoint);
+            else
+                Application.DoEvents();
+
+            if (shouldCancel())
+                throw new OperationCanceledException(checkpoint);
         }
 
         /// <summary>
@@ -90,13 +112,13 @@ namespace A2Z
         /// 호출자: GenerateMfgDrawingManual 진입부 (CollectBOMInfo 직후 1회).
         /// 목적: 페이지 루프에서 live ListView 의존 끊기 → UI race 차단.
         /// </summary>
-        /// <returns>각 행의 8컬럼 문자열 배열 리스트. Row 0(요약행) 제외.</returns>
+        /// <returns>각 행의 8컬럼 문자열 배열 리스트. Row 0(요약행)을 첫 원소로 포함한다 (#67).</returns>
         private List<string[]> SnapshotBomRows()
         {
             var rows = new List<string[]>();
-            if (lvDrawingBOMInfo.Items.Count <= 1) return rows;
+            if (lvDrawingBOMInfo.Items.Count == 0) return rows;
 
-            for (int i = 1; i < lvDrawingBOMInfo.Items.Count; i++)
+            for (int i = 0; i < lvDrawingBOMInfo.Items.Count; i++)
             {
                 ListViewItem item = lvDrawingBOMInfo.Items[i];
                 rows.Add(new string[]
@@ -124,14 +146,17 @@ namespace A2Z
         {
             var data = new Dictionary<int, string>();
 
-            // 빈 슬롯 선초기화 — 미치환 {Input_N} 태그 노출 방지 (Codex 3차)
-            //   [2026-07-23] Input 200+ 크래시가 API 배포로 해소됨 → 제작도처럼 확장.
-            //   REV 표 첫 기재행(194~199)은 제작도와 동일하게 살려 " "(괘선 보존), 부재명은 241~245로 분리.
-            //   ""(빈칸) = RemoveEmptyTemplateBorders의 괘선 제거 대상, " "(공백) = 내용 있음 위장으로 괘선 보존.
-            //   제거 대상: BOM(4~163)·Note(164)·Rev 위(170~193)·BOM 21~25행(200~240)·부재명(241~245) — 제작도와 동일 정책.
-            //   보존: PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199 = REV./DATE/DESC/DRAWN/CHECKED/APPROVED). View 1~5.
-            for (int k = 1; k <= 245; k++)
-                data[k] = ((k >= 4 && k <= 164) || (k >= 170 && k <= 193) || (k >= 200 && k <= 245)) ? "" : " ";
+            // [2026-07-27] 빈 슬롯 선초기화(1~245 → ""/" ") 제거 — 벤더(소프트힐스) 안내 반영.
+            //   ImportExcelWithData는 data에 값이 있으면(""·" " 포함) 치환하고, 값이 없을 때만 {Input}으로 남긴다.
+            //   그리고 {Input}으로 남은 셀만 JSON에 TextBox로 생성되는데, RemoveEmptyTemplateBorders는
+            //   그 TextBox가 있어야 괘선을 지운다. 선초기화가 전 슬롯을 채우면 {Input}이 하나도 안 남아
+            //   괘선 제거가 통째로 무동작이었다 (SDK 1.0.26.727 전달 메일이 이 파일을 지목 — 전문 요약은
+            //   issue #60, 원본 .eml은 gitignore로 로컬 전용).
+            //   → 미기재 슬롯은 data에 키를 넣지 않고 {Input}으로 남긴다. 제작도(Form1.DrawingSheets.cs)도 동일 적용.
+            //   ⚠ 부작용 2건 실기 확인 필요: ① 07-21 확정한 "PAINT/DP/TAG(165~169)·REV 첫 기재행(194~199)
+            //   괘선 보존" 정책이 깨져 같이 지워질 수 있음 ② TextBox가 PDF에 {Input} 글자로 노출될 수 있음
+            //   (선초기화의 원래 목적이 그 노출 방지였음). 재발 시 보존 슬롯만 " "로 되돌리는 게 1차 대응.
+            //   슬롯: BOM(4~163)·Note(164)·PAINT/DP/TAG(165~169)·Rev 표(170~199)·BOM 21~25행(200~240)·부재명(241~245). View 1~5.
 
             // ── 도면정보 ──
             data[1] = "CEDAR FLNG";  // TODO: 프로젝트명 (T-043 tableInfo 결정 후)
@@ -140,6 +165,11 @@ namespace A2Z
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
             if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
+
+            // ── REV 표 첫 기재행 (Input_194~199) ──
+            //   제작도와 같은 공통 헬퍼(Form1.ExcelTemplate.cs) — REV.=0 / 출력일 / 나머지 공백 (#64 Phase 1).
+            //   다중 페이지도 같은 값이다. 미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다.
+            FillRevisionTable(data, BuildCurrentRevisionHistory());
 
             // ── 부재명 5칸 (Input_241~Input_245, 각 View 왼쪽 라벨) ──
             //   [2026-07-23] 195~199는 제작도처럼 REV 표 첫 기재행 전용으로 되돌리고, 부재명은 241~245로 분리
@@ -156,6 +186,7 @@ namespace A2Z
             // ── 우측 BOM 표 8컬럼 × 25행 (snapshot 사용) ──
             //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 1~20행=열별 20연속(4~163),
             //   21~25행=신규 태그(201~240, 열별 5연속). 2026-07-23 Input 200+ 확장(크래시 해소 후).
+            //   snapshot[0]은 요약행이라 1행=요약행, 2~25행=데이터행 24개다 (#67). BOM 표는 전 페이지 동일 내용.
             int bomMapped = 0;
             if (bomSnapshot != null)
             {
@@ -233,9 +264,8 @@ namespace A2Z
         /// </summary>
         private void ResetCanvasForMfgPage()
         {
-            Clear2DView();
-            vizcore3d.Drawing2D.View.SetCanvasSize(297, 210);
-            vizcore3d.Drawing2D.View.SetSelectCanvas(1);
+            // 묶음 출력 중이면 이전 페이지를 지우지 않고 새 캔버스를 덧붙인다 (#119).
+            PrepareDrawingCanvas(297, 210);
         }
 
         /// <summary>
@@ -246,31 +276,6 @@ namespace A2Z
             string dir = Path.Combine(Application.StartupPath, "Drawings");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
-        }
-
-        /// <summary>
-        /// PDF 파일명 충돌 방지 + sanitize + 길이 clamp + MAX_PATH 진단 (v7 Codex 4차).
-        /// Form1.DrawingSheets.cs SanitizeFileName 재사용.
-        /// </summary>
-        private string MakeUniquePdfPath(string saveDir, string struName, int pageIdx, int totalPages, int struIndex)
-        {
-            string safeName = SanitizeFileName(struName ?? "manual");
-            if (safeName.Length > 40) safeName = safeName.Substring(0, 40);
-
-            string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
-            string baseName = $"{safeName}_가공도_p{pageIdx}of{totalPages}_S{struIndex}_{ts}.pdf";
-            string path = Path.Combine(saveDir, baseName);
-
-            int n = 1;
-            while (File.Exists(path) && n < 1000)
-            {
-                string alt = $"{Path.GetFileNameWithoutExtension(baseName)}_{n}.pdf";
-                path = Path.Combine(saveDir, alt);
-                n++;
-            }
-            if (path.Length > 240)
-                DiagLog($"[MakeUniquePdfPath] WARN path 길이 {path.Length} (Windows MAX_PATH 260 임박): {path}");
-            return path;
         }
 
         /// <summary>
@@ -308,9 +313,10 @@ namespace A2Z
 
                 ResetCanvasForMfgPage();
                 var data = new Dictionary<int, string>();
-                for (int k = 1; k <= 199; k++) data[k] = "";   // 200 이상 금지 (SDK 메모리 손상 — BuildMfgPageData 주석)
+                for (int k = 1; k <= 199; k++) data[k] = "";   // 검증용 프로브라 선초기화 유지 (본 출력 경로 아님)
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
-                data[195] = bom.Name ?? "";   // 신 템플릿 부재명 슬롯 (195~199 대역)
+                // 부재명 슬롯 — 195는 REV 표(#64) 대역이라 241~245로 이전 완료(2026-07-23). 200+ 크래시도 해소됨.
+                data[241] = bom.Name ?? "";
                 var probeImageMapping = new Dictionary<int, string[]>
                 {
                     { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
@@ -423,7 +429,18 @@ namespace A2Z
                 return false;
             }
 
-            float fitRatio = Math.Min(areaWidth / objW, areaHeight / objH);
+            // 치수·풍선을 모델 배치 후 바깥에 덧붙이므로, 먼저 종이 절대 주석 영역을 예약한다.
+            // 예약 없이 모델을 슬롯 전체 높이에 맞추면 풍선이 행 경계 밖으로 잘리거나 EA 반대 뷰를 침범한다.
+            PromoteMfgSmallPendingDimensions(pose);
+            float annotationBudget = GetMfgAnnotationBudgetCanvas(pose);
+            float minModelHeight = areaHeight * MfgMinModelAreaHeightRatio;
+            float fitHeight = Math.Max(minModelHeight, areaHeight - annotationBudget);
+            fitHeight = Math.Min(areaHeight, fitHeight);
+            float reservedHeight = areaHeight - fitHeight;
+            float modelCenterY = areaY + areaHeight / 2f +
+                (pose.PlaceNotesAbove ? -reservedHeight / 2f : reservedHeight / 2f);
+
+            float fitRatio = Math.Min(areaWidth / objW, fitHeight / objH);
             float curScale = vizcore3d.Drawing2D.Object2D.GetObjectScale(objId);
             float newScale = curScale * fitRatio;
             if (fitRatio <= 0 || curScale <= 0 || newScale <= 0
@@ -438,12 +455,29 @@ namespace A2Z
             vizcore3d.Drawing2D.Object2D.MoveObjectTo(
                 objId,
                 areaX + areaWidth / 2f,
-                areaY + areaHeight / 2f);
+                modelCenterY);
+            DiagLog($"[MfgAnnotationBudget] row={rowIdx} bom={bom.Index} view={viewLabel} " +
+                    $"requested={annotationBudget:F1} reserved={reservedHeight:F1} fitHeight={fitHeight:F1}/{areaHeight:F1} " +
+                    $"shared={pose.SharedAnnotationBudgetCanvas.HasValue} " +
+                    $"side={(pose.PlaceNotesAbove ? "above" : "below")} " +
+                    $"capped={(annotationBudget > reservedHeight + 0.01f)}");
 
             // 보조선·치수를 '확정된 실측 배율(newScale)'로 지금 그린다 — 캔버스 절대 오프셋이 부재·뷰 무관 일정.
             //   (코어는 pose.PendingDims로 목록만 수집) 설계 §4.4 v2-c, 2026-07-01
             try { DrawMfgDimsAtScale(pose, bom, newScale); }
             catch (Exception ex) { DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN DimDraw 실패: {ex.Message}"); }
+
+            // 각 캡처는 자신의 Pending Note만 책임진다. 첫 번째 목록이 비어도 두 번째 뷰는 독립적으로 생성한다.
+            // 모델·치수와 같은 확정 newScale을 사용해 풍선 지시선 거리와 행 간격을 종이 절대값으로 맞춘다.
+            try
+            {
+                vizcore3d.Review.Note.Clear();
+                AddMfgPendingNotesAtScale(rowIdx, bom, pose, newScale, viewLabel);
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} {viewLabel} WARN BalloonDraw 실패: {ex.Message}");
+            }
 
             try
             {
@@ -465,9 +499,17 @@ namespace A2Z
                 var noteIds = vizcore3d.Review.Note.Items.Select(n => n.ID).ToList();
                 if (noteIds.Count > 0)
                 {
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(6.0f);   // 홀/슬롯 풍선 글자 키움 (3.5 → 6)
-                    vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+                    // 가공도 형상 풍선만 6mm로 변환하고 즉시 공용 기본값 7mm로 복원한다.
+                    // 이 값은 2D 종이 절대 설정이므로 newScale로 다시 나누지 않는다.
+                    try
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(MfgCanvasBalloonTextHeight);
+                        vizcore3d.Drawing2D.View.Add2DNoteFrom3DNote(noteIds.ToArray());
+                    }
+                    finally
+                    {
+                        vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(7f);
+                    }
                 }
             }
             catch (Exception ex)
@@ -482,7 +524,7 @@ namespace A2Z
                 if (measureIds.Count > 0)
                 {
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureLineWidth(0.3f);   // 제작도와 동일 (0.5→0.3)
-                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(10f);   // 제작도(DrawingSheets.cs:1638)와 동일 — 라이브 가공도 누락분
+                    vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemMeasureTextHeight(MfgCanvasMeasureTextHeight);   // 제작도(DrawingSheets.cs:1638)와 동일 — 라이브 가공도 누락분
                     // 치수 텍스트 위치는 제작도와 동일하게 SDK 자동 정렬에 위임 (수동 배치 없음) — 가로=치수선 위, 세로=왼쪽(회사 표준).
                     //   (옛 수동 배치 ApplyParallelTextShift·PushMfgDimTextOutside는 m.Position 역추정이라 중심이 어긋나 폐기 — 2026-07)
                     vizcore3d.Drawing2D.Measure.Add2DMeasureFrom3DMeasure(measureIds.ToArray());
@@ -552,48 +594,319 @@ namespace A2Z
         }
 
         /// <summary>
+        /// 현재 뷰의 Hole/SlotHole/EarthBoss 노트를 확정된 실측 배율로 도면 외곽에 생성한다.
+        /// 치수선 최대 오프셋과 풍선 gap/행 간격을 모두 종이 절대값으로 공유해 부재·뷰별 편차를 없앤다.
+        /// </summary>
+        private void AddMfgPendingNotesAtScale(
+            int rowIdx,
+            BOMData bom,
+            MfgViewPose pose,
+            float newScale,
+            string viewLabel)
+        {
+            if (bom == null || pose == null || pose.PendingNotes == null ||
+                pose.PendingNotes.Count == 0)
+                return;
+            if (newScale <= 0f || float.IsNaN(newScale) || float.IsInfinity(newScale))
+                return;
+
+            var cameraAxes = vizcore3d.View.GetCameraAxis();
+            if (cameraAxes == null || cameraAxes.Count < 3)
+            {
+                DiagLog($"[MfgBalloon] row={rowIdx} bom={bom.Index} view={viewLabel} WARN camera axis 없음");
+                return;
+            }
+
+            var rawH = new VIZCore3D.NET.Data.Vector3D(
+                cameraAxes[0].X, cameraAxes[0].Y, cameraAxes[0].Z);
+            var rawV = new VIZCore3D.NET.Data.Vector3D(
+                cameraAxes[1].X, cameraAxes[1].Y, cameraAxes[1].Z);
+            var rawD = new VIZCore3D.NET.Data.Vector3D(
+                cameraAxes[2].X, cameraAxes[2].Y, cameraAxes[2].Z);
+            if (!TryNormalizeMfgVector(rawH, out var screenH) ||
+                !TryNormalizeMfgVector(rawV, out var screenV) ||
+                !TryNormalizeMfgVector(rawD, out var depth))
+            {
+                DiagLog($"[MfgBalloon] row={rowIdx} bom={bom.Index} view={viewLabel} WARN camera axis 비정상");
+                return;
+            }
+
+            Func<VIZCore3D.NET.Data.Vertex3D, VIZCore3D.NET.Data.Vector3D, float> project =
+                (point, axis) => point.X * axis.X + point.Y * axis.Y + point.Z * axis.Z;
+
+            float modelMinH = float.MaxValue;
+            float modelMaxH = float.MinValue;
+            float modelMinV = float.MaxValue;
+            float modelMaxV = float.MinValue;
+            float[] xs = { bom.MinX, bom.MaxX };
+            float[] ys = { bom.MinY, bom.MaxY };
+            float[] zs = { bom.MinZ, bom.MaxZ };
+            foreach (float x in xs)
+            foreach (float y in ys)
+            foreach (float z in zs)
+            {
+                var corner = new VIZCore3D.NET.Data.Vertex3D(x, y, z);
+                float h = project(corner, screenH);
+                float v = project(corner, screenV);
+                modelMinH = Math.Min(modelMinH, h);
+                modelMaxH = Math.Max(modelMaxH, h);
+                modelMinV = Math.Min(modelMinV, v);
+                modelMaxV = Math.Max(modelMaxV, v);
+            }
+
+            float gap = MfgCanvasBalloonGap / newScale;
+            float rowSpacing = MfgCanvasBalloonRowSpacing / newScale;
+            float dimEnvelope = Math.Max(0f, pose.DimensionEnvelopeOffset);
+            float measureClearance = dimEnvelope > 0f
+                ? (MfgCanvasMeasureTextHeight + MfgCanvasMeasureTextMargin) / newScale
+                : 0f;
+            bool placeAboveBeforeMirror = pose.MirrorVertical
+                ? !pose.PlaceNotesAbove
+                : pose.PlaceNotesAbove;
+            float firstV = placeAboveBeforeMirror
+                ? modelMaxV + dimEnvelope + measureClearance + gap
+                : modelMinV - dimEnvelope - measureClearance - gap;
+            float rowDirection = placeAboveBeforeMirror ? 1f : -1f;
+
+            var ordered = pose.PendingNotes
+                .Where(n => n != null && n.ArrowPosition != null)
+                .OrderBy(n => project(n.ArrowPosition, screenH))
+                .ThenBy(n => n.Text)
+                .ToList();
+
+            int added = 0;
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                var pending = ordered[i];
+                try
+                {
+                    float textH = project(pending.ArrowPosition, screenH);
+                    float textV = firstV + rowDirection * rowSpacing * i;
+                    float textD = project(pending.ArrowPosition, depth);
+                    var textPosition = new VIZCore3D.NET.Data.Vertex3D(
+                        screenH.X * textH + screenV.X * textV + depth.X * textD,
+                        screenH.Y * textH + screenV.Y * textV + depth.Y * textD,
+                        screenH.Z * textH + screenV.Z * textV + depth.Z * textD);
+
+                    VIZCore3D.NET.Data.NoteStyle noteStyle = vizcore3d.Review.Note.GetStyle();
+                    noteStyle.UseSymbol = false;
+                    noteStyle.BackgroudTransparent = true;
+                    noteStyle.FontBold = true;
+                    noteStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
+                    noteStyle.FontColor = pending.Color;
+                    noteStyle.LineColor = pending.Color;
+                    noteStyle.LineWidth = 1;
+                    noteStyle.ArrowColor = pending.Color;
+                    noteStyle.ArrowWidth = 2;
+
+                    vizcore3d.Review.Note.AddNoteSurface(
+                        pending.Text, textPosition, pending.ArrowPosition, noteStyle);
+                    added++;
+                }
+                catch (Exception ex)
+                {
+                    DiagLog($"[MfgBalloon] row={rowIdx} bom={bom.Index} view={viewLabel} " +
+                            $"WARN text='{pending.Text}': {ex.Message}");
+                }
+            }
+
+            DiagLog($"[MfgBalloon] row={rowIdx} bom={bom.Index} view={viewLabel} newScale={newScale:F4} " +
+                    $"canvasGap={MfgCanvasBalloonGap:F1} canvasRow={MfgCanvasBalloonRowSpacing:F1} " +
+                    $"modelGap={gap:F2} modelRow={rowSpacing:F2} dimEnvelope={dimEnvelope:F2} " +
+                    $"measureClearance={measureClearance:F2} " +
+                    $"boundsH={modelMinH:F1}..{modelMaxH:F1} boundsV={modelMinV:F1}..{modelMaxV:F1} " +
+                    $"side={(pose.PlaceNotesAbove ? "above" : "below")} added={added}/{pose.PendingNotes.Count}");
+        }
+
+        /// <summary>
+        /// 짧은 체인 치수를 2단으로 올리는 기존 규칙을 캡처 배율 계산 전에 확정한다.
+        /// 치수 그리기와 주석 영역 예약이 같은 레벨 구성을 사용해야 종이 여백이 일치한다.
+        /// </summary>
+        private void PromoteMfgSmallPendingDimensions(MfgViewPose pose)
+        {
+            if (pose == null || pose.PendingDims == null || pose.PendingDims.Count == 0)
+                return;
+            if (pose.PromotedDimensionCount > 0)
+                return;
+
+            Func<MfgPendingDim, float> axisDistance = pd =>
+                pd.Axis == "X" ? Math.Abs(pd.End.X - pd.Start.X)
+                : pd.Axis == "Y" ? Math.Abs(pd.End.Y - pd.Start.Y)
+                : Math.Abs(pd.End.Z - pd.Start.Z);
+
+            float maxDistance = pose.PendingDims.Max(axisDistance);
+            if (maxDistance <= 100f)
+                return;
+
+            float smallThreshold = maxDistance / 26f;
+            foreach (var pending in pose.PendingDims)
+            {
+                if (pending.Level == 0 && axisDistance(pending) <= smallThreshold)
+                {
+                    pending.Level = 1;
+                    pose.PromotedDimensionCount++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 풍선을 놓는 화면 위/아래 방향과 같은 쪽에 실제로 존재하는 치수선의 종이 오프셋만 반환한다.
+        /// 화면 오른쪽 치수까지 위/아래 풍선 여백에 포함하던 과대 계산을 피한다.
+        /// </summary>
+        private float GetMfgSameSideDimensionEnvelopeCanvas(MfgViewPose pose)
+        {
+            if (pose == null || pose.PendingDims == null || pose.PendingDims.Count == 0)
+                return 0f;
+
+            int maxLevel = pose.PendingDims.Any(d => d.Level == 1) ? 2 : 1;
+            Func<MfgPendingDim, float> canvasOffset = pd =>
+                pd.Level == 2
+                    ? MfgCanvasBaseOff + MfgCanvasLvlSp * maxLevel
+                    : pd.Level == 1
+                        ? MfgCanvasBaseOff + MfgCanvasLvlSp
+                        : MfgCanvasBaseOff;
+
+            var cameraAxes = vizcore3d.View.GetCameraAxis();
+            if (cameraAxes == null || cameraAxes.Count < 2)
+                return pose.PendingDims.Max(canvasOffset);
+
+            var rawScreenV = new VIZCore3D.NET.Data.Vector3D(
+                cameraAxes[1].X, cameraAxes[1].Y, cameraAxes[1].Z);
+            if (!TryNormalizeMfgVector(rawScreenV, out var screenV))
+                return pose.PendingDims.Max(canvasOffset);
+
+            bool placeAboveBeforeMirror = pose.MirrorVertical
+                ? !pose.PlaceNotesAbove
+                : pose.PlaceNotesAbove;
+            float envelope = 0f;
+            foreach (var pending in pose.PendingDims)
+            {
+                string offsetAxis = GetRemainingAxis(pose.ViewDirection, pending.Axis);
+                VIZCore3D.NET.Data.Vector3D offsetVector;
+                if (pose.UseReferenceAxis)
+                {
+                    offsetVector = offsetAxis == "X"
+                        ? pose.ReferenceAxisX
+                        : offsetAxis == "Y"
+                            ? pose.ReferenceAxisY
+                            : pose.ReferenceAxisZ;
+                }
+                else
+                {
+                    offsetVector = offsetAxis == "X"
+                        ? new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f)
+                        : offsetAxis == "Y"
+                            ? new VIZCore3D.NET.Data.Vector3D(0f, 1f, 0f)
+                            : new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f);
+                }
+
+                if (!TryNormalizeMfgVector(offsetVector, out var normalizedOffset))
+                    continue;
+
+                float direction = pending.PosOff ? 1f : -1f;
+                float verticalDot = direction * (
+                    normalizedOffset.X * screenV.X +
+                    normalizedOffset.Y * screenV.Y +
+                    normalizedOffset.Z * screenV.Z);
+                bool sameSide = placeAboveBeforeMirror
+                    ? verticalDot > 0.5f
+                    : verticalDot < -0.5f;
+                if (sameSide)
+                    envelope = Math.Max(envelope, canvasOffset(pending));
+            }
+
+            return envelope;
+        }
+
+        /// <summary>
+        /// 현재 뷰의 모델 슬롯에서 미리 확보할 주석 높이(종이 mm)를 계산한다.
+        /// 같은 쪽 치수선·치수 문자·풍선 시작 간격·풍선 행 높이를 모두 포함한다.
+        /// </summary>
+        private float GetMfgAnnotationBudgetCanvas(MfgViewPose pose)
+        {
+            if (pose == null)
+                return 0f;
+            if (pose.SharedAnnotationBudgetCanvas.HasValue)
+                return Math.Max(0f, pose.SharedAnnotationBudgetCanvas.Value);
+            if (pose.PendingNotes == null)
+                return 0f;
+
+            int noteCount = pose.PendingNotes.Count(
+                note => note != null && note.ArrowPosition != null);
+            if (noteCount == 0)
+                return 0f;
+
+            float dimensionEnvelope = GetMfgSameSideDimensionEnvelopeCanvas(pose);
+            return CalculateMfgAnnotationBudgetCanvas(noteCount, dimensionEnvelope);
+        }
+
+        private float GetMfgEaSharedAnnotationBudgetCanvas(MfgViewPose pose)
+        {
+            if (pose == null)
+                return 0f;
+
+            int primaryCount = pose.PendingNotes?.Count(
+                note => note != null && note.ArrowPosition != null) ?? 0;
+            int secondaryCount = pose.SecondaryPendingNotes?.Count(
+                note => note != null && note.ArrowPosition != null) ?? 0;
+            int sharedNoteCount = Math.Max(primaryCount, secondaryCount);
+            if (sharedNoteCount == 0)
+                return 0f;
+
+            // 2차 뷰 치수는 1차 캡처 뒤에 수집되므로, 두 뷰에서 가능한 최대 3단 오프셋을 공통 예약한다.
+            // 실제 풍선 위치는 각 뷰의 같은 쪽 치수 외곽을 사용하되 모델 fit 높이만 같게 유지한다.
+            float sharedDimensionEnvelope = MfgCanvasBaseOff + MfgCanvasLvlSp * 2f;
+            float sharedBudget = CalculateMfgAnnotationBudgetCanvas(
+                sharedNoteCount, sharedDimensionEnvelope);
+            DiagLog($"[MfgAnnotationBudget] EA shared primaryNotes={primaryCount} " +
+                    $"secondaryNotes={secondaryCount} sharedNotes={sharedNoteCount} " +
+                    $"dimensionEnvelope={sharedDimensionEnvelope:F1} budget={sharedBudget:F1}");
+            return sharedBudget;
+        }
+
+        private float CalculateMfgAnnotationBudgetCanvas(int noteCount, float dimensionEnvelope)
+        {
+            if (noteCount <= 0)
+                return 0f;
+
+            float measureClearance = dimensionEnvelope > 0f
+                ? MfgCanvasMeasureTextHeight + MfgCanvasMeasureTextMargin
+                : 0f;
+            return dimensionEnvelope +
+                   measureClearance +
+                   MfgCanvasBalloonGap +
+                   MfgCanvasBalloonTextHeight +
+                   MfgCanvasBalloonRowSpacing * Math.Max(0, noteCount - 1);
+        }
+
+        /// <summary>
         /// 가공도 보조선·치수를 '모델 2D 캡처 + RescaleObject 후 확정된 실측 배율(newScale)'로 그린다.
-        /// 추정 스케일이 아닌 실측을 써야 보조선 길이 = 캔버스 절대값(2/4mm)으로 부재·뷰 무관 일정해짐 (설계 §4.4 v2-c).
+        /// 추정 스케일이 아닌 실측을 써야 보조선 길이 = 캔버스 절대값으로 부재·뷰 무관 일정해진다.
         /// pose.PendingDims = BuildMfgSceneCore/BuildEaSecondaryScene가 수집한 그릴 목록(offset 미적용).
         /// 캡처 간 측정 격리: EA 1차/2차가 각자 캡처 직전에 호출되므로, 직전 뷰의 3D 측정·보조선을 먼저 비운다
         /// (이미 2D로 변환됐으므로 3D 원본 제거는 무해).
         /// </summary>
         private void DrawMfgDimsAtScale(MfgViewPose pose, BOMData bom, float newScale)
         {
-            if (pose == null || pose.PendingDims == null || pose.PendingDims.Count == 0) return;
+            if (pose == null) return;
+            pose.DimensionEnvelopeOffset = 0f;
+            if (pose.PendingDims == null || pose.PendingDims.Count == 0) return;
             if (newScale <= 0f || float.IsNaN(newScale) || float.IsInfinity(newScale)) return;
 
             // 측정·보조선 초기화는 참조축 생성 전에 BuildMfgSceneCore/BuildEaSecondaryScene가 수행한다.
             // 여기서 Measure.Clear를 호출하면 활성 참조축까지 삭제되므로 캡처가 끝날 때까지 다시 지우지 않는다.
             pose.ShapeDrawingIds.Clear();
 
-            // 실측 배율로 캔버스 절대 오프셋(가공도 6/12mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
+            // 실측 배율로 캔버스 절대 오프셋(가공도 9/18mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
             ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
                 MfgCanvasBaseOff, MfgCanvasLvlSp);
 
-            // 작은 치수 단 승격 (사용자 사양 2026-07-03): 텍스트가 안 들어가는 작은 체인 치수는
-            //   텍스트를 옮기지 않고 치수선째 위 단(Level 1)으로 올린다 — 제작도와 동일 규칙(뷰 최대/26, max>100mm).
-            //   승격이 생기면 아래 maxLevel 계산이 전체 치수를 자동으로 3단(off2)으로 민다.
-            Func<MfgPendingDim, float> axisDist = pd =>
-                pd.Axis == "X" ? Math.Abs(pd.End.X - pd.Start.X)
-                : pd.Axis == "Y" ? Math.Abs(pd.End.Y - pd.Start.Y)
-                : Math.Abs(pd.End.Z - pd.Start.Z);
-            float maxPdDist = 0f;
-            foreach (var pd in pose.PendingDims)
-            {
-                float dpd = axisDist(pd);
-                if (dpd > maxPdDist) maxPdDist = dpd;
-            }
-            int promoted = 0;
-            if (maxPdDist > 100f)
-            {
-                float smallTh = maxPdDist / 26f;
-                foreach (var pd in pose.PendingDims)
-                    if (pd.Level == 0 && axisDist(pd) <= smallTh) { pd.Level = 1; promoted++; }
-            }
-
+            // 짧은 체인 치수 승격은 캡처 전 PromoteMfgSmallPendingDimensions에서 확정했다.
+            // 승격이 있으면 maxLevel 계산이 전체 치수를 자동으로 3단(off2)으로 민다.
             int maxLevel = pose.PendingDims.Any(d => d.Level == 1) ? 2 : 1;
             float off0 = baseOff, off1 = baseOff + lvlSp, off2 = baseOff + lvlSp * maxLevel;
+            float sameSideCanvasEnvelope = GetMfgSameSideDimensionEnvelopeCanvas(pose);
+            pose.DimensionEnvelopeOffset = sameSideCanvasEnvelope / newScale;
             // 보조선 시작 gap도 종이 절대 기준(2mm)으로 — 오프셋과 동일하게 실측 배율 역산 (2026-07-03).
             //   옛 모델좌표 고정 10mm는 부재·축척마다 종이 gap이 들쭉날쭉했음.
             float extGap = MfgCanvasExtGap / newScale;
@@ -640,7 +953,8 @@ namespace A2Z
             }
             DiagLog($"[DrawMfgDims] bom={bom.Index} view={pose.ViewDirection} newScale={newScale:F4} " +
                 $"off0={off0:F2} off1={off1:F2} off2={off2:F2} extGap={extGap:F2} " +
-                $"dims={pose.PendingDims.Count} promoted={promoted} " +
+                $"sameSideEnvelopeCanvas={sameSideCanvasEnvelope:F1} dims={pose.PendingDims.Count} " +
+                $"promoted={pose.PromotedDimensionCount} " +
                 $"orientation={pose.OrientationAxis}/{pose.OrientationAngle:F1}° userAxisDims={userAxisDimCount}");
         }
 
@@ -754,8 +1068,12 @@ namespace A2Z
                 ReferenceAxisX = primaryPose.ReferenceAxisX,
                 ReferenceAxisY = primaryPose.ReferenceAxisY,
                 ReferenceAxisZ = primaryPose.ReferenceAxisZ,
-                ReferenceAxisOrigin = primaryPose.ReferenceAxisOrigin
+                ReferenceAxisOrigin = primaryPose.ReferenceAxisOrigin,
+                PlaceNotesAbove = secondaryAtTop,
+                SharedAnnotationBudgetCanvas = primaryPose.SharedAnnotationBudgetCanvas
             };
+            if (primaryPose.SecondaryPendingNotes != null)
+                pose.PendingNotes.AddRange(primaryPose.SecondaryPendingNotes);
 
             // 1차 뷰 참조축·측정은 모두 정리한 뒤 2차 뷰 전용 참조축을 새로 만든다.
             ClearMfgViewAnnotations("BuildEaSecondaryScene");
@@ -886,7 +1204,7 @@ namespace A2Z
             style.ArrowSize = 5;
             style.AssistantLine = false;
             style.AlignDistanceText = true;   // 제작도와 동일 자동 정렬
-            style.AlignDistanceTextMargine = 3;
+            style.AlignDistanceTextMargine = MfgCanvasMeasureTextMargin;
             vizcore3d.Review.Measure.SetStyle(style);
 
             string offsetAxis = GetRemainingAxis(pose.ViewDirection, pose.LongestAxis);
@@ -977,7 +1295,9 @@ namespace A2Z
         /// 일반 부재는 한 뷰, EA 부재는 같은 ViewArea를 위·아래 두 뷰로 분할한다.
         /// </summary>
         private bool RenderMfgRowToViewArea(int rowIdx, BOMData bom,
-            VIZCore3D.NET.Data.TemplateViewArea area)
+            VIZCore3D.NET.Data.TemplateViewArea area,
+            Func<bool> shouldCancel = null,
+            string progressPrefix = "가공도")
         {
             ClearMfgViewAnnotations("RenderMfgRow/start");
             vizcore3d.Review.Note.Clear();
@@ -998,7 +1318,17 @@ namespace A2Z
                 float viewGap = 0f;   // 완전 밀착 (사용자 사양 2026-06-23) — EA 평면도·정면도 사이 간격 제거
                 float viewHeight = isEA ? (area.Height - viewGap) / 2f : area.Height;
 
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 중...",
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 전");
                 var pose = BuildMfgSceneCore(bom.Index, isEA);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 준비 중...",
+                    $"{progressPrefix} 행 {rowIdx} 장면 준비 후");
+                if (isEA)
+                    pose.SharedAnnotationBudgetCanvas = GetMfgEaSharedAnnotationBudgetCanvas(pose);
 
                 // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03).
                 // 실루엣 엣지 끔 — 켜면 SDK가 모든 모서리를 균일 굵기로 통일해 모델선(2.0)이
@@ -1009,10 +1339,16 @@ namespace A2Z
                 bool swapViews = isEA && pose.SwapViews;
                 float primaryY = swapViews ? area.Y + viewHeight + viewGap : area.Y;
                 float secondaryY = swapViews ? area.Y : area.Y + viewHeight + viewGap;
+                // EA 페어는 풍선을 뷰 사이가 아닌 각 슬롯의 바깥쪽에 둔다. 단일 뷰는 기존처럼 아래쪽.
+                pose.PlaceNotesAbove = isEA && swapViews;
 
                 // 가로 배치 — 임시 캡처로 실제 세로/가로 측정 후 세로면 화면축 90° 회전.
                 //   (DoEvents 제거 — 격리 5단계 2026-07-21: 네이티브 캡처 전후 메시지 펌프가 크래시 용의)
                 float primRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 캡처 중...",
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 방향 확정 후");
 
                 int primaryObjId;
                 bool primaryOk = CaptureMfgSceneToViewArea(
@@ -1030,16 +1366,28 @@ namespace A2Z
                     return false;
                 }
                 createdObjectIds.Add(primaryObjId);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 완료",
+                    $"{progressPrefix} 행 {rowIdx} 주 뷰 캡처 후");
 
                 if (isEA)
                 {
                     try
                     {
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 준비 중...",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 시작 전");
                         var secondaryPose = BuildEaSecondaryScene(
                             bom, pose, !swapViews);   // 2차 뷰 슬롯: 기본=위, 스왑 시=아래
 
                         // 2차 뷰도 동일: 임시 캡처로 세로/가로 측정 후 세로면 90° 회전 (DoEvents 제거 — 격리 5단계)
                         float secRoll = ProbeAndRollLandscape(bom.Index, 1.25f);
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 캡처 중...",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 방향 확정 후");
 
                         int secondaryObjId;
                         bool secondaryOk = CaptureMfgSceneToViewArea(
@@ -1064,6 +1412,14 @@ namespace A2Z
                             }
                             DiagLog($"[RenderMfgRow] row={rowIdx} bom={bom.Index} WARN EA secondary 캡처 실패 — primary 유지");
                         }
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 완료",
+                            $"{progressPrefix} 행 {rowIdx} 보조 뷰 캡처 후");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -1071,8 +1427,16 @@ namespace A2Z
                     }
                 }
 
+                CheckMfgCancellation(
+                    shouldCancel,
+                    $"{progressPrefix} 행 {rowIdx} 완료",
+                    $"{progressPrefix} 행 {rowIdx} 완료 후");
                 success = true;
                 return true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -1107,6 +1471,12 @@ namespace A2Z
         private const float MfgCanvasLvlSp   = 9.0f;     // 단 간격 → 전체 = 9+9 = 18mm
         private const float MfgCanvasExtGap  = 2.0f;     // 보조선 시작 gap 종이 mm — 오프셋과 동일하게 종이 절대 기준 (2026-07-03, 옛 모델좌표 10mm 폐기)
         private const float MfgLvl2TextSlideCanvas = 2.5f;  // 2단(Level 1) 치수 텍스트 슬라이드 종이 mm — 가로=오른쪽/세로=위 (2026-07-21, 제작도와 동일 사양)
+        private const float MfgCanvasBalloonGap = 6.0f;      // 치수 외곽→첫 풍선 문자 기준선 종이 mm
+        private const float MfgCanvasBalloonRowSpacing = 8.0f; // 풍선 행 간격 종이 mm(6mm 문자 높이 + 2mm 여백)
+        private const float MfgCanvasBalloonTextHeight = 6.0f; // Add2DNoteFrom3DNote 변환 글자 높이
+        private const float MfgCanvasMeasureTextHeight = 10.0f; // Add2DMeasureFrom3DMeasure 변환 글자 높이
+        private const int MfgCanvasMeasureTextMargin = 3;        // MeasureStyle.AlignDistanceTextMargine
+        private const float MfgMinModelAreaHeightRatio = 0.35f; // 주석이 많아도 모델 영역을 최소 35% 보존
 
         // [임시 §5-1] 카메라 ± 반영 검증 프로브 스위치 — 설계 docs/리팩토링/가공도-EA-카메라-넓은면-정규화.md.
         //   새 단면 캡처가 MoveCamera의 PLUS/MINUS를 반영하는지 사내 1회 확인용. 검증 후 프로브째 제거.
@@ -1144,16 +1514,31 @@ namespace A2Z
                 if (nodeHoles == null) return;
                 foreach (var nh in nodeHoles)
                 {
+                    if (nh == null) continue;
+                    if (nh.Center == null)
+                    {
+                        DiagLog($"[홀API] node={nodeIndex} WARN Center=null type={nh.HoleType}");
+                        continue;
+                    }
+
                     // NodeHoleItem 실제 타입 (빌드 역추론): Center=Vector3D, CircleCenter=List<Vector3D>, Size=Vector3D, Radius=float
                     var ccPts = nh.CircleCenter;
                     int ccN = ccPts?.Count ?? 0;
+                    TryResolveMfgHoleThroughAxis(nh, out var throughAxis, out string throughSource,
+                        out string throughValidation);
 
                     // [실측 로그] 실제 구조 확인용 — 슬롯 매핑은 이 로그를 보고 보정 예정
-                    string ccStr = (ccN > 0) ? string.Join(" ", ccPts.Select(p => $"({p.X:F1},{p.Y:F1},{p.Z:F1})")) : "-";
+                    string ccStr = (ccN > 0)
+                        ? string.Join(" ", ccPts.Where(p => p != null).Select(p => $"({p.X:F1},{p.Y:F1},{p.Z:F1})"))
+                        : "-";
                     DiagLog($"[홀API] node={nodeIndex} type={nh.HoleType} Radius={nh.Radius:F2} " +
                         $"Center=({nh.Center.X:F1},{nh.Center.Y:F1},{nh.Center.Z:F1}) " +
-                        $"Size=({nh.Size.X:F1},{nh.Size.Y:F1},{nh.Size.Z:F1}) " +
-                        $"CircleCenterN={ccN}[{ccStr}]");
+                        $"Size={FormatMfgVector(nh.Size)} " +
+                        $"AxisX={FormatMfgVector(nh.AxisX)} AxisY={FormatMfgVector(nh.AxisY)} " +
+                        $"AxisZ={FormatMfgVector(nh.AxisZ)} " +
+                        $"ThicknessFrom={FormatMfgVector(nh.ThicknessCenterFrom)} " +
+                        $"ThicknessTo={FormatMfgVector(nh.ThicknessCenterTo)} " +
+                        $"CircleCenterN={ccN}[{ccStr}] axisSource={throughSource} {throughValidation}");
 
                     if (nh.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.CIRCLE)
                     {
@@ -1163,11 +1548,19 @@ namespace A2Z
                             CenterX = nh.Center.X,
                             CenterY = nh.Center.Y,
                             CenterZ = nh.Center.Z,
-                            CylinderBodyIndex = nh.NodeIndex
+                            CylinderBodyIndex = nh.NodeIndex,
+                            ThroughAxis = throughAxis,
+                            ThroughAxisSource = throughSource
                         });
                     }
                     else if (nh.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.SLOT_HOLE)
                     {
+                        if (nh.Size == null)
+                        {
+                            DiagLog($"[홀API] node={nodeIndex} WARN SLOT_HOLE Size=null");
+                            continue;
+                        }
+
                         // 잠정 매핑(실측 후 보정): 중심=Center, 길이=Size 최대축, 폭=Size 최소축
                         float ax = Math.Abs(nh.Size.X), ay = Math.Abs(nh.Size.Y), az = Math.Abs(nh.Size.Z);
                         float slotLen = Math.Max(ax, Math.Max(ay, az));
@@ -1179,7 +1572,9 @@ namespace A2Z
                             Depth = 0f,           // 실측 후 ThicknessCenter*로 보정
                             CenterX = nh.Center.X,
                             CenterY = nh.Center.Y,
-                            CenterZ = nh.Center.Z
+                            CenterZ = nh.Center.Z,
+                            ThroughAxis = throughAxis,
+                            ThroughAxisSource = throughSource
                         });
                     }
                 }
@@ -1192,9 +1587,273 @@ namespace A2Z
         }
 
         /// <summary>
+        /// NodeHoleItem의 두께 중심점 차이를 홀 관통 방향으로 우선 사용한다.
+        /// 원형 홀은 두께 중심점이 없을 때 CircleCenter 중 가장 먼 두 점의 차이를 사용한다.
+        /// SDK XML은 AxisZ의 의미를 관통축으로 보장하지 않으므로, AxisX×AxisY와 평행할 때만 폴백한다.
+        /// 슬롯의 CircleCenter는 장축일 수 있고 Size는 방향 계약이 없어 관통축 추정에 사용하지 않는다.
+        /// </summary>
+        private bool TryResolveMfgHoleThroughAxis(
+            VIZCore3D.NET.Data.NodeHoleItem hole,
+            out VIZCore3D.NET.Data.Vector3D throughAxis,
+            out string source,
+            out string validation)
+        {
+            throughAxis = null;
+            source = "unresolved";
+            validation = "thick=- circle=- axisZ=- crossXY=-";
+            if (hole == null) return false;
+
+            VIZCore3D.NET.Data.Vector3D thicknessAxis = null;
+            if (hole.ThicknessCenterFrom != null && hole.ThicknessCenterTo != null)
+            {
+                TryNormalizeMfgVector(
+                    SubtractMfgVector(hole.ThicknessCenterTo, hole.ThicknessCenterFrom),
+                    out thicknessAxis);
+            }
+
+            VIZCore3D.NET.Data.Vector3D circleAxis = null;
+            if (hole.HoleType == VIZCore3D.NET.Data.NodeHoleItem.NodeHoleType.CIRCLE &&
+                hole.CircleCenter != null)
+            {
+                double maxDistanceSquared = 0.0;
+                VIZCore3D.NET.Data.Vector3D farthestDifference = null;
+                var centers = hole.CircleCenter.Where(point => point != null).ToList();
+                for (int i = 0; i < centers.Count - 1; i++)
+                {
+                    for (int j = i + 1; j < centers.Count; j++)
+                    {
+                        var difference = SubtractMfgVector(centers[j], centers[i]);
+                        double distanceSquared =
+                            (double)difference.X * difference.X +
+                            (double)difference.Y * difference.Y +
+                            (double)difference.Z * difference.Z;
+                        if (distanceSquared > maxDistanceSquared)
+                        {
+                            maxDistanceSquared = distanceSquared;
+                            farthestDifference = difference;
+                        }
+                    }
+                }
+                TryNormalizeMfgVector(farthestDifference, out circleAxis);
+            }
+
+            TryNormalizeMfgVector(hole.AxisZ, out var axisZ);
+            VIZCore3D.NET.Data.Vector3D crossXY = null;
+            if (hole.AxisX != null && hole.AxisY != null)
+                TryNormalizeMfgVector(CrossMfgVector(hole.AxisX, hole.AxisY), out crossXY);
+
+            string thickText = FormatMfgVector(thicknessAxis);
+            string circleText = FormatMfgVector(circleAxis);
+            string axisZText = FormatMfgVector(axisZ);
+            string crossText = FormatMfgVector(crossXY);
+            string agreement = "-";
+            if (thicknessAxis != null && axisZ != null)
+                agreement = Math.Abs(DotMfgVector(thicknessAxis, axisZ)).ToString("F3");
+
+            validation = $"thick={thickText} circle={circleText} axisZ={axisZText} " +
+                         $"crossXY={crossText} thickAxisZ={agreement}";
+
+            if (thicknessAxis != null)
+            {
+                throughAxis = thicknessAxis;
+                source = "thickness";
+                return true;
+            }
+
+            if (circleAxis != null)
+            {
+                throughAxis = circleAxis;
+                source = "circle-center";
+                return true;
+            }
+
+            if (axisZ != null && crossXY != null &&
+                Math.Abs(DotMfgVector(axisZ, crossXY)) >= 0.95f)
+            {
+                throughAxis = axisZ;
+                source = "axisZ-confirmed";
+                return true;
+            }
+
+            return false;
+        }
+
+        private string FormatMfgVector(VIZCore3D.NET.Data.Vector3D vector)
+        {
+            return vector == null
+                ? "-"
+                : $"({vector.X:F3},{vector.Y:F3},{vector.Z:F3})";
+        }
+
+        private VIZCore3D.NET.Data.Vector3D GetMfgViewDepthAxis(MfgViewPose pose, string viewDirection)
+        {
+            var localX = new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f);
+            var localY = new VIZCore3D.NET.Data.Vector3D(0f, 1f, 0f);
+            var localZ = new VIZCore3D.NET.Data.Vector3D(0f, 0f, 1f);
+            if (pose != null && pose.UseReferenceAxis &&
+                pose.ReferenceAxisX != null && pose.ReferenceAxisY != null && pose.ReferenceAxisZ != null)
+            {
+                localX = pose.ReferenceAxisX;
+                localY = pose.ReferenceAxisY;
+                localZ = pose.ReferenceAxisZ;
+            }
+
+            VIZCore3D.NET.Data.Vector3D depth;
+            switch (viewDirection)
+            {
+                case "X": depth = localX; break;
+                case "Y": depth = localY; break;
+                default: depth = localZ; break;
+            }
+
+            return TryNormalizeMfgVector(depth, out var normalized) ? normalized : null;
+        }
+
+        private string GetMfgEaSecondaryViewDirection(MfgViewPose primaryPose)
+        {
+            return primaryPose != null && primaryPose.LongestAxis == "Z" ? "X" : "Z";
+        }
+
+        private bool AssignMfgFeatureToSecondary(
+            BOMData bom,
+            MfgViewPose pose,
+            bool isEA,
+            string featureKind,
+            VIZCore3D.NET.Data.Vector3D throughAxis,
+            string axisSource,
+            VIZCore3D.NET.Data.Vertex3D center)
+        {
+            if (!isEA || pose == null || throughAxis == null)
+            {
+                DiagLog($"[MfgBalloonAssign] bom={bom.Index} kind={featureKind} axisSource={axisSource ?? "unresolved"} " +
+                        "dot1=- dot2=- view=1");
+                return false;
+            }
+
+            var primaryDepth = GetMfgViewDepthAxis(pose, pose.ViewDirection);
+            string secondaryView = GetMfgEaSecondaryViewDirection(pose);
+            var secondaryDepth = GetMfgViewDepthAxis(pose, secondaryView);
+            if (primaryDepth == null || secondaryDepth == null)
+            {
+                DiagLog($"[MfgBalloonAssign] bom={bom.Index} kind={featureKind} axisSource={axisSource ?? "unresolved"} " +
+                        $"primary={pose.ViewDirection} secondary={secondaryView} depthInvalid view=1");
+                return false;
+            }
+
+            float dotPrimary = Math.Abs(DotMfgVector(throughAxis, primaryDepth));
+            float dotSecondary = Math.Abs(DotMfgVector(throughAxis, secondaryDepth));
+            bool useSecondary = dotSecondary > dotPrimary + 1e-4f;
+            DiagLog($"[MfgBalloonAssign] bom={bom.Index} kind={featureKind} " +
+                    $"center=({center.X:F1},{center.Y:F1},{center.Z:F1}) axisSource={axisSource ?? "unresolved"} " +
+                    $"primary={pose.ViewDirection}:{dotPrimary:F3} secondary={secondaryView}:{dotSecondary:F3} " +
+                    $"view={(useSecondary ? 2 : 1)}");
+            return useSecondary;
+        }
+
+        private void AddMfgGroupedHoleNotes(
+            IEnumerable<HoleInfo> holes,
+            IList<MfgPendingNote> destination)
+        {
+            if (holes == null || destination == null) return;
+            foreach (var group in holes.GroupBy(h => Math.Round(h.Diameter, 1)))
+            {
+                var hole = group.First();
+                int count = group.Count();
+                destination.Add(new MfgPendingNote
+                {
+                    Text = count > 1 ? $"\u00d8{group.Key:F1} * {count}개" : $"\u00d8{group.Key:F1}",
+                    Color = Color.FromArgb(0, 160, 0),
+                    ArrowPosition = new VIZCore3D.NET.Data.Vertex3D(
+                        hole.CenterX, hole.CenterY, hole.CenterZ)
+                });
+            }
+        }
+
+        private void AddMfgGroupedSlotNotes(
+            IEnumerable<SlotHoleInfo> slots,
+            IList<MfgPendingNote> destination)
+        {
+            if (slots == null || destination == null) return;
+            foreach (var group in slots.GroupBy(s =>
+                $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}"))
+            {
+                var slot = group.First();
+                int count = group.Count();
+                float width = slot.Radius * 2f;
+                destination.Add(new MfgPendingNote
+                {
+                    Text = count > 1
+                        ? $"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {count}개"
+                        : $"R{slot.Radius:F1}/({width:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})",
+                    Color = Color.FromArgb(180, 0, 180),
+                    ArrowPosition = new VIZCore3D.NET.Data.Vertex3D(
+                        slot.CenterX, slot.CenterY, slot.CenterZ)
+                });
+            }
+        }
+
+        private void BuildMfgPendingNotes(
+            BOMData bom,
+            MfgViewPose pose,
+            bool isEA,
+            IEnumerable<HoleInfo> holes,
+            IEnumerable<SlotHoleInfo> slots)
+        {
+            if (bom == null || pose == null) return;
+            pose.PendingNotes.Clear();
+            pose.SecondaryPendingNotes.Clear();
+
+            var primaryHoles = new List<HoleInfo>();
+            var secondaryHoles = new List<HoleInfo>();
+            foreach (var hole in holes ?? Enumerable.Empty<HoleInfo>())
+            {
+                var center = new VIZCore3D.NET.Data.Vertex3D(hole.CenterX, hole.CenterY, hole.CenterZ);
+                if (AssignMfgFeatureToSecondary(bom, pose, isEA, "Hole",
+                    hole.ThroughAxis, hole.ThroughAxisSource, center))
+                    secondaryHoles.Add(hole);
+                else
+                    primaryHoles.Add(hole);
+            }
+
+            var primarySlots = new List<SlotHoleInfo>();
+            var secondarySlots = new List<SlotHoleInfo>();
+            foreach (var slot in slots ?? Enumerable.Empty<SlotHoleInfo>())
+            {
+                var center = new VIZCore3D.NET.Data.Vertex3D(slot.CenterX, slot.CenterY, slot.CenterZ);
+                if (AssignMfgFeatureToSecondary(bom, pose, isEA, "SlotHole",
+                    slot.ThroughAxis, slot.ThroughAxisSource, center))
+                    secondarySlots.Add(slot);
+                else
+                    primarySlots.Add(slot);
+            }
+
+            AddMfgGroupedHoleNotes(primaryHoles, pose.PendingNotes);
+            AddMfgGroupedSlotNotes(primarySlots, pose.PendingNotes);
+            AddMfgGroupedHoleNotes(secondaryHoles, pose.SecondaryPendingNotes);
+            AddMfgGroupedSlotNotes(secondarySlots, pose.SecondaryPendingNotes);
+
+            // EarthBoss는 국소 형상이 아닌 부재 전체 용도 라벨이므로 부재당 한 번, 첫 번째 뷰에만 표시한다.
+            if (string.Equals((bom.Purpose ?? "").Trim(), "EBOS", StringComparison.OrdinalIgnoreCase))
+            {
+                pose.PendingNotes.Add(new MfgPendingNote
+                {
+                    Text = "EarthBoss",
+                    Color = Color.Blue,
+                    ArrowPosition = new VIZCore3D.NET.Data.Vertex3D(
+                        bom.CenterX, bom.CenterY, bom.CenterZ)
+                });
+            }
+
+            DiagLog($"[MfgBalloonAssign] bom={bom.Index} isEA={isEA} " +
+                    $"primaryNotes={pose.PendingNotes.Count} secondaryNotes={pose.SecondaryPendingNotes.Count} " +
+                    $"primaryHoles={primaryHoles.Count} secondaryHoles={secondaryHoles.Count} " +
+                    $"primarySlots={primarySlots.Count} secondarySlots={secondarySlots.Count}");
+        }
+
+        /// <summary>
         /// 가공도 공통 3D 장면 생성 코어.
         /// 미리보기와 PDF 행 렌더링이 공통으로 사용한다.
-        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수·풍선(Hole/SlotHole/EarthBoss) 생성.
+        /// 부재 격리·BBox·축 판별·카메라·Osnap·치수와 뷰별 형상 풍선 후보를 수집한다.
         /// ISO 부재번호 풍선과 원형 부재 반지름 풍선은 생성하지 않는다.
         /// 반환: MfgViewPose — 카메라 회전 의도(ApplyZ90/R180), 방향, 최장축 등 후속 적용 정보.
         ///
@@ -1376,7 +2035,6 @@ namespace A2Z
             // ── 5-1. EA 앵글 카메라 보정 ──
             bool isEA = IsAngleFromSpref(bom.Index);
             bool isAboveWider = false;
-            bool isLShape = false;
             bool isMinusCameraSelected = false;
             bool isEAUse180 = false;
 
@@ -1435,7 +2093,6 @@ namespace A2Z
 
                 isEAUse180 = use180;
                 isAboveWider = false;
-                isLShape = true;
             }
 
             // 은선 필터 '전' 원본 보존 — 보조선 시작점 레벨 스냅(SnapDimPointTowardDimLine)용.
@@ -1600,7 +2257,7 @@ namespace A2Z
                     mfgStyle.ArrowSize = 5;
                     mfgStyle.AssistantLine = false;
                     mfgStyle.AlignDistanceText = true;   // 제작도와 동일 자동 정렬 (가로=위, 세로=왼쪽). 세로 텍스트 왼쪽이 회사 표준(정답)
-                    mfgStyle.AlignDistanceTextMargine = 3;
+                    mfgStyle.AlignDistanceTextMargine = MfgCanvasMeasureTextMargin;
                     vizcore3d.Review.Measure.SetStyle(mfgStyle);
 
                     float mfgGlobalMinX = bom.MinX, mfgGlobalMinY = bom.MinY, mfgGlobalMinZ = bom.MinZ;
@@ -1662,343 +2319,11 @@ namespace A2Z
                 }
             }
 
-            // ── 8. 풍선 4분면 배치 (B1b2 2026-05-19) ──
-            //   자동 함수 본체 L1518~L1850 추출. 색상 Cyan → Blue 통일 (수동 스타일).
-            //   Note.Clear()/noteIds.Clear()는 어댑터(B2/B3)에서 제거 — 코어는 vizcore3d.Review.Note.Add 호출.
-            // 8. 풍선 배치 — 4분면 가상선 방식 + 체인치수 겹침 방지
-
-            // 뷰 방향별 축 매핑 (hAxis=화면 수평, vAxis=화면 수직, dAxis=깊이)
-            int bHAxis_m, bVAxis_m, bDAxis_m;
-            switch (viewDirection)
-            {
-                case "X": bHAxis_m = 1; bVAxis_m = 2; bDAxis_m = 0; break; // H=Y, V=Z, D=X
-                case "Y": bHAxis_m = 0; bVAxis_m = 2; bDAxis_m = 1; break; // H=X, V=Z, D=Y
-                default:  bHAxis_m = 0; bVAxis_m = 1; bDAxis_m = 2; break; // H=X, V=Y, D=Z
-            }
-
-            float[] mfgMinArr = { bom.MinX, bom.MinY, bom.MinZ };
-            float[] mfgMaxArr = { bom.MaxX, bom.MaxY, bom.MaxZ };
-            float modelMinH_m = mfgMinArr[bHAxis_m];
-            float modelMaxH_m = mfgMaxArr[bHAxis_m];
-            float modelMinV_m = mfgMinArr[bVAxis_m];
-            float modelMaxV_m = mfgMaxArr[bVAxis_m];
-
-            // ── 체인치수 실제 끝단 좌표 계산 ──
-            float dimExtMinH_m = modelMinH_m;
-            float dimExtMaxH_m = modelMaxH_m;
-            float dimExtMinV_m = modelMinV_m;
-            float dimExtMaxV_m = modelMaxV_m;
-
-            if (hasDimensions)
-            {
-                // Osnap에서 추출된 치수 데이터가 있으면 실제 치수선 끝단 추적
-                float tolerance_m = 0.5f;
-                var mergedPts_m = MergeCoordinates(mfgOsnapWithNames, tolerance_m);
-                List<string> visAxes_m = new List<string>();
-                switch (viewDirection)
-                {
-                    case "X": visAxes_m.Add("Y"); visAxes_m.Add("Z"); break;
-                    case "Y": visAxes_m.Add("X"); visAxes_m.Add("Z"); break;
-                    default:  visAxes_m.Add("X"); visAxes_m.Add("Y"); break;
-                }
-                var allMfgDims = new List<ChainDimensionData>();
-                foreach (var ax in visAxes_m)
-                    allMfgDims.AddRange(AddChainDimensionByAxis(mergedPts_m, ax, tolerance_m, viewDirection));
-
-                // 축별 오프셋 방향 (이미 계산된 mfgAxisPosOff 활용 가능하지만, 안전을 위해 재참조)
-                float mfgCX = (bom.MinX + bom.MaxX) / 2f;
-                float mfgCY = (bom.MinY + bom.MaxY) / 2f;
-                float mfgCZ = (bom.MinZ + bom.MaxZ) / 2f;
-
-                // T-005: 중앙에서 가장 먼 Osnap 쪽이 외곽
-                var mfgAxisPosOff_m = new Dictionary<string, bool>();
-                foreach (var grp in allMfgDims.Where(d => !d.IsTotal).GroupBy(d => d.Axis))
-                {
-                    string offAxis = GetRemainingAxis(viewDirection, grp.Key);
-                    float cv2 = offAxis == "X" ? mfgCX : offAxis == "Y" ? mfgCY : mfgCZ;
-                    var values = grp.SelectMany(d => new[]
-                    {
-                        GetAxisValue(d.StartPoint, offAxis),
-                        GetAxisValue(d.EndPoint, offAxis)
-                    });
-                    mfgAxisPosOff_m[grp.Key] = ComputePositiveOffsetByOsnapExtreme(values, cv2);
-                }
-
-                // EA 앵글: 체인치수 방향 오버라이드 (풍선 위치 계산용)
-                if (isEA)
-                {
-                    if (mfgAxisPosOff_m.ContainsKey(pose.LongestAxis))
-                        mfgAxisPosOff_m[pose.LongestAxis] = !isAboveWider;
-                    foreach (string ax in new List<string>(mfgAxisPosOff_m.Keys))
-                    {
-                        if (ax != pose.LongestAxis)
-                            mfgAxisPosOff_m[ax] = isLShape;
-                    }
-                }
-
-                // 모델 가시 축 최소 크기 → 작은 모델이면 보조선 오프셋 50% 축소
-                float visExt1_m = 0f, visExt2_m = 0f;
-                switch (viewDirection)
-                {
-                    case "X": visExt1_m = bom.MaxY - bom.MinY; visExt2_m = bom.MaxZ - bom.MinZ; break;
-                    case "Y": visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxZ - bom.MinZ; break;
-                    default:  visExt1_m = bom.MaxX - bom.MinX; visExt2_m = bom.MaxY - bom.MinY; break;
-                }
-                float minVisExt_m = Math.Min(visExt1_m, visExt2_m);
-                float offFactor_m = (minVisExt_m < 100f) ? 0.5f : 1.0f;
-
-                float mfgOff1 = 100.0f * offFactor_m, mfgOff2 = 200.0f * offFactor_m;
-                float maxTotalDist_m = 0f;
-                foreach (var td in allMfgDims.Where(d => d.IsTotal && d.IsVisible))
-                {
-                    float dist2 = 0f;
-                    switch (td.Axis)
-                    {
-                        case "X": dist2 = Math.Abs(td.EndPoint.X - td.StartPoint.X); break;
-                        case "Y": dist2 = Math.Abs(td.EndPoint.Y - td.StartPoint.Y); break;
-                        case "Z": dist2 = Math.Abs(td.EndPoint.Z - td.StartPoint.Z); break;
-                    }
-                    if (dist2 > maxTotalDist_m) maxTotalDist_m = dist2;
-                }
-                float mfgTotalOff_m = (maxTotalDist_m > 1000.0f ? 300.0f : 250.0f) * offFactor_m;
-
-                foreach (var dim in allMfgDims.Where(d => d.IsVisible))
-                {
-                    if (isEA && reserveLongestAxisForSecondary && dim.Axis == pose.LongestAxis)
-                        continue;
-
-                    float dimOff;
-                    if (dim.IsTotal)
-                        dimOff = mfgTotalOff_m;
-                    else if (dim.DisplayLevel > 0)
-                        dimOff = mfgOff2;
-                    else
-                        dimOff = mfgOff1;
-
-                    string offAxis = GetRemainingAxis(viewDirection, dim.Axis);
-                    bool posOff = mfgAxisPosOff_m.ContainsKey(dim.Axis) && mfgAxisPosOff_m[dim.Axis];
-                    float baseline2 = 0;
-                    switch (offAxis)
-                    {
-                        case "X": baseline2 = posOff ? bom.MaxX : bom.MinX; break;
-                        case "Y": baseline2 = posOff ? bom.MaxY : bom.MinY; break;
-                        case "Z": baseline2 = posOff ? bom.MaxZ : bom.MinZ; break;
-                    }
-                    float dimLinePos = posOff ? (baseline2 + dimOff) : (baseline2 - dimOff);
-
-                    int offAxisIdx = offAxis == "X" ? 0 : (offAxis == "Y" ? 1 : 2);
-                    if (offAxisIdx == bHAxis_m)
-                    {
-                        dimExtMinH_m = Math.Min(dimExtMinH_m, dimLinePos);
-                        dimExtMaxH_m = Math.Max(dimExtMaxH_m, dimLinePos);
-                    }
-                    else if (offAxisIdx == bVAxis_m)
-                    {
-                        dimExtMinV_m = Math.Min(dimExtMinV_m, dimLinePos);
-                        dimExtMaxV_m = Math.Max(dimExtMaxV_m, dimLinePos);
-                    }
-
-                    // 치수선 자체의 H/V 범위
-                    float[] dimStartArr = { dim.StartPoint.X, dim.StartPoint.Y, dim.StartPoint.Z };
-                    float[] dimEndArr = { dim.EndPoint.X, dim.EndPoint.Y, dim.EndPoint.Z };
-                    dimExtMinH_m = Math.Min(dimExtMinH_m, Math.Min(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
-                    dimExtMaxH_m = Math.Max(dimExtMaxH_m, Math.Max(dimStartArr[bHAxis_m], dimEndArr[bHAxis_m]));
-                    dimExtMinV_m = Math.Min(dimExtMinV_m, Math.Min(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
-                    dimExtMaxV_m = Math.Max(dimExtMaxV_m, Math.Max(dimStartArr[bVAxis_m], dimEndArr[bVAxis_m]));
-                }
-            }
-
-            // ── 가상 사각형 경계선: 체인치수 끝단 바깥에 풍선 배치 ──
-            float dimMargin_m = 30f;
-            float rectLeft_m  = dimExtMinH_m - dimMargin_m;
-            float rectRight_m = dimExtMaxH_m + dimMargin_m;
-
-            float modelSpan_m = Math.Max(modelMaxH_m - modelMinH_m, modelMaxV_m - modelMinV_m);
-            float balloonSpacing_m = Math.Max(20f, modelSpan_m * 0.04f);
-
-            float textGap_m = Math.Max(4f, modelSpan_m * 0.006f);
-            Func<string, (float w, float h)> mfgEstTextSize = (text) =>
-            {
-                float charWidth = Math.Max(3f, modelSpan_m * 0.005f);
-                float lineHeight = Math.Max(7f, modelSpan_m * 0.009f);
-                return (text.Length * charWidth + textGap_m, lineHeight + textGap_m);
-            };
-
-            // --- 풍선 항목 수집 ---
-            List<(float originH, float originV, float depthVal, string text, Color color,
-                  float arrowX, float arrowY, float arrowZ)> mfgBalloonEntries =
-                new List<(float, float, float, string, Color, float, float, float)>();
-
-            // EarthBoss 풍선 수집 (UDA PURPOSE=EBOS)
-            if (string.Equals((bom.Purpose ?? "").Trim(), "EBOS",
-                StringComparison.OrdinalIgnoreCase))
-            {
-                float[] earthBossArr = { bom.CenterX, bom.CenterY, bom.CenterZ };
-                mfgBalloonEntries.Add((
-                    earthBossArr[bHAxis_m], earthBossArr[bVAxis_m], earthBossArr[bDAxis_m],
-                    "EarthBoss", Color.Blue,
-                    bom.CenterX, bom.CenterY, bom.CenterZ));
-            }
-
-            // 가공도 풍선: 부재별로 GetNodeHoleInfo API 직접 호출 (최신 결과 보장).
-            //   bom.Holes/SlotHoles도 2026-06-23부터 같은 API로 채워짐(DetectHoles) — 휴리스틱 폐지.
+            // ── 8. 형상 풍선 후보를 뷰별로 독립 배정 ──
+            // 홀/슬롯은 관통축과 각 뷰의 실제 깊이축을 비교한 뒤 뷰별로 그룹화한다.
+            // Review Note 생성은 모델 캡처 후 newScale이 확정된 시점까지 지연한다.
             GetMfgHolesFromApi(bom.Index, out var mfgApiHoles, out var mfgApiSlots);
-
-            // 홀 풍선 수집 (API 추출)
-            if (mfgApiHoles.Count > 0)
-            {
-                try
-                {
-                    var mfgHoleGroups = mfgApiHoles.GroupBy(h => Math.Round(h.Diameter, 1));
-                    foreach (var grp in mfgHoleGroups)
-                    {
-                        int hCount = grp.Count();
-                        string holeText = hCount > 1 ? $"\u00d8{grp.Key:F1} * {hCount}개" : $"\u00d8{grp.Key:F1}";
-                        var hole = grp.First();
-                        float[] holeArr = { hole.CenterX, hole.CenterY, hole.CenterZ };
-                        float oH = holeArr[bHAxis_m];
-                        float oV = holeArr[bVAxis_m];
-                        float depthVal = holeArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, holeText, Color.FromArgb(0, 160, 0),
-                            hole.CenterX, hole.CenterY, hole.CenterZ));
-                    }
-                }
-                catch { }
-            }
-
-            // 슬롯홀 풍선 수집 (API 추출)
-            if (mfgApiSlots.Count > 0)
-            {
-                try
-                {
-                    var slotGroups = mfgApiSlots.GroupBy(s =>
-                        $"{Math.Round(s.Radius, 1)}_{Math.Round(s.SlotLength, 0)}_{Math.Round(s.Depth, 0)}");
-                    foreach (var grp in slotGroups)
-                    {
-                        var slot = grp.First();
-                        int sCount = grp.Count();
-                        float slotWidth = slot.Radius * 2f;
-                        string slotText = sCount > 1
-                            ? $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0}) * {sCount}개"
-                            : $"R{slot.Radius:F1}/({slotWidth:F0}*{slot.SlotLength:F0}*{slot.Depth:F0})";
-                        float[] slotArr = { slot.CenterX, slot.CenterY, slot.CenterZ };
-                        float oH = slotArr[bHAxis_m];
-                        float oV = slotArr[bVAxis_m];
-                        float depthVal = slotArr[bDAxis_m];
-                        mfgBalloonEntries.Add((oH, oV, depthVal, slotText, Color.FromArgb(180, 0, 180),
-                            slot.CenterX, slot.CenterY, slot.CenterZ));
-                    }
-                }
-                catch { }
-            }
-
-            // --- 풍선 일괄 배치 (4분면 가상선 방식 + 체인치수 겹침 방지) ---
-            float modelCenterH_m = (modelMinH_m + modelMaxH_m) / 2f;
-            float modelCenterV_m = (modelMinV_m + modelMaxV_m) / 2f;
-
-            // 0=왼쪽위, 1=왼쪽아래, 2=오른쪽위, 3=오른쪽아래
-            var mfgSortedBalloons = new List<(int quadrant, float originH, float originV, float depthVal,
-                string text, Color color, float arrowX, float arrowY, float arrowZ, float sortKey)>();
-
-            foreach (var entry in mfgBalloonEntries)
-            {
-                bool isLeft = entry.originH <= modelCenterH_m;
-                bool isTop  = entry.originV >= modelCenterV_m;
-
-                int quadrant;
-                float sortKey;
-                if (isLeft && isTop)       { quadrant = 0; sortKey = -entry.originV; }
-                else if (isLeft && !isTop)  { quadrant = 1; sortKey = entry.originV; }
-                else if (!isLeft && isTop)  { quadrant = 2; sortKey = -entry.originV; }
-                else                        { quadrant = 3; sortKey = entry.originV; }
-
-                mfgSortedBalloons.Add((quadrant, entry.originH, entry.originV, entry.depthVal,
-                    entry.text, entry.color, entry.arrowX, entry.arrowY, entry.arrowZ, sortKey));
-            }
-
-            mfgSortedBalloons.Sort((a, b) =>
-            {
-                int sc = a.quadrant.CompareTo(b.quadrant);
-                return sc != 0 ? sc : a.sortKey.CompareTo(b.sortKey);
-            });
-
-            // 각 분면별 V 시작점 (체인치수 끝단 바깥)
-            float leftTopNextV_m  = dimExtMaxV_m;
-            float leftBotNextV_m  = dimExtMinV_m;
-            float rightTopNextV_m = dimExtMaxV_m;
-            float rightBotNextV_m = dimExtMinV_m;
-
-            foreach (var balloon in mfgSortedBalloons)
-            {
-                try
-                {
-                    var textSz = mfgEstTextSize(balloon.text);
-                    float textW = textSz.w;
-                    float textH = textSz.h;
-
-                    float textPosH, textPosV;
-                    bool isHoleOrSlot = !balloon.text.StartsWith("EarthBoss");
-                    if (isHoleOrSlot)
-                    {
-                        // 홀/슬롯 풍선: 수직 아래로 — 홀 H 위치 그대로 두어 리더가 수직이 되고,
-                        //   모델 아래(모델 바깥)로 빼낸다. (사용자 사양 2026-06-30, 방향이 위로면 부호 반전)
-                        textPosH = balloon.originH;
-                        textPosV = modelMinV_m - (modelMaxV_m - modelMinV_m) * 0.6f;
-                    }
-                    else
-                    switch (balloon.quadrant)
-                    {
-                        case 0: // 왼쪽위
-                            textPosH = rectLeft_m;
-                            textPosV = leftTopNextV_m;
-                            leftTopNextV_m -= (textH + balloonSpacing_m);
-                            break;
-                        case 1: // 왼쪽아래
-                            textPosH = rectLeft_m;
-                            textPosV = leftBotNextV_m;
-                            leftBotNextV_m += (textH + balloonSpacing_m);
-                            break;
-                        case 2: // 오른쪽위
-                            textPosH = rectRight_m;
-                            textPosV = rightTopNextV_m;
-                            rightTopNextV_m -= (textH + balloonSpacing_m);
-                            break;
-                        case 3: // 오른쪽아래
-                            textPosH = rectRight_m;
-                            textPosV = rightBotNextV_m;
-                            rightBotNextV_m += (textH + balloonSpacing_m);
-                            break;
-                        default:
-                            textPosH = rectRight_m;
-                            textPosV = balloon.originV;
-                            break;
-                    }
-
-                    // 3D 좌표 복원
-                    float[] xyz = new float[3];
-                    xyz[bHAxis_m] = textPosH;
-                    xyz[bVAxis_m] = textPosV;
-                    xyz[bDAxis_m] = balloon.depthVal;
-
-                    VIZCore3D.NET.Data.Vertex3D textPos = new VIZCore3D.NET.Data.Vertex3D(xyz[0], xyz[1], xyz[2]);
-                    VIZCore3D.NET.Data.Vertex3D arrowPos = new VIZCore3D.NET.Data.Vertex3D(
-                        balloon.arrowX, balloon.arrowY, balloon.arrowZ);
-
-                    VIZCore3D.NET.Data.NoteStyle mfgNoteStyle = vizcore3d.Review.Note.GetStyle();
-                    mfgNoteStyle.UseSymbol = false;
-                    mfgNoteStyle.BackgroudTransparent = true;
-                    mfgNoteStyle.FontBold = true;
-                    mfgNoteStyle.FontSize = VIZCore3D.NET.Data.FontSizeKind.SIZE8;
-                    mfgNoteStyle.FontColor = balloon.color;
-                    mfgNoteStyle.LineColor = balloon.color;
-                    mfgNoteStyle.LineWidth = 1;
-                    mfgNoteStyle.ArrowColor = balloon.color;
-                    mfgNoteStyle.ArrowWidth = 2;
-
-                    vizcore3d.Review.Note.AddNoteSurface(balloon.text, textPos, arrowPos, mfgNoteStyle);
-                }
-                catch { }
-            }
+            BuildMfgPendingNotes(bom, pose, isEA, mfgApiHoles, mfgApiSlots);
 
             return pose;
         }
@@ -2008,7 +2333,7 @@ namespace A2Z
         /// 시트 선택 3D 미리보기(LvDrawingSheet_SelectedIndexChanged)에서 사용.
         ///
         /// Step B2 (2026-05-19): 어댑터로 축소.
-        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선)은 BuildMfgSceneCore가 수행.
+        /// 공통 3D 로직(부재 격리·카메라·ORIENTATION·Osnap·치수·풍선 정보 수집)은 BuildMfgSceneCore가 수행.
         /// 어댑터는 수동 전용 후처리만:
         ///   - X-Ray 끄기 + 선택 해제
         ///   - 코어 호출 → pose 받음
@@ -2020,7 +2345,7 @@ namespace A2Z
         ///   - EndUpdate 후 카메라 스냅샷 (ScreenAxisRotation commit 후)
         ///
         /// 사용자 사양 (2026-07-22): 3D 미리보기에서는 형상 풍선을 제거한다.
-        /// PDF 어댑터는 공통 코어가 생성한 Note를 그대로 2D 변환하므로 출력 풍선은 유지한다.
+        /// PDF 어댑터만 캡처 후 확정된 배율로 PendingNotes를 생성하므로 출력 풍선은 유지한다.
         /// </summary>
         private void ExecuteMfgDrawing(int bomIndex)
         {
@@ -2160,7 +2485,9 @@ namespace A2Z
             var result = new MfgDrawingResult();
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
-            string xlsxPath = Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx");
+            // 실행 폴더 templates\ 우선 — 배포 패키지(.sln 없음)에서도 템플릿을 찾도록 (#71)
+            string xlsxPath = ResolveDrawingTemplatePath("가공도_도면_1.xlsx");
+            result.TemplatePath = xlsxPath;
             if (!File.Exists(xlsxPath))
             {
                 DiagLog($"[GenMfgManual] 템플릿 누락: {xlsxPath}");
@@ -2172,6 +2499,12 @@ namespace A2Z
             // v7 Codex 6차: try 진입 최상단 — 모든 mutable 작업 보호
             DrawingSheetData previousSelectedSheet = null;
             bool prevLvEnabled = lvDrawingSheet.Enabled;
+
+            // #119: 페이지를 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+            //   도면 일괄 출력이 이 함수를 품고 호출하면 그쪽 누적에 페이지만 얹고 저장은 넘긴다.
+            bool ownsPdfAccumulation = false;
+            string mergedPdfPath = null;
+            string mfgTimeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
 
             // P3 #2 패치 (2026-05-23, 사용자 보고):
             //   "가공도 출력 누르자 마자 다른 부재들이 보임" — 진입부 Show(ALL, true)가 BOM 채우기 위해
@@ -2187,6 +2520,10 @@ namespace A2Z
             {
                 // UI 잠금 (가장 먼저)
                 lvDrawingSheet.Enabled = false;
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 출력 준비 중...",
+                    "가공도 출력 초기화 전");
 
                 if (lvDrawingSheet.SelectedItems.Count > 0)
                     previousSelectedSheet = lvDrawingSheet.SelectedItems[0].Tag as DrawingSheetData;
@@ -2195,11 +2532,19 @@ namespace A2Z
                 ResetMfgPreviewViewState("GenerateMfgDrawingManual/start");
                 vizcore3d.Review.Note.Clear();
                 ClearMfgViewAnnotations("GenerateMfgDrawingManual/start");
-                Clear2DView();
+                // #119: 여기서 이전 도면 잔재를 지우고 누적을 연다.
+                //   이미 바깥(도면 일괄 출력)이 누적 중이면 지우지 않고 페이지만 이어붙인다.
+                //   경로를 먼저 확정한다 — 누적을 연 뒤 예외가 나면 저장 경로 없이 닫히게 된다.
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, "가공도", mfgTimeStamp);
+                ownsPdfAccumulation = BeginPdfPageAccumulation("가공도");
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
                 vizcore3d.Object3D.Select(VIZCore3D.NET.Data.Object3dSelectionModes.DESELECT_ALL);
                 // DASH_LINE(은선 점선) 렌더모드 제거 — 은선 없는 캡처로 전환해 무의미 (2026-07-03). 출력 후 SMOOTH 복원은 유지.
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 BOM 준비 중...",
+                    "가공도 출력 초기화 후");
 
                 // ── BOM 표 1회 채우기 (가공도 전체 부재, 모든 페이지 동일) ──
                 var allMfgBomIndices = mfgSheets
@@ -2223,9 +2568,14 @@ namespace A2Z
                     MfgDrawingNo = 0
                 };
                 CollectBOMInfo(false, syntheticSheet);
+                CheckMfgCancellation(
+                    shouldCancel,
+                    "가공도 BOM 준비 완료",
+                    "가공도 BOM 수집 후");
 
                 var bomSnapshot = SnapshotBomRows();
-                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20);
+                // SnapshotBomRows가 요약행을 포함하므로 기대치도 요약행 1행을 더한다 (#67).
+                int expectedBomRows = Math.Min(allMfgBomIndices.Count, 20) + 1;
                 result.BomRows = bomSnapshot.Count;
                 result.ExpectedBomRows = expectedBomRows;
 
@@ -2233,7 +2583,7 @@ namespace A2Z
                 {
                     DiagLog($"[GenMfgManual] WARN BOM snapshot mismatch: {bomSnapshot.Count} vs 예상 {expectedBomRows}");
                     if (bomSnapshot.Count > expectedBomRows)
-                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 첫 20행만 사용");
+                        result.Warnings.Add($"BOM snapshot 초과 ({bomSnapshot.Count}행, 예상 {expectedBomRows}) — 요약행 포함 첫 25행만 사용");
                 }
 
                 bool bomSnapshotInsufficient = bomSnapshot.Count < expectedBomRows;
@@ -2266,12 +2616,11 @@ namespace A2Z
 
                 foreach (var page in pages)
                 {
-                    Application.DoEvents();
-                    if (shouldCancel != null && shouldCancel())
-                    {
-                        DiagLog($"[GenMfgManual] 중간 취소 — p{page.PageIdx} 시작 전 중단");
-                        break;
-                    }
+                    string pageProgress = $"가공도 {page.PageIdx}/{pages.Count}페이지";
+                    CheckMfgCancellation(
+                        shouldCancel,
+                        $"{pageProgress} 준비 중...",
+                        $"{pageProgress} 시작 전");
 
                     int failedRows = 0;
                     int successRows = 0;
@@ -2279,11 +2628,19 @@ namespace A2Z
                     {
                         ResetCanvasForMfgPage();
                         var data = BuildMfgPageData(page, pages.Count, struName, paintCode, bomSnapshot);
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 템플릿 적용 중...",
+                            $"{pageProgress} 템플릿 적용 전");
                         var swTpl = System.Diagnostics.Stopwatch.StartNew();
                         // 북쪽 화살표 2종은 {Image_1}/{Image_2} + mfgImageMapping으로 Import 단계에서 처리 (2026-07-20).
                         //   ⚠ 태그 번호 한계 주의 — View는 1~7, Input은 1~199까지만 (초과 시 SDK 메모리 손상 → 캡처 AccessViolation).
                         vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, mfgImageMapping);
                         swTpl.Stop();
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 템플릿 적용 완료",
+                            $"{pageProgress} 템플릿 적용 후");
                         DiagLog($"[TplTime] 템플릿 적용 p{page.PageIdx}={swTpl.ElapsedMilliseconds}ms");
                         // 빈 칸 괘선 제거 (SDK 1.0.26.716) — 미기재 BOM 행 괘선 제거, 제작도와 동일 패턴.
                         vizcore3d.Drawing2D.Object2D.RemoveEmptyTemplateBorders(0.1f, VIZCore3D.NET.Data.TemplateBorderRemoveMode.RowAndColumn);
@@ -2293,16 +2650,30 @@ namespace A2Z
                         //   제작도는 import 직후 Drawing2D.Render()를 호출한 뒤 캡처하는데 가공도는 이게 없었음.
                         //   '그리지 않은 캔버스 + 첫 캡처' 조합이 신 템플릿에서 AccessViolation 용의.
                         vizcore3d.Drawing2D.Render();
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 부재 뷰 생성 중...",
+                            $"{pageProgress} 초기 렌더 후");
 
                         for (int i = 0; i < page.Rows.Count; i++)
                         {
+                            CheckMfgCancellation(
+                                shouldCancel,
+                                $"{pageProgress} 부재 {i + 1}/{page.Rows.Count} 처리 중...",
+                                $"{pageProgress} 행 {i + 1} 시작 전");
+
                             var sheet = page.Rows[i];
                             if (sheet.MemberIndices.Count == 0) { failedRows++; continue; }
                             var bom = bomList.FirstOrDefault(b => b.Index == sheet.MemberIndices[0]);
                             if (bom == null) { failedRows++; continue; }
 
                             var area = viewAreasCache[i + 1];
-                            if (RenderMfgRowToViewArea(i + 1, bom, area)) successRows++;
+                            if (RenderMfgRowToViewArea(
+                                i + 1,
+                                bom,
+                                area,
+                                shouldCancel,
+                                pageProgress)) successRows++;
                             else failedRows++;
                         }
 
@@ -2316,23 +2687,45 @@ namespace A2Z
                             continue;
                         }
 
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 페이지 마무리 중...",
+                            $"{pageProgress} 최종 렌더 전");
                         vizcore3d.Drawing2D.Render();
                         vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                         vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
-                        string pdfPath = MakeUniquePdfPath(saveDir, struName, page.PageIdx, pages.Count, struIndex);
-                        vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
-                        result.SuccessPdfs++;
+                        // #119: 페이지마다 저장하지 않는다. 이 캔버스는 그대로 쌓아두고,
+                        //   모든 페이지를 그린 뒤 finally에서 PDF 1개로 저장한다.
+                        result.SuccessPages++;
                         if (bomSnapshotInsufficient) result.InsufficientBomPdfs++;
 
-                        DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 저장: {pdfPath}");
+                        DiagLog($"[GenMfgManual] p{page.PageIdx}/{pages.Count} 페이지 완성 (누적 {result.SuccessPages}장)");
+                        CheckMfgCancellation(
+                            shouldCancel,
+                            $"{pageProgress} 페이지 완료",
+                            $"{pageProgress} 페이지 완료 후");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
                         DiagLog($"[GenMfgManual] p{page.PageIdx} ERROR: {ex.Message}");
                         result.Warnings.Add($"p{page.PageIdx} 페이지 ERROR: {ex.Message}");
+                        // #119: 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다.
+                        DiscardCurrentPdfPage();
                     }
                 }
+            }
+            catch (OperationCanceledException ex)
+            {
+                result.Canceled = true;
+                result.CancellationCheckpoint = ex.Message;
+                DiagLog($"[GenMfgManual] 취소: {ex.Message}, 완성 페이지={result.SuccessPages}");
+                // #119: 여기서 캔버스를 비우면 그때까지 그린 페이지가 사라진다.
+                //   취소분까지 저장한 뒤 정리는 finally가 맡는다.
             }
             catch (Exception ex)
             {
@@ -2341,6 +2734,25 @@ namespace A2Z
             }
             finally
             {
+                // #119: 쌓아둔 페이지를 PDF 1개로 저장한다. 취소·실패로 빠져나왔어도
+                //   그때까지 그린 페이지는 남긴다. 바깥이 누적 주인이면 저장을 넘긴다.
+                if (ownsPdfAccumulation)
+                {
+                    try
+                    {
+                        if (EndPdfPageAccumulation(mergedPdfPath))
+                        {
+                            result.SavedPdfPath = mergedPdfPath;
+                            result.SuccessPdfs = 1;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagLog($"[GenMfgManual] 묶음 PDF 저장 실패: {ex.Message}");
+                        result.Warnings.Add($"가공도 PDF 저장 실패: {ex.Message}");
+                    }
+                }
+
                 ReleaseActiveMfgReferenceAxis("GenerateMfgDrawingManual/finally");
 
                 // BOM UI 복원
@@ -2397,7 +2809,8 @@ namespace A2Z
                 // try { vizcore3d.EndUpdate(); } catch { }
             }
 
-            DiagLog($"[GenMfgManual] 완료 — Success={result.SuccessPdfs} BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
+            DiagLog($"[GenMfgManual] 완료 — Pages={result.SuccessPages} Pdf={result.SuccessPdfs} " +
+                    $"BomShort={result.InsufficientBomPdfs} Warnings={result.Warnings.Count}");
             return result;
         }
 
@@ -2407,6 +2820,16 @@ namespace A2Z
         /// </summary>
         private void btnMfgDrawingSheet_Click(object sender, EventArgs e)
         {
+            if (_cancelableOperationInProgress || !lvDrawingSheet.Enabled)
+            {
+                MessageBox.Show(
+                    "다른 도면 작업이 진행 중입니다.",
+                    "알림",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
             var mfgSheets = new List<DrawingSheetData>();
             foreach (ListViewItem lvi in lvDrawingSheet.Items)
                 if (lvi.Text.StartsWith("가공도"))
@@ -2423,25 +2846,80 @@ namespace A2Z
             }
 
             string saveDir = GetDefaultDrawingSaveDir();
-            var result = GenerateMfgDrawingManual(mfgSheets, saveDir, "manual", struIndex: 0);
+            Dictionary<Control, bool> previousEnabledStates =
+                CaptureDrawingExportControlStates();
+            MfgDrawingResult result;
+            try
+            {
+                SetDrawingExportControlsEnabled(false);
+                BeginCancelableOperation();
+                ShowBusyOverlay("가공도 PDF 출력 준비 중...");
+                result = GenerateMfgDrawingManual(
+                    mfgSheets,
+                    saveDir,
+                    "manual",
+                    struIndex: 0,
+                    shouldCancel: () => _cancelRequested);
+            }
+            finally
+            {
+                HideBusyOverlay();
+                EndCancelableOperation();
+                RestoreDrawingExportControlStates(previousEnabledStates);
+            }
+
+            if (result.Canceled)
+            {
+                var canceledMessage = new System.Text.StringBuilder();
+                canceledMessage.AppendLine("가공도 출력을 취소했습니다.");
+                canceledMessage.AppendLine();
+                // #119: 취소해도 그때까지 그린 페이지는 PDF 1개로 저장된다.
+                if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
+                {
+                    canceledMessage.AppendLine($"PDF 1개에 도면 {result.SuccessPages}장 저장");
+                    canceledMessage.AppendLine(result.SavedPdfPath);
+                }
+                else
+                {
+                    canceledMessage.AppendLine("저장된 PDF가 없습니다.");
+                }
+                if (!string.IsNullOrWhiteSpace(result.CancellationCheckpoint))
+                    canceledMessage.AppendLine($"중단 위치: {result.CancellationCheckpoint}");
+
+                MessageBox.Show(
+                    canceledMessage.ToString(),
+                    "취소됨",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
 
             // v7 Codex 6차 권고: 단일 MessageBox 통합
             if (result.TemplateMissing)
             {
                 MessageBox.Show(
-                    $"가공도 엑셀 템플릿 누락:\n{Path.Combine(GetSolutionPath(), "가공도_도면_1.xlsx")}\n\nPDF 생성 안 됨.",
+                    $"가공도 엑셀 템플릿 누락:\n{result.TemplatePath}\n\nPDF 생성 안 됨.",
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"가공도 PDF {result.SuccessPdfs}개 저장:");
-            sb.AppendLine(saveDir);
+            // #119: 도면 장수와 무관하게 PDF는 1개다.
+            if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
+            {
+                sb.AppendLine($"가공도 PDF 1개에 도면 {result.SuccessPages}장 저장:");
+                sb.AppendLine(result.SavedPdfPath);
+            }
+            else
+            {
+                sb.AppendLine("저장된 PDF가 없습니다.");
+                sb.AppendLine(saveDir);
+            }
 
             if (result.InsufficientBomPdfs > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine($"⚠️ BOM 부족 PDF: {result.InsufficientBomPdfs}개");
+                sb.AppendLine($"⚠️ BOM 부족 페이지: {result.InsufficientBomPdfs}장");
                 sb.AppendLine($"  (snapshot {result.BomRows}행 < 예상 {result.ExpectedBomRows}행)");
             }
 
@@ -3054,11 +3532,19 @@ namespace A2Z
         {
             normalized = null;
             if (vector == null) return false;
-            float length = (float)Math.Sqrt(
-                vector.X * vector.X +
-                vector.Y * vector.Y +
-                vector.Z * vector.Z);
-            if (length < 1e-5f) return false;
+            if (float.IsNaN(vector.X) || float.IsInfinity(vector.X) ||
+                float.IsNaN(vector.Y) || float.IsInfinity(vector.Y) ||
+                float.IsNaN(vector.Z) || float.IsInfinity(vector.Z))
+                return false;
+
+            double lengthSquared =
+                (double)vector.X * vector.X +
+                (double)vector.Y * vector.Y +
+                (double)vector.Z * vector.Z;
+            if (lengthSquared < 1e-10 || double.IsNaN(lengthSquared) || double.IsInfinity(lengthSquared))
+                return false;
+
+            float length = (float)Math.Sqrt(lengthSquared);
             normalized = new VIZCore3D.NET.Data.Vector3D(
                 vector.X / length,
                 vector.Y / length,

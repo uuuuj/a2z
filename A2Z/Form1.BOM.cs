@@ -10,6 +10,11 @@ namespace A2Z
 {
     public partial class Form1
     {
+        private const int LargeBomTargetWarningThreshold = 5000;
+        private const int CancelableBomLoopInterval = 1;
+        private const int CancelableBomScanInterval = 200;
+        private Dictionary<Control, bool> _mainDimensionDrawingControlStates;
+
         private void SetupBOMColumns()
         {
             lvBOM.Columns.Clear();
@@ -349,23 +354,46 @@ namespace A2Z
             }
 
             _mainDimensionInProgress = true;
+            _mainDimensionDrawingControlStates = CaptureDrawingExportControlStates();
+            SetDrawingExportControlsEnabled(false);
             BeginCancelableOperation();
             btnMainDimension.Enabled = false;
-            if (btnExtractDrawingList != null)
-                btnExtractDrawingList.Enabled = false;
 
             // T-026: "치수추출 버튼은 항상 현재 visible 기준" — 이전 시트 선택으로 남은
             // xraySelectedNodeIndices가 CollectBOMData / DetectClash에서 필터로 쓰이며
             // "이전 부재 1개" 결과가 반복되는 버그 방지.
             xraySelectedNodeIndices.Clear();
 
-            // T-018: 장시간 작업 진행 오버레이 (BOM 수집 → Clash → 이벤트에서 Osnap/치수/시트)
-            ShowBusyOverlay("BOM 수집 중...");
+            // T-018: 장시간 작업 진행 오버레이 (대상 확인 → BOM 수집 → Clash → 이벤트에서 Osnap/치수/시트)
+            ShowBusyOverlay("BOM 대상 확인 중...");
 
             try
             {
+                List<VIZCore3D.NET.Data.Node> targetNodes =
+                    GetBOMTargetNodes("BOM 대상 확인 중");
+
+                if (targetNodes.Count >= LargeBomTargetWarningThreshold)
+                {
+                    HideBusyOverlay();
+                    DialogResult continueResult = MessageBox.Show(
+                        $"대상 부재가 {targetNodes.Count:N0}개입니다. 오래 걸릴 수 있습니다.\n\n" +
+                        "구역 전체가 아니라 STRU만 격리한 뒤 실행하는 것을 권장합니다.\n\n" +
+                        "계속하시겠습니까?",
+                        "대용량 치수 추출 확인",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2);
+                    if (continueResult != DialogResult.Yes)
+                    {
+                        DiagLog($"치수 추출 시작 취소 — 대상 {targetNodes.Count:N0}개, 사용자 선택 No");
+                        FinishMainDimensionOperation();
+                        return;
+                    }
+                    ShowBusyOverlay($"BOM 수집 중... (0 / {targetNodes.Count:N0})");
+                }
+
                 // 0. BOM 데이터 수집 (매번 재수집하여 현재 가시성 반영)
-                CollectBOMData();
+                CollectBOMData(targetNodes);
                 if (bomList.Count == 0)
                 {
                     FinishMainDimensionOperation();
@@ -402,6 +430,11 @@ namespace A2Z
                     $"xray={xraySelectedNodeIndices?.Count ?? 0} chain={chainDimensionList?.Count ?? 0} " +
                     $"osnap={osnapPointsWithNames?.Count ?? 0}");
             }
+            catch (OperationCanceledException ex)
+            {
+                if (!CancelMainDimensionAtCheckpoint(ex.Message))
+                    FinishMainDimensionOperation();
+            }
             catch (Exception ex)
             {
                 // [T-016 진단 로그] 예외 종료
@@ -423,7 +456,7 @@ namespace A2Z
                 ClearCanceledOperationArtifacts();
                 FinishMainDimensionOperation();
                 MessageBox.Show(
-                    $"치수 추출을 취소했습니다.\n\n중단 위치: {checkpoint}\n현재 실행 중이던 작업 단위까지는 정상적으로 마무리했습니다.",
+                    $"치수 추출을 취소했습니다.\n\n중단 위치: {checkpoint}\n임시 결과를 정리했으며 다음 작업을 바로 실행할 수 있습니다.",
                     "취소됨",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -440,14 +473,10 @@ namespace A2Z
             HideBusyOverlay();
             EndCancelableOperation();
             try { btnMainDimension.Enabled = true; } catch { }
-            if (!_p2aInProgress)
+            if (_mainDimensionDrawingControlStates != null)
             {
-                try
-                {
-                    if (btnExtractDrawingList != null)
-                        btnExtractDrawingList.Enabled = true;
-                }
-                catch { }
+                RestoreDrawingExportControlStates(_mainDimensionDrawingControlStates);
+                _mainDimensionDrawingControlStates = null;
             }
         }
 
@@ -468,6 +497,8 @@ namespace A2Z
             osnapPoints?.Clear();
             osnapPointsWithNames?.Clear();
             lvOsnap?.Items.Clear();
+            bomList?.Clear();
+            lvBOM?.Items.Clear();
             xraySelectedNodeIndices?.Clear();
             _lastCollectedNodeOsnapMap?.Clear();
             _udaValueCache?.Clear();
@@ -599,6 +630,11 @@ namespace A2Z
                     $"chain={chainDimensionList.Count} osnap={osnapPointsWithNames.Count} " +
                     $"clash={clashList.Count} sheets={drawingSheetList.Count} singleMember={isSingleMember}");
             }
+            catch (OperationCanceledException ex)
+            {
+                if (!CancelMainDimensionAtCheckpoint(ex.Message) && _mainDimensionInProgress)
+                    FinishMainDimensionOperation();
+            }
             catch (Exception ex)
             {
                 DiagLog($"CompleteMainDimensionPostClash FAIL {ex.Message}\n{ex.StackTrace}");
@@ -633,35 +669,21 @@ namespace A2Z
             try
             {
                 vizcore3d.Clash.ClearResultSymbol();
-                List<VIZCore3D.NET.Data.Node> allBodyNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-
-                if (allBodyNodes == null || allBodyNodes.Count == 0)
-                {
+                List<VIZCore3D.NET.Data.Node> bodyNodes =
+                    GetBOMTargetNodes("Osnap 대상 확인 중");
+                if (bodyNodes.Count == 0)
                     return false;
-                }
 
-                // 가시성 필터링: 프로그래밍 선택 또는 FromIndex().Visible
-                List<VIZCore3D.NET.Data.Node> bodyNodes;
-                if (xraySelectedNodeIndices.Count > 0)
+                for (int nodePosition = 0; nodePosition < bodyNodes.Count; nodePosition++)
                 {
-                    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
-                    bodyNodes = allBodyNodes.Where(n =>
-                        selectedSet.Contains(n.Index) ||
-                        (bodyToPartIndexMap.ContainsKey(n.Index) && selectedSet.Contains(bodyToPartIndexMap[n.Index]))
-                    ).ToList();
-                }
-                else
-                {
-                    bodyNodes = allBodyNodes.Where(n =>
+                    if (nodePosition % CancelableBomLoopInterval == 0)
                     {
-                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
-                        return realNode != null && realNode.Visible;
-                    }).ToList();
-                    if (bodyNodes.Count == 0) bodyNodes = allBodyNodes;
-                }
+                        ProcessCancelableUiCheckpoint(
+                            $"Osnap 수집 중... ({nodePosition + 1:N0} / {bodyNodes.Count:N0})",
+                            $"Osnap 수집 {nodePosition + 1:N0}/{bodyNodes.Count:N0}");
+                    }
 
-                foreach (var node in bodyNodes)
-                {
+                    VIZCore3D.NET.Data.Node node = bodyNodes[nodePosition];
                     string partName = GetPartNameFromBodyIndex(node.Index, node.NodeName);
                     List<VIZCore3D.NET.Data.OsnapVertex3D> osnapList = CacheMfgAxisDetection(
                         node.Index,
@@ -718,6 +740,13 @@ namespace A2Z
                 {
                     for (int i = 0; i < osnapPointsWithNames.Count; i++)
                     {
+                        if (i % 200 == 0)
+                        {
+                            ProcessCancelableUiCheckpoint(
+                                $"Osnap 목록 구성 중... ({i + 1:N0} / {osnapPointsWithNames.Count:N0})",
+                                $"Osnap 목록 구성 {i + 1:N0}/{osnapPointsWithNames.Count:N0}");
+                        }
+
                         var item = osnapPointsWithNames[i];
                         // REQ-003: 컬럼 순서 No / 축 / 부재이름 / X / Y / Z
                         ListViewItem lvi = new ListViewItem((i + 1).ToString());
@@ -732,6 +761,10 @@ namespace A2Z
 
                 return osnapPoints.Count > 0;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Osnap 수집 오류: {ex.Message}");
@@ -742,42 +775,73 @@ namespace A2Z
         /// <summary>
         /// BOM 데이터 수집 (내부 메서드)
         /// </summary>
-        private bool CollectBOMData()
+        private List<VIZCore3D.NET.Data.Node> GetBOMTargetNodes(string progressLabel)
+        {
+            List<VIZCore3D.NET.Data.Node> allNodes =
+                vizcore3d.Object3D.GetPartialNode(false, false, true);
+            if (allNodes == null || allNodes.Count == 0)
+                return new List<VIZCore3D.NET.Data.Node>();
+
+            var targetNodes = new List<VIZCore3D.NET.Data.Node>();
+            HashSet<int> selectedSet = xraySelectedNodeIndices.Count > 0
+                ? new HashSet<int>(xraySelectedNodeIndices)
+                : null;
+
+            for (int i = 0; i < allNodes.Count; i++)
+            {
+                if (i % CancelableBomScanInterval == 0)
+                {
+                    ProcessCancelableUiCheckpoint(
+                        $"{progressLabel}... ({i + 1:N0} / {allNodes.Count:N0})",
+                        $"{progressLabel} {i + 1:N0}/{allNodes.Count:N0}");
+                }
+
+                VIZCore3D.NET.Data.Node node = allNodes[i];
+                if (selectedSet != null)
+                {
+                    if (selectedSet.Contains(node.Index) ||
+                        (bodyToPartIndexMap.ContainsKey(node.Index) &&
+                         selectedSet.Contains(bodyToPartIndexMap[node.Index])))
+                    {
+                        targetNodes.Add(node);
+                    }
+                    continue;
+                }
+
+                VIZCore3D.NET.Data.Node realNode = vizcore3d.Object3D.FromIndex(node.Index);
+                if (realNode != null && realNode.Visible)
+                    targetNodes.Add(node);
+            }
+
+            if (selectedSet != null)
+                return targetNodes;
+            return targetNodes.Count > 0 ? targetNodes : allNodes;
+        }
+
+        private bool CollectBOMData(
+            List<VIZCore3D.NET.Data.Node> preparedTargetNodes = null,
+            string progressLabel = "BOM 수집 중")
         {
             bomList.Clear();
             lvBOM.Items.Clear();
 
             try
             {
-                List<VIZCore3D.NET.Data.Node> allNodes = vizcore3d.Object3D.GetPartialNode(false, false, true);
-
-                if (allNodes == null || allNodes.Count == 0)
-                {
+                List<VIZCore3D.NET.Data.Node> targetNodes =
+                    preparedTargetNodes ?? GetBOMTargetNodes("BOM 대상 확인 중");
+                if (targetNodes.Count == 0)
                     return false;
-                }
 
-                // X-Ray 필터링: 프로그래밍 선택 → 수동 X-Ray → 전체
-                List<VIZCore3D.NET.Data.Node> targetNodes;
-                if (xraySelectedNodeIndices.Count > 0)
+                for (int nodePosition = 0; nodePosition < targetNodes.Count; nodePosition++)
                 {
-                    HashSet<int> selectedSet = new HashSet<int>(xraySelectedNodeIndices);
-                    targetNodes = allNodes.Where(n =>
-                        selectedSet.Contains(n.Index) ||
-                        (bodyToPartIndexMap.ContainsKey(n.Index) && selectedSet.Contains(bodyToPartIndexMap[n.Index]))
-                    ).ToList();
-                }
-                else
-                {
-                    targetNodes = allNodes.Where(n =>
+                    if (nodePosition % CancelableBomLoopInterval == 0)
                     {
-                        var realNode = vizcore3d.Object3D.FromIndex(n.Index);
-                        return realNode != null && realNode.Visible;
-                    }).ToList();
-                    if (targetNodes.Count == 0) targetNodes = allNodes;
-                }
+                        ProcessCancelableUiCheckpoint(
+                            $"{progressLabel}... ({nodePosition + 1:N0} / {targetNodes.Count:N0})",
+                            $"BOM 수집 {nodePosition + 1:N0}/{targetNodes.Count:N0}");
+                    }
 
-                foreach (var node in targetNodes)
-                {
+                    VIZCore3D.NET.Data.Node node = targetNodes[nodePosition];
                     BOMData bom = new BOMData();
                     bom.Name = GetPartNameFromBodyIndex(node.Index, node.NodeName);
                     bom.Index = node.Index;
@@ -856,12 +920,19 @@ namespace A2Z
                 bomList.Sort((a, b) => b.MaxZ.CompareTo(a.MaxZ));
 
                 // 홀 검출 수행
-                DetectHoles();
+                DetectHoles(progressLabel);
 
                 // 정렬된 순서로 ListView 채우기 (No. 칼럼 포함)
                 int bomNo = 1;
                 foreach (var bom in bomList)
                 {
+                    if ((bomNo - 1) % 200 == 0)
+                    {
+                        ProcessCancelableUiCheckpoint(
+                            $"BOM 목록 구성 중... ({bomNo:N0} / {bomList.Count:N0})",
+                            $"BOM 목록 구성 {bomNo:N0}/{bomList.Count:N0}");
+                    }
+
                     ListViewItem lvi = new ListViewItem(bomNo.ToString());  // No. 칼럼
                     lvi.SubItems.Add(bom.Name);
                     lvi.SubItems.Add(bom.RotationAngle.ToString("F2"));
@@ -884,6 +955,10 @@ namespace A2Z
 
                 return bomList.Count > 0;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"BOM 수집 오류: {ex.Message}");
@@ -896,15 +971,23 @@ namespace A2Z
         /// GetCircleData를 사용하여 원형 데이터(지름, 중심)를 얻고,
         /// 원기둥의 높이와 부재 두께를 비교
         /// </summary>
-        private void DetectHoles(float tolerance = 1.0f)
+        private void DetectHoles(string progressLabel = "BOM 수집 중", float tolerance = 1.0f)
         {
             // 홀/슬롯홀 검출 = SDK GetNodeHoleInfo API (2026-06-23, 원기둥·Osnap 추측 휴리스틱 전면 교체).
             //   기존 휴리스틱(부정확)을 제거하고 API로 bom.Holes/SlotHoles를 채운다.
             //   BOM 표 홀사이즈/슬롯사이즈 문자열도 API 결과로 생성. (가공도 풍선도 같은 API 사용)
             try
             {
-                foreach (var bom in bomList)
+                for (int bomPosition = 0; bomPosition < bomList.Count; bomPosition++)
                 {
+                    if (bomPosition % CancelableBomLoopInterval == 0)
+                    {
+                        ProcessCancelableUiCheckpoint(
+                            $"{progressLabel} - 홀 정보 확인... ({bomPosition + 1:N0} / {bomList.Count:N0})",
+                            $"홀 정보 확인 {bomPosition + 1:N0}/{bomList.Count:N0}");
+                    }
+
+                    BOMData bom = bomList[bomPosition];
                     bom.Holes.Clear();
                     bom.SlotHoles.Clear();
                     bom.HoleSize = "";
@@ -945,6 +1028,10 @@ namespace A2Z
                         bom.SlotHoleSize = string.Join(", ", slotParts);
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

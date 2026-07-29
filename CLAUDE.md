@@ -21,27 +21,29 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 단순 리팩토링/포매팅/로깅만 추가한 경우는 예외 (흐름 변화 없음).
 
 ### R2. 작업 시작 시 컨텍스트 로드
-새 작업 시작 전 반드시 **다음 4개를 자동으로 훑고** 관련 내역이 있으면 사용자에게 브리핑:
-- [`docs/tracking/TASKS.md`](./docs/tracking/TASKS.md) — `IN_PROGRESS` 섹션 (지금 이어갈 작업)
-- [`docs/tracking/sessions/`](./docs/tracking/sessions/) — **최신 파일 1개**의 "이어갈 지점" (전 세션에서 넘어온 컨텍스트)
-- [`docs/tracking/FEEDBACK.md`](./docs/tracking/FEEDBACK.md) — `OPEN` 상태 담당자 피드백
-- [`docs/tracking/REQUESTS.md`](./docs/tracking/REQUESTS.md) — `OPEN` 상태 본인 요청
+**상태 관리 정본은 GitHub 이슈다** (2026-07-28 전환, `docs/tracking` 폐지). 새 작업 시작 전 다음을 훑고 관련 내역이 있으면 브리핑:
 
-브리핑 예: "지난번에 T-012 진행 중이었고, FB-003 새로 들어왔어요. 이어갈까요 아니면 새 작업부터 보실래요?"
+```bash
+gh issue list --label "상태: 개발 중" --state open        # 지금 이어갈 작업
+gh issue list --label "상태: 실기 확인" --state open       # 실기 확인 대기
+gh issue list --label "생산 필수" --state open            # 생산 차단 요소
+```
+
+- [`STATUS.md`](./STATUS.md) — PC 간 인수인계·다음에 할 것 (구 `sessions/` 역할을 대체)
+- 담당자 피드백은 `출처: 담당자 피드백`, 내부 요청은 `출처: 내부 요청` 라벨로 구분
+
+브리핑 예: "지난번에 #64 진행 중이었고, #120 새로 올라왔어요. 이어갈까요 아니면 새 작업부터 보실래요?"
 
 ### R3. 작업 완료 시 `/commit` 사용
 코드·문서 변경 후 `/commit` 슬래시 커맨드로 커밋. 이 커맨드가:
-- `docs/tracking/CHANGELOG.md` 항목 자동 추가
-- `docs/tracking/TASKS.md`에서 완료 항목을 `DONE` 섹션으로 이동
-- 커밋 메시지 생성
+- 커밋 메시지 생성 (증상·원인·조치·검증)
+- **관련 이슈에 코멘트로 완료 내역 기록** + `상태:` 라벨 갱신 (완료면 이슈 닫기)
+- 별도 CHANGELOG 파일은 쓰지 않는다 — **기록을 두 곳에 남기지 말 것**
 
-### R4. 세션 종료 시 요약 저장
-비자명한 작업을 한 세션(파일 여러 개 수정, 새 기능 추가, 버그 수정 등)은 종료 전 **`/checkpoint` 커맨드**로 요약 저장:
-- 파일: `docs/tracking/sessions/YYYY-MM-DD-주제.md`
-- 내용: 무엇을 왜 했는지 / 영향 범위 / **이어갈 지점** (다음 세션 복원용) / 참고 링크
-- 사용자가 `/checkpoint`를 안 호출해도, 작업 규모가 크면 세션 마무리 때 제안
+### R4. 세션 종료 시 STATUS.md 갱신
+비자명한 작업을 한 세션은 종료 전 **`/wrapup`** 으로 [`STATUS.md`](./STATUS.md)를 갱신한다. 마지막 작업·진행 중·다음에 할 것·메모를 남겨 다른 PC에서 이어받을 수 있게 한다.
 
-짧은 질의응답/탐색 세션은 생략.
+세션별 요약 파일은 폐지했다 — STATUS.md와 이슈 코멘트가 그 역할을 한다 (원본은 `docs/tracking-archive/`). 짧은 질의응답/탐색 세션은 생략.
 
 ### R5. /commit 후 자동 push
 `/commit` 커맨드는 커밋을 만든 뒤 **자동으로 `git push`까지 수행**한다. 사용자가 여러 컴퓨터에서 실행 테스트하는 환경이라 원격 동기화가 항상 필요하기 때문.
@@ -57,10 +59,10 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 - 주석: 필요한 곳만 (CLAUDE.md 기본 방침 준수)
 
 ### R7. 담당자 피드백은 원문 보존
-사용자가 담당자 메시지를 공유하면 `docs/tracking/FEEDBACK.md`에 **ID 부여 + 원문 그대로** 기록 후 `TASKS.md`로 분해. 피드백 요약·의역 금지 (뉘앙스 유실 방지).
+사용자가 담당자 메시지를 공유하면 **이슈를 만들고 `출처: 담당자 피드백` 라벨**을 붙인다. 본문에 **원문을 인용 블록으로 그대로** 남길 것. 피드백 요약·의역 금지 (뉘앙스 유실 방지). 대응 작업이 여러 개로 갈리면 별도 이슈로 쪼개고 서로 링크한다.
 
 ### R8. 본인 요청은 맥락 중심 기록
-사용자가 "나중에 바꾸고 싶다/개선하고 싶다" 등 본인 아이디어를 말하면 `docs/tracking/REQUESTS.md`에 `REQ-xxx`로 기록. 필수 필드: **우선순위(HIGH/MEDIUM/LOW)**, **배경(왜)**, **기대효과**. 즉시 작업 지시라면 REQ 건너뛰고 바로 `T-xxx`로.
+사용자가 "나중에 바꾸고 싶다/개선하고 싶다" 등 본인 아이디어를 말하면 **이슈를 만들고 `출처: 내부 요청` 라벨**을 붙인다. 본문 필수 항목: **배경(왜)**, **기대효과**. 즉시 작업 지시라면 출처 라벨 없이 바로 작업 이슈로 만든다.
 
 ### R9. 훅 리마인더는 신호일 뿐
 `A2Z/Form1.*.cs` Edit/Write 후 `[docs-sync-reminder]` 시스템 메시지가 주입되면, 이는 **R1 이행을 상기시키는 신호**일 뿐 맹목적으로 따르지 말 것. 실제 흐름 변경이 있었는지 판단 후 docs 갱신 여부 결정. 리팩토링·포매팅이면 주저 없이 생략.
@@ -85,7 +87,9 @@ Form1 partial class 8개 + Models.cs 구조. 상세는 [`docs/README.md`](./docs
 - ❌ `T-005 진행 중` / `P3 검증 단계` / `p3-3 겹침`
 - ✅ `치수를 부재 바깥쪽으로 빼는 작업 진행 중` / `사내에서 직접 출력해보며 확인하는 단계` / `치수 숫자끼리 겹치는 문제`
 
-**내부 문서·커밋 메시지(TASKS.md·CHANGELOG·계획서 등)**는 추적 시스템이 ID 기반이므로 ID를 유지하되, 단독으로 쓰지 말고 한 줄 요지를 같이 적는다 — `관련: T-046 (보조선 gap 10mm)`.
+**내부 문서·커밋 메시지(커밋·이슈 코멘트·계획서·STATUS.md 등)**는 GitHub 이슈 번호를 ID로 쓴다. 번호만 단독으로 두지 말고 한 줄 요지를 같이 적는다 — `관련: #67 (BOM 요약행 T/W)`.
+
+이슈 번호는 사용자도 같이 보는 공용 ID라 위 금지 대상이 아니다. 폐지된 `T-xxx`·`FB-xxx`·`REQ-xxx` 체계는 `docs/tracking-archive/`에만 남아 있으므로 새로 쓰지 않는다.
 
 ### R14. GitHub Issue 제목·상태 접두사 관리
 열린 GitHub Issue 제목은 반드시 아래 상태 접두사 중 하나로 시작하고, 같은 이름의 `상태:` 라벨을 **정확히 하나만** 사용한다.
@@ -121,7 +125,8 @@ a2z-HYI/
 │   ├── 기술 노트/        # 보조선·치수·Osnap 사양 등 기준 문서
 │   ├── code-reference/  # 파일별 코드 레퍼런스 (9, 영어 유지)
 │   ├── 사용자-매뉴얼/    # 담당자용 버튼 사용 가이드
-│   └── tracking/        # 개발 현황 추적
+│   ├── 장표/            # 보고·설명 HTML 장표
+│   └── tracking-archive/ # 폐지된 tracking 원본 + 이슈 JSON 백업 (읽기 전용)
 │       ├── FEEDBACK.md  # 담당자 피드백 inbox (FB-xxx)
 │       ├── REQUESTS.md  # 본인 수정 요청 inbox (REQ-xxx)
 │       ├── TASKS.md     # 할 일 (TODO/IN_PROGRESS/DONE, T-xxx)

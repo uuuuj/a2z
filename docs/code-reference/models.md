@@ -86,13 +86,25 @@
 | `PreparedBomRows` / `BomPrepared` | List / bool | 목록 표시 전에 준비한 BOM 행과 준비 상태 |
 | `PreparedBomNodeGroupMap` | Dictionary | 시트 기준 Body→BOM 그룹 번호 |
 
-### DrawingBomRowData (L200~L211)
+### DrawingBomRowData (L219~L235)
 도면정보 탭 BOM 한 행의 문자열 데이터. `ListViewItem`을 직접 보관하지 않고 시트 전환 때 안전하게 UI 행을 생성한다.
+
+### RevisionEntry (L236~L249)
+표제부 REV 이력 표 한 행. 6칸이 그대로 필드가 된다.
+
+| 필드 | 타입 | 용도 |
+|---|---|---|
+| `Rev` | string | REV. 번호 (현재는 `0` 고정) |
+| `Date` | string | 출력일 `yyyy-mm-dd` |
+| `Description` | string | 변경 사유 (기본 문구 미정 → 현재 공백) |
+| `Drawn` / `Checked` / `Approved` | string | 작성자·검도자·승인자 (입력 수단 미정 → 현재 공백) |
+
+빈 값은 `FillRevisionTable`이 `" "`(공백 1칸)로 바꿔 그 칸 괘선을 남긴다. 자세한 슬롯·괘선 규칙은 [FillRevisionTable](./form1-drawing-sheets.md#FillRevisionTable) 참고.
 
 ---
 
 ## 관련 문서
 - [Form1 공유 필드](./form1-bom.md#주요-공유-필드-form1-멤버)
-- [BOM 수집 흐름](../기능/BOM/BOM 수집.md)
-- [Clash 완료 콜백](../기능/간섭검사/간섭검사 완료 이벤트.md)
-- [시트 분할 알고리즘](../기능/도면시트/시트 자동 생성.md)
+- [BOM 수집 흐름](../기능/BOM/BOM%20수집.md)
+- [Clash 완료 콜백](../기능/간섭검사/간섭검사%20완료%20이벤트.md)
+- [시트 분할 알고리즘](../기능/도면시트/시트%20자동%20생성.md)

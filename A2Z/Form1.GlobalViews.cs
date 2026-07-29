@@ -325,7 +325,7 @@ namespace A2Z
                 VIZCore3D.NET.Data.Node connectedPart = null;
                 try { connectedPart = vizcore3d.Object3D.FromIndex(connectedPartIndex); }
                 catch { }
-                VIZCore3D.NET.Data.Node connectedAssembly = FindNearestParentAssembly(connectedPart);
+                VIZCore3D.NET.Data.Node connectedAssembly = FindParentStru(connectedPart) ?? FindNearestParentAssembly(connectedPart);   // #45 연결부재 STRU 단위
                 int assemblyIndex = connectedAssembly != null ? connectedAssembly.Index : connectedPartIndex;
                 string assemblyName = connectedAssembly != null ? connectedAssembly.NodeName : null;
                 if (string.IsNullOrWhiteSpace(assemblyName))
@@ -965,6 +965,10 @@ namespace A2Z
             if (sheet == null || sheet.MemberIndices == null || sheet.MemberIndices.Count == 0)
                 return result;
 
+            // 위치 성분을 그 축이 화면에 실제로 보이는(=화면 평면에 있는) 직교 뷰에만 배정한다.
+            //   그 축을 정면으로 마주보는 뷰(예: X 성분 ↔ -X 뷰)는 축이 깊이 방향이라 두 끝점이 화면상 겹치고
+            //   보조선이 하나로 합쳐져 치수가 뭉개진다 (2026-07-23 실기 PDF로 확인) → 그 뷰에는 배정하지 않는다.
+            //   ⚠ 세 뷰 모두 배정(전 시도)은 -X에서 형강 길이축 치수를 겹친 보조선으로 잘못 그렸음 — 폐기.
             var viewAxes = new Dictionary<string, string[]>
             {
                 { "X", new[] { "Z", "Y" } },

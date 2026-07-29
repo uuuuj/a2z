@@ -31,6 +31,16 @@ namespace A2Z
     }
 
     /// <summary>
+    /// 최종 실측 배율이 확정된 뒤 해당 뷰 외곽에 생성할 가공도 형상 노트.
+    /// </summary>
+    internal sealed class MfgPendingNote
+    {
+        public string Text;
+        public System.Drawing.Color Color;
+        public VIZCore3D.NET.Data.Vertex3D ArrowPosition;
+    }
+
+    /// <summary>
     /// 가공도 3D 장면 생성 결과. BuildMfgSceneCore가 반환, 호출자가 후속 적용(회전·뷰 유지·2D 캡처)에 사용.
     /// </summary>
     internal sealed class MfgViewPose
@@ -63,6 +73,43 @@ namespace A2Z
         /// 추정 스케일(EstimateFitScaleForViewArea)은 2D 은선 투영 실측과 달라 보조선 길이가 어긋났음 (설계 §4.4 v2-c, 2026-07-01).
         /// </summary>
         public System.Collections.Generic.List<MfgPendingDim> PendingDims { get; set; } = new System.Collections.Generic.List<MfgPendingDim>();
+
+        /// <summary>
+        /// 현재 뷰에 그릴 Hole/SlotHole/EarthBoss 노트 목록.
+        /// 모델 캡처 후 확정된 실측 배율로 CaptureMfgSceneToViewArea가 생성한다.
+        /// </summary>
+        public System.Collections.Generic.List<MfgPendingNote> PendingNotes { get; set; } =
+            new System.Collections.Generic.List<MfgPendingNote>();
+
+        /// <summary>
+        /// EA 두 번째 뷰에만 그릴 형상 노트 목록. 첫 번째 뷰와 독립적으로 배정·그룹화한다.
+        /// BuildEaSecondaryScene가 새 pose의 PendingNotes로 복사한다.
+        /// </summary>
+        public System.Collections.Generic.List<MfgPendingNote> SecondaryPendingNotes { get; set; } =
+            new System.Collections.Generic.List<MfgPendingNote>();
+
+        /// <summary>
+        /// 이 뷰의 풍선을 화면 위쪽 외곽에 배치할지 여부.
+        /// EA 페어는 가운데가 아닌 바깥쪽을 향하게 하고 단일 뷰는 아래쪽을 사용한다.
+        /// </summary>
+        public bool PlaceNotesAbove { get; set; }
+
+        /// <summary>
+        /// DrawMfgDimsAtScale가 풍선과 같은 화면 위·아래 쪽에 실제 사용한 최대 치수 오프셋(모델 좌표).
+        /// 풍선이 치수 문자 바깥에서 시작하도록 같은 종이 절대 오프셋을 공유한다.
+        /// </summary>
+        public float DimensionEnvelopeOffset { get; set; }
+
+        /// <summary>
+        /// 짧은 체인 치수를 2단으로 승격한 수. 캡처 전 fit 여백 계산과 치수 로그가 공유한다.
+        /// </summary>
+        public int PromotedDimensionCount { get; set; }
+
+        /// <summary>
+        /// EA 두 뷰가 공통으로 사용할 모델 fit 전 주석 예약 높이(종이 mm).
+        /// null이면 단일 뷰처럼 현재 PendingNotes와 실제 같은 쪽 치수 외곽으로 계산한다.
+        /// </summary>
+        public float? SharedAnnotationBudgetCanvas { get; set; }
 
         /// <summary>
         /// EA 접힘 모서리(두 플랜지가 만나는 변) 판정 — 두 뷰 상하 스왑용 (2026-07-02).
