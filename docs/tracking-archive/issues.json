@@ -1,5 +1,131 @@
 [
  {
+  "body": "> 2026-07-29 — #67 `BOM 첫 행(요약행) 값 확정`에서 남은 요건을 옮겼습니다. #67의 No.·T/W는 반영·검증을 마쳤고, **ITEM 도면별 분기만 미구현**이라 이 이슈가 이어받습니다.\n\n## 문제 또는 검토 대상\nBOM 요약행 ITEM의 확정 사양은 도면 종류별로 갈린다.\n\n| 도면 | ITEM |\n|---|---|\n| 배관 서포트 도면 | `Pipe Support` |\n| 전장 서포트 도면 | `Support&Seat` |\n\n현재 구현은 **항상 `Support&Seat` 고정**이다 (`BuildDrawingBomSnapshot`, `A2Z/Form1.Clash.cs`).\n\n이 값이 전장 서포트 도면의 확정 사양과 같으므로 **전장 도면은 이미 맞고, 배관 서포트 도면만 틀린 값이 나간다.**\n\n## 왜 미뤘나\n앱이 두 도면을 무엇으로 구분할지가 정해지지 않았다. 코드베이스에 배관/전장 개념이 **하나도 없다** — 관련 코드 0건이라 신규 판별이 필요하다. 2026-07-28 사용자 판단으로 기본값 유지 후 분리했다.\n\n## 결정 필요 — 구분 근거\n\n| 안 | 방법 | 장점 | 위험 |\n|---|---|---|---|\n| (a) STRU UDA 값 | STRUCTURE 노드의 특정 att 키로 판별 | 모델이 근거, 자동 | 어떤 키인지 미확인 |\n| (b) STRU 이름 규칙 | TAG No.용으로 이미 읽는 값 재사용 | 추가 조회 0 | #66에서 STRU 이름을 생산설계 이름으로 교체 예정 → 규칙이 깨질 수 있음 |\n| (c) 사용자 UI 선택 | 도면 생성 시 선택 | 확실 | 수동, 실수 여지 |\n\n**권고: (a) 1순위 + (c) 폴백.** 배관 서포트 모델 1개·전장 서포트 모델 1개에서 STRUCTURE 노드의 UDA 키·값 전체를 덤프해 갈리는 키가 있는지 먼저 확인하고, 없으면 (c)로 확정한다.\n\n덤프 수단은 이미 있다 — `DumpDrawingBomStruDiagnostics`(`A2Z/Form1.Clash.cs`)가 조상 체인의 비어 있지 않은 UDA를 전부 남긴다. 지금은 STRUCTURE 노드를 못 찾았을 때만 도는데, 확인용으로 한 번 강제 실행하면 된다.\n\n속성 키 확인은 #198(att 속성 일괄 정리)에 함께 올려도 된다.\n\n## 완료 조건\n- [ ] 배관/전장 구분 근거 확정\n- [ ] `BuildDrawingBomSnapshot`의 요약행 ITEM을 도면 종류별로 분기\n- [ ] 배관 서포트 도면에서 `Pipe Support`, 전장 서포트 도면에서 `Support&Seat` 출력 확인\n- [ ] 제작도·조립도·설치도·가공도 4종 동일 확인\n\n관련: #67 (요약행 No.·T/W — 완료) · #198 (att 속성 정리) · #66 (STRU 이름 교체 예정)\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-07-30T02:57:17Z",
+  "labels": [
+   {
+    "color": "a2eeef",
+    "description": "New feature or request",
+    "id": "LA_kwDORMsH0M8AAAACXmwr5Q",
+    "name": "enhancement"
+   },
+   {
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
+   },
+   {
+    "color": "8A97AC",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OMw",
+    "name": "도면: 공통"
+   },
+   {
+    "color": "D93F0B",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
+    "name": "생산 필수"
+   }
+  ],
+  "number": 199,
+  "state": "OPEN",
+  "stateReason": "",
+  "title": "[분석 필요] BOM 요약행 ITEM — 배관 서포트 / 전장 서포트 도면 구분 기준 확정",
+  "updatedAt": "2026-07-30T02:57:17Z",
+  "url": "https://github.com/uuuuj/a2z/issues/199"
+ },
+ {
+  "body": "## 문제 또는 검토 대상\n도면에 넣어야 하는 값 중 **모델 att(UDA)에서 읽어야 하는데 키를 모르는 것**이 여러 이슈에 흩어져 있다. 이슈마다 따로 담당자·모델 변환 쪽에 물으면 왕복이 반복되고 답이 와도 어느 이슈에 반영해야 하는지 흩어진다.\n\n**모델 변환 쪽에 한 번에 요청하기 위한 목록 이슈**다. 여기서 키가 확정되면 각 이슈는 배선만 하면 된다.\n\n## 필요한 속성 목록\n\n| 필요한 값 | 현재 상태 | 담당 이슈 |\n|---|---|---|\n| DP No. | 하드코딩 `\"Test\"` | #65 |\n| TAG No. (생산설계 모델 이름) | 상세설계 STRU 이름이 들어감 | #66 |\n| PNOD | 값 연결 없음 | #111 |\n| No Paint 판정 근거 | 판정 수단 없음 | #197 |\n| 자재그룹 (가공도) | 템플릿에 칸 자체가 없음 | #69 |\n| BOM Q'TY | 항상 `1` | #59 |\n| 표제부 프로젝트명 | 하드코딩 `\"CEDAR FLNG\"` | #105 |\n| 선박번호 / Project No | 하드코딩 `\"SN2688\"` | #106 |\n\n## 속성마다 같이 받아야 하는 것\n\n키 이름만 받으면 배선 단계에서 다시 막힌다. 아래 4개를 **속성마다** 함께 확인한다.\n\n1. **정확한 UDA 키 이름** — 대소문자·접두사 포함 (기존 키 예: `SPREF`, `MATREF`, `GWEI`, `STRU`, `:SHI_PNT_OTSD_SPEC1`)\n2. **값이 붙은 노드 레벨** — Part / Assembly / STRUCTURE 중 어디인지. 부모 walk-up이 필요한지\n3. **도면 1장(= STRU 1개) 안에서 부재마다 값이 다를 수 있는지** — 다르면 대표값 선정 규칙이 별도로 필요하다\n4. **값이 없을 때 표기** — 빈칸 유지 / 대체 문구 / 폴백 값\n\n3번이 특히 중요하다. 표제부 항목은 도면당 1개 값이어야 하는데 부재마다 다르면 규칙 없이는 배선이 안 된다. 실제로 BOM 요약행 무게(#67)에서 이 문제가 났고, 조상 노드를 잘못 잡아 개별 부재 무게가 요약행보다 큰 출력이 나왔다.\n\n## 참고 — 이미 확인된 속성\n\n같은 형식으로 회신받으면 바로 반영할 수 있다는 예시다.\n\n| 값 | 키 | 노드 레벨 |\n|---|---|---|\n| PAINT CODE | `PNT` 포함 키 (`:SHI_PNT_OTSD_SPEC1`) | STRU에서 walk-up |\n| BOM ITEM · SIZE | `SPREF` | Part에서 walk-up |\n| BOM MATERIAL | `MATREF` | Part에서 walk-up |\n| BOM T/W (부재) | `GWEI` | Part에서 walk-up |\n| BOM T/W (요약행) | `GWEI` | STRUCTURE 노드 |\n| TAG No. (상세설계) | `STRU` | 부모 walk-up |\n\n## 완료 조건\n- [ ] 위 8개 속성의 키 이름·노드 레벨·부재별 편차·빈 값 처리를 회신받음\n- [ ] 회신 내용을 각 담당 이슈에 반영하고 상태를 `개발 대기`로 전환\n- [ ] 모델에 없는 속성은 모델 변환 쪽 추가 요청으로 분리\n\n관련: #65 · #66 · #111 · #197 · #69 · #59 · #105 · #106\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-07-29T21:42:19Z",
+  "labels": [
+   {
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
+   },
+   {
+    "color": "8A97AC",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OMw",
+    "name": "도면: 공통"
+   },
+   {
+    "color": "D93F0B",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
+    "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
+   },
+   {
+    "color": "0E5A8A",
+    "description": "필수 항목 중 우리가 정의·구현해야 하는 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdhg",
+    "name": "필수: 내부 해결"
+   }
+  ],
+  "number": 198,
+  "state": "OPEN",
+  "stateReason": "",
+  "title": "[분석 필요] 개발에 필요한 att(UDA) 속성 정리 — 모델 변환 쪽에 일괄 요청",
+  "updatedAt": "2026-07-29T21:42:19Z",
+  "url": "https://github.com/uuuuj/a2z/issues/198"
+ },
+ {
+  "body": "> 2026-07-29 — #111 `PNOD / No Paint 표시`에서 분리했습니다. 확인 주체가 달라(No Paint = 소프트힐스 / PNOD = 담당자) 한 이슈로 두면 한쪽이 풀려도 닫을 수 없어 쪼갰습니다. PNOD는 #111이 계속 담당합니다.\n\n## 문제 또는 검토 대상\n도장하지 않는 부재(No Paint)를 도면에 **어떻게 표기할지**가 정해지지 않았다. 현재 코드·템플릿 어디에도 표기 수단이 없다.\n\n표제부에는 PAINT CODE(`{Input_166}`)가 이미 들어간다 — STRU에서 `PNT` 계열 UDA를 walk-up으로 읽어 도면 목록 전체가 공유한다 (`GetOrCacheDrawingPaintCode`, `A2Z/Form1.DrawingSheets.cs`). No Paint는 이 값과 별개로, **부재 단위로 갈릴 수 있는 항목**이라 표기 위치부터 달라진다.\n\n## 확인할 사항 (소프트힐스 확인중)\n- **표기 방식** — 표제부 문구인지, BOM 열인지, 부재별 심볼·해칭인지\n- 부재별 표기라면 2D 출력에서 그 부재만 구분해 그릴 수 있는 API가 있는지\n- 도장 대상과 비대상이 한 도면에 섞일 때의 표현\n\n## 확인할 사항 (우리)\n- No Paint 여부를 판정할 **데이터 출처** — 별도 UDA인지, PAINT CODE 값이 비었을 때로 볼지\n- 이 부분은 #(ATT 속성 정리 이슈)에서 함께 요청\n\n관련: #111 (PNOD), #68 (PAINT CODE 2개 표기)\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-07-29T21:41:27Z",
+  "labels": [
+   {
+    "color": "D73A4A",
+    "description": "API 추가·수정·배포 또는 회신을 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhHZw",
+    "name": "상태: API 대기"
+   },
+   {
+    "color": "8A97AC",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OMw",
+    "name": "도면: 공통"
+   },
+   {
+    "color": "D93F0B",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
+    "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
+   }
+  ],
+  "number": 197,
+  "state": "OPEN",
+  "stateReason": "",
+  "title": "[API 대기] No Paint 표시방법 — 도면 표기 방식 확정",
+  "updatedAt": "2026-07-29T21:41:27Z",
+  "url": "https://github.com/uuuuj/a2z/issues/197"
+ },
+ {
   "body": "닫힌 이슈에 상태 라벨·접두사가 남는 경합이 해결됐는지 확인하는 임시 이슈입니다. 확인 후 닫습니다.",
   "closedAt": "2026-07-29T03:12:25Z",
   "comments": [
@@ -1511,10 +1637,10 @@
   "createdAt": "2026-07-29T01:24:47Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1526,8 +1652,8 @@
   "number": 181,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] XYZ축 치수 평면 필터링 검증·수정",
-  "updatedAt": "2026-07-29T01:37:31Z",
+  "title": "[분석 필요] XYZ축 치수 평면 필터링 검증·수정",
+  "updatedAt": "2026-07-30T04:32:35Z",
   "url": "https://github.com/uuuuj/a2z/issues/181"
  },
  {
@@ -1553,10 +1679,10 @@
   "createdAt": "2026-07-29T01:24:45Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1568,8 +1694,8 @@
   "number": 180,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] 보조선 시작점이 모델과 겹쳐 보이는 케이스 회피 (본인 개선)",
-  "updatedAt": "2026-07-29T01:37:30Z",
+  "title": "[분석 필요] 보조선 시작점이 모델과 겹쳐 보이는 케이스 회피 (본인 개선)",
+  "updatedAt": "2026-07-30T04:32:38Z",
   "url": "https://github.com/uuuuj/a2z/issues/180"
  },
  {
@@ -1595,10 +1721,10 @@
   "createdAt": "2026-07-29T01:24:43Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1610,8 +1736,8 @@
   "number": 179,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] 검토자 Excel Template과 Base Template 일치 검증",
-  "updatedAt": "2026-07-29T01:37:29Z",
+  "title": "[분석 필요] 검토자 Excel Template과 Base Template 일치 검증",
+  "updatedAt": "2026-07-30T04:32:31Z",
   "url": "https://github.com/uuuuj/a2z/issues/179"
  },
  {
@@ -1678,10 +1804,10 @@
   "createdAt": "2026-07-29T01:24:39Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1693,8 +1819,8 @@
   "number": 177,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] 풍선·심볼 반영 기준 정의 (도메인 정의)",
-  "updatedAt": "2026-07-29T01:37:28Z",
+  "title": "[분석 필요] 풍선·심볼 반영 기준 정의 (도메인 정의)",
+  "updatedAt": "2026-07-30T04:32:29Z",
   "url": "https://github.com/uuuuj/a2z/issues/177"
  },
  {
@@ -1704,10 +1830,10 @@
   "createdAt": "2026-07-29T01:24:38Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1719,8 +1845,8 @@
   "number": 176,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] Osnap 생성 기준 문서화 (Softhills 답변 정리)",
-  "updatedAt": "2026-07-29T01:24:38Z",
+  "title": "[분석 필요] Osnap 생성 기준 문서화 (Softhills 답변 정리)",
+  "updatedAt": "2026-07-30T04:32:29Z",
   "url": "https://github.com/uuuuj/a2z/issues/176"
  },
  {
@@ -1730,10 +1856,10 @@
   "createdAt": "2026-07-29T01:24:36Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "C5DEF5",
@@ -1745,8 +1871,8 @@
   "number": 175,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] BOM Size 표기법 (단면 SIZE + 길이 LENGTH 모두 표현)",
-  "updatedAt": "2026-07-29T01:24:36Z",
+  "title": "[분석 필요] BOM Size 표기법 (단면 SIZE + 길이 LENGTH 모두 표현)",
+  "updatedAt": "2026-07-30T04:32:26Z",
   "url": "https://github.com/uuuuj/a2z/issues/175"
  },
  {
@@ -1847,10 +1973,10 @@
   "createdAt": "2026-07-29T01:24:35Z",
   "labels": [
    {
-    "color": "1D76DB",
-    "description": "현재 구현 중인 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIog",
-    "name": "상태: 개발 중"
+    "color": "0E8A16",
+    "description": "코드 반영 후 실제 모델·출력 검증을 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhI-Q",
+    "name": "상태: 실기 확인"
    },
    {
     "color": "2563EB",
@@ -1868,8 +1994,8 @@
   "number": 174,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 중] 가공도 시트: 선택상태 해제 + ISO 뷰 느낌 해결",
-  "updatedAt": "2026-07-29T01:37:25Z",
+  "title": "[실기 확인] 가공도 시트: 선택상태 해제 + ISO 뷰 느낌 해결",
+  "updatedAt": "2026-07-30T04:28:16Z",
   "url": "https://github.com/uuuuj/a2z/issues/174"
  },
  {
@@ -2162,10 +2288,10 @@
   "createdAt": "2026-07-29T01:24:31Z",
   "labels": [
    {
-    "color": "1D76DB",
-    "description": "현재 구현 중인 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIog",
-    "name": "상태: 개발 중"
+    "color": "0E8A16",
+    "description": "코드 반영 후 실제 모델·출력 검증을 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhI-Q",
+    "name": "상태: 실기 확인"
    },
    {
     "color": "C5DEF5",
@@ -2177,8 +2303,8 @@
   "number": 172,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 중] 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장",
-  "updatedAt": "2026-07-29T01:36:58Z",
+  "title": "[실기 확인] 2D 출력 BOM 테이블 줄바꿈 방지 + ITEM 열 분리 기준 확장",
+  "updatedAt": "2026-07-30T04:28:13Z",
   "url": "https://github.com/uuuuj/a2z/issues/172"
  },
  {
@@ -2364,15 +2490,30 @@
     "reactionGroups": [],
     "url": "https://github.com/uuuuj/a2z/issues/169#issuecomment-5111734466",
     "viewerDidAuthor": true
+   },
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "## 실기 로그에 동작 근거 확인 (2026-07-28 Release)\n\n사용자 사내 PC Release 실행 로그(`diag-2026-07-28.log`)에 A 옵션이 실제로 동작한 흔적이 남아 있습니다. **별도 실기 실행 없이 검증 가능한 상태입니다.**\n\n### 사전 구축 맵이 재사용되고 있음\n\n```\n[23:25:57.289] E1 Osnap cache: hit=8 miss=1 members=9 preBuilt=8\n[23:25:57.320] T-032 치수 계산: visibleMembers=9 osnapMapNodes=8 chain=40 ComputeViewDimensionsForMembers=66ms\n[23:25:57.385] E1 Osnap cache: hit=2 miss=1 members=3 preBuilt=8\n[23:25:57.403] E1 Osnap cache: hit=5 miss=1 members=6 preBuilt=8\n[23:25:57.409] E1 Osnap cache: hit=3 miss=0 members=3 preBuilt=8\n```\n\n- `preBuilt=8` — `CollectAllOsnap`이 채운 맵이 살아 있고, **시트가 바뀌어도 같은 맵을 계속 재사용**한다 (이게 A 옵션의 핵심)\n- `hit`이 대부분이고 `miss`는 0~1 — `GetOsnapPoint` 중복 호출이 실제로 제거됐다\n- 9부재 기준 `ComputeViewDimensionsForMembers=66ms`\n- 이후 시트 8장의 치수 사전 준비가 각 0~19ms (`도면 시트 치수 사전 준비` 로그)\n\n### 남은 확인\n\n완료 조건의 \"DiagLog 수치 개선 비교\"는 **개선 전 수치가 없어 직접 비교는 불가**합니다. 다만 `preBuilt`가 채워진 채 시트마다 재사용되는 것 자체가 중복 호출 제거의 직접 증거이고, 원래 증상(\"치수 계산 중 창이 오래 떠있음\")도 66ms 수준이면 체감될 시간이 아닙니다.\n\n사용자가 체감상 문제없다고 판단하시면 이대로 종료 가능합니다.",
+    "createdAt": "2026-07-30T04:28:39Z",
+    "id": "IC_kwDORMsH0M8AAAABMY97pQ",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/169#issuecomment-5126454181",
+    "viewerDidAuthor": true
    }
   ],
   "createdAt": "2026-07-29T01:24:26Z",
   "labels": [
    {
-    "color": "1D76DB",
-    "description": "현재 구현 중인 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIog",
-    "name": "상태: 개발 중"
+    "color": "0E8A16",
+    "description": "코드 반영 후 실제 모델·출력 검증을 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhI-Q",
+    "name": "상태: 실기 확인"
    },
    {
     "color": "C5DEF5",
@@ -2384,8 +2525,8 @@
   "number": 169,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 중] 치수 계산 성능 최적화 (Osnap 맵 재사용)",
-  "updatedAt": "2026-07-29T01:36:46Z",
+  "title": "[실기 확인] 치수 계산 성능 최적화 (Osnap 맵 재사용)",
+  "updatedAt": "2026-07-30T04:28:40Z",
   "url": "https://github.com/uuuuj/a2z/issues/169"
  },
  {
@@ -4954,13 +5095,25 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6Ong",
     "name": "backfill"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 117,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 가공도 단면 위주 출력·은선 정책",
-  "updatedAt": "2026-07-27T08:17:26Z",
+  "updatedAt": "2026-07-29T21:45:10Z",
   "url": "https://github.com/uuuuj/a2z/issues/117"
  },
  {
@@ -5154,14 +5307,30 @@
  {
   "body": "<!-- excel-meta\nno: 35\n도면: 제작·조립·설치·가공\n대분류: 표제부\n생산필수: ○\n최근변경: 2026-07-22\n-->\n\n**제작·조립·설치·가공** · 표제부 · 생산 필수 ○\n\n## 현재 값 · 구현 내용\n현재 값 연결 없음\n\n## 근거 · 비고\n기존 파일의 생산 필수 항목; Paint와 함께 정의 필요\n\n## 이력 · 판정\n| 항목 | 값 |\n|---|---|\n| 현재 상태 | 개발 필요 |\n| API·코드 구현 | X |\n| 생산 출력 확인 | X |\n| 추가 API·앱 개발 | UDA/업무 규칙 |\n| 추가 분석 | O |\n| 최근 변경일 | 2026-07-22 |\n\n---\n*이슈 관리 도입(2026-07-27) 전에 개발 현황 Excel(No.35)과 docs로 관리하던 항목을 옮긴 것입니다. GitHub 등록·종료일은 옮긴 날짜이며, 실제 일자는 위 이력 표를 따릅니다.*",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "> 2026-07-29 — No Paint 표기 방식은 #197로 분리했습니다. 확인 주체가 달라(No Paint = 소프트힐스 표기 방식 / PNOD = 담당자 속성 위치) 한 이슈로 두면 한쪽이 풀려도 닫을 수 없었습니다.\n\n이 이슈는 **PNOD**만 담당합니다.\n\n## 확인할 사항 (담당자 확인중)\n- PNOD 값이 담긴 정확한 **att(UDA) 키 이름**\n- 값이 붙은 **노드 레벨** — Part / Assembly / STRU 중 어디인지, walk-up이 필요한지\n- 도면 1장(= STRU 1개) 안에서 부재마다 값이 다를 수 있는지 → 다르면 대표값 규칙 필요\n- 값이 없을 때 표기 — 빈칸 유지 / 대체 문구\n\n속성 키 확인은 #198 (att 속성 일괄 정리)에서 함께 요청합니다.",
+    "createdAt": "2026-07-29T21:41:45Z",
+    "id": "IC_kwDORMsH0M8AAAABMWTSMw",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/111#issuecomment-5123658291",
+    "viewerDidAuthor": true
+   }
+  ],
   "createdAt": "2026-07-27T07:57:47Z",
   "labels": [
    {
-    "color": "C5DEF5",
-    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
-    "name": "상태: 개발 대기"
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
    },
    {
     "color": "8A97AC",
@@ -5186,13 +5355,19 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "0E5A8A",
+    "description": "필수 항목 중 우리가 정의·구현해야 하는 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdhg",
+    "name": "필수: 내부 해결"
    }
   ],
   "number": 111,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[개발 대기] PNOD / No Paint 표시",
-  "updatedAt": "2026-07-29T03:12:06Z",
+  "title": "[분석 필요] PNOD 표시 — 값이 담긴 att(UDA) 키·노드 레벨 확인",
+  "updatedAt": "2026-07-29T21:41:45Z",
   "url": "https://github.com/uuuuj/a2z/issues/111"
  },
  {
@@ -7179,7 +7354,7 @@
  },
  {
   "body": "## 이슈 종류\n기능 추가\n\n## 요청 내용\nBOM 표 **첫 행(요약행)**의 값 사양이 확정됐다. 현재 구현은 `BuildDrawingBomSnapshot` (`A2Z/Form1.Clash.cs:358~370`)에서 만든다.\n\n| 열 | 현재 구현 | 확정 사양 |\n|---|---|---|\n| No. | 빈칸 | **`00`** |\n| ITEM | 항상 `Support&Seat` 고정 | **배관 서포트 도면 = `Pipe Support` / 전장 서포트 도면 = `Support&Seat`** |\n| MATERIAL | 빈칸 | 빈칸 (유지) |\n| SIZE | 빈칸 | 빈칸 (유지) |\n| Q'TY | 빈칸 | 빈칸 (유지) |\n| T/W | 데이터행 무게 **합산값** (`parts.Sum(p => p.Weight)`) | **STRU 노드 자체의 `GWEI` UDA 값** — `/STRU` 전체를 클릭하면 전체 부재 무게가 개별 부재처럼 `GWEI` 속성에 들어 있음 |\n| MA | `F` | `F` (유지) |\n| FA | `F` | `F` (유지) |\n\n즉 **No.·ITEM·T/W 3개**가 바뀌고 나머지 5개는 현재 값이 그대로 맞다.\n\n## 기대 결과\n- 모든 도면의 BOM 첫 행이 `00 / (도면 종류별 ITEM) / (빈칸) / (빈칸) / (빈칸) / (STRU GWEI) / F / F` 로 출력된다.\n- T/W가 앱의 부재별 합산이 아니라 모델이 직접 들고 있는 STRU 무게라서 생산 값과 일치한다.\n\n## 완료 조건\n- [ ] No. = `00` 고정. 데이터행 정렬 로직(`Form1.Clash.cs:404~410`, `int.TryParse` 기반)과 도면 슬롯 매핑(`Form1.DrawingSheets.cs:2124~2157`)에 영향 없는지 확인\n- [ ] T/W = STRU 노드 `GWEI` 읽기로 교체 (`ReadDrawingBomPartData`의 UDA walk-up 패턴 재사용, `Form1.Clash.cs:224~299`). 값이 없을 때만 기존 합산 폴백\n- [ ] ITEM 도면 종류 분기 적용\n- [ ] 빈칸 3열(MATERIAL·SIZE·Q'TY)이 `RemoveEmptyTemplateBorders`로 괘선까지 지워지지 않는지 실기 확인 (#60)\n- [ ] 제작도·조립도·설치도·가공도 4종 모두 동일 확인\n\n## 결정 필요\n- **배관 서포트 도면 / 전장 서포트 도면을 앱이 무엇으로 구분**할지 — 모델 att(UDA), STRU 이름 규칙, 사용자 선택 중 어느 것인지 확정 필요\n\n관련: #59 (BOM Q'TY), #20 (BOM ITEM 및 빈 후속 데이터 표시)",
-  "closedAt": null,
+  "closedAt": "2026-07-30T02:57:52Z",
   "comments": [
    {
     "author": {
@@ -7255,6 +7430,21 @@
     "reactionGroups": [],
     "url": "https://github.com/uuuuj/a2z/issues/67#issuecomment-5111722750",
     "viewerDidAuthor": true
+   },
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "## 완료 — 실기 확인 통과\n\n사용자 실기 확인으로 종료합니다. 남은 요건 1건은 **#199**로 이관했습니다.\n\n### 반영된 값\n\n| 열 | 확정 사양 | 결과 |\n|---|---|---|\n| No. | `00` | ✅ |\n| ITEM | 도면 종류별 분기 | ⏸ `Support&Seat` 고정 유지 → **#199** |\n| MATERIAL · SIZE · Q'TY | 빈칸 | ✅ 괘선 보존 확인 |\n| T/W | STRUCTURE 노드 `GWEI` | ✅ |\n| MA · FA | `F` | ✅ (기존 유지) |\n\n### 추가로 필요했던 작업 — 요약행이 출력에 없었다\n\n착수 시점에 확인해보니 요약행이 **화면에만 보이고 도면에는 나가지 않고 있었다.** 출력 경로 3곳이 전부 첫 행을 건너뛰고 있었다.\n\n- 제작·조립·설치도 `Items[i + 1]` → `Items[i]`\n- 가공도 `SnapshotBomRows` 시작 인덱스 `1` → `0`\n\n값만 고쳐서는 기대 결과가 달성되지 않는 상태였다. 템플릿 BOM 정원 25행은 유지하고 요약행 1행 + 데이터행 24행으로 조정했다 (사용자 확정).\n\n### T/W — STRUCTURE 노드 판정이 핵심이었다\n\n처음 구현에서 **\"`STRU` 속성이 있는 노드 = STRUCTURE\"로 판정한 것이 틀렸다.** 실기에서 9부재 합산 45.55인 모델의 요약행에 `0.38`이 찍혔고, 개별 부재 무게가 요약행보다 큰 출력이 나왔다.\n\n실기 로그로 밝혀진 실제 구조:\n\n```\nSHAPE / PANEL / FRMWORK …   STRU='/M02-A-ES-LS134A-SHI'\n'/M02-A-ES-LS134A-SHI'      STRU=''  GWEI='11.4317kg'   ← 이 노드가 STRUCTURE\n```\n\n`STRU`는 **부재가 소속 STRUCTURE를 가리키는 역참조**라 STRUCTURE 노드 자신은 비어 있고, 대신 그 값이 STRUCTURE 노드의 **이름**과 같다. 그래서 이름 매칭으로 특정하도록 바꿨다 (`a024ac8`).\n\n### 성능 — 도면 출력 시점에 조회 없음\n\nSTRUCTURE `GWEI`는 부재 UDA walk-up에서 같이 수집해 BOM 스냅샷에 담는다. 조상 노드는 부재끼리 공유하므로 노드당 1회만 조회한다. 도면 출력 시점에는 추가 SDK 호출이 없다.\n\n### 남긴 진단\n\nSTRUCTURE 노드를 하나도 못 찾았을 때만 조상 체인을 덤프한다 (전체 덤프는 부재 3개만 해도 ~3초라 정상 경로에서는 돌리지 않는다). 그 외에 요약행 T/W가 부재 합산보다 작으면 노드 오판으로 보고 합산으로 대체하며 경고를 남긴다 — 개별 부재보다 작은 요약 무게가 도면에 찍히는 일은 구조적으로 막았다.\n\n### 관련 커밋\n`455b1ab` 값 3개 + 출력 매핑 · `0395f1b` 진단 덤프 + 합산 하한 가드 · `a024ac8` STRUCTURE 노드 이름 매칭 · `a364aed` 판정 근거 문서화\n\n관련: #199 (ITEM 도면별 분기) · #60 (빈칸 괘선 동작) · #59 · #20",
+    "createdAt": "2026-07-30T02:57:51Z",
+    "id": "IC_kwDORMsH0M8AAAABMYZK2Q",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/67#issuecomment-5125851865",
+    "viewerDidAuthor": true
    }
   ],
   "createdAt": "2026-07-27T07:42:10Z",
@@ -7264,12 +7454,6 @@
     "description": "New feature or request",
     "id": "LA_kwDORMsH0M8AAAACXmwr5Q",
     "name": "enhancement"
-   },
-   {
-    "color": "0E8A16",
-    "description": "코드 반영 후 실제 모델·출력 검증을 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhI-Q",
-    "name": "상태: 실기 확인"
    },
    {
     "color": "8A97AC",
@@ -7285,10 +7469,10 @@
    }
   ],
   "number": 67,
-  "state": "OPEN",
-  "stateReason": "",
-  "title": "[실기 확인] BOM 첫 행(요약행) 값 확정 — No.=00, ITEM 도면별, T/W=STRU GWEI",
-  "updatedAt": "2026-07-29T01:34:43Z",
+  "state": "CLOSED",
+  "stateReason": "COMPLETED",
+  "title": "BOM 첫 행(요약행) 값 확정 — No.=00, ITEM 도면별, T/W=STRU GWEI",
+  "updatedAt": "2026-07-30T02:57:59Z",
   "url": "https://github.com/uuuuj/a2z/issues/67"
  },
  {
@@ -7824,15 +8008,30 @@
     "reactionGroups": [],
     "url": "https://github.com/uuuuj/a2z/issues/53#issuecomment-5111722498",
     "viewerDidAuthor": true
+   },
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "> 2026-07-29 — 상태를 `분석 필요` → `API 대기`로 정정했습니다.\n\nEA 상하 2뷰 배치와 앵글 촬영 방향 기준은 **이미 정의를 마쳤고 코드에도 반영돼 있습니다.** 그 상태에서 실제 출력이 기준대로 안 나와 소프트힐스에 요청한 것이므로, 분석 대기가 아니라 회신 대기가 맞습니다.\n\n## 구현 위치 (확인 완료)\n\n| 정의한 규칙 | 코드 |\n|---|---|\n| 앵글(EA) 부재 판정 | `IsAngleFromSpref` — `SPREF`의 ITEM이 `EA`로 시작 |\n| 상하 2뷰 분할 | `RenderMfgRowToViewArea` — View 영역을 위·아래로 나눠 각각 캡처 |\n| 촬영 방향(가로화) | `ProbeAndRollLandscape` — 임시 캡처 실측으로 세로면이면 화면축 90도 회전 |\n| 1·2차 뷰 상하 순서 | `BuildMfgSceneCore` (`A2Z/Form1.MfgDrawing.cs:2179`) — 접힘 코너 방향으로 `SwapViews` 결정 |\n| 2차 뷰 상하 미러 | `BuildEaSecondaryScene` (`:1115`) — 코너가 가운데를 향하지 않으면 `MirrorVertical` |\n\n회신 검증 시 `[EALenDim]` 로그의 `axisUp` · `cornerUp` · `swap` · `mirror` 값을 실제 출력과 대조하면 판정이 틀린 건지 SDK 렌더가 틀린 건지 갈립니다.",
+    "createdAt": "2026-07-29T22:15:13Z",
+    "id": "IC_kwDORMsH0M8AAAABMWi4mg",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/53#issuecomment-5123913882",
+    "viewerDidAuthor": true
    }
   ],
   "createdAt": "2026-07-24T02:00:39Z",
   "labels": [
    {
-    "color": "FBCA04",
-    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
-    "name": "상태: 분석 필요"
+    "color": "D73A4A",
+    "description": "API 추가·수정·배포 또는 회신을 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhHZw",
+    "name": "상태: API 대기"
    },
    {
     "color": "2563EB",
@@ -7845,13 +8044,25 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
     "name": "생산 필수"
+   },
+   {
+    "color": "24292E",
+    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
+    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
+    "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 53,
   "state": "OPEN",
   "stateReason": "",
-  "title": "[분석 필요] 가공도 앵글(ㄱ자) 형강 촬영 방향 재검토",
-  "updatedAt": "2026-07-29T01:34:40Z",
+  "title": "[API 대기] 가공도 앵글(ㄱ자) 형강 촬영 방향 재검토",
+  "updatedAt": "2026-07-29T22:15:18Z",
   "url": "https://github.com/uuuuj/a2z/issues/53"
  },
  {
@@ -8801,13 +9012,19 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 43,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 라운드(필렛) 형상 검출·표시",
-  "updatedAt": "2026-07-29T03:12:04Z",
+  "updatedAt": "2026-07-29T21:36:42Z",
   "url": "https://github.com/uuuuj/a2z/issues/43"
  },
  {
@@ -8833,13 +9050,25 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
+   },
+   {
+    "color": "0E5A8A",
+    "description": "필수 항목 중 우리가 정의·구현해야 하는 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdhg",
+    "name": "필수: 내부 해결"
    }
   ],
   "number": 42,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 모떼기(챔퍼) 형상 검출·표시",
-  "updatedAt": "2026-07-29T03:11:56Z",
+  "updatedAt": "2026-07-29T21:36:44Z",
   "url": "https://github.com/uuuuj/a2z/issues/42"
  },
  {
@@ -8926,13 +9155,19 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 41,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 부재간 접합 각도 자동 측정·표시 — 자체 구현 시도 병행",
-  "updatedAt": "2026-07-29T03:11:58Z",
+  "updatedAt": "2026-07-29T21:36:36Z",
   "url": "https://github.com/uuuuj/a2z/issues/41"
  },
  {
@@ -9671,13 +9906,19 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 30,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 2D 출력 실선·은선·모서리·홀 표현 누락 (재발)",
-  "updatedAt": "2026-07-29T03:12:00Z",
+  "updatedAt": "2026-07-29T21:36:38Z",
   "url": "https://github.com/uuuuj/a2z/issues/30"
  },
  {
@@ -12224,13 +12465,19 @@
     "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
     "id": "LA_kwDORMsH0M8AAAACtwTJeA",
     "name": "필수"
+   },
+   {
+    "color": "A32020",
+    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
+    "name": "필수: API 개발"
    }
   ],
   "number": 5,
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 간섭 결과·치수 텍스트 충돌",
-  "updatedAt": "2026-07-29T03:12:02Z",
+  "updatedAt": "2026-07-29T21:36:40Z",
   "url": "https://github.com/uuuuj/a2z/issues/5"
  },
  {

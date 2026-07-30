@@ -22,6 +22,12 @@ STATUS_ORDER = ['상태: 개발 중', '상태: 실기 확인', '상태: API 대�
                 '상태: 분석 필요', '상태: 개발 대기']
 DRAW_ORDER = ['도면: 제작도', '도면: 조립도', '도면: 설치도', '도면: 가공도', '도면: 공통']
 
+# 사내 이슈 관리 화면으로 내보내는 항목 — 서비스하려면 반드시 해결해야 하는 것.
+# 주체 라벨은 둘 다 붙을 수 있다 (예: 우리가 정의하면서 소프트힐스도 같이 보는 건).
+MUST = '필수'
+MUST_ROLES = [('필수: API 개발', 'API 개발'), ('필수: 내부 해결', '내부 해결')]
+CLOSED_STATES = ('완료', '미채택')
+
 
 def fetch():
     """이슈 전체 — 본문·코멘트·라벨·타임스탬프까지."""
@@ -71,13 +77,16 @@ def rows(iss):
     for i in sorted(iss, key=lambda x: x['number']):
         m = meta(i)
         closed = i['state'] == 'CLOSED'
+        ls = labels(i)
         out.append({
             '번호': i['number'],
             '제목': clean_title(i['title']),
             '상태': ('완료' if i.get('stateReason') != 'NOT_PLANNED' else '미채택') if closed
                     else (pick(i, STATUS_ORDER, '상태: ') or '미분류'),
             '도면': pick(i, DRAW_ORDER, '도면: '),
-            '생산 필수': 'O' if '생산 필수' in labels(i) else '',
+            '생산 필수': 'O' if '생산 필수' in ls else '',
+            '필수': 'O' if MUST in ls else '',
+            '해결 주체': '+'.join(s for full, s in MUST_ROLES if full in ls),
             '대분류': m.get('대분류', ''),
             '원본 ID': m.get('id', '') or (('Excel No.' + m['no']) if m.get('no') else ''),
             '최초 구현일': m.get('최초구현', ''),
@@ -85,11 +94,17 @@ def rows(iss):
             '생성': (i.get('createdAt') or '')[:10],
             '최근 갱신': (i.get('updatedAt') or '')[:10],
             '코멘트': len(i.get('comments') or []),
-            '라벨': ', '.join(l for l in labels(i)
-                            if not l.startswith(('상태: ', '도면: '))),
+            '라벨': ', '.join(l for l in ls
+                            if l != MUST and not l.startswith(('상태: ', '도면: ', '필수: '))),
             'URL': i.get('url', ''),
         })
     return out
+
+
+def must_open(rs):
+    """사내 화면으로 내보낼 항목 — 열려 있는 `필수`만. 개발사 몫을 먼저 둔다."""
+    svc = [r for r in rs if r['필수'] == 'O' and r['상태'] not in CLOSED_STATES]
+    return sorted(svc, key=lambda r: (0 if 'API 개발' in r['해결 주체'] else 1, r['번호']))
 
 
 def summary(rs):
@@ -103,12 +118,17 @@ def summary(rs):
     for r in rs:
         if r['상태'] not in ('완료', '미채택'):
             by[r['상태']] = by.get(r['상태'], 0) + 1
+    svc = must_open(rs)
     lines = [('전체 이슈', tot), ('완료', done), ('미채택', skip),
              ('유효 관리 대상', live), ('진행 중', live - done),
              ('진행률', ('%.1f%%' % (done * 100.0 / live)) if live else '-'),
              ('', ''),
              ('생산 필수 전체', len(must)), ('생산 필수 완료', must_done),
              ('생산 필수 잔여', len(must) - must_done),
+             ('', ''),
+             ('필수 잔여', len(svc)),
+             ('필수 · 개발사', sum(1 for r in svc if 'API 개발' in r['해결 주체'])),
+             ('필수 · 내부', sum(1 for r in svc if '내부 해결' in r['해결 주체'])),
              ('', '')]
     for k in sorted(by, key=lambda x: -by[x]):
         lines.append(('진행 중 · ' + k, by[k]))
@@ -138,6 +158,29 @@ def write_xlsx(rs, path):
     ws.column_dimensions['A'].width = 22
     ws.column_dimensions['B'].width = 14
 
+    # ── 필수 (사내 보고) ──
+    #   사내 이슈 관리 화면이 그대로 받아 쓰는 시트. 개발사 몫과 내부 몫이 한눈에 갈리게 둔다.
+    #   해결 주체가 둘 다인 항목은 한 줄에 `API 개발+내부 해결`로 표기한다 (양쪽이 동시에 진행 중인 경우).
+    wsm = wb.create_sheet('필수')
+    mcols = ['번호', '제목', '해결 주체', '상태', '도면', '최근 갱신', 'URL']
+    for c, name in enumerate(mcols, 1):
+        cell = wsm.cell(1, c, name)
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill('solid', fgColor='24292E')
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    api_fill = PatternFill('solid', fgColor='FBE9E9')
+    in_fill = PatternFill('solid', fgColor='E7F0F7')
+    thin_m = Side(style='thin', color='D9D9D9')
+    for ri, row in enumerate(must_open(rs), 2):
+        for c, name in enumerate(mcols, 1):
+            cell = wsm.cell(ri, c, row[name])
+            cell.border = Border(bottom=thin_m)
+            cell.alignment = Alignment(vertical='top', wrap_text=(name == '제목'))
+        wsm.cell(ri, 3).fill = api_fill if 'API 개발' in row['해결 주체'] else in_fill
+    for c, w in enumerate([7, 58, 18, 12, 10, 11, 42], 1):
+        wsm.column_dimensions[get_column_letter(c)].width = w
+    wsm.freeze_panes = 'A2'
+
     # ── 이슈 목록 ──
     ws2 = wb.create_sheet('이슈 목록')
     cols = list(rs[0].keys()) if rs else []
@@ -160,7 +203,8 @@ def write_xlsx(rs, path):
             ws2.cell(ri, 3).fill = done_fill
         elif row['생산 필수'] == 'O':
             ws2.cell(ri, 5).fill = must_fill
-    width = {'번호': 7, '제목': 58, '상태': 12, '도면': 10, '생산 필수': 9, '대분류': 12,
+    width = {'번호': 7, '제목': 58, '상태': 12, '도면': 10, '생산 필수': 9, '필수': 7,
+             '해결 주체': 18, '대분류': 12,
              '원본 ID': 14, '최초 구현일': 12, '완료 확인일': 12, '생성': 11,
              '최근 갱신': 11, '코멘트': 8, '라벨': 26, 'URL': 42}
     for c, name in enumerate(cols, 1):
