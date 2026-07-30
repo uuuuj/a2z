@@ -1,5 +1,69 @@
 [
  {
+  "body": "## 문제 또는 검토 대상\n\nClickOnce로 설치하면 실행 폴더가 `%LocalAppData%\\Apps\\2.0\\<난독화>\\...\\a2z..tion_<해시>\\` 형태가 된다. A2Z는 도면 PDF를 `{exe 폴더}\\Drawings`, 진단 로그를 `{exe 폴더}\\logs`에 쓰므로 두 가지 문제가 생긴다.\n\n1. **담당자가 출력물을 찾을 수 없다** — 경로가 난독화되어 있어 \"여기서 받으세요\"라고 안내할 방법이 없다\n2. **업데이트하면 사라진다** — ClickOnce는 새 버전을 별도 폴더에 설치하므로 이전 폴더에 쌓인 도면·로그가 정리 대상이 된다\n\n현재 위치는 T-064에서 `Application.StartupPath/Drawings`로 명시 결정된 정책이므로, 변경하려면 그 결정을 다시 확인해야 한다.\n\n### 관련 코드\n\n- `A2Z/Form1.MfgDrawing.cs:276` — 자동·수동 공통 PDF 저장 폴더 (T-064 정책 주석 포함)\n- `A2Z/Form1.Stru.cs:530` — STRU 저장 폴더\n- `A2Z/Form1.cs:221` — 진단 로그 폴더\n\n### 우선순위 메모\n\n이 항목은 **첫 배포 검증을 막지 않는다.** 출력 위치가 그대로여도 앱은 실행되고 도면도 생성된다 — 찾기 어려울 뿐이다. 네이티브 DLL 누락 건과 달리 실행 자체를 막지 않으므로, 첫 ClickOnce 설치·실행 확인 이후에 처리해도 된다.\n\n## 확인할 사항\n\n- T-064의 \"실행 폴더 기준\" 결정을 ClickOnce 배포에서도 유지할지, 고정 경로로 바꿀지\n- 바꾼다면 기준 위치 — `내 문서\\A2Z\\` / `%LocalAppData%\\A2Z\\` / 사내 공유 폴더 중 무엇인지\n- 담당자가 도면을 어디서 찾기를 기대하는지 (개발 PC에서 쓰던 흐름과 배포 후 흐름이 다를 수 있음)\n- 로그를 도면과 같은 위치에 둘지 분리할지 — 로그는 문제 발생 시 수집 대상이므로 경로가 고정되어야 안내가 쉽다\n- 개발 PC 실행(`bin\\Release`)의 기존 동작을 유지할지, 같이 바꿀지\n- 사용자가 저장 위치를 직접 지정할 수 있게 할지 (설정 화면 추가 여부)\n\n## 분석 완료 기준\n\n저장 위치 정책이 확정되고, 아래 두 가지가 확인되면 개발 대기로 전환한다.\n\n1. 개발 PC 실행에서 도면·로그가 예상 위치에 생성됨\n2. ClickOnce 설치본에서 도면·로그가 예상 위치에 생성되고, 버전 업데이트 후에도 유지됨\n\n관련: #70 (사내 Windows 서버 테스트 배포 — 상위 이슈)\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-07-30T05:05:50Z",
+  "labels": [
+   {
+    "color": "FBCA04",
+    "description": "재현·기준·정책 또는 구현 가능성 분석이 먼저 필요한 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhH4Q",
+    "name": "상태: 분석 필요"
+   },
+   {
+    "color": "D93F0B",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
+    "name": "생산 필수"
+   },
+   {
+    "color": "0E5A8A",
+    "description": "필수 항목 중 우리가 정의·구현해야 하는 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdhg",
+    "name": "필수: 내부 해결"
+   }
+  ],
+  "number": 201,
+  "state": "OPEN",
+  "stateReason": "",
+  "title": "[분석 필요] ClickOnce 설치 시 도면·로그 출력 위치 — 담당자가 결과물을 찾을 수 없음",
+  "updatedAt": "2026-07-30T05:05:50Z",
+  "url": "https://github.com/uuuuj/a2z/issues/201"
+ },
+ {
+  "body": "## 이슈 종류\n\n배포 준비 — ClickOnce 패키징 결함\n\n## 요청 내용\n\n`A2Z/A2Z.csproj`에서 VizCore 네이티브·보조 DLL 5종의 빌드 액션을 `<None>` → `<Content>` 로 바꾼다.\n\n| 파일 | 현재 선언 | ClickOnce 게시 |\n|---|---|---|\n| `VIZCore3D.NET.Interop.dll` (84MB) | `<None>` | ❌ 빠짐 |\n| `ShdCore.dll` (4.4MB) | `<None>` | ❌ 빠짐 |\n| `SQLite.Interop.dll` (1.8MB) | `<None>` | ❌ 빠짐 |\n| `ShCux.dll` | `<None>` | ❌ 빠짐 |\n| `ShCuxRev.dll` | `<None>` | ❌ 빠짐 |\n| PNG 4종 · 엑셀 템플릿 2종 | `<Content>` | ✅ 포함 |\n| `VIZCore3D+.NET.dll` (212MB) | `<Reference>` | ✅ 포함 |\n\n### 배경\n\n2026-07-30 서버 담당자 회의에서 배포 방식이 **ClickOnce(IIS 게시)** 로 확정됐다 (#70). 담당자 안내는 \"빌드하면 버전 폴더와 `publish.html`이 생기고, 그 폴더를 통째로 IIS 폴더에 옮기면 된다\"이다.\n\n**ClickOnce 게시 매니페스트에는 `Content`와 참조 어셈블리만 담기고 `None`은 제외된다.** 현재 상태로 게시하면 네이티브 엔진이 통째로 빠져 **설치는 정상 완료되고 실행하는 순간 죽는다.** 오류 메시지 없이 종료되므로 원인 추적이 매우 어려운 실패 형태다.\n\n빌드 출력 폴더로 복사되는 동작은 `None`과 `Content`가 동일하므로 **기존 빌드·실기 검증 흐름에는 영향이 없다.**\n\n### 검증 완료\n\n로컬에서 `<Content>`로 바꿔 시험 게시한 결과 5종 모두 게시본에 포함되는 것을 확인했다 (`publish\\Application Files\\A2Z_1_0_0_0\\`, 총 302MB). 확인 후 csproj는 원복해 둔 상태다.\n\n### 미확인 — `Aspose.Cells.dll`\n\n시험 게시에서 `Aspose.Cells.dll`(15MB)이 게시본에 빠지는 것을 함께 확인했다. 이 파일은 **csproj에 선언 자체가 없는데** `bin\\Release`에는 존재한다. 코드가 직접 참조하지 않으므로(참조했다면 컴파일 불가) VIZCore SDK가 끌고 온 것으로 보이며, 런타임에 자동 추출되는지 여부가 확인되지 않았다. 엑셀 템플릿 처리에 필요하다면 제작도·가공도 출력이 실패한다.\n\n## 기대 결과\n\nClickOnce로 설치한 A2Z가 실행되어 최소한 라이선스 인증 단계까지 진입한다. (라이선스 오류창이 뜨는 것 = 네이티브 엔진 로딩 성공의 증거)\n\n## 완료 조건\n\n- [ ] csproj에서 네이티브·보조 DLL 5종을 `<Content>`로 전환\n- [ ] 게시 후 `publish\\Application Files\\A2Z_*\\` 에 5종 존재 확인\n- [ ] `bin\\Release` 빌드 출력이 변경 전과 동일한지 확인 (회귀 없음)\n- [ ] `Aspose.Cells.dll` 필요 여부 확인 — 필요하면 동봉 방법 결정\n- [ ] ClickOnce 설치본 실행 시 라이선스 인증 단계 진입 확인\n\n관련: #70 (사내 Windows 서버 테스트 배포 — 상위 이슈)\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-07-30T05:05:42Z",
+  "labels": [
+   {
+    "color": "C5DEF5",
+    "description": "요구사항이 정리되어 개발 착수를 기다리는 상태",
+    "id": "LA_kwDORMsH0M8AAAACsyhIWA",
+    "name": "상태: 개발 대기"
+   },
+   {
+    "color": "D93F0B",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6OXQ",
+    "name": "생산 필수"
+   },
+   {
+    "color": "0E5A8A",
+    "description": "필수 항목 중 우리가 정의·구현해야 하는 것",
+    "id": "LA_kwDORMsH0M8AAAACt4tdhg",
+    "name": "필수: 내부 해결"
+   }
+  ],
+  "number": 200,
+  "state": "OPEN",
+  "stateReason": "",
+  "title": "[개발 대기] ClickOnce 게시에 네이티브 DLL 5종 누락 — 설치는 되나 실행 즉시 종료",
+  "updatedAt": "2026-07-30T05:05:42Z",
+  "url": "https://github.com/uuuuj/a2z/issues/200"
+ },
+ {
   "body": "> 2026-07-29 — #67 `BOM 첫 행(요약행) 값 확정`에서 남은 요건을 옮겼습니다. #67의 No.·T/W는 반영·검증을 마쳤고, **ITEM 도면별 분기만 미구현**이라 이 이슈가 이어받습니다.\n\n## 문제 또는 검토 대상\nBOM 요약행 ITEM의 확정 사양은 도면 종류별로 갈린다.\n\n| 도면 | ITEM |\n|---|---|\n| 배관 서포트 도면 | `Pipe Support` |\n| 전장 서포트 도면 | `Support&Seat` |\n\n현재 구현은 **항상 `Support&Seat` 고정**이다 (`BuildDrawingBomSnapshot`, `A2Z/Form1.Clash.cs`).\n\n이 값이 전장 서포트 도면의 확정 사양과 같으므로 **전장 도면은 이미 맞고, 배관 서포트 도면만 틀린 값이 나간다.**\n\n## 왜 미뤘나\n앱이 두 도면을 무엇으로 구분할지가 정해지지 않았다. 코드베이스에 배관/전장 개념이 **하나도 없다** — 관련 코드 0건이라 신규 판별이 필요하다. 2026-07-28 사용자 판단으로 기본값 유지 후 분리했다.\n\n## 결정 필요 — 구분 근거\n\n| 안 | 방법 | 장점 | 위험 |\n|---|---|---|---|\n| (a) STRU UDA 값 | STRUCTURE 노드의 특정 att 키로 판별 | 모델이 근거, 자동 | 어떤 키인지 미확인 |\n| (b) STRU 이름 규칙 | TAG No.용으로 이미 읽는 값 재사용 | 추가 조회 0 | #66에서 STRU 이름을 생산설계 이름으로 교체 예정 → 규칙이 깨질 수 있음 |\n| (c) 사용자 UI 선택 | 도면 생성 시 선택 | 확실 | 수동, 실수 여지 |\n\n**권고: (a) 1순위 + (c) 폴백.** 배관 서포트 모델 1개·전장 서포트 모델 1개에서 STRUCTURE 노드의 UDA 키·값 전체를 덤프해 갈리는 키가 있는지 먼저 확인하고, 없으면 (c)로 확정한다.\n\n덤프 수단은 이미 있다 — `DumpDrawingBomStruDiagnostics`(`A2Z/Form1.Clash.cs`)가 조상 체인의 비어 있지 않은 UDA를 전부 남긴다. 지금은 STRUCTURE 노드를 못 찾았을 때만 도는데, 확인용으로 한 번 강제 실행하면 된다.\n\n속성 키 확인은 #198(att 속성 일괄 정리)에 함께 올려도 된다.\n\n## 완료 조건\n- [ ] 배관/전장 구분 근거 확정\n- [ ] `BuildDrawingBomSnapshot`의 요약행 ITEM을 도면 종류별로 분기\n- [ ] 배관 서포트 도면에서 `Pipe Support`, 전장 서포트 도면에서 `Support&Seat` 출력 확인\n- [ ] 제작도·조립도·설치도·가공도 4종 동일 확인\n\n관련: #67 (요약행 No.·T/W — 완료) · #198 (att 속성 정리) · #66 (STRU 이름 교체 예정)\n",
   "closedAt": null,
   "comments": [
@@ -5174,7 +5238,7 @@
  },
  {
   "body": "<!-- excel-meta\nno: 64\n도면: 가공도\n대분류: 뷰\n생산필수: ○\n최초구현: 2026-07-03\n최근변경: 2026-07-23\n-->\n\n## 분리 출처\n#30 「2D 출력 실선·은선·모서리·홀 표현 누락」에서 **가공도 단면 위주 출력·은선 정책** 부분을 분리했습니다 (2026-07-27).\n#30은 공통 2D 출력(Excel No.14)만 남깁니다.\n\n두 건 모두 같은 형상 누락 API 수정본을 기다리지만, **적용 대상 도면이 다르고 수정본 수령 후 검증도 따로** 해야 합니다.\n\n\n**가공도** · 뷰 · 생산 필수 ○\n\n## 현재 값 · 구현 내용\n2D 변환 결과에서 모서리·홀 등 일부 형상이 누락\n\n## 근거 · 비고\n실선·은선·모서리·홀 누락을 함께 다루는 API 수정본 대기\n\n## 이력 · 판정\n| 항목 | 값 |\n|---|---|\n| 현재 상태 | API 대기 |\n| API·코드 구현 | △ |\n| 생산 출력 확인 | X |\n| 추가 API·앱 개발 | API 수정 |\n| 추가 분석 | O |\n| 최초 구현일 | 2026-07-03 |\n| 최근 변경일 | 2026-07-23 |\n\n---\n*이슈 관리 도입(2026-07-27) 전에 개발 현황 Excel(No.64)과 docs로 관리하던 항목을 옮긴 것입니다. GitHub 등록·종료일은 옮긴 날짜이며, 실제 일자는 위 이력 표를 따릅니다.*",
-  "closedAt": null,
+  "closedAt": "2026-07-30T05:12:52Z",
   "comments": [
    {
     "author": {
@@ -5190,15 +5254,30 @@
     "reactionGroups": [],
     "url": "https://github.com/uuuuj/a2z/issues/117#issuecomment-5088945646",
     "viewerDidAuthor": true
+   },
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "**#30의 중복이라 종료합니다.** 내용은 #30으로 합쳤습니다.\n\n## 종료 사유\n\n2026-07-27에 「가공도 단면 위주 출력·은선 정책」(Excel No.64)으로 #30에서 분리했으나, 두 가지가 사실과 달랐습니다.\n\n1. **본문에 단면 정책 내용이 없었습니다.** 제목은 Excel 항목명에서 왔고, 실제 본문은 `2D 변환 결과에서 모서리·홀 등 일부 형상이 누락` — #30과 같은 증상입니다.\n2. **가공도 한정 문제가 아닙니다.** 2026-07-29 사용자 확인 결과 **모든 2D Drawing에서 나오는 문제**라, 분리 근거였던 \"적용 대상 도면이 다르다\"가 성립하지 않습니다.\n\n단면 위주 출력 요구는 따로 없음도 확인했습니다.\n\n## 이관된 것\n\n원래 분리 이유 중 하나였던 \"수정본 수령 후 도면별 검증을 따로 해야 한다\"는 #30의 완료 조건에 체크 항목(제작도·조립도·설치도·가공도)으로 옮겼습니다. 이슈를 나눌 이유는 아니었습니다.\n\n#30에 `도면: 가공도` 라벨을 추가해 가공도가 대상에 포함됨을 표시했습니다.",
+    "createdAt": "2026-07-30T05:12:51Z",
+    "id": "IC_kwDORMsH0M8AAAABMZXqWw",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/117#issuecomment-5126875739",
+    "viewerDidAuthor": true
    }
   ],
   "createdAt": "2026-07-27T08:17:10Z",
   "labels": [
    {
-    "color": "D73A4A",
-    "description": "API 추가·수정·배포 또는 회신을 기다리는 상태",
-    "id": "LA_kwDORMsH0M8AAAACsyhHZw",
-    "name": "상태: API 대기"
+    "color": "cfd3d7",
+    "description": "This issue or pull request already exists",
+    "id": "LA_kwDORMsH0M8AAAACXmwr3Q",
+    "name": "duplicate"
    },
    {
     "color": "2563EB",
@@ -5217,25 +5296,13 @@
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6Ong",
     "name": "backfill"
-   },
-   {
-    "color": "24292E",
-    "description": "서비스하려면 반드시 해결해야 하는 항목 — 사내 이슈 관리 화면으로 내보냄",
-    "id": "LA_kwDORMsH0M8AAAACtwTJeA",
-    "name": "필수"
-   },
-   {
-    "color": "A32020",
-    "description": "필수 항목 중 소프트힐스(SDK) 쪽 해결이 필요한 것",
-    "id": "LA_kwDORMsH0M8AAAACt4tdQw",
-    "name": "필수: API 개발"
    }
   ],
   "number": 117,
-  "state": "OPEN",
-  "stateReason": "",
-  "title": "[API 대기] 가공도 단면 위주 출력·은선 정책",
-  "updatedAt": "2026-07-29T21:45:10Z",
+  "state": "CLOSED",
+  "stateReason": "NOT_PLANNED",
+  "title": "가공도 단면 위주 출력·은선 정책",
+  "updatedAt": "2026-07-30T05:12:56Z",
   "url": "https://github.com/uuuuj/a2z/issues/117"
  },
  {
@@ -7412,6 +7479,21 @@
     "reactionGroups": [],
     "url": "https://github.com/uuuuj/a2z/issues/70#issuecomment-5126655291",
     "viewerDidAuthor": true
+   },
+   {
+    "author": {
+     "login": "HE0IN"
+    },
+    "authorAssociation": "COLLABORATOR",
+    "body": "## 2026-07-30 서버 담당자 회의 결과 — 배포 방식 확정\n\n본문의 A/B/C 중 **B(서버는 배포 지점)** 로 결정됐다. 단 공유 폴더가 아니라 **IIS 웹 게시 + ClickOnce** 방식이다.\n\n### 담당자 안내 절차\n\n> 빌드하면 버전 폴더와 `publish.html`이 생긴다. 그 폴더를 통째로 IIS 폴더에 옮기면, 사용자는 `http://{서버IP}/{앱경로}/publish.html` 로 들어가 설치 버튼을 누른다. 설치 시 바탕화면 아이콘이 생기고, 그걸로 실행한다.\n>\n> 1.1 버전을 배포하려면 같은 IIS 위치에 새 빌드를 복사한다. 사용자가 다음에 실행할 때 업데이트 여부를 묻고 자동으로 갱신된다.\n\n**웹과 실행 프로그램이 같은 IIS 한 곳으로 간다.** 별도 배포 채널을 두지 않는다.\n\n### 서버 구성\n\n사내 서버는 4대로 분리되어 있다.\n\n| 서버 | 역할 |\n|---|---|\n| **웹서버** — `60.100.91.105` | **IIS 설치 완료. 여기에 배포** |\n| 데이터베이스 서버 | MSSQL. DB 전용으로 운영되며 다른 작업은 올리지 않음 |\n| 파일 서버 | 원본 CAD + 변환된 모델 파일 |\n| 변환 서버 | 모델 변환 |\n\n> IP는 자동 전사 기록 기반이라 담당자 확인이 필요하다.\n\n### 담당자 권장 순서\n\n**로컬 PC에서 IIS + ClickOnce를 먼저 검증하고, 그다음 서버에 적용한다.** \"어차피 방식은 동일하다\"는 안내를 받았다.\n\n### 선행 조건 (본문 미기재 항목)\n\n- **방화벽 오픈 신청** — 사내 서버는 전사 오픈이 아니라 일부 IP 대역만 허용되어 있다. VDI에서 웹서버로 접근하려면 터미널 오픈 신청이 필요하며 **결재가 3~4단계**다. 정보보호팀 경유\n- **애플리케이션 보안 체크리스트** — 정보보호팀에서 별도 수령해야 한다. DB·서버는 기수령이나 애플리케이션은 신규라 다시 받아야 한다\n\n### MSSQL (본문 확인 사항에 대한 답)\n\n- **전용 데이터베이스와 계정이 이미 생성되어 있다.** 이전에 전달된 이력이 있음\n- 접근은 **VDI를 통해서만** 가능하며 SSMS로 접속한다. 로컬 직접 접속 불가\n- 계정은 두 종류 — 도메인 계정(3개월마다 비밀번호 변경)과 **고정 계정**(프로그램 연결용, 비밀번호 미변경). 권한 동일\n- 권한 범위는 **해당 DB의 owner 풀 권한** (전체 DBA 아님)\n- ⚠ **DB IP·포트·비밀번호는 현재 보유하고 있지 않다.** 담당자가 비밀번호를 재설정해 접속 정보와 함께 재전달하기로 했다 (담당자 휴가로 8월 셋째 주 예정)\n\n앱에 DB 코드를 붙이는 건 여전히 별도 이슈로 분리한다.\n\n### 하위 이슈\n\nClickOnce 방식 확정에 따라 확인된 패키징 문제를 분리했다.\n\n- #200 — 네이티브 DLL 5종이 게시에서 빠져 설치 후 실행 즉시 종료 (**실행 자체를 막음**)\n- #201 — 도면·로그 출력 위치가 난독화 경로로 잡혀 담당자가 결과물을 찾을 수 없음\n\n### 상태\n\n배포 방식은 확정됐으나 본문의 분석 완료 기준 중 **서버 스펙·라이선스 경로 확인**과 **최소 동작 검증 3건**이 남아 있어 `분석 필요`를 유지한다. 방화벽이 열리고 담당자와 서버를 함께 확인한 뒤 재평가한다.\n",
+    "createdAt": "2026-07-30T05:06:39Z",
+    "id": "IC_kwDORMsH0M8AAAABMZTqOQ",
+    "includesCreatedEdit": false,
+    "isMinimized": false,
+    "minimizedReason": "",
+    "reactionGroups": [],
+    "url": "https://github.com/uuuuj/a2z/issues/70#issuecomment-5126810169",
+    "viewerDidAuthor": true
    }
   ],
   "createdAt": "2026-07-27T07:52:53Z",
@@ -7433,7 +7515,7 @@
   "state": "OPEN",
   "stateReason": "",
   "title": "[분석 필요] 사내 Windows 서버 테스트 배포 — 배포 방식·사전 조건 확인",
-  "updatedAt": "2026-07-30T04:51:25Z",
+  "updatedAt": "2026-07-30T05:06:39Z",
   "url": "https://github.com/uuuuj/a2z/issues/70"
  },
  {
@@ -9995,7 +10077,7 @@
   "url": "https://github.com/uuuuj/a2z/issues/31"
  },
  {
-  "body": "<!-- excel-meta\nno: 14\n도면: 공통\n대분류: 뷰\n생산필수: ○\n최초구현: 2026-05-18\n최근변경: 2026-07-23\n-->\n\n> 2026-07-27 — 가공도 단면 위주 출력·은선 정책(Excel No.64)은 #117로 분리했습니다. 이 이슈는 공통 2D 출력(Excel No.14)만 다룹니다.\n\n## 분리 출처\n#4 \"EA 스케일·실선/은선 누락·측정 풍선 배치 API 배포\"에서 **실선/은선 표기 누락** 항목을 분리 (2026-07-23). #4는 측정 풍선 배치만 남기고, EA 크기 스케일은 별도 이슈로 분리 후 재현 불가로 닫음.\n\n## 소프트힐스 회신 원문 (2026-07-21 수신)\n> 바로 가능 ( 이번 주 까지  풍선 배치 요청)\n> 크기 스케일 맞추기 (EA), 실선 은선 표기 누락, 측정 풍선 배치 영역 고정, 가까운 곳으로\n\n## 증상\n2D 도면 출력 시 실선·은선 표기가 누락되는 표현 문제.\n\n## 현황\n- 소프트힐스가 수정 약속(2026-07-21)했으나 **V.1.0.26.723 배포 수정사항에 미포함** 확인 (2026-07-23 전달 이메일: 측정 풍선 배치 API `Set2DViewAlignAreaReviewsPositionByOffset` + `Add2DNoteFromWorldCoordinate` 개선 + 엑셀 템플릿 3건뿐).\n- 따라서 벤더 수정본/다음 배포 대기.\n\n## 할 일\n- [ ] 소프트힐스에 실선/은선 누락 수정 포함 여부·일정 재확인\n- [ ] 수정본 수령 시 각 PC DLL 교체 후 실기 확인\n\n## 관련\n- #4 (분리 출처, 측정 풍선 배치)\n- #6 (2D ISO 모서리·홀 누락 재발 — 증상 인접, 통합 여부는 triage에서 판단)\n- #5 (은선 API 포함 — 관련)\n\n",
+  "body": "<!-- excel-meta\nno: 14, 64\n도면: 공통\n대분류: 뷰\n생산필수: ○\n최초구현: 2026-05-18\n최근변경: 2026-07-29\n-->\n\n> 2026-07-29 — **#117을 이 이슈로 다시 합쳤습니다.** 2026-07-27에 「가공도 단면 위주 출력·은선 정책」(Excel No.64)으로 분리했으나, ① #117 본문에 단면 정책 내용이 없고 형상 누락 증상만 적혀 있었으며 ② 사용자 확인 결과 **가공도만이 아니라 모든 2D Drawing에서 나오는 문제**라 분리 근거(\"적용 대상 도면이 다르다\")가 성립하지 않았습니다. 단면 위주 출력 요구는 따로 없음을 확인했습니다.\n\n## 분리 출처\n#4 \"EA 스케일·실선/은선 누락·측정 풍선 배치 API 배포\"에서 **실선/은선 표기 누락** 항목을 분리 (2026-07-23). #4는 측정 풍선 배치만 남기고, EA 크기 스케일은 별도 이슈로 분리 후 재현 불가로 닫음.\n\n## 소프트힐스 회신 원문 (2026-07-21 수신)\n> 바로 가능 ( 이번 주 까지  풍선 배치 요청)\n> 크기 스케일 맞추기 (EA), 실선 은선 표기 누락, 측정 풍선 배치 영역 고정, 가까운 곳으로\n\n## 증상\n2D 도면 출력 시 **실선·은선·모서리·홀 표기가 누락**된다. 특정 도면 종류에 한정되지 않고 **2D 변환을 거치는 모든 출력**에서 나타난다.\n\n## 현황\n- 소프트힐스가 수정 약속(2026-07-21)했으나 **V.1.0.26.723 배포 수정사항에 미포함** 확인 (2026-07-23 전달 이메일: 측정 풍선 배치 API `Set2DViewAlignAreaReviewsPositionByOffset` + `Add2DNoteFromWorldCoordinate` 개선 + 엑셀 템플릿 3건뿐).\n- 따라서 벤더 수정본/다음 배포 대기.\n\n## 할 일\n- [ ] 소프트힐스에 실선/은선 누락 수정 포함 여부·일정 재확인\n- [ ] 수정본 수령 시 각 PC DLL 교체\n\n## 수정본 수령 후 검증 — 도면 종류별로 따로 확인\n원래 #117을 나눴던 이유가 \"도면별 검증을 따로 해야 한다\"였다. 이슈를 나눌 이유는 아니고 아래 체크로 관리한다.\n\n- [ ] 제작도\n- [ ] 조립도\n- [ ] 설치도\n- [ ] 가공도\n\n## 관련\n- #117 (중복으로 종료, 이 이슈에 흡수)\n- #4 (분리 출처, 측정 풍선 배치)\n- #6 (2D ISO 모서리·홀 누락 재발 — 증상 인접, 통합 여부는 triage에서 판단)\n- #5 (은선 API 포함 — 관련)\n",
   "closedAt": null,
   "comments": [
    {
@@ -10044,6 +10126,12 @@
     "name": "상태: API 대기"
    },
    {
+    "color": "2563EB",
+    "description": "",
+    "id": "LA_kwDORMsH0M8AAAACtb6N6Q",
+    "name": "도면: 가공도"
+   },
+   {
     "color": "8A97AC",
     "description": "",
     "id": "LA_kwDORMsH0M8AAAACtb6OMw",
@@ -10072,7 +10160,7 @@
   "state": "OPEN",
   "stateReason": "",
   "title": "[API 대기] 2D 출력 실선·은선·모서리·홀 표현 누락 (재발)",
-  "updatedAt": "2026-07-29T21:36:38Z",
+  "updatedAt": "2026-07-30T05:12:35Z",
   "url": "https://github.com/uuuuj/a2z/issues/30"
  },
  {
