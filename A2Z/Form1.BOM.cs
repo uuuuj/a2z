@@ -278,6 +278,12 @@ namespace A2Z
         {
             string path = currentFilePath;
 
+            // #55 — 초기화는 작업 데이터를 되돌리는 기능이지 화면 구성을 바꾸는 기능이 아니다.
+            //   이 뒤의 Model.Open과 Clear2DView가 각각 2D 뷰를 강제로 여니, 진입 시점의
+            //   ViewMode를 미리 잡아뒀다가 정리가 끝난 뒤 되돌린다.
+            //   ⚠ Model.Open 뒤에 잡으면 이미 뷰가 열린 상태라 원래 구성을 알 수 없다.
+            VIZCore3D.NET.Data.ViewKind previousViewMode = vizcore3d.ViewMode;
+
             try
             {
                 // 누적 상태 전면 초기화
@@ -319,6 +325,8 @@ namespace A2Z
                     BuildBodyToPartNameMap();
                     // T-009 후속: Model.Open이 2D 뷰를 자동 복원하므로 Open 성공 후에 정리해야 효과 있음
                     Clear2DView();
+                    // 2D 객체·캔버스 정리가 끝난 뒤 사용자가 보던 화면 구성으로 되돌린다 (#55).
+                    RestoreViewMode(previousViewMode);
                 }
                 else
                 {

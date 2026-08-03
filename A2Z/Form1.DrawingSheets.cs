@@ -1329,14 +1329,17 @@ namespace A2Z
                 ShowBusyOverlay($"{kindLabel} PDF 출력 준비 중...");
 
                 saveDir = GetDefaultDrawingSaveDir();
-                string timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
 
                 // [issue #116] 출력 후 로딩 무한 대기 추적 — 대상 개수부터 남긴다.
                 DiagLog($"[{kindLabel} 출력] 시작 targets={targetSheets.Count} saveDir={saveDir}");
 
                 // [issue #119] 장마다 저장하지 않고 캔버스에 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
                 //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
-                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, kindLabel, timeStamp);
+                //   파일명은 {STRU}_{종류}.pdf — 표제부 TAG NO.와 같은 STRU 이름을 쓴다 (#49).
+                mergedPdfPath = BuildMergedDrawingPdfPath(
+                    saveDir,
+                    ResolveDrawingStruName(targetSheets.Select(pair => pair.Value)),
+                    kindLabel);
                 BeginPdfPageAccumulation(kindLabel);
 
                 for (int i = 0; i < targetSheets.Count; i++)
@@ -1611,6 +1614,35 @@ namespace A2Z
                 name = name.Replace(c, '_');
             }
             return name;
+        }
+
+        /// <summary>
+        /// STRU 이름을 파일명 조각으로 정규화한다 (#49).
+        /// STRU 이름은 `/M02-A-ES-LS134A-SHI` 형태라 그냥 `SanitizeFileName`에 넣으면
+        /// 선행 `/`가 `_`로 바뀌어 `_M02-...`처럼 밑줄이 앞에 남는다. 경로 구분자를 먼저 걷어낸다.
+        /// </summary>
+        private string SanitizeStruForFileName(string struName)
+        {
+            if (string.IsNullOrWhiteSpace(struName)) return "";
+            string trimmed = struName.Trim().Trim('/', '\\');
+            return SanitizeFileName(trimmed).Trim('_');
+        }
+
+        /// <summary>
+        /// PDF 파일명에 쓸 STRU 이름을 시트 목록에서 한 번 구한다 (#49).
+        /// 표제부 TAG NO.와 같은 값(`GetStruUdaValue`)을 쓴다 — 도면 안의 이름과 파일명이 어긋나지 않게.
+        /// 값을 가진 첫 시트를 채택하고, 하나도 없으면 빈 문자열을 돌려준다(호출자가 대체 이름 사용).
+        /// </summary>
+        private string ResolveDrawingStruName(IEnumerable<DrawingSheetData> sheets)
+        {
+            if (sheets == null) return "";
+            foreach (DrawingSheetData sheet in sheets)
+            {
+                if (sheet == null) continue;
+                string tag = GetStruUdaValue(ResolveTagBaseNodeIndex(sheet));
+                if (!string.IsNullOrEmpty(tag)) return tag;
+            }
+            return "";
         }
 
         // P2 — 엑셀 템플릿 기반 도면 흐름 분기 플래그.
@@ -2127,11 +2159,16 @@ namespace A2Z
                 // 도면정보 — TODO: tableInfo 또는 sheet 메타에서. 지금은 PoC 하드코딩 유지.
                 data[1] = "CEDAR FLNG";
                 data[2] = "SN2688";
-                // 시트 종류 라벨 — 제작도/조립도/설치도/가공도 (GetSheetKindLabel: Form1.Stru.cs)
-                data[3] = GetSheetKindLabel(sheet);
+                // 시트 종류 라벨 — 제작도/조립도/설치도. 같은 종류가 2장 이상이면 `조립도 (2/5)`처럼
+                //   순번을 붙인다 (#122, 가공도가 이미 쓰던 표기와 통일). 1장뿐이면 순번 없음.
+                //   (GetSheetKindLabelWithSequence: Form1.Stru.cs)
+                data[3] = GetSheetKindLabelWithSequence(sheet);
                 // TAG NO(169) = STRU 단위 UDA "STRU" 값 (사용자 2026-07-21). 기준부재에서 조상 STRU까지 walk-up.
                 //   값 없으면 초기 " "(공백, 괘선 보존) 유지.
-                string struTag = GetStruUdaValue(sheet.BaseMemberIndex);
+                //   ⚠ BaseMemberIndex는 제작도 -1 · 설치도 -2 · 가공도 -3 센티넬이라 walk-up 출발점으로 쓸 수 없다.
+                //   그대로 넘기면 `currentIdx < 0`으로 즉시 break 되어 조립도(실제 노드)만 값이 채워졌다 (#120).
+                //   → 음수면 시트의 실제 부재 노드로 대체한다. Form1.DrawingSheets.cs:260의 가공도 처리와 같은 패턴.
+                string struTag = GetStruUdaValue(ResolveTagBaseNodeIndex(sheet));
                 if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
                 // PAINT CODE(166) = 출력 시점에 STRU에서 한 번 조회해 모든 도면에 공유한 값.
                 // UDA.Keys는 BeginUpdate 밖인 현재 데이터 구성 단계에서만 호출한다.
@@ -2725,7 +2762,11 @@ namespace A2Z
                     }
 
                     // 설치도: 접합 중심 A1/A2는 표시하지 않는다.
-                    // ISO에만 연결 Part당 Assembly/Part 이름을 접합측 실제 모서리에 한 번 표시한다.
+                    // ISO에만 연결 STRU당 이름을 접합측 실제 모서리에 한 번 표시한다.
+                    //   표시 텍스트가 STRU 이름 하나인데(#45) 그룹 키에 Part가 들어 있어, 같은 STRU에
+                    //   여러 Part가 붙으면 같은 글자 풍선이 Part 수만큼 떴다 (#121).
+                    //   → 그룹 키를 Assembly(STRU) 단위로 좁힌다. 그룹 안 대표 앵커 선택은 기존 로직이
+                    //   접합 면적(MergedAreaCount) 내림차순이라, 그룹이 넓어지면 가장 넓게 닿은 지점이 자동 대표가 된다.
                     if (viewDir == "ISO" && sheet.BaseMemberIndex == -2 && dashedObjId >= 0 &&
                         sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
                     {
@@ -2735,12 +2776,10 @@ namespace A2Z
                             .GroupBy(connection => new
                             {
                                 connection.ConnectedAssemblyIndex,
-                                connection.ConnectedPartIndex,
-                                connection.ConnectedAssemblyName,
-                                connection.ConnectedPartName
+                                connection.ConnectedAssemblyName
                             })
                             .OrderBy(group => group.Key.ConnectedAssemblyName)
-                            .ThenBy(group => group.Key.ConnectedPartName)
+                            .ThenBy(group => group.Key.ConnectedAssemblyIndex)
                             .ToList();
                         try
                         {
@@ -2804,7 +2843,7 @@ namespace A2Z
                             try { vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView(); }
                             catch { }
                         }
-                        DiagLog($"설치도 ISO 연결 이름 노트 parts={noteGroups.Count} " +
+                        DiagLog($"설치도 ISO 연결 이름 노트 strus={noteGroups.Count} " +
                                 $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
                     }
 
@@ -3364,6 +3403,22 @@ namespace A2Z
         /// 기준부재에서 부모로 최대 10단계 walk-up하며 "STRU" 키를 찾는다 (GetSprefValue와 동일 패턴).
         /// STRU 노드는 기준부재의 조상 어셈블리이므로 walk-up으로 도달한다. 없으면 "".
         /// </summary>
+        /// <summary>
+        /// TAG NO용 walk-up 출발 노드를 고른다 (#120).
+        /// `BaseMemberIndex`는 제작도 -1 · 설치도 -2 · 가공도 -3 센티넬이므로 그대로 쓰면
+        /// walk-up이 시작도 못 한다. 음수면 시트가 실제로 담고 있는 첫 부재 노드로 대체한다.
+        /// STRUCTURE 노드 자신은 `STRU` 속성이 비어 있으므로(부재→구조물 역참조, #67)
+        /// 반드시 부재 노드에서 올라가야 값이 잡힌다.
+        /// </summary>
+        private int ResolveTagBaseNodeIndex(DrawingSheetData sheet)
+        {
+            if (sheet == null) return -1;
+            if (sheet.BaseMemberIndex >= 0) return sheet.BaseMemberIndex;
+            return sheet.MemberIndices != null && sheet.MemberIndices.Count > 0
+                ? sheet.MemberIndices[0]
+                : -1;
+        }
+
         private string GetStruUdaValue(int nodeIndex)
         {
             List<string> udaKeyList = null;
