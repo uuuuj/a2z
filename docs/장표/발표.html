@@ -307,6 +307,10 @@ main.markers{
 .nw table.src tbody td{ font-weight:700; }
 .nw table.src td.k{ font-weight:800; color:var(--ink); white-space:nowrap; }
 .nw table.src td.v{ color:var(--muted); font-weight:600; }
+/* 사용하는 UDA 열 — 키가 있는 행은 또렷하게, 없는 행은 물러나게 */
+.nw table.src td.u{ color:var(--ink); font-weight:700; line-height:1.5; }
+.nw table.src td.u.none{ color:var(--muted); font-weight:600; opacity:.6; }
+.nw table.src td.u code{ margin-right:.2cqw; }
 .nw table.src code{ font-family:"Consolas","Courier New",monospace; font-size:1.44cqh; background:var(--line2); padding:.05cqh .35cqw; border-radius:3px; color:var(--ink); }
 .nw tr.grp td{ background:var(--panel2); font-size:1.5cqh; font-weight:800; color:var(--accent-ink);
                letter-spacing:.06em; padding:.5cqh .5cqw; border-bottom:1.5px solid var(--line); }
@@ -1058,30 +1062,30 @@ main.markers{
   </header>
   <main class="m-src">
     <table class="src">
-      <thead><tr><th style="width:16%">항목</th><th style="width:24%">지금 나오는 값</th><th style="width:45%">어디서 오나</th><th style="width:15%">상태</th></tr></thead>
+      <thead><tr><th style="width:14%">항목</th><th style="width:20%">지금 나오는 값</th><th style="width:29%">어디서 오나</th><th style="width:23%">사용하는 UDA</th><th style="width:14%">상태</th></tr></thead>
       <tbody>
-        <tr class="grp"><td colspan="4">BOM 표 — 도면 오른쪽 위</td></tr>
-        <tr><td class="k">No.</td><td class="v">1 · 2 · 3</td><td class="v">부재 목록 순번</td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">ITEM</td><td class="v">EA · EBOS</td><td class="v">부재 속성 <code>SPREF</code> 앞 구간</td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">MATERIAL</td><td class="v">SS275</td><td class="v">부재 속성 <code>MATREF</code></td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">SIZE</td><td class="v">50x50x6x298.25</td><td class="v"><code>SPREF</code> 뒷부분 + 시작·끝 좌표 거리</td><td class="st-part">형식 검증</td></tr>
-        <tr><td class="k">Q'TY</td><td class="v">1</td><td class="v">항상 1 — 집계 규칙 미정</td><td class="st-tmp">임시값</td></tr>
-        <tr><td class="k">T/W</td><td class="v">1.39</td><td class="v">부재 속성 <code>GWEI</code></td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">MA · FA</td><td class="v">L · F</td><td class="v">의미·출처 미정</td><td class="st-tmp">임시값</td></tr>
+        <tr class="grp"><td colspan="5">BOM 표 — 도면 오른쪽 위</td></tr>
+        <tr><td class="k">No.</td><td class="v">1 · 2 · 3</td><td class="v">부재 목록 순번</td><td class="u none">없음</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">ITEM</td><td class="v">EA · EBOS</td><td class="v">부재 속성의 앞 구간</td><td class="u"><code>SPREF</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">MATERIAL</td><td class="v">SS275</td><td class="v">부재 속성 그대로</td><td class="u"><code>MATREF</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">SIZE</td><td class="v">50x50x6x298.25</td><td class="v">속성 뒷부분 + 시작·끝 좌표 거리</td><td class="u"><code>SPREF</code> <code>POSSTART</code> <code>POSEND</code></td><td class="st-part">형식 검증</td></tr>
+        <tr><td class="k">Q'TY</td><td class="v">1</td><td class="v">항상 1 — 집계 규칙 미정</td><td class="u none">없음</td><td class="st-tmp">임시값</td></tr>
+        <tr><td class="k">T/W</td><td class="v">1.39</td><td class="v">부재 속성 그대로</td><td class="u"><code>GWEI</code></td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">MA · FA</td><td class="v">L · F</td><td class="v">의미·출처 미정</td><td class="u none">없음</td><td class="st-tmp">임시값</td></tr>
 
-        <tr class="grp"><td colspan="4">풍선 — 도면 위 표시</td></tr>
-        <tr><td class="k">부재번호 풍선</td><td class="v">1 · 2 · 3</td><td class="v">BOM No.와 같은 번호</td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">홀 · 슬롯 풍선</td><td class="v">규격 · 개수</td><td class="v">모델의 홀 정보 — 가공도에만</td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">연결부재 이름</td><td class="v">/M02-2-P10S-4024A</td><td class="v">닿아 있는 부재의 상위 이름</td><td class="st-ok">확정</td></tr>
+        <tr class="grp"><td colspan="5">풍선 — 도면 위 표시</td></tr>
+        <tr><td class="k">부재번호 풍선</td><td class="v">1 · 2 · 3</td><td class="v">BOM No.와 같은 번호</td><td class="u none">없음</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">홀 · 슬롯 풍선</td><td class="v">규격 · 개수</td><td class="v">모델 형상에서 직접 측정 — 가공도에만</td><td class="u none">없음</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">연결부재 이름</td><td class="v">/M02-2-P10S-4024A</td><td class="v">닿아 있는 부재의 상위 이름</td><td class="u none">없음</td><td class="st-ok">확정</td></tr>
 
-        <tr class="grp"><td colspan="4">도면 정보 — 오른쪽 아래 표제부</td></tr>
-        <tr><td class="k">도면 이름</td><td class="v">제작도 · 조립도 · 설치도 · 가공도</td><td class="v">시트 종류로 자동 결정</td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">PAINT CODE</td><td class="v">EX2</td><td class="v">구조물 속성 <code>PNT</code></td><td class="st-ok">확정</td></tr>
-        <tr><td class="k">TAG No.</td><td class="v">/M02-A-ES-P0813A-SHI</td><td class="v">상위 구조물 속성 <code>STRU</code></td><td class="st-part">보강 필요</td></tr>
-        <tr><td class="k">프로젝트명</td><td class="v">CEDAR FLNG</td><td class="v">프로그램에 고정</td><td class="st-tmp">하드코딩</td></tr>
-        <tr><td class="k">프로젝트 번호</td><td class="v">SN2688</td><td class="v">프로그램에 고정</td><td class="st-tmp">하드코딩</td></tr>
-        <tr><td class="k">DP No.</td><td class="v">Test</td><td class="v">시험용 고정값</td><td class="st-tmp">임시값</td></tr>
-        <tr><td class="k">REV · NOTE</td><td class="v">빈칸</td><td class="v">입력 기능 미개발</td><td class="st-tmp">미구현</td></tr>
+        <tr class="grp"><td colspan="5">도면 정보 — 오른쪽 아래 표제부</td></tr>
+        <tr><td class="k">도면 이름</td><td class="v">제작도 · 조립도 · 설치도 · 가공도</td><td class="v">시트 종류로 자동 결정</td><td class="u none">없음</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">PAINT CODE</td><td class="v">EX2</td><td class="v">상위 구조물에서 조회</td><td class="u"><code>PNT</code> 포함 키</td><td class="st-ok">확정</td></tr>
+        <tr><td class="k">TAG No.</td><td class="v">/M02-A-ES-P0813A-SHI</td><td class="v">상위 구조물에서 조회</td><td class="u"><code>STRU</code></td><td class="st-part">보강 필요</td></tr>
+        <tr><td class="k">프로젝트명</td><td class="v">CEDAR FLNG</td><td class="v">프로그램에 고정</td><td class="u none">없음</td><td class="st-tmp">하드코딩</td></tr>
+        <tr><td class="k">프로젝트 번호</td><td class="v">SN2688</td><td class="v">프로그램에 고정</td><td class="u none">없음</td><td class="st-tmp">하드코딩</td></tr>
+        <tr><td class="k">DP No.</td><td class="v">Test</td><td class="v">시험용 고정값</td><td class="u none">없음 — 속성 확인 중</td><td class="st-tmp">임시값</td></tr>
+        <tr><td class="k">REV · NOTE</td><td class="v">빈칸</td><td class="v">입력 기능 미개발</td><td class="u none">없음</td><td class="st-tmp">미구현</td></tr>
       </tbody>
     </table>
   </main>
