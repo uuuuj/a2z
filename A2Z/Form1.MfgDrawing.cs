@@ -142,7 +142,7 @@ namespace A2Z
         /// BOM 데이터는 호출자가 SnapshotBomRows로 1회 복사한 bomSnapshot 사용.
         /// </summary>
         private Dictionary<int, string> BuildMfgPageData(
-            MfgPage page, int totalPages, string struName, string paintCode, List<string[]> bomSnapshot)
+            MfgPage page, int totalPages, string struName, string paintCode, string struTag, List<string[]> bomSnapshot)
         {
             var data = new Dictionary<int, string>();
 
@@ -165,6 +165,10 @@ namespace A2Z
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
             if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
+            // TAG NO(169) — 제작도·조립도·설치도와 같은 슬롯. 가공도는 배선 자체가 없어 늘 빈칸이었다 (#120).
+            //   호출자가 부재 노드에서 한 번 조회한 값을 전 페이지가 재사용한다.
+            //   값이 없으면 키를 넣지 않아 초기 " "(공백, 괘선 보존)을 유지한다.
+            if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
 
             // ── REV 표 첫 기재행 (Input_194~199) ──
             //   제작도와 같은 공통 헬퍼(Form1.ExcelTemplate.cs) — REV.=0 / 출력일 / 나머지 공백 (#64 Phase 1).
@@ -2504,7 +2508,8 @@ namespace A2Z
             //   도면 일괄 출력이 이 함수를 품고 호출하면 그쪽 누적에 페이지만 얹고 저장은 넘긴다.
             bool ownsPdfAccumulation = false;
             string mergedPdfPath = null;
-            string mfgTimeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            // PDF 파일명(#49)과 표제부 TAG NO.(#120)가 같은 STRU 이름을 쓰도록 한 곳에서 잡는다.
+            string mfgStruTag = "";
 
             // P3 #2 패치 (2026-05-23, 사용자 보고):
             //   "가공도 출력 누르자 마자 다른 부재들이 보임" — 진입부 Show(ALL, true)가 BOM 채우기 위해
@@ -2535,7 +2540,12 @@ namespace A2Z
                 // #119: 여기서 이전 도면 잔재를 지우고 누적을 연다.
                 //   이미 바깥(도면 일괄 출력)이 누적 중이면 지우지 않고 페이지만 이어붙인다.
                 //   경로를 먼저 확정한다 — 누적을 연 뒤 예외가 나면 저장 경로 없이 닫히게 된다.
-                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, "가공도", mfgTimeStamp);
+                //   파일명·표제부 TAG NO.가 같은 STRU 이름을 쓰도록 여기서 한 번만 구한다 (#49, #120).
+                //   출발 노드는 struIndex(STRU 노드)가 아니라 실제 부재여야 한다 — STRUCTURE 노드 자신은
+                //   `STRU` 속성이 비어 있다(부재→구조물 역참조, #67).
+                mfgStruTag = ResolveDrawingStruName(mfgSheets);
+                DiagLog($"[TAG NO] 가공도 출력 공용값: value='{mfgStruTag}'");
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, mfgStruTag, "가공도");
                 ownsPdfAccumulation = BeginPdfPageAccumulation("가공도");
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);
@@ -2627,7 +2637,7 @@ namespace A2Z
                     try
                     {
                         ResetCanvasForMfgPage();
-                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, bomSnapshot);
+                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, mfgStruTag, bomSnapshot);
                         CheckMfgCancellation(
                             shouldCancel,
                             $"{pageProgress} 템플릿 적용 중...",

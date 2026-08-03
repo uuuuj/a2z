@@ -935,7 +935,6 @@ namespace A2Z
 
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 시작 → {struSubDir}");
 
-            string timeStamp = DateTime.Now.ToString("HHmmss");
             int pdfCount = 0;
             int pageCount = 0;   // #119: PDF는 1개, 세는 건 도면 장수
 
@@ -944,8 +943,9 @@ namespace A2Z
             //   저장은 호출한 쪽(btnExtractDrawingList_Click)이 STRU 처리 직후 마무리한다 —
             //   취소가 이 함수 중간에서 예외로 튀어나와도 그때까지 그린 페이지를 남기기 위함.
             //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
+            //   파일명은 {STRU}_생산제작도.pdf — 일괄 출력만 `생산제작도`를 쓴다 (#49).
             _pendingMergedPdfPath = BuildMergedDrawingPdfPath(
-                struSubDir, $"전체도면_{safeStruName}", timeStamp);
+                struSubDir, struNode.NodeName, "생산제작도");
             BeginPdfPageAccumulation($"도면 일괄 출력/{struNode.NodeName}");
 
             // ─── 7) 일반 시트 루프 (제작도/조립도/설치도) — 시트별 처리 ───
@@ -1081,6 +1081,30 @@ namespace A2Z
             if (sheet.BaseMemberIndex == -2) return "설치도";
             if (sheet.BaseMemberIndex == -3) return "가공도";
             return "조립도";  // BaseMemberIndex >= 0 (Sheet 2~N, 1-hop Clash 이웃)
+        }
+
+        /// <summary>
+        /// 시트 종류 라벨에 같은 종류 안에서의 순번을 붙인다 — `조립도 (2/5)` (#122).
+        ///
+        /// 모수는 **도면 목록 전체**를 센다. 이번 출력 대상만 세면 개별 출력과 일괄 출력에서
+        /// 같은 도면이 다른 번호를 받아 도면 간 참조가 깨진다.
+        ///
+        /// 같은 종류가 1장뿐이면 순번을 붙이지 않는다 — 불필요한 `(1/1)` 방지.
+        /// 가공도는 페이지 단위 순번을 자체 경로(`BuildMfgPageData`)에서 붙이므로 여기서 제외한다.
+        /// </summary>
+        private string GetSheetKindLabelWithSequence(DrawingSheetData sheet)
+        {
+            if (sheet == null) return "";
+            string label = GetSheetKindLabel(sheet);
+            if (sheet.BaseMemberIndex == -3 || drawingSheetList == null) return label;
+
+            List<DrawingSheetData> sameKind = drawingSheetList
+                .Where(item => item != null && GetSheetKindLabel(item) == label)
+                .ToList();
+            if (sameKind.Count <= 1) return label;
+
+            int index = sameKind.IndexOf(sheet) + 1;
+            return index > 0 ? $"{label} ({index}/{sameKind.Count})" : label;
         }
     }
 }

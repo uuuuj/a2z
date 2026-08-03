@@ -1137,21 +1137,30 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 묶음 PDF 경로 — {폴더}\{종류}_{모델명}_{시각}.pdf
+        /// 묶음 PDF 경로 — {폴더}\{STRU}_{종류}.pdf (사용자 사양 2026-07-29, #49)
+        ///
+        /// 종류는 일괄 출력 `생산제작도` · 개별 버튼 `제작도`/`조립도`/`설치도`/`가공도`.
+        /// STRU 이름을 못 구하면 모델 파일명으로 대체한다 — 이름 없는 파일이 나오는 것보다 낫다.
         /// 같은 이름이 있으면 뒤에 번호를 붙이고, 경로가 MAX_PATH에 가까우면 로그를 남긴다.
         /// </summary>
-        private string BuildMergedDrawingPdfPath(string saveDir, string kindLabel, string timeStamp)
+        private string BuildMergedDrawingPdfPath(string saveDir, string struName, string kindLabel)
         {
             string safeKind = SanitizeFileName(
                 string.IsNullOrWhiteSpace(kindLabel) ? "도면" : kindLabel.Trim());
             if (safeKind.Length > 40) safeKind = safeKind.Substring(0, 40);
 
-            string modelName = !string.IsNullOrEmpty(currentFilePath)
-                ? SanitizeFileName(System.IO.Path.GetFileNameWithoutExtension(currentFilePath))
-                : "Unknown";
-            if (modelName.Length > 40) modelName = modelName.Substring(0, 40);
+            string safeStru = SanitizeStruForFileName(struName);
+            if (string.IsNullOrEmpty(safeStru))
+            {
+                // STRU를 못 읽는 모델·경로 대비 — 종전 규칙의 모델명으로 떨어진다.
+                safeStru = !string.IsNullOrEmpty(currentFilePath)
+                    ? SanitizeFileName(System.IO.Path.GetFileNameWithoutExtension(currentFilePath))
+                    : "Unknown";
+                DiagLog($"[PDF묶음] STRU 이름 없음 → 모델명으로 대체: '{safeStru}'");
+            }
+            if (safeStru.Length > 60) safeStru = safeStru.Substring(0, 60);
 
-            string baseName = $"{safeKind}_{modelName}_{timeStamp}.pdf";
+            string baseName = $"{safeStru}_{safeKind}.pdf";
             string path = System.IO.Path.Combine(saveDir, baseName);
 
             int n = 1;
@@ -1171,6 +1180,24 @@ namespace A2Z
         /// <summary>
         /// 2D 뷰 완전 초기화 — 모든 2D 객체, 템플릿, 그리드를 삭제하고 뷰 모드를 리셋
         /// </summary>
+        /// <summary>
+        /// 지정한 ViewMode로 되돌린다 (#55).
+        /// `Clear2DView`와 `Model.Open`은 2D 뷰를 강제로 열기 때문에, 화면 구성을 바꾸지 말아야 하는
+        /// 경로(초기화 등)에서는 진입 시점의 값을 잡아뒀다가 이 메서드로 복원한다.
+        /// 이미 같은 모드면 아무것도 하지 않아 깜빡임이 없다.
+        /// </summary>
+        private void RestoreViewMode(VIZCore3D.NET.Data.ViewKind mode)
+        {
+            try
+            {
+                if (vizcore3d.ViewMode != mode) vizcore3d.ViewMode = mode;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[ViewMode] 복원 실패 (target={mode}): {ex.Message}");
+            }
+        }
+
         private void Clear2DView()
         {
             // [깜빡임 제거 2026-07-22] 기존엔 2D 뷰 "완전 리셋"을 위해 ViewMode를 Model3D↔Both로
