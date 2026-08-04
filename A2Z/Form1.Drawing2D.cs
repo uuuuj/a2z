@@ -995,12 +995,57 @@ namespace A2Z
                 return false;
             }
 
+            // 기본은 묶지 않는다 — 장마다 저장하고 뷰를 비운다 (보호된 메모리 오류 회피).
+            //   App.config `Pdf.MergePages=true`로 바꾸면 종전처럼 한 파일로 묶는다.
+            if (!IsPdfPageMergeEnabled())
+            {
+                DiagLog($"[PDF] {ownerLabel} — 묶지 않음(Pdf.MergePages=false), 장마다 저장");
+                return false;
+            }
+
             Clear2DView();
             _pdfPageAccumulating = true;
             _pdfPageCount = 0;
             _activeDrawingCanvasIdx = 1;
             DiagLog($"[PDF묶음] {ownerLabel} 누적 시작");
             return true;
+        }
+
+        /// <summary>
+        /// 여러 장을 PDF 한 개로 묶을지 (App.config `Pdf.MergePages`, **기본 false**).
+        ///
+        /// 묶으려면 저장할 때까지 **모든 장의 2D 객체가 뷰에 함께 살아 있어야** 한다.
+        /// 조립도처럼 장수가 많으면 SDK 네이티브에서 "보호된 메모리" 오류로 프로세스가 즉사한다
+        /// (2026-08-04 실기). 그래서 기본은 장마다 저장하고 뷰를 비우는 #119 이전 방식이다.
+        ///
+        /// SDK의 `Export2PDFBy2DView`는 뷰에 올라온 캔버스를 한 번에 내보낼 뿐 기존 PDF에
+        /// 이어붙이지 못한다. 그래서 "장마다 비우기"와 "PDF 한 개"는 지금 양립하지 않는다.
+        /// </summary>
+        private static bool IsPdfPageMergeEnabled()
+        {
+            return string.Equals(GetAppSetting("Pdf.MergePages", "false"), "true",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 지금 뷰에 그려져 있는 도면을 PDF 한 개로 저장한다 (묶지 않는 모드용).
+        /// </summary>
+        private bool SaveCurrentDrawingToPdf(string pdfPath)
+        {
+            try
+            {
+                vizcore3d.Drawing2D.Render();
+                vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
+                vizcore3d.Drawing2D.Object2D.Export2PDFBy2DView(pdfPath);
+                DiagLog($"[PDF] 장별 저장 → {pdfPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[PDF] 장별 저장 실패: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>

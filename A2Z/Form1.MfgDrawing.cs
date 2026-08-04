@@ -2708,8 +2708,19 @@ namespace A2Z
                         vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                         vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
 
-                        // #119: 페이지마다 저장하지 않는다. 이 캔버스는 그대로 쌓아두고,
-                        //   모든 페이지를 그린 뒤 finally에서 PDF 1개로 저장한다.
+                        // 묶지 않는 모드(기본)에서는 이 페이지를 바로 저장한다.
+                        //   묶음 모드면 캔버스를 쌓아두고 finally에서 PDF 1개로 저장한다 (#119).
+                        //   묶음은 모든 페이지의 2D 객체가 동시에 살아 있어야 해서 장수가 많으면
+                        //   "보호된 메모리" 오류가 난다 — App.config `Pdf.MergePages` 참고.
+                        if (!_pdfPageAccumulating)
+                        {
+                            string mfgPagePath = BuildMergedDrawingPdfPath(saveDir, mfgStruName, "가공도");
+                            if (SaveCurrentDrawingToPdf(mfgPagePath))
+                            {
+                                result.SavedPdfPath = mfgPagePath;
+                                result.SuccessPdfs++;
+                            }
+                        }
                         result.SuccessPages++;
                         if (bomSnapshotInsufficient) result.InsufficientBomPdfs++;
 
