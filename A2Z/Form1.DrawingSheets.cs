@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -2415,8 +2415,21 @@ namespace A2Z
                                 .ToList();
                             if (isoDashedTargets.Count == 0)
                                 isoDashedTargets = null;   // 시트가 BOM 전체를 덮으면 단일 실선 캡처로 폴백
-                            // 프레임은 전체(점선+실선) 기준 fit — 조립도는 주변 구조 속 위치를 보여야 한다.
-                            isoFitByDashed = isoDashedTargets != null;
+                            // [2026-08-04 #202] 전체(점선+실선) 기준 fit을 폐기하고 설치도·제작도와 같은
+                            //   "시트 부재 기준 CropFit" 경로로 통일한다.
+                            //
+                            //   폐기 이유: 전체 기준 fit은 배율을 **점선 배경의 bbox**로 정한다. 점선은
+                            //   `전역 BOM − 시트 부재`라 그 공간 크기가 시트마다 제멋대로다. 그래서 같은
+                            //   STRU 한 번의 출력에서도 배율이 요동쳤다 (2026-08-04 실기 5장: 0.127 / 0.286 /
+                            //   0.286 / 0.135 / 0.182). 배율이 튄 장은 실선 장부재가 뷰·템플릿을 뚫었고,
+                            //   배율이 줄어든 장은 BOM 부재가 작아져 강조가 사라졌다. 정상으로 보인 장은
+                            //   점선 범위가 우연히 전체와 비슷했던 것뿐이다.
+                            //
+                            //   false로 두면 아래 캡처 단계가 ① 점선 배경에 시트 부재를 포함해 캡처하고
+                            //   ② 시트 부재 기준으로 CropFit해 "시트 부재 ± 여백"만 남긴 뒤 ③ 그 결과로 fit한다.
+                            //   bbox가 항상 시트 부재에 묶이므로 배율이 안정되고, 주변 맥락은 여백만큼만 보인다
+                            //   (= 사용자 사양 "BOM 부재가 가운데 꽉 차고 나머지는 뷰 경계에서 잘림").
+                            isoFitByDashed = false;
                             DiagLog($"P2 ISO 조립도 실선/점선 sheet#={sheet.SheetNumber} " +
                                     $"solid={isoSolidTargets.Count} dashed={isoDashedTargets?.Count ?? 0} " +
                                     $"bomListTotal={bomList.Count} fitByDashed={isoFitByDashed}");
@@ -2568,7 +2581,7 @@ namespace A2Z
                     {
                         // CropFit 예제 불변조건: Crop 기준 노드는 Crop 대상 2D 객체 안에도 들어 있어야 한다.
                         // 설치도·제작도는 "시트 부재 + 연결 Part"를 함께 점선 배경으로 캡처한 뒤 시트 부재로 Crop하고,
-                        // 다음 캡처에서 시트 부재 실선을 위에 덮는다. 조립도는 기존 점선 대상만 캡처한다.
+                        // 다음 캡처에서 시트 부재 실선을 위에 덮는다. 조립도도 #202부터 같은 경로다.
                         var dashedCaptureTargets = new List<int>(isoDashedTargets);
                         if (!isoFitByDashed && isoSolidTargets != null)
                         {
@@ -2588,13 +2601,16 @@ namespace A2Z
                         if (dashedObjId >= 0)
                         {
                             // 설치도·제작도: 시트 부재를 포함한 점선 배경을 시트 부재 영역 + 여백만 남기고 잘라냄.
-                            //   조립도는 전체 구조를 배경으로 보여줘야 하므로 Crop 안 함 (isoFitByDashed=true).
+                            //   조립도도 #202부터 같은 경로 — 배경을 시트 부재 ± 여백으로 잘라 배율을 고정한다.
                             //   Crop 기준인 isoSolidTargets가 dashedObjId 안에 포함된 상태여야 SDK 예제처럼 동작한다.
                             if (!isoFitByDashed)
                             {
                                 vizcore3d.Drawing2D.Object2D.CropFit2DViewObjectByNodeIDs(
                                     dashedObjId, isoSolidTargets, IsoNeighborCropOffset);
-                                string cropKind = sheet.BaseMemberIndex == -2 ? "설치도 연결 Part" : "제작도 이웃";
+                                string cropKind =
+                                    sheet.BaseMemberIndex == -2 ? "설치도 연결 Part"
+                                    : sheet.BaseMemberIndex >= 0 ? "조립도 주변"   // #202
+                                    : "제작도 이웃";
                                 DiagLog($"P2 {viewDir} {cropKind} 점선 CropFit obj={dashedObjId} " +
                                         $"captured={dashedCaptureTargets.Count} cropNodes={isoSolidTargets.Count} " +
                                         $"offset={IsoNeighborCropOffset:F2}");
@@ -2606,7 +2622,7 @@ namespace A2Z
                             vizcore3d.Drawing2D.Object2D.Set2DViewObjectItemLineThickness(dashedObjId, 0.15f);
 
                             // 설치도·제작도는 예제 순서대로 점선 정의·배치를 끝낸 뒤 실선을 캡처한다.
-                            // 조립도는 이미 실기 정상인 기존 순서(두 객체 캡처 후 점선 배치)를 유지한다.
+                            // 조립도도 #202부터 이 순서를 쓴다 (옛 '두 객체 캡처 후 점선 배치'는 폐기).
                             if (!isoFitByDashed)
                                 fitAndPlaceObject(dashedObjId);
                         }
@@ -2657,7 +2673,11 @@ namespace A2Z
                         bool matched = vizcore3d.Drawing2D.Object2D.Match2DObjectsTo3DObjectPosition(objId, dashedObjId);
                         float dashW = 0f, dashH = 0f;
                         vizcore3d.Drawing2D.Object2D.GetObjectSize(dashedObjId, ref dashW, ref dashH);
-                        string layeredKind = sheet.BaseMemberIndex == -2 ? "설치도" : (isoFitByDashed ? "조립도" : "제작도");
+                        // #202 이후 조립도도 isoFitByDashed=false라, 라벨은 시트 종류로 직접 판정한다.
+                        string layeredKind =
+                            sheet.BaseMemberIndex == -2 ? "설치도"
+                            : sheet.BaseMemberIndex >= 0 ? "조립도"
+                            : "제작도";
                         DiagLog($"P2 {viewDir} 두겹 {layeredKind} dash={dashedObjId} solid={objId} " +
                                 $"move={objId} ref={dashedObjId} refScale={refScale:F4} match={matched} dashSize=({dashW:F1}x{dashH:F1})");
                     }
