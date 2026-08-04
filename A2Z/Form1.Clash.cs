@@ -23,6 +23,12 @@ namespace A2Z
             CollectBOMInfo(true);
         }
 
+        /// <summary>BOM MA 열 기본 속성 이름 (2026-08-05 담당자 확인). App.config `Uda.BomMa`로 덮어쓸 수 있다.</summary>
+        private const string BomMaUdaKeyDefault = ":SHI_MA";
+
+        /// <summary>BOM FA 열 기본 속성 이름 (2026-08-05 담당자 확인). App.config `Uda.BomFa`로 덮어쓸 수 있다.</summary>
+        private const string BomFaUdaKeyDefault = ":SHI_FA";
+
         private sealed class DrawingBomPartData
         {
             public int PartIndex;
@@ -35,6 +41,10 @@ namespace A2Z
             public string StruWeightDisplay;
             /// <summary>StruWeightDisplay를 읽어온 조상 노드 인덱스. 못 찾으면 -1. 진단 로그·중첩 STRU 감지용.</summary>
             public int StruNodeIndex = -1;
+            /// <summary>BOM MA 열 값 (부재 속성, #109). 값이 없으면 빈 문자열 → 표에는 "-"로 나간다.</summary>
+            public string Ma;
+            /// <summary>BOM FA 열 값 (부재 속성, #110). 값이 없으면 빈 문자열 → 표에는 "-"로 나간다.</summary>
+            public string Fa;
         }
 
         private sealed class DrawingBomPreparationContext
@@ -149,6 +159,17 @@ namespace A2Z
                     foreach (var node in allParts) relevantPartIndices.Add(node.Index);
             }
 
+            // 읽을 속성 이름 — 고정 6개 + 설정에서 오는 BOM MA·FA (#109 · #110).
+            //   MA·FA는 모델마다 키가 다를 수 있어 App.config로 뺐다 (`Uda.BomMa` · `Uda.BomFa`).
+            string bomMaKey = GetAppSetting("Uda.BomMa", BomMaUdaKeyDefault);
+            string bomFaKey = GetAppSetting("Uda.BomFa", BomFaUdaKeyDefault);
+            var wantedKeyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "SPREF", "MATREF", "GWEI", "POSSTART", "POSEND", "STRU"
+            };
+            if (!string.IsNullOrEmpty(bomMaKey)) wantedKeyNames.Add(bomMaKey);
+            if (!string.IsNullOrEmpty(bomFaKey)) wantedKeyNames.Add(bomFaKey);
+
             var wantedUdaKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -158,15 +179,8 @@ namespace A2Z
                     foreach (string key in keys)
                     {
                         string normalized = (key ?? "").Trim();
-                        if (normalized.Equals("SPREF", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("MATREF", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("GWEI", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("POSSTART", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("POSEND", StringComparison.OrdinalIgnoreCase) ||
-                            normalized.Equals("STRU", StringComparison.OrdinalIgnoreCase))
-                        {
+                        if (wantedKeyNames.Contains(normalized))
                             wantedUdaKeys[normalized] = key;
-                        }
                     }
                 }
             }
@@ -183,7 +197,8 @@ namespace A2Z
                 catch { }
                 if (node == null) continue;
 
-                context.PartByIndex[partIndex] = ReadDrawingBomPartData(node, wantedUdaKeys, struGweiByNode);
+                context.PartByIndex[partIndex] =
+                    ReadDrawingBomPartData(node, wantedUdaKeys, struGweiByNode, bomMaKey, bomFaKey);
             }
 
             // STRUCTURE 노드를 하나도 못 찾았을 때만 조상 체인을 덤프한다.
@@ -247,8 +262,12 @@ namespace A2Z
         private DrawingBomPartData ReadDrawingBomPartData(
             VIZCore3D.NET.Data.Node node,
             Dictionary<string, string> udaKeys,
-            Dictionary<int, string> struGweiByNode)
+            Dictionary<int, string> struGweiByNode,
+            string bomMaKey,
+            string bomFaKey)
         {
+            string maVal = "";
+            string faVal = "";
             string sprefVal = "";
             string matrefVal = "";
             string gweiVal = "";
@@ -266,6 +285,11 @@ namespace A2Z
                 gweiVal = ReadDrawingBomUdaValue(currentIdx, "GWEI", gweiVal, udaKeys);
                 posStartVal = ReadDrawingBomUdaValue(currentIdx, "POSSTART", posStartVal, udaKeys);
                 posEndVal = ReadDrawingBomUdaValue(currentIdx, "POSEND", posEndVal, udaKeys);
+                // BOM MA·FA (#109 · #110) — 부재 단위 속성. 키 이름은 App.config에서 온다.
+                if (!string.IsNullOrEmpty(bomMaKey))
+                    maVal = ReadDrawingBomUdaValue(currentIdx, bomMaKey, maVal, udaKeys);
+                if (!string.IsNullOrEmpty(bomFaKey))
+                    faVal = ReadDrawingBomUdaValue(currentIdx, bomFaKey, faVal, udaKeys);
 
                 // 요약행 T/W(#67) — STRUCTURE 노드를 "이름"으로 찾는다.
                 //   STRU 속성은 부재가 소속 STRUCTURE를 가리키는 역참조라, STRUCTURE 노드 자신은 STRU가 비어 있다.
@@ -350,7 +374,9 @@ namespace A2Z
                 WeightDisplay = weightDisplay,
                 Weight = weight,
                 StruWeightDisplay = struWeightDisplay,
-                StruNodeIndex = struNodeIndex
+                StruNodeIndex = struNodeIndex,
+                Ma = maVal,
+                Fa = faVal
             };
         }
 
@@ -566,8 +592,10 @@ namespace A2Z
                     Size = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Size),
                     Quantity = ToDrawingBomDisplayValue(part.Item == "unset" ? null : "1"),
                     TotalWeight = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.WeightDisplay),
-                    Ma = ToDrawingBomDisplayValue(part.Item == "unset" ? null : "L"),
-                    Fa = ToDrawingBomDisplayValue(part.Item == "unset" ? null : "F")
+                    // MA·FA는 부재 속성에서 읽는다 (#109 · #110). 값이 없으면 "-"로 나간다 —
+                    //   근거 없이 L·F를 지어 넣던 종전 동작을 대체한다.
+                    Ma = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Ma),
+                    Fa = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Fa)
                 });
             }
 

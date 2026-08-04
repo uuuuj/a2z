@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -142,7 +142,8 @@ namespace A2Z
         /// BOM 데이터는 호출자가 SnapshotBomRows로 1회 복사한 bomSnapshot 사용.
         /// </summary>
         private Dictionary<int, string> BuildMfgPageData(
-            MfgPage page, int totalPages, string struName, string paintCode, string struTag, List<string[]> bomSnapshot)
+            MfgPage page, int totalPages, string struName, string paintCode, string struTag, string dpNo,
+            List<string[]> bomSnapshot)
         {
             var data = new Dictionary<int, string>();
 
@@ -169,6 +170,9 @@ namespace A2Z
             //   호출자가 부재 노드에서 한 번 조회한 값을 전 페이지가 재사용한다.
             //   값이 없으면 키를 넣지 않아 초기 " "(공백, 괘선 보존)을 유지한다.
             if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
+            // DP No(169 옆 168) — 표제부는 4종 도면이 같은 슬롯·같은 값을 쓴다 (2026-08-05 사용자).
+            //   가공도는 TAG NO.와 마찬가지로 이 배선이 아예 없어 늘 빈칸이었다 (#65).
+            if (!string.IsNullOrEmpty(dpNo)) data[168] = dpNo;
 
             // ── REV 표 첫 기재행 (Input_194~199) ──
             //   제작도와 같은 공통 헬퍼(Form1.ExcelTemplate.cs) — REV.=0 / 출력일 / 나머지 공백 (#64 Phase 1).
@@ -2510,6 +2514,7 @@ namespace A2Z
             string mergedPdfPath = null;
             // PDF 파일명(#49)과 표제부 TAG NO.(#120)가 같은 STRU 이름을 쓰도록 한 곳에서 잡는다.
             string mfgStruTag = "";
+            string mfgDpNo = "";
 
             // P3 #2 패치 (2026-05-23, 사용자 보고):
             //   "가공도 출력 누르자 마자 다른 부재들이 보임" — 진입부 Show(ALL, true)가 BOM 채우기 위해
@@ -2547,6 +2552,7 @@ namespace A2Z
                 string mfgStruName = ResolveDrawingStruName(mfgSheets);
                 DrawingSheetData firstTagSheet = mfgSheets.FirstOrDefault(item => item != null);
                 mfgStruTag = GetTagNoValue(firstTagSheet);
+                mfgDpNo = GetDpNoValue(firstTagSheet);
                 DiagLog($"[TAG NO] 가공도 출력 공용값: value='{mfgStruTag}' (파일명용 STRU='{mfgStruName}')");
                 mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, mfgStruName, "가공도");
                 ownsPdfAccumulation = BeginPdfPageAccumulation("가공도");
@@ -2640,7 +2646,7 @@ namespace A2Z
                     try
                     {
                         ResetCanvasForMfgPage();
-                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, mfgStruTag, bomSnapshot);
+                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, mfgStruTag, mfgDpNo, bomSnapshot);
                         CheckMfgCancellation(
                             shouldCancel,
                             $"{pageProgress} 템플릿 적용 중...",

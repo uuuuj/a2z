@@ -2200,7 +2200,10 @@ namespace A2Z
                 string paintCode = GetOrCacheDrawingPaintCode(sheet);
                 if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
                 // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
-                data[168] = "Test";
+                // DP No(168) = STRU 단위 속성 (#65). 종전 시험용 고정값 "Test"를 대체.
+                //   값이 없으면 키를 넣지 않아 초기 " "(공백, 괘선 보존)을 유지한다.
+                string dpNo = GetDpNoValue(sheet);
+                if (!string.IsNullOrEmpty(dpNo)) data[168] = dpNo;
                 // REV 표 첫 기재행(194~199) — REV.=0 / 출력일 / 나머지는 공백(괘선만 보존) (#64 Phase 1).
                 //   이 경로는 제작도·조립도·설치도 3종이 공유하므로 한 번 호출로 모두 적용된다.
                 //   미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다. 헬퍼: Form1.ExcelTemplate.cs
@@ -3486,6 +3489,20 @@ namespace A2Z
         private string GetTagNoValue(DrawingSheetData sheet)
         {
             string udaKey = GetAppSetting("Uda.TagNo");
+            if (string.IsNullOrEmpty(udaKey)) return "";
+            return GetNamedUdaValue(ResolveTagBaseNodeIndex(sheet), udaKey);
+        }
+
+        /// <summary>표제부 DP No. 기본 속성 이름 (2026-08-05 담당자 확인). App.config `Uda.DpNo`로 덮어쓸 수 있다.</summary>
+        private const string DpNoUdaKeyDefault = ":SHI_DSN_DP";
+
+        /// <summary>
+        /// 표제부 DP No. 값 (#65). STRU 단위 속성이라 TAG NO.와 같은 walk-up 출발 노드를 쓴다.
+        /// 종전에는 시험용 고정값 `"Test"`가 들어가 있었다.
+        /// </summary>
+        private string GetDpNoValue(DrawingSheetData sheet)
+        {
+            string udaKey = GetAppSetting("Uda.DpNo", DpNoUdaKeyDefault);
             if (string.IsNullOrEmpty(udaKey)) return "";
             return GetNamedUdaValue(ResolveTagBaseNodeIndex(sheet), udaKey);
         }
