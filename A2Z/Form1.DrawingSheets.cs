@@ -1444,9 +1444,9 @@ namespace A2Z
                 DiagLog($"[{kindLabel} 출력] 컨트롤 상태 복원 완료");
             }
 
-            // SDK가 열고 닫지 않은 진행창이 남아 있으면 여기서 걷어낸다 (#116).
-            //   결과창을 띄우기 전에 정리해야 두 창이 겹쳐 보이지 않는다.
-            CloseOrphanedSdkProgressDialog($"{kindLabel} 출력 종료");
+
+
+
 
             DiagLog($"[{kindLabel} 출력] 결과 표시 직전 pages={successCount}");
             ShowDrawingSheetExportResult(kindLabel, savedPdfPath, successCount, savedPdfCount, failures, canceled);
