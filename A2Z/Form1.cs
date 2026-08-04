@@ -424,7 +424,7 @@ namespace A2Z
         {
             try
             {
-                // 닫으면서 순회하면 컬렉션이 바뀌므로 먼저 모은다.
+                // (1) WinForms 쪽 — 우리 메시지 루프가 아는 창.
                 var stuck = new List<Form>();
                 foreach (Form form in Application.OpenForms)
                 {
@@ -437,15 +437,102 @@ namespace A2Z
 
                 foreach (Form form in stuck)
                 {
-                    DiagLog($"[진행창] SDK 진행창이 남아 있어 닫는다 ({where}): {form.GetType().FullName}");
+                    DiagLog($"[진행창] SDK 진행창(WinForms)이 남아 있어 닫는다 ({where}): {form.GetType().FullName}");
                     try { form.Close(); } catch (Exception ex) { DiagLog($"[진행창] Close 실패: {ex.Message}"); }
                     try { form.Dispose(); } catch { }
                 }
+
+                // (2) Win32 쪽 — `Application.OpenForms`에 안 잡히는 창까지 훑는다.
+                //   2026-08-04 사내 실기에서 `Please Wait / Processing...`이 테두리·배경 없이
+                //   다른 프로세스 창 위에 글자만 떠 있었다. 다른 프로세스 위에 그려졌다는 건
+                //   최상위 창이라는 뜻이고, (1)에서 안 잡혔다는 건 WinForms 밖에서 만들어졌다는 뜻이다.
+                CleanupNativeProgressWindows(where);
             }
             catch (Exception ex)
             {
                 DiagLog($"[진행창] 정리 실패({where}): {ex.Message}");
             }
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr param);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr param);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int maxCount);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int maxCount);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        private const uint WM_CLOSE = 0x0010;
+
+        /// <summary>
+        /// 이 프로세스가 띄운 최상위 창을 전부 로그로 남기고, SDK 진행창으로 보이는 것은 닫는다 (#116).
+        ///
+        /// 먼저 **전부 남긴다** — 어떤 제목·클래스인지 확정되면 그때 정확히 겨냥할 수 있다.
+        /// 우리 메인 폼과 `Application.OpenForms`에 등록된 창은 건드리지 않는다.
+        /// </summary>
+        private void CleanupNativeProgressWindows(string where)
+        {
+            var ours = new HashSet<IntPtr>();
+            try
+            {
+                ours.Add(this.Handle);
+                foreach (Form form in Application.OpenForms)
+                    if (form != null && form.IsHandleCreated) ours.Add(form.Handle);
+            }
+            catch { }
+
+            uint myPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+            var targets = new List<IntPtr>();
+            int seen = 0;
+
+            EnumWindows((hWnd, param) =>
+            {
+                uint pid;
+                GetWindowThreadProcessId(hWnd, out pid);
+                if (pid != myPid) return true;
+                if (ours.Contains(hWnd)) return true;
+                if (!IsWindowVisible(hWnd)) return true;
+
+                var title = new System.Text.StringBuilder(512);
+                GetWindowText(hWnd, title, title.Capacity);
+                var cls = new System.Text.StringBuilder(512);
+                GetClassName(hWnd, cls, cls.Capacity);
+
+                string t = title.ToString();
+                string c = cls.ToString();
+                seen++;
+                DiagLog($"[진행창] 남은 창 발견 ({where}): hWnd={hWnd} class='{c}' title='{t}'");
+
+                // 진행창으로 보이는 것만 닫는다. 제목이 비어 있어도 SDK 진행창은 테두리가 없어
+                // 제목이 안 잡힐 수 있으므로 클래스 이름도 함께 본다.
+                if (t.IndexOf("Please Wait", StringComparison.OrdinalIgnoreCase) >= 0
+                    || t.IndexOf("Processing", StringComparison.OrdinalIgnoreCase) >= 0
+                    || c.IndexOf("Progress", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    targets.Add(hWnd);
+                }
+                return true;
+            }, IntPtr.Zero);
+
+            foreach (IntPtr hWnd in targets)
+            {
+                DiagLog($"[진행창] 닫기 시도 hWnd={hWnd}");
+                try { PostMessage(hWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero); } catch { }
+            }
+
+            if (seen == 0)
+                DiagLog($"[진행창] 남은 창 없음 ({where})");
         }
 
         private void HideBusyOverlay()
