@@ -226,6 +226,32 @@ namespace A2Z
         /// 진단 로그 출력 — 파일과 VS 출력창(Debug) 양쪽에 기록.
         /// 파일 쓰기 실패는 앱 흐름에 영향을 주지 않도록 삼킴.
         /// </summary>
+        /// <summary>
+        /// 실행할 때마다 어떤 빌드인지 로그 맨 앞에 남긴다.
+        ///
+        /// 사내·사외를 오가며 코드를 반입하다 보면 "고친 게 들어간 빌드인가"를 매번 헷갈린다.
+        /// exe의 빌드 시각과 경로를 남겨두면 로그만 보고 바로 판별된다.
+        /// 빌드 시각은 exe 파일의 수정 시각을 쓴다 — 별도 버전 관리 없이 리빌드마다 자동으로 바뀐다.
+        /// </summary>
+        private static void LogBuildStamp()
+        {
+            try
+            {
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string built = System.IO.File.Exists(exePath)
+                    ? System.IO.File.GetLastWriteTime(exePath).ToString("yyyy-MM-dd HH:mm:ss")
+                    : "알 수 없음";
+                DiagLog("=======================================================");
+                DiagLog($"[빌드] 프로그램 시작 — 빌드 시각 {built}");
+                DiagLog($"[빌드] 실행 파일 {exePath}");
+                DiagLog("=======================================================");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[빌드] 빌드 정보 기록 실패: {ex.Message}");
+            }
+        }
+
         private static void DiagLog(string msg)
         {
             string line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
@@ -245,6 +271,8 @@ namespace A2Z
         public Form1()
         {
             InitializeComponent();
+
+            LogBuildStamp();
 
             // BOM ListView 컬럼 재구성
             SetupBOMColumns();
