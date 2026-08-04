@@ -2777,6 +2777,9 @@ namespace A2Z
                     }
                 }
 
+                // SDK가 열고 닫지 않은 진행창 정리 (#116).
+                CloseOrphanedSdkProgressDialog("가공도 출력 종료");
+
                 ReleaseActiveMfgReferenceAxis("GenerateMfgDrawingManual/finally");
 
                 // BOM UI 복원
