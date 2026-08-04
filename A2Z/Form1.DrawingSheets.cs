@@ -1315,8 +1315,10 @@ namespace A2Z
             Dictionary<Control, bool> previousEnabledStates = CaptureDrawingExportControlStates();
             List<string> failures = new List<string>();
             string saveDir = null;
-            string mergedPdfPath = null;   // #119: 종류별 묶음 PDF 1개
-            string savedPdfPath = null;
+            string mergedPdfPath = null;   // 묶음 모드일 때만 쓰는 단일 PDF 경로
+            string savedPdfPath = null;    // 결과창에 보여줄 마지막 저장 경로
+            string exportStruName = "";    // 파일명에 쓸 구조물 이름 (#49)
+            int savedPdfCount = 0;         // 장마다 저장한 파일 수 (묶지 않는 모드)
             int successCount = 0;
             bool canceled = false;
             bool cancelableOperationStarted = false;
@@ -1335,11 +1337,9 @@ namespace A2Z
 
                 // [issue #119] 장마다 저장하지 않고 캔버스에 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
                 //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
-                //   파일명은 {STRU}_{종류}.pdf — 표제부 TAG NO.와 같은 STRU 이름을 쓴다 (#49).
-                mergedPdfPath = BuildMergedDrawingPdfPath(
-                    saveDir,
-                    ResolveDrawingStruName(targetSheets.Select(pair => pair.Value)),
-                    kindLabel);
+                //   파일명은 {STRU}_{종류}.pdf — 구조물 식별자(STRU 속성)를 쓴다 (#49).
+                exportStruName = ResolveDrawingStruName(targetSheets.Select(pair => pair.Value));
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, exportStruName, kindLabel);
                 BeginPdfPageAccumulation(kindLabel);
 
                 for (int i = 0; i < targetSheets.Count; i++)
@@ -1367,6 +1367,19 @@ namespace A2Z
                         successCount++;
                         DiagLog($"[{kindLabel} 출력] 페이지 추가: {item.Text}");
                         sheetSucceeded = true;
+
+                        // 묶지 않는 모드(기본)에서는 이 장을 바로 저장한다. 저장 후 finally의
+                        //   CleanupBetweenPdfPages가 Clear2DView로 뷰를 비우므로, 다음 장은 빈 뷰에서 시작한다.
+                        //   → 뷰에 한 번에 한 장분의 2D 객체만 살아 있어 "보호된 메모리" 오류를 피한다.
+                        if (!_pdfPageAccumulating)
+                        {
+                            string pagePath = BuildMergedDrawingPdfPath(saveDir, exportStruName, kindLabel);
+                            if (SaveCurrentDrawingToPdf(pagePath))
+                            {
+                                savedPdfPath = pagePath;
+                                savedPdfCount++;
+                            }
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -1400,12 +1413,17 @@ namespace A2Z
             }
             finally
             {
-                // [issue #119] 취소·실패로 빠져나왔어도 그때까지 그린 페이지는 저장한다.
+                // [issue #119] 묶음 모드일 때, 취소·실패로 빠져나왔어도 그때까지 그린 페이지는 저장한다.
                 //   저장은 무거운 호출이라 오버레이를 내리기 전에 끝낸다.
+                //   묶지 않는 모드(기본)에서는 장마다 이미 저장했으므로 여기서 할 일이 없다.
                 try
                 {
-                    if (!string.IsNullOrEmpty(mergedPdfPath) && EndPdfPageAccumulation(mergedPdfPath))
+                    if (_pdfPageAccumulating && !string.IsNullOrEmpty(mergedPdfPath)
+                        && EndPdfPageAccumulation(mergedPdfPath))
+                    {
                         savedPdfPath = mergedPdfPath;
+                        savedPdfCount++;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1427,7 +1445,7 @@ namespace A2Z
             }
 
             DiagLog($"[{kindLabel} 출력] 결과 표시 직전 pages={successCount}");
-            ShowDrawingSheetExportResult(kindLabel, savedPdfPath, successCount, failures, canceled);
+            ShowDrawingSheetExportResult(kindLabel, savedPdfPath, successCount, savedPdfCount, failures, canceled);
             DiagLog($"[{kindLabel} 출력] 결과 표시 완료 — 정상 종료");
         }
 
@@ -1569,6 +1587,7 @@ namespace A2Z
             string kindLabel,
             string savedPdfPath,
             int pageCount,
+            int savedPdfCount,
             List<string> failures,
             bool canceled)
         {
@@ -1578,11 +1597,15 @@ namespace A2Z
                 : $"{kindLabel} 출력이 완료되었습니다.");
             message.AppendLine();
 
-            // #119: 도면 장수와 무관하게 PDF는 항상 1개다.
+            // 기본은 장마다 파일 1개, `Pdf.MergePages=true`면 전체가 파일 1개.
             if (!string.IsNullOrWhiteSpace(savedPdfPath))
             {
-                message.AppendLine($"PDF 1개에 도면 {pageCount}장 저장");
-                message.AppendLine(savedPdfPath);
+                message.AppendLine(savedPdfCount > 1
+                    ? $"PDF {savedPdfCount}개에 도면 {pageCount}장 저장"
+                    : $"PDF 1개에 도면 {pageCount}장 저장");
+                message.AppendLine(savedPdfCount > 1
+                    ? System.IO.Path.GetDirectoryName(savedPdfPath)
+                    : savedPdfPath);
             }
             else
             {
@@ -2772,8 +2795,16 @@ namespace A2Z
                         sheet.InstallationConnections != null && sheet.InstallationConnections.Count > 0)
                     {
                         int createdConnectionNotes = 0;
+                        // 자기 자신은 "연결부재"가 아니다 — 시트 STRU와 같은 이름은 뺀다 (#121).
+                        //   설치도는 선택 STRU + 직접 연결 외부 Part를 함께 표시하므로, 같은 STRU 안의
+                        //   부재끼리 닿은 접합도 연결 목록에 들어온다. 그대로 두면 도면에 자기 이름이 찍힌다.
+                        string ownStruName = GetStruUdaValue(ResolveTagBaseNodeIndex(sheet));
                         var noteGroups = sheet.InstallationConnections
                             .Where(connection => connection != null)
+                            .Where(connection => string.IsNullOrEmpty(ownStruName)
+                                || !string.Equals((connection.ConnectedAssemblyName ?? "").Trim(),
+                                                  ownStruName.Trim(),
+                                                  StringComparison.OrdinalIgnoreCase))
                             .GroupBy(connection => new
                             {
                                 connection.ConnectedAssemblyIndex,
@@ -2845,7 +2876,8 @@ namespace A2Z
                             catch { }
                         }
                         DiagLog($"설치도 ISO 연결 이름 노트 strus={noteGroups.Count} " +
-                                $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes}");
+                                $"areas={sheet.InstallationConnections.Count} created={createdConnectionNotes} " +
+                                $"자기STRU제외='{ownStruName}'");
                     }
 
                     // SDK 1.0.26.723: 부재번호 풍선과 연결부재 이름 라벨을 같은 모델 외곽 영역으로 정렬한다.
