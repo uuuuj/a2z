@@ -2540,12 +2540,15 @@ namespace A2Z
                 // #119: 여기서 이전 도면 잔재를 지우고 누적을 연다.
                 //   이미 바깥(도면 일괄 출력)이 누적 중이면 지우지 않고 페이지만 이어붙인다.
                 //   경로를 먼저 확정한다 — 누적을 연 뒤 예외가 나면 저장 경로 없이 닫히게 된다.
-                //   파일명·표제부 TAG NO.가 같은 STRU 이름을 쓰도록 여기서 한 번만 구한다 (#49, #120).
+                //   파일명용 STRU 이름과 표제부 TAG NO.는 **출처가 다르다** (#49 vs #66).
+                //   파일명 = 구조물 식별자(`STRU` 속성), TAG NO. = App.config `Uda.TagNo`가 가리키는 속성.
                 //   출발 노드는 struIndex(STRU 노드)가 아니라 실제 부재여야 한다 — STRUCTURE 노드 자신은
                 //   `STRU` 속성이 비어 있다(부재→구조물 역참조, #67).
-                mfgStruTag = ResolveDrawingStruName(mfgSheets);
-                DiagLog($"[TAG NO] 가공도 출력 공용값: value='{mfgStruTag}'");
-                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, mfgStruTag, "가공도");
+                string mfgStruName = ResolveDrawingStruName(mfgSheets);
+                DrawingSheetData firstTagSheet = mfgSheets.FirstOrDefault(item => item != null);
+                mfgStruTag = GetTagNoValue(firstTagSheet);
+                DiagLog($"[TAG NO] 가공도 출력 공용값: value='{mfgStruTag}' (파일명용 STRU='{mfgStruName}')");
+                mergedPdfPath = BuildMergedDrawingPdfPath(saveDir, mfgStruName, "가공도");
                 ownsPdfAccumulation = BeginPdfPageAccumulation("가공도");
                 if (vizcore3d.View.XRay.Enable) vizcore3d.View.XRay.Enable = false;
                 vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, true);

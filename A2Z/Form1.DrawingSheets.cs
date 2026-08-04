@@ -2168,7 +2168,8 @@ namespace A2Z
                 //   ⚠ BaseMemberIndex는 제작도 -1 · 설치도 -2 · 가공도 -3 센티넬이라 walk-up 출발점으로 쓸 수 없다.
                 //   그대로 넘기면 `currentIdx < 0`으로 즉시 break 되어 조립도(실제 노드)만 값이 채워졌다 (#120).
                 //   → 음수면 시트의 실제 부재 노드로 대체한다. Form1.DrawingSheets.cs:260의 가공도 처리와 같은 패턴.
-                string struTag = GetStruUdaValue(ResolveTagBaseNodeIndex(sheet));
+                //   어느 속성에서 읽을지는 App.config `Uda.TagNo`가 정한다. 기본은 빈 값이라 칸이 비어 나간다 (#66).
+                string struTag = GetTagNoValue(sheet);
                 if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
                 // PAINT CODE(166) = 출력 시점에 STRU에서 한 번 조회해 모든 도면에 공유한 값.
                 // UDA.Keys는 BeginUpdate 밖인 현재 데이터 구성 단계에서만 호출한다.
@@ -3404,6 +3405,40 @@ namespace A2Z
         /// STRU 노드는 기준부재의 조상 어셈블리이므로 walk-up으로 도달한다. 없으면 "".
         /// </summary>
         /// <summary>
+        /// App.config `appSettings`에서 설정값을 읽는다. 없거나 읽기 실패면 기본값.
+        /// 설정 파일은 실행 파일 옆 `A2Z.exe.config`이며, 고치고 프로그램을 다시 켜면 반영된다.
+        /// </summary>
+        private static string GetAppSetting(string key, string fallback = "")
+        {
+            try
+            {
+                string value = System.Configuration.ConfigurationManager.AppSettings[key];
+                return value != null ? value.Trim() : fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        /// <summary>
+        /// 표제부 TAG NO. 값 (#66). 어느 속성에서 읽을지는 `App.config`의 `Uda.TagNo`가 정한다.
+        ///
+        /// 기본값은 **비어 있다** — 여기 들어가야 하는 건 생산설계 모델 이름인데 그 속성 이름을
+        /// 아직 받지 못했다. 예전에 쓰던 `STRU`는 상세설계 이름이라 틀린 값이고,
+        /// 틀린 번호가 4종 도면에 찍히는 것보다 빈칸이 안전하다 (사용자 판단 2026-07-29).
+        ///
+        /// ⚠ PDF 파일명·폴더명이 쓰는 STRU 이름(`ResolveDrawingStruName`)과는 별개다.
+        /// 그쪽은 구조물 식별자라 `STRU` 속성을 계속 쓴다 — 여기를 비워도 파일명은 그대로 나온다.
+        /// </summary>
+        private string GetTagNoValue(DrawingSheetData sheet)
+        {
+            string udaKey = GetAppSetting("Uda.TagNo");
+            if (string.IsNullOrEmpty(udaKey)) return "";
+            return GetNamedUdaValue(ResolveTagBaseNodeIndex(sheet), udaKey);
+        }
+
+        /// <summary>
         /// TAG NO용 walk-up 출발 노드를 고른다 (#120).
         /// `BaseMemberIndex`는 제작도 -1 · 설치도 -2 · 가공도 -3 센티넬이므로 그대로 쓰면
         /// walk-up이 시작도 못 한다. 음수면 시트가 실제로 담고 있는 첫 부재 노드로 대체한다.
@@ -3419,8 +3454,25 @@ namespace A2Z
                 : -1;
         }
 
+        /// <summary>
+        /// 구조물 식별자(`STRU` 속성) — PDF 파일명·폴더명·연결부재 이름이 쓴다.
+        /// 표제부 TAG NO.와는 별개다 (`GetTagNoValue`, #66).
+        /// </summary>
         private string GetStruUdaValue(int nodeIndex)
         {
+            return GetNamedUdaValue(nodeIndex, "STRU");
+        }
+
+        /// <summary>
+        /// 지정한 이름의 속성 값을 부재에서 위로 최대 10단계 올라가며 찾는다.
+        /// 비어 있지 않은 첫 값을 돌려주고, 못 찾으면 빈 문자열.
+        /// 속성 이름 비교는 대소문자를 가리지 않는다.
+        /// </summary>
+        private string GetNamedUdaValue(int nodeIndex, string udaKeyName)
+        {
+            if (string.IsNullOrEmpty(udaKeyName)) return "";
+            string wanted = udaKeyName.Trim();
+
             List<string> udaKeyList = null;
             try
             {
@@ -3439,7 +3491,7 @@ namespace A2Z
 
                 foreach (string key in udaKeyList)
                 {
-                    if (key.Trim().ToUpper() != "STRU") continue;
+                    if (!string.Equals(key.Trim(), wanted, StringComparison.OrdinalIgnoreCase)) continue;
                     try
                     {
                         var val = vizcore3d.Object3D.UDA.FromIndex(currentIdx, key);
