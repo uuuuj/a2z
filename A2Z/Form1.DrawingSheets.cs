@@ -1559,22 +1559,18 @@ namespace A2Z
 
         private void CleanupDrawingSheetExportCanvas()
         {
-            // [issue #116] 이 정리 단계가 무한 대기 1순위 후보다.
-            //   GC.WaitForPendingFinalizers()를 UI 스레드에서 부르면, 파이널라이저가 UI 스레드로
-            //   마샬링을 시도할 때 서로 기다리는 데드락이 난다 (VIZCore3D는 대형 네이티브 SDK라
-            //   모델 교체 직후 대기 중인 파이널라이저가 많다). 단계별 로그로 지점을 특정한다.
+            // [issue #116] 무한 대기의 1순위 후보였던 `GC.WaitForPendingFinalizers()`를 뺐다 (2026-08-04).
+            //   UI 스레드에서 부르면, 파이널라이저가 UI 스레드로 마샬링을 시도할 때 서로 기다리는
+            //   데드락이 난다 (VIZCore3D는 대형 네이티브 SDK라 대기 중인 파이널라이저가 많다).
+            //   바로 앞 Clear2DView가 네이티브 객체를 대량 삭제해 파이널라이저를 쌓아두므로 특히 위험하다.
+            //   GC.Collect만으로도 관리 참조는 풀린다 — 네이티브 해제를 동기로 기다릴 이유가 없다.
             try
             {
                 DiagLog("[정리] Clear2DView 진입");
                 Clear2DView();
                 DiagLog("[정리] Clear2DView 완료 — GC 진입");
                 GC.Collect();
-                DiagLog("[정리] GC.Collect 1 완료 — WaitForPendingFinalizers 진입");
-                GC.WaitForPendingFinalizers();
-                DiagLog("[정리] WaitForPendingFinalizers 완료");
-                GC.Collect();
                 Application.DoEvents();
-                System.Threading.Thread.Sleep(100);
                 DiagLog("[정리] 완료");
             }
             catch (Exception ex)

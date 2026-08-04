@@ -1105,8 +1105,7 @@ namespace A2Z
                 return;
             }
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+            // [issue #116] `GC.WaitForPendingFinalizers()`는 UI 스레드 데드락 원인이라 뺐다 (2026-08-04).
             GC.Collect();
             Application.DoEvents();
         }

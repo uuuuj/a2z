@@ -687,10 +687,10 @@ namespace A2Z
                     }
 
                     // STRU 간 메모리 정리
+                    //   [issue #116] `GC.WaitForPendingFinalizers()`는 UI 스레드 데드락 원인이라 뺐다 (2026-08-04).
+                    //   바로 위 DeleteAll* 이 네이티브 객체를 대량 삭제해 파이널라이저를 쌓아둔 직후라 특히 위험했다.
                     try { vizcore3d.Drawing2D.Object2D.DeleteAllObjectBy2DView(); } catch { }
                     try { vizcore3d.Drawing2D.Object2D.DeleteAllNonObjectBy2DView(); } catch { }
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
                     GC.Collect();
                     Application.DoEvents();
                     System.Threading.Thread.Sleep(100);
