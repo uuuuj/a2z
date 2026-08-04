@@ -409,6 +409,45 @@ namespace A2Z
         /// <summary>
         /// 오버레이 해제 (T-018). ShowBusyOverlay와 쌍으로 사용.
         /// </summary>
+        /// <summary>
+        /// SDK가 띄우고 닫지 않은 진행창을 닫는다 (#116, 2026-08-04 사내 실기).
+        ///
+        /// 증상: 우리 흐름은 `결과 표시 완료 — 정상 종료`까지 찍히는데, 화면 가운데
+        /// `Please Wait` / `Processing` 창만 계속 돈다. 그 문구는 우리 오버레이(한국어 `처리 중...`)가
+        /// 아니라 `VIZCore3D.NET.Dialogs.ProgressDialog`의 것이다. 우리 코드는 이 창을 만들지 않는다 —
+        /// SDK가 내부에서 열고 닫지 않은 것이다.
+        ///
+        /// 우리 로그가 끝까지 찍혔다는 건 이 창이 **모달이 아니라는** 뜻이다(모달이면 호출이 멈춰 있었을 것).
+        /// 따라서 남은 창을 닫아도 진행 중인 작업을 끊지 않는다.
+        /// </summary>
+        private void CloseOrphanedSdkProgressDialog(string where)
+        {
+            try
+            {
+                // 닫으면서 순회하면 컬렉션이 바뀌므로 먼저 모은다.
+                var stuck = new List<Form>();
+                foreach (Form form in Application.OpenForms)
+                {
+                    if (form == null) continue;
+                    string typeName = form.GetType().FullName ?? "";
+                    if (typeName.StartsWith("VIZCore3D", StringComparison.OrdinalIgnoreCase)
+                        && typeName.IndexOf("ProgressDialog", StringComparison.OrdinalIgnoreCase) >= 0)
+                        stuck.Add(form);
+                }
+
+                foreach (Form form in stuck)
+                {
+                    DiagLog($"[진행창] SDK 진행창이 남아 있어 닫는다 ({where}): {form.GetType().FullName}");
+                    try { form.Close(); } catch (Exception ex) { DiagLog($"[진행창] Close 실패: {ex.Message}"); }
+                    try { form.Dispose(); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[진행창] 정리 실패({where}): {ex.Message}");
+            }
+        }
+
         private void HideBusyOverlay()
         {
             if (busyOverlay != null)
