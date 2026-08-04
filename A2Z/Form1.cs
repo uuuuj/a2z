@@ -542,10 +542,16 @@ namespace A2Z
                 seen++;
                 DiagLog($"[진행창] 남은 창 발견 ({where}): hWnd={hWnd} class='{c}' title='{t}'");
 
-                // 진행창으로 보이는 것만 닫는다. 제목이 비어 있어도 SDK 진행창은 테두리가 없어
-                // 제목이 안 잡힐 수 있으므로 클래스 이름도 함께 본다.
-                if (t.IndexOf("Please Wait", StringComparison.OrdinalIgnoreCase) >= 0
+                // 진행창으로 보이는 것만 닫는다.
+                //   2026-08-04 사내 실기에서 실제로 잡힌 창: title='WaitDialog',
+                //   class='WindowsForms10.Window.8.app.0.13965fa_r7_ad1'.
+                //   화면에 보이는 글자는 `Please Wait / Processing...`인데 창 제목은 `WaitDialog`라
+                //   처음 필터(Please Wait·Processing·Progress)에 하나도 안 걸려 찾고도 못 닫았다.
+                //   → 제목에 Wait이 들어가면 잡는다. 우리 폼은 위에서 이미 제외했고 같은 프로세스만 보므로
+                //   이 정도로 넓혀도 엉뚱한 창을 닫지 않는다.
+                if (t.IndexOf("Wait", StringComparison.OrdinalIgnoreCase) >= 0
                     || t.IndexOf("Processing", StringComparison.OrdinalIgnoreCase) >= 0
+                    || t.IndexOf("Progress", StringComparison.OrdinalIgnoreCase) >= 0
                     || c.IndexOf("Progress", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     targets.Add(hWnd);
@@ -557,6 +563,18 @@ namespace A2Z
             {
                 DiagLog($"[진행창] 닫기 시도 hWnd={hWnd}");
                 try { PostMessage(hWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero); } catch { }
+            }
+
+            // WM_CLOSE는 대상 스레드가 메시지를 처리해야 먹는다. 잠깐 메시지를 돌린 뒤
+            // 실제로 사라졌는지 확인해서 남겨둔다 — 안 닫히면 다른 수단이 필요하다는 신호.
+            if (targets.Count > 0)
+            {
+                Application.DoEvents();
+                foreach (IntPtr hWnd in targets)
+                {
+                    bool stillThere = IsWindowVisible(hWnd);
+                    DiagLog($"[진행창] 닫기 결과 hWnd={hWnd} 아직보임={stillThere}");
+                }
             }
 
             if (seen == 0)
