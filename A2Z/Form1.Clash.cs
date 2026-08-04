@@ -188,9 +188,15 @@ namespace A2Z
 
             // STRUCTURE 노드를 하나도 못 찾았을 때만 조상 체인을 덤프한다.
             //   전체 덤프는 부재 3개만 해도 ~3초라 정상 경로에서는 돌리지 않는다.
-            if (!context.PartByIndex.Values.Any(p => p.StruNodeIndex >= 0))
+            //   App.config `Uda.DumpOnLoad=true`면 정상일 때도 덤프한다 — 어떤 속성에 어떤 값이
+            //   들어 있는지 눈으로 찾을 때 쓴다 (TAG NO. 속성 이름 확인 등, #66 · #198).
+            bool dumpRequested = string.Equals(GetAppSetting("Uda.DumpOnLoad"), "true",
+                StringComparison.OrdinalIgnoreCase);
+            if (dumpRequested || !context.PartByIndex.Values.Any(p => p.StruNodeIndex >= 0))
             {
-                DiagLog("BOM 요약행 T/W: STRUCTURE 노드를 못 찾았다 — 조상 체인 덤프");
+                DiagLog(dumpRequested
+                    ? "속성 덤프: App.config Uda.DumpOnLoad=true — 조상 체인 전체 덤프"
+                    : "BOM 요약행 T/W: STRUCTURE 노드를 못 찾았다 — 조상 체인 덤프");
                 DumpDrawingBomStruDiagnostics(context.PartByIndex.Keys, wantedUdaKeys);
             }
 
