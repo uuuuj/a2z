@@ -300,6 +300,25 @@ namespace A2Z
             vizcore3d.Dock = DockStyle.Fill;
             panelViewer.Controls.Add(vizcore3d);
 
+            // SDK 자체 대기창(`WaitDialog`)을 끈다 (#116).
+            //   우리는 `ShowBusyOverlay`로 자체 오버레이를 띄우므로 SDK 것은 중복이다.
+            //   SDK 문서의 EnableWaitForm 예제가 바로 이 경우를 설명한다 —
+            //   "직접 대기창을 띄울 거면 SDK 것을 끄고, 끝나면 원복하라".
+            //   끄지 않아 둘 다 떠 있었고, SDK 쪽이 숨겨지지 않아 화면에
+            //   `Please Wait / Processing...` 글자만 남았다 (2026-08-04 사내 실기,
+            //   title='WaitDialog', class='WindowsForms10.*').
+            try
+            {
+                DiagLog($"[진행창] SDK 대기창 설정 — EnableWaitForm={vizcore3d.EnableWaitForm} " +
+                        $"EnableProgressForm={vizcore3d.EnableProgressForm}");
+                vizcore3d.EnableWaitForm = false;
+                DiagLog($"[진행창] SDK 대기창 끔 — EnableWaitForm={vizcore3d.EnableWaitForm}");
+            }
+            catch (Exception ex)
+            {
+                DiagLog($"[진행창] SDK 대기창 끄기 실패: {ex.Message}");
+            }
+
             // 초기화 이벤트 등록
             vizcore3d.OnInitializedVIZCore3D += Vizcore3d_OnInitializedVIZCore3D;
 
