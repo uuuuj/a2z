@@ -40,7 +40,7 @@
 
 ### <a id="ExtractInstallationDimensions"></a>ExtractInstallationDimensions(DrawingSheetData sheet)
 - **라인**: L225~L260
-- **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상을 STRU+직접 연결 외부 Part로 갱신
+- **핵심**: 사전 계산된 설치 치수를 `chainDimensionList`·`lvDimension`에 적용하고, 글로벌 뷰용 선택 대상(치수 baseline·배율 기준)을 **선택 STRU로 고정**. #63 전에는 연결 외부 Part까지 넣었는데, 표시 대상이 연결 서포트 STRU 전체로 넓어지면 그 BBox가 baseline을 밀어 보조선이 뷰마다 길어진다 — 2D 출력 경로와 같은 기준을 쓴다
 
 ### PrepareInstallationConnectionData(DrawingSheetData sheet)
 - **라인**: L266~L389
@@ -51,7 +51,14 @@
   4. 이어진 선분은 1mm tolerance로 한 접합 영역, 떨어진 선분은 별도 영역으로 분리
   5. 접합선이 없으면 `GetJunctionMesh`, 그마저 없으면 HotPoint 근접 fallback
   6. 접합점은 BODY LINE/POINT Osnap 3mm 이내 스냅하고, 최종 표시는 연결 Part별 A/B/C 라벨 부여
-  7. 점선 문맥은 부모 Assembly 전체가 아니라 직접 연결된 외부 Part 인덱스만 저장. Assembly는 이름 노트용 메타데이터로 유지
+  7. 점선 문맥은 `ExpandInstallationContextToStru`로 **연결 Part가 속한 STRU 전체의 하위 BODY**를 저장 (#63, 2026-08-05). 접합 판정·위치 치수·A/B/C 라벨은 종전대로 실제 접합 Part 기준이고 표시 대상만 넓힌다
+
+### <a id="ExpandInstallationContextToStru"></a>ExpandInstallationContextToStru(sheet, connectedPartIndices)
+- **핵심** (#63, 2026-08-05): 접합한 Part 하나를 그 Part가 속한 STRU 전체로 넓혀 상대 서포트 형상이 도면에 통째로 점선으로 나오게 한다.
+- 반환값이 **BODY 인덱스**인 이유: `sheet.MemberIndices`가 STRU 후손 BODY 목록이라 같은 단위로 맞춰야 "시트 부재는 실선이니 점선에서 뺀다"는 걸러내기가 실제로 동작한다. 종전(PART 인덱스)에는 이 비교가 항상 거짓이라 무의미했다.
+- `FindParentStru`가 STRU를 못 찾으면 종전대로 접합 Part만 남긴다. STRU 하위가 전부 시트 부재면(넓힐 게 없으면) 역시 접합 Part만.
+- STRU별로 후손 BODY를 한 번만 조회해 캐시한다 (연결이 여러 개여도 같은 서포트면 1회).
+- **배율·화면 맞춤은 넓힌 범위와 무관**하다. 캡처 뒤 `CropFit2DViewObjectByNodeIDs`가 "시트 부재 ± 여백"만 남기므로 화면에 안 들어오는 연결부재는 잘려 나간다 (사용자 사양: BOM 부재가 가운데, 나머지는 카메라에 따라 절단).
 
 ### BuildInstallationPlacementAnchor
 - **라인**: L725~L900

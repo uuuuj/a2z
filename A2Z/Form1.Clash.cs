@@ -584,18 +584,22 @@ namespace A2Z
                 int no;
                 if (!context.PartToBomNo.TryGetValue(part.PartIndex, out no))
                     no = fallbackNo++;
+                // 칸마다 자기 값만 보고 판단한다 (2026-08-05). ITEM(SPREF)을 못 읽었다고 해서
+                //   같은 행의 다른 칸까지 "-"로 지우지 않는다 — SPREF가 없어도 MATREF·GWEI는
+                //   붙어 있는 부재가 있어서, 종전 동작은 읽힌 무게까지 같이 버리고 있었다.
+                //   Q'TY는 모델에서 읽는 값이 아니라 행 하나 = 부재 하나라는 구조상 항상 1 (#59).
                 dataRows.Add(new DrawingBomRowData
                 {
                     No = no.ToString(),
                     Item = part.Item,
-                    Material = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Material),
-                    Size = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Size),
-                    Quantity = ToDrawingBomDisplayValue(part.Item == "unset" ? null : "1"),
-                    TotalWeight = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.WeightDisplay),
+                    Material = ToDrawingBomDisplayValue(part.Material),
+                    Size = ToDrawingBomDisplayValue(part.Size),
+                    Quantity = "1",
+                    TotalWeight = ToDrawingBomDisplayValue(part.WeightDisplay),
                     // MA·FA는 부재 속성에서 읽는다 (#109 · #110). 값이 없으면 "-"로 나간다 —
                     //   근거 없이 L·F를 지어 넣던 종전 동작을 대체한다.
-                    Ma = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Ma),
-                    Fa = ToDrawingBomDisplayValue(part.Item == "unset" ? null : part.Fa)
+                    Ma = ToDrawingBomDisplayValue(part.Ma),
+                    Fa = ToDrawingBomDisplayValue(part.Fa)
                 });
             }
 

@@ -181,7 +181,11 @@ namespace A2Z
         public List<DrawingBomRowData> PreparedBomRows { get; set; }
         public Dictionary<int, int> PreparedBomNodeGroupMap { get; set; }
         public bool BomPrepared { get; set; }
-        /// <summary>설치도에 점선으로 표시할 직접 연결 외부 Part 인덱스.</summary>
+        /// <summary>
+        /// 설치도에 점선으로 표시할 외부 부재 인덱스.
+        /// #63부터 접합한 Part 하나가 아니라 그 Part가 속한 STRU 전체의 BODY가 들어간다
+        /// (STRU를 못 찾은 경우에만 그 Part 인덱스). 배율·화면 맞춤 기준에는 쓰지 않는다.
+        /// </summary>
         public List<int> InstallationContextIndices { get; set; }
         public List<InstallationConnectionData> InstallationConnections { get; set; }
 

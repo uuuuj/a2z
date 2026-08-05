@@ -689,7 +689,10 @@ namespace A2Z
                 // 가공도일 때 FlyToObject3d 스킵 → ExecuteMfgDrawing의 카메라/FitToView에 맡김.
                 if (sheet.BaseMemberIndex != -3)
                 {
-                    vizcore3d.View.FlyToObject3d(displayIndices, 1.2f);
+                    // 설치도는 선택 STRU 기준으로만 화면을 맞춘다 (#63). 연결부재는 서포트 전체가
+                    //   함께 보이지만 화면 밖으로 나가는 부분은 잘려도 된다 — 가운데는 항상 선택 STRU.
+                    vizcore3d.View.FlyToObject3d(
+                        sheet.BaseMemberIndex == -2 ? sheet.MemberIndices : displayIndices, 1.2f);
                 }
 
                 // 이전 심볼 제거
@@ -875,7 +878,10 @@ namespace A2Z
                     vizcore3d.Object3D.Show(VIZCore3D.NET.Data.Object3DKind.ALL, false);
                     vizcore3d.Object3D.Show(displayIndices, true);
 
-                    vizcore3d.View.FlyToObject3d(displayIndices, 1.2f);
+                    // 설치도는 선택 STRU 기준 fit (#63) — 연결 서포트 전체는 배경으로 보이되
+                    //   화면에 안 들어오는 부분은 잘린다.
+                    vizcore3d.View.FlyToObject3d(
+                        sheet.BaseMemberIndex == -2 ? sheet.MemberIndices : displayIndices, 1.2f);
                     vizcore3d.Clash.ClearResultSymbol();
 
                     vizcore3d.EndUpdate();
@@ -888,7 +894,8 @@ namespace A2Z
                     vizcore3d.View.SetRenderMode(VIZCore3D.NET.Data.RenderModes.SMOOTH);
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.ISO_PLUS);
                     // 선택된 부재에 맞춰 화면 조정 (반복 호출 시 줌 누적 방지)
-                    vizcore3d.View.FlyToObject3d(displayIndices, 1.0f);
+                    vizcore3d.View.FlyToObject3d(
+                        sheet.BaseMemberIndex == -2 ? sheet.MemberIndices : displayIndices, 1.0f);
 
                     // 2D 출력과 동일한 ISO 풍선 로직 사용
                     vizcore3d.Review.Note.Clear();
@@ -2382,18 +2389,21 @@ namespace A2Z
                     }
 
                     // ── 두 겹 표현 대상 산출 ──
-                    //   설치도(전 뷰): 선택 STRU 실선 + 직접 연결된 외부 Part만 점선, STRU 기준 CropFit
+                    //   설치도(전 뷰): 선택 STRU 실선 + 연결된 외부 서포트 STRU 전체 점선(#63), 선택 STRU 기준 CropFit
                     //   조립도(Sheet2+): 전체 구조를 띄우고 기준부재만 실선, 나머지 LONG_DASHED 점선 — 프레임 = 전체 fit
                     //   제작도(Sheet1): 시트 부재 실선 + 간섭으로 붙은 시트 밖 부재 점선, 점선은 CropFit으로 시트 부재 영역+여백만 남김 — 프레임 = 시트 fit
                     //   대상 없으면(이웃 0개·부재 1개뿐) 현행 단일 캡처 폴백.
-                    List<int> isoDashedTargets = null;   // 점선 배경 대상 (설치도: 연결 Part / 조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
+                    List<int> isoDashedTargets = null;   // 점선 배경 대상 (설치도: 연결 서포트 STRU 전체 / 조립도: 전체−기준 / 제작도: 시트 밖 이웃 Part)
                     List<int> isoSolidTargets = null;    // 실선 캡처 대상
                     bool isoFitByDashed = false;         // true = 점선(전체 배경) 기준 fit (조립도) / false = 실선 기준 (제작도)
                     if (sheet.BaseMemberIndex == -2 && sheet.InstallationContextIndices.Count > 0)
                     {
                         isoSolidTargets = new List<int>(sheet.MemberIndices);
+                        // #63으로 점선 대상이 서포트 STRU 전체로 늘어나 목록이 커졌다 — HashSet으로 걸러낸다.
+                        //   (수집 단계에서 이미 시트 부재를 뺐지만, 실선과 겹치면 안 되는 불변조건이라 여기서도 지킨다.)
+                        var installationSolidSet = new HashSet<int>(sheet.MemberIndices);
                         isoDashedTargets = sheet.InstallationContextIndices
-                            .Where(index => !sheet.MemberIndices.Contains(index))
+                            .Where(index => !installationSolidSet.Contains(index))
                             .Distinct()
                             .ToList();
                         if (isoDashedTargets.Count == 0)
