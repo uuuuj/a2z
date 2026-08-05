@@ -273,7 +273,10 @@ namespace A2Z
                 no++;
             }
 
-            xraySelectedNodeIndices = GetDrawingSheetDisplayIndices(sheet);
+            // 설치도 치수 baseline은 선택 STRU로 고정한다 (#63). 연결부재까지 넣으면
+            //   상대 서포트 전체 BBox가 baseline을 밀어 보조선이 뷰마다 길어진다 —
+            //   2D 출력 경로(Form1.DrawingSheets.cs)도 같은 기준을 쓴다.
+            xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
 
             // [T-016 진단 로그] 종료
             DiagLog($"ExtractInstallationDimensions EXIT " +
@@ -403,11 +406,79 @@ namespace A2Z
                         contextPartIndices.Add(neighborPartIndex);
                 }
             }
-            sheet.InstallationContextIndices.AddRange(contextPartIndices.OrderBy(index => index));
+            // #63: 접합한 Part 하나가 아니라 그 Part가 속한 서포트(STRU) 전체를 표시 대상으로 넓힌다.
+            List<int> contextIndices = ExpandInstallationContextToStru(sheet, contextPartIndices);
+            sheet.InstallationContextIndices.AddRange(contextIndices.OrderBy(index => index));
 
-            DiagLog($"설치도 연결 영역 준비 완료: connectedParts={sheet.InstallationContextIndices.Count} " +
+            DiagLog($"설치도 연결 영역 준비 완료: connectedParts={contextPartIndices.Count} " +
+                    $"contextNodes={sheet.InstallationContextIndices.Count} " +
                     $"areas={sheet.InstallationConnections.Count} " +
                     $"fallback={sheet.InstallationConnections.Count(c => c.IsProximityFallback)}");
+        }
+
+        /// <summary>
+        /// #63: 연결이 확인된 외부 Part를 그 Part가 속한 STRU 전체(하위 BODY 전부)로 넓힌다.
+        ///
+        /// 도면에는 접합한 부재 한 개가 아니라 상대 서포트 형상 전체가 점선으로 보여야 한다.
+        /// 접합 판정·위치 치수·A/B/C 라벨은 종전대로 실제 접합 Part 기준을 쓰고 여기서는
+        /// **표시 대상만** 넓힌다 — 이 목록은 점선 배경 캡처에만 들어간다.
+        ///
+        /// 반환값이 BODY 인덱스인 이유: sheet.MemberIndices가 STRU 후손 BODY 목록이라
+        /// 같은 단위로 맞춰야 "시트 부재는 실선이니 점선에서 뺀다"는 걸러내기가 실제로 동작한다.
+        /// STRU 조상을 못 찾은 Part는 종전대로 그 Part만 남긴다.
+        ///
+        /// 배율·화면 맞춤은 여기서 넓힌 범위와 무관하게 선택 STRU 기준으로 고정된다 —
+        /// 캡처 뒤 CropFit이 "시트 부재 ± 여백"만 남기므로 화면 밖 연결부재는 잘려 나간다.
+        /// </summary>
+        private List<int> ExpandInstallationContextToStru(
+            DrawingSheetData sheet, IEnumerable<int> connectedPartIndices)
+        {
+            var result = new HashSet<int>();
+            if (connectedPartIndices == null) return result.ToList();
+
+            var sheetBodies = new HashSet<int>(sheet.MemberIndices ?? new List<int>());
+            var struBodyCache = new Dictionary<int, List<int>>();
+
+            foreach (int partIndex in connectedPartIndices)
+            {
+                if (partIndex < 0) continue;
+
+                VIZCore3D.NET.Data.Node part = null;
+                try { part = vizcore3d.Object3D.FromIndex(partIndex); }
+                catch { }
+
+                VIZCore3D.NET.Data.Node stru = FindParentStru(part);
+                if (stru == null)
+                {
+                    result.Add(partIndex);
+                    continue;
+                }
+
+                List<int> struBodies;
+                if (!struBodyCache.TryGetValue(stru.Index, out struBodies))
+                {
+                    struBodies = GetDescendantBodyIndices(stru.Index)
+                        .Where(index => !sheetBodies.Contains(index))
+                        .ToList();
+                    struBodyCache[stru.Index] = struBodies;
+                }
+
+                if (struBodies.Count == 0)
+                {
+                    // STRU 하위가 전부 시트 부재라 넓힐 게 없다 — 종전대로 접합 Part만 남긴다.
+                    result.Add(partIndex);
+                    continue;
+                }
+
+                foreach (int bodyIndex in struBodies) result.Add(bodyIndex);
+            }
+
+            if (struBodyCache.Count > 0)
+                DiagLog($"설치도 연결 STRU 확장 (#63): stru={struBodyCache.Count}개 " +
+                        $"parts={connectedPartIndices.Count()} → nodes={result.Count} " +
+                        $"[{string.Join(", ", struBodyCache.Select(p => $"{p.Key}:{p.Value.Count}body"))}]");
+
+            return result.ToList();
         }
 
         private List<int> GetBodyIndicesForPart(int partIndex)
