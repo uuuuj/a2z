@@ -163,28 +163,31 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <!-- VizCore 네이티브/보조 DLL: lib\에서 빌드 출력 폴더로 복사 (런타임 동적 로드). -->
-    <!-- Reference(관리 API)와 달리 이들은 컴파일 참조가 아니라 실행 시 필요 → None + Copy. -->
+    <!-- Reference(관리 API)와 달리 이들은 컴파일 참조가 아니라 실행 시 필요. -->
     <!-- 소스는 프로젝트 내 ..\lib\ (bin\Debug 의존 제거, 클린 빌드 가능). VizCore 1.0.26.723. -->
-    <None Include="..\lib\VIZCore3D.NET.Interop.dll">
+    <!-- Content여야 하는 이유 (#200): ClickOnce 게시 매니페스트에는 Content와 참조 어셈블리만 -->
+    <!-- 담기고 None은 제외된다. None이던 시절엔 설치는 정상 완료되고 실행하는 순간 네이티브 -->
+    <!-- 엔진이 없어 오류 없이 죽었다. 일반 빌드 동작은 CopyToOutputDirectory가 그대로 담당한다. -->
+    <Content Include="..\lib\VIZCore3D.NET.Interop.dll">
       <Link>VIZCore3D.NET.Interop.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\lib\ShdCore.dll">
+    </Content>
+    <Content Include="..\lib\ShdCore.dll">
       <Link>ShdCore.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\lib\SQLite.Interop.dll">
+    </Content>
+    <Content Include="..\lib\SQLite.Interop.dll">
       <Link>SQLite.Interop.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\lib\ShCux.dll">
+    </Content>
+    <Content Include="..\lib\ShCux.dll">
       <Link>ShCux.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\lib\ShCuxRev.dll">
+    </Content>
+    <Content Include="..\lib\ShCuxRev.dll">
       <Link>ShCuxRev.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
