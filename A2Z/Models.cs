@@ -174,8 +174,16 @@ namespace A2Z
         public List<int> MemberIndices { get; set; }
         public List<string> MemberNames { get; set; }
         public int MfgDrawingNo { get; set; }
-        /// <summary>같은 STRU에서 생성된 모든 도면이 공유하는 PAINT CODE(PNT 계열 UDA).</summary>
+        /// <summary>
+        /// 같은 STRU에서 생성된 모든 도면이 공유하는 PAINT CODE(PNT 계열 UDA) — 첫 번째 값.
+        /// null은 "아직 조회 안 함", 빈 문자열은 "조회했는데 값이 없음"이다 (캐시 판정 기준).
+        /// </summary>
         public string PaintCode { get; set; }
+        /// <summary>
+        /// 두 번째 PAINT CODE (#68). 값이 하나뿐인 도면은 빈 문자열이다.
+        /// 조회 여부 판정은 <see cref="PaintCode"/>로만 한다 — 둘은 항상 같이 채워진다.
+        /// </summary>
+        public string PaintCode2 { get; set; }
         public List<ChainDimensionData> PreparedDimensions { get; set; }
         public bool DimensionsPrepared { get; set; }
         public List<DrawingBomRowData> PreparedBomRows { get; set; }

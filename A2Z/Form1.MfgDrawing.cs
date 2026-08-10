@@ -142,8 +142,8 @@ namespace A2Z
         /// BOM 데이터는 호출자가 SnapshotBomRows로 1회 복사한 bomSnapshot 사용.
         /// </summary>
         private Dictionary<int, string> BuildMfgPageData(
-            MfgPage page, int totalPages, string struName, string paintCode, string struTag, string dpNo,
-            List<string[]> bomSnapshot)
+            MfgPage page, int totalPages, string struName, string paintCode, string paintCode2,
+            string struTag, string dpNo, List<string[]> bomSnapshot)
         {
             var data = new Dictionary<int, string>();
 
@@ -165,14 +165,16 @@ namespace A2Z
             data[3] = totalPages > 1
                 ? $"가공도 ({page.PageIdx}/{totalPages})"
                 : "가공도";
-            if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
-            // TAG NO(169) — 제작도·조립도·설치도와 같은 슬롯. 가공도는 배선 자체가 없어 늘 빈칸이었다 (#120).
+            // 표제부 PAINT CODE(166 · 246) · DP No(168) · TAG NO(169) — 4종 도면이 같은 슬롯·같은 값을 쓴다.
             //   호출자가 부재 노드에서 한 번 조회한 값을 전 페이지가 재사용한다.
-            //   값이 없으면 키를 넣지 않아 초기 " "(공백, 괘선 보존)을 유지한다.
-            if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
-            // DP No(169 옆 168) — 표제부는 4종 도면이 같은 슬롯·같은 값을 쓴다 (2026-08-05 사용자).
-            //   가공도는 TAG NO.와 마찬가지로 이 배선이 아예 없어 늘 빈칸이었다 (#65).
-            if (!string.IsNullOrEmpty(dpNo)) data[168] = dpNo;
+            //   값이 없어도 공백 1칸을 넣어 괘선을 남긴다 (#33 · #60) — 제작도 경로와 같은 규칙이다.
+            //   165·167은 PAINT CODE 2와 DP No. 사이 예비 칸이라 늘 공백이다.
+            data[165] = " ";
+            data[166] = KeepBorder(paintCode);
+            data[167] = " ";
+            data[168] = KeepBorder(dpNo);
+            data[169] = KeepBorder(struTag);
+            data[246] = KeepBorder(paintCode2);
 
             // ── REV 표 첫 기재행 (Input_194~199) ──
             //   제작도와 같은 공통 헬퍼(Form1.ExcelTemplate.cs) — REV.=0 / 출력일 / 나머지 공백 (#64 Phase 1).
@@ -192,7 +194,7 @@ namespace A2Z
             }
 
             // ── 우측 BOM 표 8컬럼 × 25행 (snapshot 사용) ──
-            //   제작도(제작도_도면_1)와 완전히 동일한 슬롯 체계 — 1~20행=열별 20연속(4~163),
+            //   제작도(제작도_도면)와 완전히 동일한 슬롯 체계 — 1~20행=열별 20연속(4~163),
             //   21~25행=신규 태그(201~240, 열별 5연속). 2026-07-23 Input 200+ 확장(크래시 해소 후).
             //   snapshot[0]은 요약행이라 1행=요약행, 2~25행=데이터행 24개다 (#67). BOM 표는 전 페이지 동일 내용.
             int bomMapped = 0;
@@ -2494,7 +2496,7 @@ namespace A2Z
             if (mfgSheets == null || mfgSheets.Count == 0) return result;
 
             // 실행 폴더 templates\ 우선 — 배포 패키지(.sln 없음)에서도 템플릿을 찾도록 (#71)
-            string xlsxPath = ResolveDrawingTemplatePath("가공도_도면_1.xlsx");
+            string xlsxPath = ResolveDrawingTemplatePath("가공도_도면.xlsx");
             result.TemplatePath = xlsxPath;
             if (!File.Exists(xlsxPath))
             {
@@ -2624,10 +2626,15 @@ namespace A2Z
 
                 // 제작도·조립도·설치도와 같은 도면 목록 공용 PAINT CODE를 가공도 전 페이지가 재사용한다.
                 DrawingSheetData firstMfgSheet = mfgSheets.FirstOrDefault(item => item != null);
-                string paintCode = GetOrCacheDrawingPaintCode(firstMfgSheet, struIndex);
+                var paintCodes = GetOrCacheDrawingPaintCode(firstMfgSheet, struIndex);
                 foreach (DrawingSheetData mfgSheet in mfgSheets)
-                    if (mfgSheet != null) mfgSheet.PaintCode = paintCode;
-                DiagLog($"[PAINT CODE] 가공도 출력 공용값: pages={pages.Count} value='{paintCode}'");
+                {
+                    if (mfgSheet == null) continue;
+                    mfgSheet.PaintCode = paintCodes.First;
+                    mfgSheet.PaintCode2 = paintCodes.Second;
+                }
+                DiagLog($"[PAINT CODE] 가공도 출력 공용값: pages={pages.Count} " +
+                        $"value='{paintCodes.First}' value2='{paintCodes.Second}'");
 
                 // [임시 §5-1] 카메라 ± 검증 PDF 1장 — 본 페이지 출력 앞에 별도 저장 (검증 후 제거)
                 if (MfgCameraSignProbeEnabled)
@@ -2646,7 +2653,8 @@ namespace A2Z
                     try
                     {
                         ResetCanvasForMfgPage();
-                        var data = BuildMfgPageData(page, pages.Count, struName, paintCode, mfgStruTag, mfgDpNo, bomSnapshot);
+                        var data = BuildMfgPageData(page, pages.Count, struName,
+                            paintCodes.First, paintCodes.Second, mfgStruTag, mfgDpNo, bomSnapshot);
                         CheckMfgCancellation(
                             shouldCancel,
                             $"{pageProgress} 템플릿 적용 중...",
