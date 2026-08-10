@@ -2153,7 +2153,7 @@ namespace A2Z
                 CollectBOMInfo(false, sheet);
 
                 // ── 2. 엑셀 파일 경로 (실행 폴더 templates\ 우선 — 배포 패키지 대응) ──
-                string xlsxPath = ResolveDrawingTemplatePath("제작도_도면_1.xlsx");
+                string xlsxPath = ResolveDrawingTemplatePath("제작도_도면.xlsx");
                 if (!System.IO.File.Exists(xlsxPath))
                 {
                     DiagLog($"P2 엑셀 파일 없음: {xlsxPath}");
@@ -2161,7 +2161,7 @@ namespace A2Z
                 }
 
                 // ── 3. data Dictionary 구성 ({Input_N} 슬롯 치환) ──
-                // 슬롯 컨벤션 (신 템플릿 제작도_도면_1 — BOM 20행 기준, 열별 20연속):
+                // 슬롯 컨벤션 (신 템플릿 제작도_도면 — BOM 20행 기준, 열별 20연속):
                 //   1 = 프로젝트명, 2 = 선박번호, 3 = 도면종류
                 //   4..23 = BOM No (20행), 24..43 = ITEM, 44..63 = MATERIAL, 64..83 = SIZE,
                 //   84..103 = Q'TY, 104..123 = T/W, 124..143 = MA, 144..163 = FA
@@ -2200,17 +2200,24 @@ namespace A2Z
                 //   → 음수면 시트의 실제 부재 노드로 대체한다. Form1.DrawingSheets.cs:260의 가공도 처리와 같은 패턴.
                 //   어느 속성에서 읽을지는 App.config `Uda.TagNo`가 정한다. 기본은 빈 값이라 칸이 비어 나간다 (#66).
                 string struTag = GetTagNoValue(sheet);
-                if (!string.IsNullOrEmpty(struTag)) data[169] = struTag;
-                // PAINT CODE(166) = 출력 시점에 STRU에서 한 번 조회해 모든 도면에 공유한 값.
-                // UDA.Keys는 BeginUpdate 밖인 현재 데이터 구성 단계에서만 호출한다.
-                // 값이 없으면 초기 " "(공백, 괘선 보존)을 유지한다.
-                string paintCode = GetOrCacheDrawingPaintCode(sheet);
-                if (!string.IsNullOrEmpty(paintCode)) data[166] = paintCode;
-                // DP No(168) = 임시 "Test" (사용자 2026-07-21: 지금은 Test로)
+                // PAINT CODE(166 = 1번째, 246 = 2번째) — 출력 시점에 STRU에서 한 번 조회해
+                //   같은 목록의 모든 도면이 공유한다 (#68). UDA.Keys는 BeginUpdate 밖인 여기서만 호출한다.
+                var paintCodes = GetOrCacheDrawingPaintCode(sheet);
                 // DP No(168) = STRU 단위 속성 (#65). 종전 시험용 고정값 "Test"를 대체.
-                //   값이 없으면 키를 넣지 않아 초기 " "(공백, 괘선 보존)을 유지한다.
                 string dpNo = GetDpNoValue(sheet);
-                if (!string.IsNullOrEmpty(dpNo)) data[168] = dpNo;
+
+                // 라벨이 붙은 표제부 값 칸은 값이 없어도 공백 1칸을 넣어 괘선을 남긴다 (#33 · #60).
+                //   2026-07-27에 빈 슬롯 선초기화를 걷어내면서 이 칸들이 {Input}으로 남았고,
+                //   RemoveEmptyTemplateBorders가 그 TextBox와 함께 괘선까지 지웠다
+                //   (2026-08-09 실기 확인: DP No.·PAINT CODE 값 칸 테두리 소실).
+                //   REV 표에서 이미 통과한 방식과 같다 — Form1.ExcelTemplate.cs의 KeepBorder.
+                //   165·167은 PAINT CODE 2와 DP No. 사이의 예비 라벨·값 칸이라 늘 공백으로 나간다.
+                data[165] = " ";
+                data[166] = KeepBorder(paintCodes.First);
+                data[167] = " ";
+                data[168] = KeepBorder(dpNo);
+                data[169] = KeepBorder(struTag);
+                data[246] = KeepBorder(paintCodes.Second);
                 // REV 표 첫 기재행(194~199) — REV.=0 / 출력일 / 나머지는 공백(괘선만 보존) (#64 Phase 1).
                 //   이 경로는 제작도·조립도·설치도 3종이 공유하므로 한 번 호출로 모두 적용된다.
                 //   미사용 이력행(170~193)은 키를 안 넣어 괘선이 지워진다. 헬퍼: Form1.ExcelTemplate.cs
@@ -3594,10 +3601,17 @@ namespace A2Z
 
         /// <summary>
         /// 기준부재에서 부모로 최대 10단계 올라가며 키 이름에 PNT가 포함된
-        /// STRU UDA 값을 찾는다. 복수 후보는 실제 값과 함께 모두 로그에 남기고,
-        /// 가장 먼저 발견된 비어 있지 않은 값을 PAINT CODE로 사용한다.
+        /// STRU UDA 값을 찾는다. 복수 후보는 실제 값과 함께 모두 로그에 남긴다.
+        ///
+        /// 도면에 페인트 코드가 2칸이라 **최대 2개**를 돌려준다 (#68). 값이 처음 잡히는 깊이에서
+        /// 그 노드가 가진 값들을 모아 반환하고, 더 위로는 올라가지 않는다 — 조상마다 다른 도장
+        /// 사양이 섞이면 어느 조합이 맞는지 판단할 근거가 없기 때문이다.
+        ///
+        /// 순서는 **키 이름 오름차순**이다. 실기 모델의 키가 `:SHI_PNT_OTSD_SPEC1` 형태라
+        /// `SPEC2`가 뒤에 오는 게 자연스럽고, UDA.Keys 순서는 보장되지 않아 그대로 쓰면
+        /// 출력할 때마다 1·2번이 뒤바뀔 수 있다. 같은 값이 여러 키에 중복되면 하나로 친다.
         /// </summary>
-        private string GetStruPntUdaValue(int nodeIndex)
+        private List<string> GetStruPntUdaValues(int nodeIndex)
         {
             var pntKeys = new List<string>();
             try
@@ -3621,15 +3635,16 @@ namespace A2Z
             if (pntKeys.Count == 0)
             {
                 DiagLog($"[PAINT CODE] PNT UDA 키 후보 없음: startNode={nodeIndex}");
-                return "";
+                return new List<string>();
             }
 
+            pntKeys.Sort(StringComparer.OrdinalIgnoreCase);
             DiagLog($"[PAINT CODE] PNT UDA 키 후보: {string.Join(", ", pntKeys)}");
             int currentIdx = nodeIndex;
             for (int depth = 0; depth < 10 && currentIdx >= 0; depth++)
             {
-                string selectedKey = "";
-                string selectedValue = "";
+                var found = new List<string>();
+                var foundKeys = new List<string>();
                 foreach (string key in pntKeys)
                 {
                     string value = "";
@@ -3644,17 +3659,22 @@ namespace A2Z
                     }
 
                     DiagLog($"[PAINT CODE] 후보: depth={depth} node={currentIdx} key='{key}' value='{value}'");
-                    if (string.IsNullOrEmpty(selectedValue) && !string.IsNullOrEmpty(value))
-                    {
-                        selectedKey = key;
-                        selectedValue = value;
-                    }
+                    if (string.IsNullOrEmpty(value)) continue;
+                    if (found.Contains(value, StringComparer.OrdinalIgnoreCase)) continue;
+                    found.Add(value);
+                    foundKeys.Add(key);
                 }
 
-                if (!string.IsNullOrEmpty(selectedValue))
+                if (found.Count > 0)
                 {
-                    DiagLog($"[PAINT CODE] 선택: node={currentIdx} key='{selectedKey}' value='{selectedValue}'");
-                    return selectedValue;
+                    if (found.Count > DrawingPaintCodeSlots)
+                        DiagLog($"[PAINT CODE] WARN 값 {found.Count}개 중 앞 {DrawingPaintCodeSlots}개만 표기 " +
+                                $"(도면 칸이 {DrawingPaintCodeSlots}개) 버림=[{string.Join(", ", found.Skip(DrawingPaintCodeSlots))}]");
+                    List<string> selected = found.Take(DrawingPaintCodeSlots).ToList();
+                    DiagLog($"[PAINT CODE] 선택: node={currentIdx} " +
+                            $"keys=[{string.Join(", ", foundKeys.Take(DrawingPaintCodeSlots))}] " +
+                            $"values=[{string.Join(", ", selected)}]");
+                    return selected;
                 }
 
                 try
@@ -3667,15 +3687,20 @@ namespace A2Z
             }
 
             DiagLog($"[PAINT CODE] 비어 있지 않은 PNT UDA 값 없음: startNode={nodeIndex}");
-            return "";
+            return new List<string>();
         }
+
+        /// <summary>표제부 PAINT CODE 칸 수 (#68). 템플릿 `{Input_166}`·`{Input_246}` 두 칸.</summary>
+        private const int DrawingPaintCodeSlots = 2;
 
         /// <summary>
         /// 같은 도면 목록에서 생성되는 제작도·조립도·설치도·가공도가 PAINT CODE를 공유하도록
         /// 출력 시점에 한 번만 조회하고 모든 DrawingSheetData에 캐시한다.
         /// null은 미조회, 빈 문자열은 조회했지만 값 없음으로 구분해 빈 모델도 재조회하지 않는다.
+        /// 판정은 첫 번째 값(<see cref="DrawingSheetData.PaintCode"/>)으로만 한다 — 둘은 같이 채워진다.
         /// </summary>
-        private string GetOrCacheDrawingPaintCode(DrawingSheetData sourceSheet, int preferredNodeIndex = -1)
+        private (string First, string Second) GetOrCacheDrawingPaintCode(
+            DrawingSheetData sourceSheet, int preferredNodeIndex = -1)
         {
             List<DrawingSheetData> relatedSheets;
             if (sourceSheet != null && drawingSheetList != null && drawingSheetList.Contains(sourceSheet))
@@ -3689,8 +3714,8 @@ namespace A2Z
             if (cachedSheet != null)
             {
                 DiagLog($"[PAINT CODE] 도면 공용 캐시 재사용: sheets={relatedSheets.Count} " +
-                        $"value='{cachedSheet.PaintCode}'");
-                return cachedSheet.PaintCode;
+                        $"value='{cachedSheet.PaintCode}' value2='{cachedSheet.PaintCode2}'");
+                return (cachedSheet.PaintCode, cachedSheet.PaintCode2 ?? "");
             }
 
             int lookupNodeIndex = preferredNodeIndex > 0 ? preferredNodeIndex : -1;
@@ -3699,14 +3724,23 @@ namespace A2Z
             if (lookupNodeIndex < 0 && sourceSheet != null && sourceSheet.MemberIndices.Count > 0)
                 lookupNodeIndex = sourceSheet.MemberIndices[0];
 
-            string paintCode = GetStruPntUdaValue(lookupNodeIndex);
+            List<string> paintCodes = GetStruPntUdaValues(lookupNodeIndex);
+            string paintCode = paintCodes.Count > 0 ? paintCodes[0] : "";
+            string paintCode2 = paintCodes.Count > 1 ? paintCodes[1] : "";
             foreach (DrawingSheetData drawingSheet in relatedSheets)
+            {
                 drawingSheet.PaintCode = paintCode;
-            if (sourceSheet != null) sourceSheet.PaintCode = paintCode;
+                drawingSheet.PaintCode2 = paintCode2;
+            }
+            if (sourceSheet != null)
+            {
+                sourceSheet.PaintCode = paintCode;
+                sourceSheet.PaintCode2 = paintCode2;
+            }
 
             DiagLog($"[PAINT CODE] 도면 공용 캐시 생성: startNode={lookupNodeIndex} " +
-                    $"sheets={relatedSheets.Count} value='{paintCode}'");
-            return paintCode;
+                    $"sheets={relatedSheets.Count} value='{paintCode}' value2='{paintCode2}'");
+            return (paintCode, paintCode2);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
@@ -12,7 +12,7 @@ namespace A2Z
         /// REV 이력 표 기재행별 슬롯 시작 번호 — 엑셀 44행(첫 기재행) → 40행 순 (#64).
         /// 머리글이 45행이고 첫 기재행(44행)이 그 바로 위, 리비전이 올라가면 위로 쌓인다.
         /// 한 행은 6칸 연속: +0 REV. / +1 DATE / +2 DESCRIPTION / +3 DRAWN / +4 CHECKED / +5 APPROVED.
-        /// 템플릿 `제작도_도면_1.xlsx`·`가공도_도면_1.xlsx` 공통.
+        /// 템플릿 `제작도_도면.xlsx`·`가공도_도면.xlsx` 공통.
         /// </summary>
         private static readonly int[] RevRowSlotBase = { 194, 188, 182, 176, 170 };
 
