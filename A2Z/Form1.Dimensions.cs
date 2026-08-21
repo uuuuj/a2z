@@ -386,9 +386,9 @@ namespace A2Z
         /// 4. Multi-Level Layout: 레벨 기반 정렬로 깔끔한 배치
         ///
         /// viewDirection: null=모든 축, "X"/"Y"/"Z"=해당 단면 치수만
-        /// keepCamera: true면 내부 MoveCamera(X/Y/Z_PLUS) 생략 — 모델 캡처를 이미 마친 2D 경로(설치도)가
-        ///   사용한다. 캡처가 MINUS 카메라인데 여기서 PLUS로 틀면 이후 Add2D 변환(보조선·치수)이
-        ///   모델과 좌우 거울 반전으로 어긋난다 (2026-07-23 설치도 -X 뷰 치수 반대편 버그).
+        /// keepCamera: true면 내부 표준 카메라 이동을 생략 — 모델 캡처 뒤 ORIENTATION/참조축 회전까지
+        ///   적용한 2D 경로가 사용한다. 여기서 다시 MoveCamera하면 화면축 회전이 초기화되어
+        ///   모델과 보조선·치수의 2D 변환이 어긋날 수 있다.
         /// </summary>
         private List<int> ShowAllDimensions(
             string viewDirection = null,
@@ -446,7 +446,7 @@ namespace A2Z
                     switch (viewDirection)
                     {
                         case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
-                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
+                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
                         case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
                     }
                 }
@@ -638,17 +638,17 @@ namespace A2Z
                     //   vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동):
                     //     - Z뷰(평면도): 0.5 (사용자 확인 OK)
                     //     - X뷰/Y뷰: 0.75 (더 위로 — 사용자 사양 "라벨 가림 해소 추가 보강")
-                    // Y뷰 dx 부호 반전 (v6 유지)
+                    // 표준 카메라 화면축: X뷰 right=+Y, Y뷰 right=+X, Z뷰 right=+X
                     float vShiftScale;
                     if (vPositive)
                         vShiftScale = 0.25f;
                     else
                         vShiftScale = (viewDirection == "Z") ? 0.5f : 0.75f;
                     const float hShiftScale = 0.25f;
-                    float hSign = (viewDirection == "Y") ? -1f : 1f;
-                    _lastModelShiftCanvasX = (hPositive ? -canvasHOff : canvasHOff) * hShiftScale * hSign;
+                    float horizontalShift = (hPositive ? -canvasHOff : canvasHOff) * hShiftScale;
+                    _lastModelShiftCanvasX = horizontalShift;
                     _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * vShiftScale;
-                    DiagLog($"T-038+039 v8 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} hSign={hSign} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
+                    DiagLog($"T-038+039 v8 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
                 }
 
                 // ========== Level-Based Layout ==========
@@ -670,11 +670,11 @@ namespace A2Z
 
                 // 2단 텍스트 슬라이드 (사용자 사양 2026-07-06): 2단에 그려지는 치수(승격 작은 치수 + 기존 2단)는
                 //   텍스트를 가로=화면 오른쪽 / 세로=화면 위로 종이 절대 2.5mm 이동.
-                //   실기 검증된 뷰 매핑(옛 시프트 v6~v12): X뷰 right=+Y·up=+Z / Y뷰 right=-X·up=+Z / Z뷰 right=+X·up=+Y
-                //   → 부호는 'Y뷰의 X축 치수'만 음(-X), 나머지 전부 양.
+                //   실기 검증된 뷰 매핑: X뷰 right=+Y·up=+Z / Y뷰 right=+X·up=+Z / Z뷰 right=+X·up=+Y
+                //   → 세 뷰 모두 보이는 치수축의 양(+) 방향이 화면 오른쪽/위다.
                 float lvl2SlideModel = canvasScaleOverride > 0f ? Lvl2TextSlideCanvas / canvasScaleOverride : 0f;
-                Func<string, float> lvl2SlideSigned = ax =>
-                    (viewDirection == "Y" && ax == "X" ? -1f : 1f) * lvl2SlideModel;
+                Func<string, float> lvl2SlideForAxis = ax =>
+                    lvl2SlideModel;
 
                 // Level 1 치수 (가장 안쪽 - Osnap 간 체인치수)
                 // 2026-05-11: T-040v i%2 토글 취소 (사용자 결정 — "2줄만 생성: 연쇄치수 + 전체치수")
@@ -687,7 +687,7 @@ namespace A2Z
                         small ? level2Offset : level1Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
-                        textSlideModel: small ? lvl2SlideSigned(dim.Axis) : 0f,
+                        textSlideModel: small ? lvl2SlideForAxis(dim.Axis) : 0f,
                         userMeasureAxis: GetDrawingReferenceAxisVertex(drawingReferenceFrame, dim.Axis),
                         userOffsetAxis: GetDrawingReferenceAxisVertex(
                             drawingReferenceFrame, GetRemainingAxis(viewDirection, dim.Axis)),
@@ -704,7 +704,7 @@ namespace A2Z
                         level2Offset, globalMinX, globalMinY, globalMinZ,
                         viewDirection, extensionLines,
                         globalMaxX, globalMaxY, globalMaxZ, posOff, extGapOverride: extGapModel,
-                        textSlideModel: lvl2SlideSigned(dim.Axis),
+                        textSlideModel: lvl2SlideForAxis(dim.Axis),
                         userMeasureAxis: GetDrawingReferenceAxisVertex(drawingReferenceFrame, dim.Axis),
                         userOffsetAxis: GetDrawingReferenceAxisVertex(
                             drawingReferenceFrame, GetRemainingAxis(viewDirection, dim.Axis)),
@@ -2789,9 +2789,9 @@ namespace A2Z
             {
                 switch (viewDirection)
                 {
-                    case "X": return (d.Y, d.Z);
-                    case "Y": return (d.X, d.Z);
-                    default:  return (d.X, d.Y);   // Z
+                    case "X": return (d.Y, d.Z);  // 카메라 +X: right=+Y, up=+Z
+                    case "Y": return (d.X, d.Z);  // 카메라 -Y: right=+X, up=+Z
+                    default:  return (d.X, d.Y);   // 카메라 +Z: right=+X, up=+Y
                 }
             }
             float Dist(VIZCore3D.NET.Data.Vertex3D p, VIZCore3D.NET.Data.Vertex3D q)

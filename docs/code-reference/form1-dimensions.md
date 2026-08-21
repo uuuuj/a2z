@@ -36,7 +36,7 @@
 | `SelectRelatedOsnapItems` | Clash 기반 관련 Osnap ListView 자동 선택 |
 | `SelectRelatedDimensionItems` | Clash BBox 기반 관련 치수 ListView 자동 선택 |
 | `ShowMemberNameOverlay` | 부재명 TextBox 오버레이 (panelViewer 위) |
-| `GetViewNameByAxis` | "X" → "정면도" 등 변환 |
+| `GetViewNameByAxis` | "X" → "측면도", "Y" → "정면도", "Z" → "평면도" 변환 |
 
 ---
 

@@ -4,7 +4,7 @@ feature_name: 글로벌 Y축 뷰
 category: GlobalViews
 trigger_type: User Action
 owner_module: Form1.GlobalViews.cs
-last_updated: 2026-04-13
+last_updated: 2026-08-21
 code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisY_Click
 ---
 
@@ -39,7 +39,7 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisY_Click
 ## 7. 상태 변화
 | 대상 | Before | After |
 |---|---|---|
-| 카메라 | 이전 | `Y_PLUS` |
+| 카메라 | 이전 | `Y_MINUS` (카메라 −Y, 시선 +Y) |
 | Measure | 이전 | Y축 치수 |
 
 ## 8. 후행 기능 (Chained)
@@ -51,4 +51,5 @@ code_reference: /docs/code-reference/form1-global-views.md#btnGlobalAxisY_Click
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-08-21 | 정면도 사양에 맞춰 Y뷰 카메라를 `Y_MINUS`로 정정 | Codex |
 | 2026-04-13 | 초안 작성 | — |

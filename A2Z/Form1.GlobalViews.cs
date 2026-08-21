@@ -113,7 +113,7 @@ namespace A2Z
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
                     break;
                 case "Y":
-                    vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
+                    vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS);
                     break;
                 case "Z":
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS);
@@ -167,7 +167,7 @@ namespace A2Z
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS);
                     break;
                 case "Y":
-                    vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS);
+                    vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS);
                     break;
                 case "Z":
                     vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS);
