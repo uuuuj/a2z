@@ -937,7 +937,7 @@ namespace A2Z
                     switch (viewDirection)
                     {
                         case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
-                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
+                        case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
                         case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
                     }
 
@@ -2308,9 +2308,9 @@ namespace A2Z
                 Dictionary<int, VIZCore3D.NET.Data.CameraDirection> cameraMap = new Dictionary<int, VIZCore3D.NET.Data.CameraDirection>
                 {
                     { 1, VIZCore3D.NET.Data.CameraDirection.ISO_PLUS },   // ISO
-                    { 2, VIZCore3D.NET.Data.CameraDirection.Z_MINUS  },   // LOOKING "Z"
-                    { 3, VIZCore3D.NET.Data.CameraDirection.X_MINUS  },   // LOOKING "X"
-                    { 4, VIZCore3D.NET.Data.CameraDirection.Y_MINUS  },   // LOOKING "Y"
+                    { 2, VIZCore3D.NET.Data.CameraDirection.Z_PLUS   },   // 카메라 +Z, Looking -Z
+                    { 3, VIZCore3D.NET.Data.CameraDirection.X_PLUS   },   // 카메라 +X, Looking -X
+                    { 4, VIZCore3D.NET.Data.CameraDirection.Y_MINUS  },   // 카메라 -Y, Looking +Y
                 };
 
                 const float margin = 5f;
@@ -2718,8 +2718,8 @@ namespace A2Z
                         }
 
                         xraySelectedNodeIndices = new List<int>(sheet.MemberIndices);
-                        // keepCamera: 캡처는 MINUS 카메라(cameraMap)인데 ShowAllDimensions가 PLUS로 틀면
-                        //   이후 Add2D 변환(보조선·치수)이 모델과 좌우 거울 반전 (2026-07-23 -X 뷰 치수 반대편 버그).
+                        // keepCamera: 표준 카메라 뒤 적용한 ORIENTATION/참조축 회전을 유지한다.
+                        //   ShowAllDimensions가 다시 MoveCamera하면 모델과 보조선·치수의 2D 변환이 어긋난다.
                         shapeDrawingIds = ShowAllDimensions(viewDir, true, actualScale, keepCamera: true);
                         DiagLog($"P2 설치도 실측 배율 보조선 view={viewDir} obj={scaleObjectId} " +
                                 $"scale={actualScale:F4} dims={chainDimensionList.Count}");
@@ -4013,7 +4013,7 @@ namespace A2Z
                 switch (viewDirection)
                 {
                     case "X": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.X_PLUS); break;
-                    case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_PLUS); break;
+                    case "Y": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Y_MINUS); break;
                     case "Z": vizcore3d.View.MoveCamera(VIZCore3D.NET.Data.CameraDirection.Z_PLUS); break;
                 }
 
@@ -4219,7 +4219,7 @@ namespace A2Z
                         actualScale = EstimateFitScaleForCell(row, col, viewDirection, sheet.MemberIndices);
                         DiagLog($"설치도 구형 2D 실측 배율 fallback view={viewDirection} scale={actualScale:F4}");
                     }
-                    // keepCamera: 캡처 시점 카메라(PLUS+ORIENTATION 회전)를 유지 — 내부 MoveCamera가
+                    // keepCamera: 캡처 시점 표준 카메라+ORIENTATION 회전을 유지 — 내부 MoveCamera가
                     //   회전을 리셋해 Add2D 변환이 모델과 어긋나는 것 방지 (템플릿 경로와 동일 정책, 2026-07-23).
                     shapeDrawingIds = ShowAllDimensions(viewDirection, true, actualScale, keepCamera: true);
                     DiagLog($"설치도 구형 2D 실측 배율 보조선 view={viewDirection} obj={objId} " +

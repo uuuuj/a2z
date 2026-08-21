@@ -4,7 +4,7 @@ feature_name: 시트 Y축 뷰 + 치수
 category: DrawingSheets
 trigger_type: User Action
 owner_module: Form1.DrawingSheets.cs
-last_updated: 2026-07-23
+last_updated: 2026-08-21
 code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Click
 ---
 
@@ -39,7 +39,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Cli
 ## 7. 상태 변화
 | 대상 | Before | After |
 |---|---|---|
-| 카메라 | 이전 | `Y_PLUS` |
+| 카메라 | 이전 | `Y_MINUS` (카메라 −Y, 시선 +Y) |
 | Measure | 이전 | Y축 치수만 |
 
 ## 8. 후행 기능 (Chained)
@@ -51,6 +51,7 @@ code_reference: /docs/code-reference/form1-drawing-sheets.md#btnDrawingAxisY_Cli
 ## 10. 변경 이력
 | 날짜 | 변경 내용 | 작성자 |
 |---|---|---|
+| 2026-08-21 | 3D 미리보기와 2D 출력의 정면도 카메라를 `Y_MINUS`로 통일하고 Y뷰 전용 수평 부호 보정을 제거 | Codex |
 | 2026-07-23 | 설치도 전체 범위 치수를 제거하고 연결 거리만 표시. 2D 출력은 최종 실측 배율로 보조선 종이 길이를 통일 | Codex |
 | 2026-07-22 | 설치도 접합점 체인을 실제 Target Body 가까운 끝단→Connected Body 접합측 모서리 치수로 교체하고 A/A1 기호 제거 | Codex |
 | 2026-07-22 | 설치도 연결 Assembly 전체 대신 직접 연결 Part만 표시하고, 선택 STRU 기준 fit·Crop 및 STRU/Part 접합 치수로 변경 | Codex |

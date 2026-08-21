@@ -30,7 +30,7 @@
 
 ### <a id="ApplySelectedNodesView"></a>ApplySelectedNodesView(string viewDirection)
 - **라인**: L79~L131
-- **핵심**: X-Ray 활성 → Review.* Clear → DASH_LINE → `MoveCamera(direction_PLUS)` → `FlyToObject3d(xraySelectedNodeIndices, 1.0f)`
+- **핵심**: X-Ray 활성 → Review.* Clear → 표준 직교 카메라(`X_PLUS`/`Y_MINUS`/`Z_PLUS`) → `FlyToObject3d(xraySelectedNodeIndices, 1.0f)`
 - **ISO 분기**: `CreateIsoBalloonNotes(xraySelectedNodeIndices)` — 치수 대신 풍선
 
 ### <a id="ApplyFullModelView"></a>ApplyFullModelView(string viewDirection)
@@ -90,7 +90,7 @@
 |---|---|
 | "ISO" | ISO_PLUS |
 | "X" | X_PLUS |
-| "Y" | Y_PLUS |
+| "Y" | Y_MINUS |
 | "Z" | Z_PLUS |
 
 ---
