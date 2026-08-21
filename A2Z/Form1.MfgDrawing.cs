@@ -327,12 +327,10 @@ namespace A2Z
                 data[3] = "카메라 ± 검증 (위=PLUS / 아래=MINUS)";
                 // 부재명 슬롯 — 195는 REV 표(#64) 대역이라 241~245로 이전 완료(2026-07-23). 200+ 크래시도 해소됨.
                 data[241] = bom.Name ?? "";
-                var probeImageMapping = new Dictionary<int, string[]>
-                {
-                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
-                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
-                    { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
-                };
+                var probeImageMapping = new Dictionary<int, string[]>();
+                AddImageSlotIfExists(probeImageMapping, 1, "North_Arrow.png");
+                AddImageSlotIfExists(probeImageMapping, 2, "ISO_North_Arrow.png");
+                AddImageSlotIfExists(probeImageMapping, 3, "Logo.png");
                 vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsxPath, data, probeImageMapping);
                 EnsureViewAreasCache(ref viewAreasCache, xlsxPath);
 
@@ -2614,12 +2612,10 @@ namespace A2Z
                 // 다중 이미지 매핑 (SDK 1.0.26.716 신규) — {Image_1}=N 화살표(AT3), {Image_2}=ISO 화살표(C3),
                 //   {Image_3}=CONTRACTOR 로고(AW53). Value = [일반, 배경반전].
                 //   옛 {Image}+Set2DViewTemplateMark는 신 SDK에서 무력화 확인(로고 미표시) → {Image_3} 통합 (2026-07-21).
-                var mfgImageMapping = new Dictionary<int, string[]>
-                {
-                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
-                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
-                    { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
-                };
+                var mfgImageMapping = new Dictionary<int, string[]>();
+                AddImageSlotIfExists(mfgImageMapping, 1, "North_Arrow.png");
+                AddImageSlotIfExists(mfgImageMapping, 2, "ISO_North_Arrow.png");
+                AddImageSlotIfExists(mfgImageMapping, 3, "Logo.png");
 
                 var pages = SplitMfgIntoPages(mfgSheets, 5);
                 Dictionary<int, VIZCore3D.NET.Data.TemplateViewArea> viewAreasCache = null;
