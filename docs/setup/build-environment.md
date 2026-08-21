@@ -39,7 +39,8 @@ Get-ChildItem .\lib\*.dll | Select-Object Name, Length
 2. SDK 1.0.26.723 배포 폴더의 `VIZCore3D+.NET.dll`과 `VIZCore3D.NET.xml`을 **`a2z\lib\`** 에 복사
 3. 내려받은 파일의 차단을 해제: `Unblock-File .\lib\VIZCore3D+.NET.dll, .\lib\VIZCore3D.NET.xml`
 4. 기존 `lib\VIZCore3D.NET.Interop.dll`과 보조 DLL은 유지한다. 723 배포 폴더는 관리 DLL 내부에 대응 네이티브 엔진을 포함하며 `ModuleInitializer.Run()`이 실행 시 추출한다
-5. Visual Studio에서 `A2Z.sln` 빌드 → `bin\Debug\`에 exe + DLL 6개 + 이미지(assets) 자동 생성
+5. 도면에 회사 로고를 넣어야 하면 `Logo.png`를 **`a2z\assets\`** 에 배치 (레포에 없다 — 아래 「배포 패키지 리소스 배치」 참고). 안 넣으면 로고 칸만 빈 채로 정상 동작
+6. Visual Studio에서 `A2Z.sln` 빌드 → `bin\Debug\`에 exe + DLL 6개 + 이미지(assets) 자동 생성
 
 ## 배포 패키지 리소스 배치 (2026-07-28)
 
@@ -49,12 +50,18 @@ Get-ChildItem .\lib\*.dll | Select-Object Name, Length
 
 | 리소스 | 실행 폴더 위치 | 레포 원본 |
 |---|---|---|
-| `North_Arrow.png` · `ISO_North_Arrow.png` · `Logo.png` | 루트 | `assets\` |
+| `North_Arrow.png` · `ISO_North_Arrow.png` | 루트 | `assets\` |
+| `Logo.png` (회사 로고) | 루트 | **레포에 없음 — 각 PC가 `assets\`에 직접 배치** |
 | `ClientTestImage.png` (CLIENT 이미지 칸) | 루트 | `assets\` |
 | `제작도_도면_1.xlsx` | `templates\` | 레포 루트 |
 | `가공도_도면_1.xlsx` | `templates\` | 레포 루트 |
 
 하나라도 빠지면 해당 도면이 템플릿 적용 단계에서 실패하거나 이미지 칸이 빈 채로 출력된다.
+
+> **`Logo.png`만 예외다** (2026-08-21). 저작권 문제로 레포에서 뺐고 `.gitignore`로 막았다. `lib\` 대용량 DLL과 같은 취급 — **로고가 필요한 PC는 `assets\Logo.png`에 직접 갖다 놓는다.**
+> 없어도 빌드·출력은 정상 진행되고 표제부 CONTRACTOR 로고 칸과 도면정보 로고 칸만 빈다.
+> csproj가 `Condition="Exists(...)"`로 복사를 건너뛰고, 코드는 `AddImageSlotIfExists`가 슬롯을 아예 빼며, 도면정보 표는 빈 문자열을 넣는다.
+> Condition을 지우면 로고 없는 PC에서 `MSB3030`으로 **빌드가 통째로 깨진다** — 실제로 그렇게 깨졌었다.
 
 ### 탐색 순서
 
@@ -108,6 +115,7 @@ Get-ChildItem "$r\templates" | Select-Object Name
 
 | 날짜 | 변경 |
 |---|---|
+| 2026-08-21 | **회사 로고를 레포에서 제외** — 저작권 문제로 `assets\Logo.png` 삭제·`.gitignore` 등록. 삭제 직후 `MSB3030`으로 빌드가 깨져 csproj Content에 `Condition="Exists(...)"` 추가, 이미지 슬롯은 `AddImageSlotIfExists`로 파일 있을 때만 매핑, 도면정보 표는 빈 문자열 처리. `bin\**\Logo.png` 잔여 사본 8개 삭제 |
 | 2026-07-28 | **배포 패키지 리소스 배치** 절 신설 — 엑셀 템플릿 2종·`ClientTestImage.png`을 csproj Content로 빌드 출력에 포함하고, 리소스 탐색을 `.sln` 기준에서 실행 폴더 우선으로 전환 (#71) |
 | 2026-07-23 | 요구 SDK를 1.0.26.723으로 상향하고 관리 DLL·XML 배치, 다운로드 차단 해제, 내장 네이티브 추출 방식 반영 |
 | 2026-07-21 | **lib\ 이관 반영 전면 개정** — 구글드라이브 절대 경로·레포 루트 Interop·`scripts/check-build-env.ps1` 시절 내용 폐기 (스크립트도 구식화로 삭제). 요구 버전 1.0.26.716, 이미지 리소스 `assets\` 이동 반영 |

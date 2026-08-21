@@ -110,6 +110,12 @@ docs/리팩토링/_baseline/
 !lib/ShCux.dll
 !lib/ShCuxRev.dll
 
+## 회사 로고 — 저작권 문제로 레포 제외 (2026-08-21)
+##  도면 표제부 CONTRACTOR 로고({Image_3})·도면정보 칸에 쓰인다.
+##  lib\ 대용량 DLL과 같은 방식: 각 PC가 assets\에 직접 배치한다.
+##  없는 PC에서도 빌드·출력은 정상 진행되고 그 칸만 빈다 (csproj Condition + AddImageSlotIfExists).
+assets/Logo.png
+
 ## 스크린샷 캡처 (로컬 전용)
 스크린샷*.png
 

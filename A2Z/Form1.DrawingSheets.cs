@@ -1903,7 +1903,13 @@ namespace A2Z
 
                 // [표2] 도면정보 — 그리드 셀 (2,3) 하단 정렬 배치 (2행 2열: 1열 로고, 2열 텍스트)
                 VIZCore3D.NET.Data.TemplateTableData tableInfo = new VIZCore3D.NET.Data.TemplateTableData(2, 2);
+                // 로고가 없는 PC에서는 빈 문자열 — 경로를 그대로 넣으면 도면에 경로 글자가 찍힌다.
                 string infoLogoPath = ResolveDrawingAssetPath("Logo.png");
+                if (!File.Exists(infoLogoPath))
+                {
+                    DiagLog($"[이미지] 도면정보 로고 칸 비움 — Logo.png 없음 ({infoLogoPath})");
+                    infoLogoPath = "";
+                }
                 tableInfo.SetText(0, 0, infoLogoPath);
                 tableInfo.SetText(0, 1, "Project Name:\nProject No:");
                 tableInfo.SetText(1, 0, infoLogoPath);
@@ -2262,13 +2268,11 @@ namespace A2Z
                 //   4 = CLIENT 이미지(AW49, 옛 {View_6} 자리 — 2026-07-21 이미지로 전환).
                 //   Value = [일반, 배경반전]. 옛 {Image}+Set2DViewTemplateMark는 신 SDK에서 무력화 확인(로고 미표시)되어
                 //   {Image_3}로 통합 (2026-07-21). 옛 RenderTemplate 수동 배치(캘리브레이션)도 이 방식이 대체.
-                var imageMapping = new Dictionary<int, string[]>
-                {
-                    { 1, new[] { ResolveDrawingAssetPath("North_Arrow.png"), ResolveDrawingAssetPath("North_Arrow.png") } },
-                    { 2, new[] { ResolveDrawingAssetPath("ISO_North_Arrow.png"), ResolveDrawingAssetPath("ISO_North_Arrow.png") } },
-                    { 3, new[] { ResolveDrawingAssetPath("Logo.png"), ResolveDrawingAssetPath("Logo.png") } },
-                    { 4, new[] { ResolveDrawingAssetPath("ClientTestImage.png"), ResolveDrawingAssetPath("ClientTestImage.png") } },
-                };
+                var imageMapping = new Dictionary<int, string[]>();
+                AddImageSlotIfExists(imageMapping, 1, "North_Arrow.png");
+                AddImageSlotIfExists(imageMapping, 2, "ISO_North_Arrow.png");
+                AddImageSlotIfExists(imageMapping, 3, "Logo.png");
+                AddImageSlotIfExists(imageMapping, 4, "ClientTestImage.png");
                 var swTpl = System.Diagnostics.Stopwatch.StartNew();
                 ProcessCancelableUiCheckpoint(
                     $"{GetSheetKindLabel(sheet)} 2D 생성 중... 템플릿 적용",
@@ -3786,6 +3790,26 @@ namespace A2Z
         private string ResolveDrawingAssetPath(string fileName)
         {
             return ResolveDrawingResourcePath(fileName, null, "assets");
+        }
+
+        /// <summary>
+        /// {Image_N} 슬롯 매핑에 이미지를 넣는다. **파일이 실제로 있을 때만** 넣는다.
+        ///
+        /// 회사 로고(Logo.png)는 저작권 문제로 레포에서 뺐다(2026-08-21). lib\ 대용량 DLL과 같이
+        /// 각 PC가 로컬에 두는 파일이라, 없는 PC에서도 도면은 나와야 한다.
+        /// 그냥 경로를 넘기면 안 되는 이유: ResolveDrawingAssetPath는 파일이 없어도
+        /// "있어야 할 자리"의 경로 문자열을 돌려준다. 그대로 넘기면 존재하지 않는 경로가
+        /// 도면에 글자로 찍힐 수 있다. 슬롯을 통째로 빼면 템플릿의 그 칸은 빈 채로 남는다.
+        /// </summary>
+        private void AddImageSlotIfExists(Dictionary<int, string[]> mapping, int slot, string fileName)
+        {
+            string path = ResolveDrawingAssetPath(fileName);
+            if (!File.Exists(path))
+            {
+                DiagLog($"[이미지] 슬롯 {slot} 건너뜀 — {fileName} 없음 ({path})");
+                return;
+            }
+            mapping[slot] = new[] { path, path };   // [일반, 배경반전]
         }
 
         /// <summary>도면 엑셀 템플릿 — 실행 폴더 templates\ → 실행 폴더 루트 → 솔루션 루트</summary>
