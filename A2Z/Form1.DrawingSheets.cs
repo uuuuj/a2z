@@ -1890,10 +1890,10 @@ namespace A2Z
                         { 7, 5 }     // FA
                     };
 
-                    vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(1, 3,
-                        VIZCore3D.NET.Data.GridVerticalAlignment.Top);
-                    vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(1, 3,
-                        VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+                    // 가로/세로 정렬을 AnchorPoint 하나로 지정 (H 0=Left/0.5=Center/1=Right, V 0=Top/0.5=Middle/1=Bottom).
+                    //   구 SetGridCell{Vertical,Horizontal}Alignment는 SDK 727에서 deprecated → 이쪽으로 통합됐다.
+                    vizcore3d.Drawing2D.GridStructure.SetGridCellAlignment(1, 3,
+                        new VIZCore3D.NET.Data.AnchorPoint(0.5f, 0f));   // Center · Top
 
                     // T-037 2차: BOM 셀 텍스트 폰트 축소 시도 (SDK 적용 보장 X — 실기 검증 필요)
                     vizcore3d.Drawing2D.Object2D.Set2DViewCreateObjectItemTextHeight(4f);
@@ -1912,10 +1912,8 @@ namespace A2Z
                 // 열 너비 합 77mm (흰선 내부 폭 추가 축소, 기존 81→77)
                 tableInfo.ColumnWidths = new Dictionary<int, int>() { { 0, 30 }, { 1, 47 } };
 
-                vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(2, 3,
-                    VIZCore3D.NET.Data.GridVerticalAlignment.Bottom);
-                vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(2, 3,
-                    VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+                vizcore3d.Drawing2D.GridStructure.SetGridCellAlignment(2, 3,
+                    new VIZCore3D.NET.Data.AnchorPoint(0.5f, 1f));   // Center · Bottom
                 vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(tableInfo, 2, 3);
 
                 // [라벨] 뷰 라벨은 모델 배치·크기조정·위치이동 후에 렌더링 (아래 MoveObject 이후)
@@ -1975,10 +1973,8 @@ namespace A2Z
                         VIZCore3D.NET.Data.TemplateTableData labelTbl = new VIZCore3D.NET.Data.TemplateTableData(1, 1);
                         labelTbl.SetText(0, 0, labelTexts[li]);
 
-                        vizcore3d.Drawing2D.GridStructure.SetGridCellVerticalAlignment(lr, lc,
-                            VIZCore3D.NET.Data.GridVerticalAlignment.Bottom);
-                        vizcore3d.Drawing2D.GridStructure.SetGridCellHorizontalAlignment(lr, lc,
-                            VIZCore3D.NET.Data.GridHorizontalAlignment.Center);
+                        vizcore3d.Drawing2D.GridStructure.SetGridCellAlignment(lr, lc,
+                            new VIZCore3D.NET.Data.AnchorPoint(0.5f, 1f));   // Center · Bottom
                         vizcore3d.Drawing2D.Template.RenderTemplateOnGridStructure(labelTbl, lr, lc);
                     }
                 }
