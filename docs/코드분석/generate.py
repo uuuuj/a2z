@@ -216,15 +216,23 @@ def gen_buttons(files, methods, owner, stamp):
     out += ["", "---", "",
             "## 목록·이벤트 핸들러",
             "",
-            "버튼이 아니라 **목록에서 항목을 고르거나 더블클릭할 때** 도는 것들입니다.",
-            "Designer가 아니라 `Form1.cs` 생성자에서 손으로 연결합니다.", ""]
+            "버튼 클릭 외의 핸들러입니다 — 목록 선택·더블클릭, 코드로 만든 컨트롤 등.",
+            "배선 위치가 셋으로 갈립니다: **Designer**(자동 생성) · **Form1**(생성자에서 손으로) ·",
+            "**해당 파일**(코드로 만든 컨트롤에 직접). 어디에도 없으면 죽은 코드입니다.", ""]
     ev = [m for m in methods
           if re.search(r'(_SelectedIndexChanged|_DoubleClick|_Click)$', m['name'])
           and m['name'] not in handler.values()]
     ev.sort(key=lambda m: -m['size'])
+    # 연결 여부는 코드베이스 전체에서 `+= 핸들러` 배선을 찾는다.
+    #   Designer.cs 의 `+= new System.EventHandler(this.X)` 뿐 아니라
+    #   Stru.cs 의 `btnStruSearch.Click += BtnStruSearch_Click;` 처럼
+    #   코드로 만든 컨트롤에 손으로 붙인 것도 있다. Form1.cs 만 보면 오탐이 난다.
     out += ["| 핸들러 | 파일 | 줄 | 크기 | 연결된 곳 |", "|---|---|---|---|---|"]
     for m in ev:
-        wired = "Form1.cs 생성자" if m['name'] in "\n".join(files.get("Form1.cs", [])) else "🔴 **연결 안 됨**"
+        wire = re.compile(
+            r'\+=\s*(?:new\s+[\w\.]*EventHandler\s*\(\s*)?(?:this\.)?' + re.escape(m['name']) + r'(?![\w])')
+        where = [f for f, lines in files.items() if wire.search("\n".join(lines))]
+        wired = " · ".join(short(f) for f in where) if where else "🔴 **연결 안 됨**"
         out.append(f"| `{m['name']}` | {short(m['file'])} | {m['line']} | {m['size']}줄 | {wired} |")
 
     (OUT / "버튼별 코드 위치.md").write_text("\n".join(out) + "\n", encoding="utf-8")
