@@ -239,7 +239,8 @@ Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파
 | `파일별/Form1.Drawing2D.md` | ✅ 2026-08-22 |
 | `파일별/` Codex 5개 | ✅ 2026-08-22 — **단 틀 전환 전 작성. 개정 필요** |
 | `파일별/Form1.Dimensions.md` | ✅ 2026-08-22 |
-| `파일별/` 나머지 2개 | ⬜ MfgDrawing(3,883) · DrawingSheets(4,313) |
+| `파일별/Form1.MfgDrawing.md` | ✅ 2026-08-22 |
+| `파일별/Form1.DrawingSheets.md` | ⬜ **마지막** (4,313줄) |
 | `알고리즘/` | ⬜ |
 | `판정/리팩토링 방안.md` | ⬜ — **파일별 13개가 다 모인 뒤** |
 | `판정/죽은 코드.md` | ⬜ |
@@ -266,6 +267,7 @@ Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파
 | 🔴 | **죽은 핸들러 8개** — 어디에도 배선돼 있지 않음. `Dimensions`의 `btnShowAxisX/Y/Z_Click`·`btnShowISO_Click`, `DrawingSheets`의 `btnDrawingISO/AxisX/AxisY/AxisZ_Click`. 지금 화면의 축·ISO 버튼은 `GlobalViews`로 간다. `docs/기능/치수/` 문서 4개가 죽은 쪽을 설명 중 |
 | 🔴🔒 | **사내 라이선스 서버 IP·포트가 공개 저장소에 있다** — `60.100.164.177:8901`. `Form1.License.cs:21` · `STATUS.md` · `issues.json` 3곳 = **총 5곳**. 저장소가 PUBLIC이라 커밋 이력에도 남는다. **사용자 결정 대기** |
 | 🔴 | **`ShowAllDimensions` 663줄 중 약 220줄이 실행되지 않는다** — 풍선 배치 블록. `balloonEntries`를 채우던 코드가 2026-07-22에 삭제됐는데 소비하는 쪽이 남았다. 지우면 663 → 440줄, 동작 불변 |
+| 🔴 | **가공도 캡처 API가 신 템플릿에서 `AccessViolation`** — 프로세스 즉사라 `catch`도 못 잡는다. 2026-07-20 격리 결과 "은선 없는 캡처"와 "HLR 모드 + 은선 캡처" 둘 다 죽었다. `DASH_LINE` 으로 우회 중이라 **은선이 점선으로 나온다.** 코드에 **소프트힐스 문의 후보 2건**으로 명시돼 있고 "'단면만' 사양은 벤더 수정 후 복원 예정" |
 | 🔴 | **PDF 여러 장 묶기가 꺼져 있다** — `Pdf.MergePages=false`. 켜면 조립도에서 SDK 네이티브 "보호된 메모리" 오류로 프로세스 즉사. `Export2PDFBy2DView`가 기존 PDF에 이어붙이지 못한다 → 소프트힐스 요청 후보 |
 | 🔴 | **줌인이 가짜 마우스 휠** — `Form1.DrawingSheets.cs:2020~2044`. 배율 지정 줌 API가 없어 `WM_MOUSEWHEEL` 7회로 3배 확대. SDK에 대체 API가 있는지 확인 필요 |
 | 🟠 | **취소가 즉시 안 되는 구조** — 무거운 작업이 UI 스레드에서 돌고 SDK 호출은 못 끊음. 다음 체크포인트에서만 중단 |
