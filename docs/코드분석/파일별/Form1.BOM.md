@@ -310,3 +310,16 @@ BOM·Osnap·홀 루프는 매 BODY마다 `ProcessCancelableUiCheckpoint`를 호�
 - `DetectClash == false`를 곧바로 `isSingleMember:true`로 해석하는 분기는 형식화된 결과로 교체한 뒤 제거한다.
 - 파일 열기·초기화에 흩어진 캐시/목록 clear 중복은 `ModelSessionService.Reset` 하나로 옮긴 뒤 삭제한다. 새 파일에서 남는 `balloonOverrides`, Osnap, 축, UDA 캐시도 이 경계에서 함께 비운다.
 - BODY마다 `UDA.Keys` 전체를 다시 찾는 반복은 모델 세션별 PURPOSE Key 캐시로 바꾼 뒤 제거한다.
+
+---
+
+## 부록 — 지나가며 눈에 띈 것
+
+| | 내용 |
+|---|---|
+| ⚠ | `BuildBodyToPartNameMap`은 실제 부모를 걷지 않고 BODY 인덱스 이하의 가장 큰 Part 인덱스를 부모로 가정한다. SDK가 이 순서를 보장하는지는 `(미확인)`이다. |
+| ⚠ | `DetectClash`가 false면 SDK 실패와 단일 부재를 구분하지 않고 후속 파이프라인을 단일 부재로 진행한다. |
+| ⚠ | 새 파일 열기에서 풍선 오버라이드·마지막 Osnap·가공축·UDA 캐시 일부가 남아 노드 인덱스가 재사용되면 이전 모델 상태가 섞일 수 있다. |
+| · | 보이는 BODY가 0개면 전체 BODY로 fallback해 “모두 숨김”이 “전체 처리”로 바뀐다. |
+| · | **초기화**는 모델을 재로드하면서 STRU 목록과 `_struNodeCache`를 다시 만들지 않는다. |
+| · | 새 모델 열기에 실패해도 먼저 기존 모델을 닫고 목록을 지워 이전 작업으로 되돌릴 수 없다. |

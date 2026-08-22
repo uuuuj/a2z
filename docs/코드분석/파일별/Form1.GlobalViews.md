@@ -303,3 +303,14 @@ coverage(axis) = 접합점의 축방향 extent / 대상 BODY의 축방향 extent
 - `InstallationPlacementAnchor.ConnectedCornerPoint`처럼 실제로는 접합 중심을 담는 잘못된 이름은 새 DTO로 옮길 때 없애고 `ContactCenter`로 통일한다.
 - `Dimensions`와 `DrawingSheets`에 남은 미배선 축/ISO 핸들러 8개는 이 파일의 살아 있는 라우터와 기능이 겹치므로 통합 때 삭제 대상이다. 시트 선택 시 같은 `ApplyDrawingSheetView`로 가는 것은 확인했지만, 외부에서 리플렉션 호출하는지는 `(미확인)`이다.
 - 문자열 `viewDirection` 분기와 빈 `catch { }`는 enum 명령과 실패 결과형으로 대체한 뒤 제거한다.
+
+---
+
+## 부록 — 지나가며 눈에 띈 것
+
+| | 내용 |
+|---|---|
+| ⚠ | `BuildInstallationPlacementAnchor`는 `connectedPoints`가 비면 중단하지만 실제 끝점 계산에는 그 목록을 쓰지 않는다. 유효한 접합점이 있어도 상대 BODY 기하 조회 실패로 치수가 사라질 수 있다. |
+| ⚠ | 주석의 “유의미하게 긴 축”과 달리 실제 게이트는 `접합 extent / 부재 extent < 0.5`와 최종 거리 `> 3mm`다. 얇은 축에서 의도치 않은 치수가 생기는지는 `(미확인)`이다. |
+| · | `ApplySelectedNodesView`의 `BeginUpdate`~`EndUpdate`가 `try/finally`가 아니어서 중간 SDK 예외 시 갱신 상태가 남을 수 있다. |
+| · | `InstallationPlacementAnchor.ConnectedCornerPoint`에는 접합 모서리가 아니라 접합 중심이 들어간다. |
