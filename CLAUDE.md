@@ -1,6 +1,10 @@
-# A2Z-HYI 프로젝트 — Claude Code 작업 규칙
+# A2Z-HYI 프로젝트 — 작업 규칙
 
-이 파일은 Claude Code가 이 프로젝트에서 작업할 때 **항상 지켜야 할 규칙**을 담습니다. 대화 시작 시 자동으로 읽힙니다.
+이 파일은 **AI 코딩 도구가 이 프로젝트에서 작업할 때 항상 지켜야 할 규칙**을 담습니다.
+
+> 🔑 **도구 무관 단일 정본입니다.** Claude Code는 `CLAUDE.md`를, Codex는 `AGENTS.md`를 자동으로 읽는데,
+> `AGENTS.md`는 이 파일을 가리키는 포인터일 뿐입니다. **규칙은 여기 한 곳에서만 관리합니다.**
+> (2026-08-22 통합 — 그전까지 두 파일이 89% 중복이었고 이미 어긋나 있었습니다)
 
 ---
 
@@ -82,7 +86,7 @@ gh issue list --label "생산 필수" --state open            # 생산 차단 �
 - 예외는 R5와 동일 (force push, main/master 직접 push, 파괴적 push)
 
 ### R13. 사용자 대면은 기능 이름으로, 내부 문서는 ID 병기
-**사용자에게 말하거나 사용자가 읽을 자료(대화·표·HTML·PDF 등)를 만들 때**는 `T-xxx`·`FB-xxx`·`REQ-xxx`·`SDK-xxx` 같은 추적 ID와 `P1`·`p3-3` 같은 단계 코드를 **쓰지 않는다**. 사용자는 그 코드가 무슨 작업을 가리키는지 외우지 못해, 볼 때마다 매핑하는 비용이 든다. 대신 **무슨 기능이고 무슨 증상인지 바로 알 수 있는 말**로만 적는다. ID·단계 코드는 Claude 내부 추적용으로만 보유.
+**사용자에게 말하거나 사용자가 읽을 자료(대화·표·HTML·PDF 등)를 만들 때**는 `T-xxx`·`FB-xxx`·`REQ-xxx`·`SDK-xxx` 같은 추적 ID와 `P1`·`p3-3` 같은 단계 코드를 **쓰지 않는다**. 사용자는 그 코드가 무슨 작업을 가리키는지 외우지 못해, 볼 때마다 매핑하는 비용이 든다. 대신 **무슨 기능이고 무슨 증상인지 바로 알 수 있는 말**로만 적는다. ID·단계 코드는 도구 내부 추적용으로만 보유.
 
 - ❌ `T-005 진행 중` / `P3 검증 단계` / `p3-3 겹침`
 - ✅ `치수를 부재 바깥쪽으로 빼는 작업 진행 중` / `사내에서 직접 출력해보며 확인하는 단계` / `치수 숫자끼리 겹치는 문제`
@@ -139,7 +143,8 @@ a2z-HYI/
 │   │   └── checkpoint.md # /checkpoint — 세션 요약 저장
 │   └── hooks/
 │       └── docs-sync-reminder.sh  # Form1.*.cs 수정 시 docs 동기화 리마인더
-└── CLAUDE.md            # 이 파일
+├── CLAUDE.md            # 작업 규칙 정본 (이 파일)
+└── AGENTS.md            # → CLAUDE.md 포인터 (Codex용)
 ```
 
 ---
@@ -151,9 +156,14 @@ a2z-HYI/
 
 - 변경 상세 1
 - 변경 상세 2
-- 관련: FB-xxx, T-xxx (있다면)
+- 관련: #67 (BOM 요약행 T/W)   ← GitHub 이슈 번호 + 한 줄 요지
 
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+Co-Authored-By: <작업한 도구> <noreply@anthropic.com>
 ```
+
+> ⚠ **`Co-Authored-By`는 실제로 작업한 도구 이름으로 적습니다.**
+> Claude Code → `Claude Opus 5` / Codex → `Codex` 등.
+> **다른 도구 이름을 그대로 복사하지 마세요.** 나중에 누가 무엇을 했는지 추적이 안 됩니다.
+> ⚠ 폐지된 `FB-xxx`·`T-xxx`·`REQ-xxx`는 쓰지 않습니다 (`docs/tracking-archive/`에만 존재).
 
 **type**: `feat` (신규 기능) / `fix` (버그 수정) / `docs` (문서만) / `refactor` (리팩토링) / `chore` (설정·빌드) / `style` (포매팅)
