@@ -136,7 +136,10 @@ Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파
 |---|---|
 | `자동생성/` 3개 | ✅ 2026-08-22 |
 | `파일별/Form1.md` | ✅ 2026-08-22 |
-| `파일별/` 나머지 12개 | ⬜ |
+| `파일별/Form1.License.md` | ✅ 2026-08-22 |
+| `파일별/Form1.ExcelTemplate.md` | ✅ 2026-08-22 |
+| `파일별/Models.md` | ✅ 2026-08-22 (`Models.cs` + `Models/MfgViewPose.cs` 합침) |
+| `파일별/` 나머지 9개 | ⬜ — Claude 4개(DrawingSheets·MfgDrawing·Dimensions·Drawing2D) · Codex 5개 |
 | `알고리즘/` | ⬜ |
 | `판정/` | ⬜ |
 | `장표/` | ⬜ |
@@ -147,6 +150,11 @@ Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파
 | | |
 |---|---|
 | 🔴 | **죽은 핸들러 8개** — 어디에도 배선돼 있지 않음. `Dimensions`의 `btnShowAxisX/Y/Z_Click`·`btnShowISO_Click`, `DrawingSheets`의 `btnDrawingISO/AxisX/AxisY/AxisZ_Click`. 지금 화면의 축·ISO 버튼은 `GlobalViews`로 간다. `docs/기능/치수/` 문서 4개가 죽은 쪽을 설명 중 |
+| 🔴🔒 | **사내 라이선스 서버 IP·포트가 공개 저장소에 있다** — `60.100.164.177:8901`. `Form1.License.cs:21` · `STATUS.md` · `issues.json` 3곳 = **총 5곳**. 저장소가 PUBLIC이라 커밋 이력에도 남는다. **사용자 결정 대기** |
 | 🔴 | **줌인이 가짜 마우스 휠** — `Form1.DrawingSheets.cs:2020~2044`. 배율 지정 줌 API가 없어 `WM_MOUSEWHEEL` 7회로 3배 확대. SDK에 대체 API가 있는지 확인 필요 |
 | 🟠 | **취소가 즉시 안 되는 구조** — 무거운 작업이 UI 스레드에서 돌고 SDK 호출은 못 끊음. 다음 체크포인트에서만 중단 |
 | 🟠 | **진단 로그·진행창이 `Form1.cs`에 얹혀 있음** — 독립 기능이라 분리 가능. 빼면 `Form1`이 423회 불리는 이유의 상당 부분이 사라짐 |
+| 🟠 | **라이선스 인증 실패 시 "켜졌지만 안 되는" 상태로 남는다** — `BOM.cs:144`의 `return`이 나머지 초기화를 전부 건너뛴다. 오류 창은 한 번 뜨고 사라지고 재시도 수단이 없다 |
+| 🟠 | **독립 타입 26개 중 13개만 모델 파일에 있다** — 나머지는 `Form1.*.cs` 안에 흩어짐 |
+| 🟠 | **엑셀 빈 칸 처리에 `""`와 `" "`의 차이가 문서 두 곳에서 다르게 읽힌다** — 실기 확인 필요 |
+| 🟢 | **SDK 우회 2건 추가 발견** — ① 빈 칸 괘선을 값 유무로 간접 제어(`KeepBorder`) ② 최종 배율을 미리 못 얻어 치수를 지연 목록에 쌓았다 나중에 그림(`MfgPendingDim`). **"왜 이만큼의 코드가 필요한가"의 재료** |
