@@ -43,6 +43,8 @@ docs/코드분석/
     함수 목록.md
     파일 구조.md
 
+  Codex 작업지시.md  ← Codex는 이 파일 하나만 읽고 시작
+
   파일별/             ✍ 코드 파일 하나당 문서 하나 (Form1.Dimensions.cs → Form1.Dimensions.md)
   알고리즘/           ✍ 자명하지 않은 계산의 정의
   판정/               ✍ 죽은 코드 · 중복 · 줄 수 근거
@@ -121,6 +123,8 @@ python docs/코드분석/generate.py
 |---|---|---|
 | **Claude Code** | DrawingSheets · MfgDrawing · Dimensions · Drawing2D · **Form1** · ExcelTemplate · Models · License | 12,451 + 골격 |
 | **Codex** | Clash · GlobalViews · Stru · BOM · Attribute | 5,369 |
+
+Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파일에 다 있습니다.
 
 ---
 
