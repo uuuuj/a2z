@@ -140,7 +140,7 @@ python docs/코드분석/generate.py
 
 | | |
 |---|---|
-| 🔴 | **`btnShowAxisX/Y/Z_Click` · `btnShowISO_Click` 죽은 코드** — 화면에 버튼 없음. `docs/기능/치수/` 문서 4개가 이걸 설명 중 |
+| 🔴 | **죽은 핸들러 8개** — 어디에도 배선돼 있지 않음. `Dimensions`의 `btnShowAxisX/Y/Z_Click`·`btnShowISO_Click`, `DrawingSheets`의 `btnDrawingISO/AxisX/AxisY/AxisZ_Click`. 지금 화면의 축·ISO 버튼은 `GlobalViews`로 간다. `docs/기능/치수/` 문서 4개가 죽은 쪽을 설명 중 |
 | 🔴 | **줌인이 가짜 마우스 휠** — `Form1.DrawingSheets.cs:2020~2044`. 배율 지정 줌 API가 없어 `WM_MOUSEWHEEL` 7회로 3배 확대. SDK에 대체 API가 있는지 확인 필요 |
 | 🟠 | **취소가 즉시 안 되는 구조** — 무거운 작업이 UI 스레드에서 돌고 SDK 호출은 못 끊음. 다음 체크포인트에서만 중단 |
 | 🟠 | **진단 로그·진행창이 `Form1.cs`에 얹혀 있음** — 독립 기능이라 분리 가능. 빼면 `Form1`이 423회 불리는 이유의 상당 부분이 사라짐 |
