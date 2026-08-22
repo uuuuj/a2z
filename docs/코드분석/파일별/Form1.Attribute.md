@@ -26,7 +26,35 @@
 
 ---
 
-## 2. 실행 순서 — 무엇이 어떤 순서로
+## 2. 실행 흐름 — 무엇이 어떤 순서로
+
+```mermaid
+flowchart TD
+    A["SDK 초기화 때 이벤트 배선<br/>(BOM.cs L141)"]:::other --> B["3D 객체 선택/해제"]
+    B --> C["Object3D_OnObject3DSelected<br/>(L19)"]
+    C --> D{"선택 노드가 있나?"}
+    D -- 없음 --> E["속성 표 비우기"]
+    D -- 있음 --> F["UpdateAttributeTable<br/>(L44)"]
+    F --> G["기본 정보 + BBox"]
+    G --> H["UDA 조회"]
+    H --> I["Geometry 리플렉션"]
+    I --> J["속성 표 표시"]
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
+
+```mermaid
+flowchart TD
+    A{"사용자 작업"} -->|추가| B["UDA.Add<br/>(L364)"]
+    A -->|편집| C["UDA.UpdateKey/Update<br/>(L390)"]
+    A -->|삭제| D["UDA.Delete<br/>(L443)"]
+    A -->|CSV 입력| E["ParseCsvLine<br/>(L589)"]
+    E --> F["UDA.Add 실패 시 Update<br/>(L547)"]
+    B --> G["UpdateAttributeTable<br/>(L44)"]
+    C --> G
+    D --> G
+    F --> G
+    G --> H["갱신된 속성 표"]
+```
 
 ### 2-1. 속성 조회
 
@@ -82,7 +110,7 @@ Designer 컨트롤 `dgvAttributes`가 표시 데이터 자체를 보관한다. `
 
 ---
 
-## 4. 외부 호출
+## 4. 의존 — 무엇과 묶여 있나
 
 ### VIZCore3D SDK API
 
@@ -146,17 +174,36 @@ Y·Z도 같다. 프로젝트 모델 좌표 단위가 mm이므로 크기와 중�
 
 ---
 
-## 6. 의심 — 확인이 필요한 것
+## 6. 책임과 결합 — 다시 짠다면
 
-| 표시 | 내용 |
-|---|---|
-| 🔴 | **CSV 출력과 입력의 열 계약이 서로 다르다.** 출력은 `No,Key,Value` 세 열인데 입력은 첫 열을 Key, 둘째 열을 Value로 읽는다. 이 프로그램이 출력한 파일을 다시 입력하면 `1=Node Index` 같은 UDA를 만들고 실제 Value 열은 버린다. 게다가 출력은 UDA 외의 모든 표 행도 포함한다. |
-| 🔴 | UDA를 추가·편집·삭제하거나 CSV로 가져온 뒤 ⚠ `_udaValueCache`를 비우지 않는다. 가공도 쪽 `GetUdaValue`/`GetSprefValue`가 이미 읽은 값을 캐시했다면 같은 세션의 후속 도면은 변경 전 SPREF·ORIENTATION 등을 계속 쓸 수 있다. |
-| 🟠 | 모든 쓰기에서 `recursive=true`를 사용한다. 화면 문구는 “선택 부재”만 말하므로 Assembly/Part 선택 시 모든 하위 BODY가 함께 바뀐다는 영향 범위를 사용자가 알기 어렵다. 업무 정책 확인이 필요하다. |
-| 🟠 | `IsUdaRow`는 현재 행이 구분선인지 먼저 확인하지 않는다. Geometry 구분선 자체를 선택하면 위쪽의 UDA 구분선을 찾아 UDA 행으로 오판하고, 구분선 문자열을 Key로 편집·삭제할 수 있다. |
-| 🟠 | Key 변경은 `UpdateKey` 후 `Update` 두 SDK 호출이다. 두 번째 호출이 실패하면 Key만 바뀐 부분 성공 상태가 남고 되돌리지 않는다. CSV도 행 단위라 중간 실패 시 앞 행 변경은 유지된다. |
-| 🟠 | CSV의 Add가 던지는 모든 예외를 “기존 Key”로 취급해 Update를 시도한다. 서버/모델 상태 오류처럼 Update로 해결되지 않는 원인을 가리고 첫 예외 메시지도 잃는다. |
-| 🟡 | CSV 출력은 쉼표가 있을 때만 필드를 감싸고 필드 안의 `"`를 `""`로 escape하지 않는다. 입력 파서도 escaped quote와 여러 줄 필드를 지원하지 않아 일반 CSV와 완전히 호환되지 않는다. |
-| 🟡 | 첫 입력 행에 `key`·`value`·`속성` 문자열이 포함되기만 하면 헤더로 버린다. 실제 첫 데이터의 Key/Value에 해당 문자열이 들어가도 누락된다. |
-| 🟡 | Parent Path는 실제 노드 계층 API가 아니라 `NodeName`의 마지막 `/` 앞 문자열이다. 이름에 `/`가 없는 일반 노드는 부모를 표시하지 못하고, 이름에 우연히 `/`가 있으면 경로로 오인한다. |
-| 🟡 | UDA 키별 조회와 Geometry 리플렉션 내부의 예외를 여러 곳에서 삼킨다. 표에서 항목이 없는 것과 조회가 실패한 것을 구분할 수 없다. |
+### ① 이 파일이 지는 책임
+
+- SDK 선택 이벤트를 받아 선택 노드 하나의 기본 정보·BBox·UDA·Geometry 속성을 읽는다.
+- 서로 다른 속성을 구분선이 있는 WinForms 표 행으로 변환한다.
+- 선택 노드의 UDA를 추가·편집·삭제하며, 모든 후손에 재귀 적용한다.
+- 화면 표 전체를 CSV로 내보내고 CSV 행을 UDA 변경 명령으로 가져온다.
+
+조회, 표시 모델, UDA 명령, CSV 직렬화라는 네 책임이 한 이벤트 파일에 섞여 있다.
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| 기본 정보·BBox·UDA·Geometry 수집 | `NodeAttributeReader`와 `NodeAttributeSnapshot` | SDK 결과를 DTO로 옮긴 뒤에는 ListView를 몰라도 된다. 조회 실패와 값 없음도 DTO에서 구분할 수 있다. |
+| 구분선과 표시 문자열 생성 | `AttributeRowPresenter` | 속성 스냅샷을 행 목록으로 바꾸는 순수 변환이며, `IsUdaRow`를 화면 위치가 아닌 행 종류로 판정할 수 있다. |
+| UDA 추가·Key 변경·값 변경·삭제 | `UdaCommandService` | 재귀 범위, 검증, 실패 결과, ⚠ `_udaValueCache` 무효화를 한 경계에서 보장해야 한다. Key 변경 두 단계는 보상 처리 또는 명시적 부분 성공 결과가 필요하다. |
+| CSV 읽기·쓰기 | `UdaCsvCodec` | 입력과 출력의 열 계약을 `Key,Value`로 하나로 고정하고 단독 왕복 시험을 할 수 있다. |
+
+### ③ 못 떼는 것과 이유
+
+- 선택·버튼 핸들러, 대화상자, 파일 선택창, `lvAttribute` 갱신은 WinForms에 묶이므로 얇은 UI 어댑터로 남아야 한다.
+- UDA의 `recursive=true`가 실제로 어느 노드까지 적용되는지는 SDK 계약이다. 서비스로 옮겨도 SDK 어댑터와 사용자의 적용 범위 확인은 필요하다.
+- 선택 노드 인덱스와 이름은 ⚠ `selectedObjectIndex`·`selectedObjectName`으로 다른 partial 파일과 공유된다. 먼저 `SelectionContext` 같은 단일 소유 상태가 필요하다.
+- `_udaValueCache`는 가공도 등 다른 파일이 소비하므로 이 파일만 분리해서는 일관된 무효화 시점을 정할 수 없다.
+
+### ④ 지울 것
+
+- 현재의 수동 CSV 출력 escape와 `ParseCsvLine`(L589)은 검증된 CSV 구현으로 대체한 뒤 삭제한다. 지금은 `No,Key,Value` 출력과 2열 입력이 왕복되지 않는다.
+- 구분선 위치를 위로 훑는 `IsUdaRow`(L344)는 형식화된 행 모델로 바꾼 뒤 삭제한다. Geometry 구분선을 UDA로 오인할 수 있는 구조가 함께 사라진다.
+- `NodeName` 문자열의 마지막 `/`로 만드는 가짜 Parent Path는 SDK 계층 경로로 대체할 수 있을 때 삭제한다 `(미확인)`.
+- Add의 모든 예외를 “이미 존재하는 Key”로 간주하는 fallback 분기는 오류 코드 기반 upsert로 바꾼 뒤 제거한다. SDK가 중복 Key 전용 오류를 구분해 주는지는 `(미확인)`이다.
