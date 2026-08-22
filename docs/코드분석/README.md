@@ -236,7 +236,9 @@ Codex 쪽 지시는 [`Codex 작업지시.md`](./Codex%20작업지시.md) 한 파
 | `파일별/Form1.License.md` | ✅ 2026-08-22 |
 | `파일별/Form1.ExcelTemplate.md` | ✅ 2026-08-22 |
 | `파일별/Models.md` | ✅ 2026-08-22 (`Models.cs` + `Models/MfgViewPose.cs` 합침) |
-| `파일별/` 나머지 9개 | ⬜ — Claude 4개(DrawingSheets·MfgDrawing·Dimensions·Drawing2D) · Codex 5개 |
+| `파일별/Form1.Drawing2D.md` | ✅ 2026-08-22 |
+| `파일별/` Codex 5개 | ✅ 2026-08-22 — **단 틀 전환 전 작성. 개정 필요** |
+| `파일별/` 나머지 3개 | ⬜ Dimensions · MfgDrawing · DrawingSheets (Claude) |
 | `알고리즘/` | ⬜ |
 | `판정/리팩토링 방안.md` | ⬜ — **파일별 13개가 다 모인 뒤** |
 | `판정/죽은 코드.md` | ⬜ |

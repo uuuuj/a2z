@@ -37,7 +37,44 @@
 
 ---
 
-## 2. 실행 순서 — 무엇이 어떤 순서로
+## 2. 실행 흐름 — 무엇이 어떤 순서로
+
+```mermaid
+flowchart TD
+    A["모델 열기 성공"] --> B["PopulateStruCheckList<br/>(L149)"]
+    B --> C["CollectStruList<br/>(L62)"]
+    C --> D{"FRMWORK 규칙 후보가 있나?"}
+    D -- 있음 --> E["부모 Assembly를 STRU로 채택"]
+    D -- 없음 --> F["이름 규칙 fallback"]
+    E --> G["이름순 체크 목록"]
+    F --> G
+    G --> H{"사용자 작업"}
+    H -- 검색 --> I["SearchStruByName<br/>(L256)"]
+    H -- 체크 --> J["ItemCheckCore<br/>(L375)"]
+    H -- 행 선택 --> K["PerformFlyToSelectedStru<br/>(L442)"]
+    I --> L["선택 STRU만 표시"]
+    J --> M["체크 STRU 합집합 강조"]
+    K --> N["해당 STRU 표시 + 화면 맞춤"]
+```
+
+```mermaid
+flowchart TD
+    A["「도면 일괄 출력」<br/>btnExtractDrawingList_Click (L499)"] --> B["체크 STRU 순회"]
+    B --> C["ProcessSingleStruFull<br/>(L788)"]
+    C --> D["현재 STRU BODY만 표시"]
+    D --> E["CollectBOMData<br/>(BOM.cs L829)"]:::other
+    E --> F["DetectClash<br/>(Clash.cs L1004)"]:::other
+    F --> G{"시트가 준비됐나?"}
+    G -- 아니오 --> H["실패 기록 후 다음 STRU"]
+    G -- 예 --> I["ApplySheetSelection<br/>(DrawingSheets.cs L636)"]:::other
+    I --> J["GenerateSheetDrawing2D<br/>(DrawingSheets.cs L1707)"]:::other
+    J --> K["GenerateMfgDrawingManual<br/>(MfgDrawing.cs L2486)"]:::other
+    K --> L["FlushPendingMergedPdf<br/>(Drawing2D.cs L1154)"]:::other
+    L --> M{"다음 STRU가 있나?"}
+    M -- 예 --> B
+    M -- 아니오 --> N["상태 복원 + 결과 요약"]
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
 
 ### 2-1. STRU 목록 구성
 
@@ -132,7 +169,7 @@
 
 ---
 
-## 4. 외부 호출
+## 4. 의존 — 무엇과 묶여 있나
 
 ### VIZCore3D SDK API
 
@@ -243,21 +280,40 @@ STRU 가시성 격리
 
 ---
 
-## 6. 의심 — 확인이 필요한 것
+## 6. 책임과 결합 — 다시 짠다면
 
-| 표시 | 내용 |
-|---|---|
-| 🔴 | 자동 출력에서 `lvi.Selected = true`는 배선된 `LvDrawingSheet_SelectedIndexChanged`를 발생시켜 이미 `ApplySheetSelection`을 호출한다. 바로 뒤 L978에서 같은 메서드를 직접 다시 호출하지만 `_suppressSheetSelectionHandler`를 켜지 않는다. 시트 적용·치수·BOM 수집이 **두 번 실행될 가능성**이 높다. |
-| 🔴 | 연결되지 않은 STRU는 Clash 완료 이벤트에서 시트를 만들지 않고 반환한다. 일괄 출력은 그 사유를 직접 받지 못하고 `drawingSheetList.Count > 0`만 기다리므로, 메시지도 없이 STRU마다 **60초 타임아웃**으로 끝난다. |
-| 🔴 | `DetectClash`가 false면 단일 부재·SDK 실패·테스트 시작 실패를 구분하지 않고 `GenerateDrawingSheets`를 직접 호출한다 (L863~873). 이 경로는 `CompleteMainDimensionPostClash`의 Osnap·체인 치수 계산과 연결성 판정을 건너뛴다. |
-| 🔴 | `ProcessSingleStruFull`의 `pdfCount`는 0에서 바뀌지 않고, `reportPdfSaved` 콜백도 호출되지 않으며 반환값도 호출부가 사용하지 않는다. 남은 옛 카운트 경로다. |
-| 🟠 | 일반 시트·가공도 내부 오류를 이 메서드 안에서 잡고 계속한 뒤 정상 반환하므로, 페이지가 하나도 없어도 바깥 `successCount`가 증가할 수 있다. 요약의 “성공 STRU”가 실제 PDF 생성 성공과 다를 수 있다. |
-| 🟠 | `BeginPdfPageAccumulation`의 bool 반환값을 확인하지 않는다. 누적 시작이 실패해도 모든 시트 그리기를 계속하고 마지막 저장 실패로만 드러날 수 있다. |
-| 🟠 | 일괄 출력 시작과 종료 때 이전 가시성을 저장하지 않고 각각 전체 BODY 표시를 강제한다. 사용자가 미리 숨겨 둔 부재 상태는 복원되지 않는다. 검색도 선택 STRU 외 BODY를 숨긴 상태를 계속 유지한다. |
-| 🟠 | **전체 선택/해제**는 `SetItemChecked`를 N번 호출하고, 각 호출마다 현재 체크된 모든 STRU의 하위 BODY를 다시 조회·합집합·선택한다. STRU가 많으면 O(N²) SDK 트리 조회와 전체 색 초기화가 발생한다. |
-| 🟠 | 한 일반 시트 실패는 잡고 페이지를 버리지만 STRU 폴더 생성 실패는 로그만 남긴 채 PDF 누적을 계속한다. 저장 경로가 없을 때 더 늦고 모호한 실패가 날 수 있다. |
-| 🟠 | `GC.Collect`, 여러 `Thread.Sleep(50~500ms)`, `Application.DoEvents`가 UI 스레드에 흩어져 있다. 비동기 완료 race와 네이티브 메모리를 다루기 위한 우회지만, 고정 대기·재진입·사용자 체감 지연을 만든다. |
-| 🟡 | 파일 머리의 설계 주석은 “xraySelectedNodeIndices = STRU BODY”, “FolderBrowserDialog”, “행 선택 이벤트 자동 트리거”를 현재 흐름으로 설명하지만 실제 코드는 가시성 격리+X-Ray 비움, 고정 폴더, 직접 `ApplySheetSelection` 호출로 바뀌었다. |
-| 🟡 | STRU fallback은 `/` 시작·공백 없음만 검사해 파일 루트나 STRU가 아닌 Assembly도 포함할 수 있다. fallback 목록은 디버그 안전망이지만 그대로 일괄 출력 대상이 된다. |
-| 🟡 | 체크 강조 해제는 `Color.RestoreColorAll`만 호출하고 명시적 `DESELECT_ALL`은 하지 않는다. SDK 선택 상태까지 풀리는지 XML 설명만으로는 확정할 수 없어 실기 확인이 필요하다 `(미확인)` . |
-| 🟡 | `_p2aInProgress` 이름과 파일 전반의 옛 단계 주석이 폐기된 PoC 명칭을 유지해 현재 역할인 “STRU 일괄 출력 중”을 바로 알기 어렵다. |
+### ① 이 파일이 지는 책임
+
+- 모델 Assembly에서 이름 규칙으로 STRU 후보를 찾고 체크·검색 UI를 구성한다.
+- 검색·체크·행 선택에 따라 BODY 가시성, 선택 강조, 카메라 이동을 제어한다.
+- 체크된 STRU마다 BOM·Clash·치수·시트 생성·2D·가공도·PDF 저장을 순서대로 호출한다.
+- SDK 비동기 Clash와 페이지 누적을 폴링·대기·정리하며 취소와 부분 실패를 처리한다.
+- STRU별 성공·실패·PDF 수를 모아 사용자에게 보고한다.
+
+STRU 탐색 UI와 애플리케이션 전체에 가까운 배치 출력 오케스트레이션이 한 파일에 공존한다.
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| `FRMWORK ` 부모 규칙, fallback, 정렬 | `StruCatalog` | Assembly 경로 DTO만 받으면 SDK·WinForms 없이 STRU 후보를 시험할 수 있다. fallback 정책도 명시적으로 교체 가능하다. |
+| 체크 STRU → BODY 합집합 | `StruMembershipIndex` | STRU별 하위 BODY를 모델 세션 동안 한 번만 캐시하면 전체 선택의 O(N²) 반복 조회를 없앨 수 있다. |
+| STRU 하나의 단계 전환과 결과 집계 | `StruDrawingJob`/`BatchDrawingCoordinator` | 각 단계를 `Succeeded/Skipped/Failed/Canceled` 결과로 연결하면 60초 폴링과 bool 해석을 없애고 실제 PDF 저장 성공만 집계할 수 있다. |
+| 시작 전 가시성 저장과 종료 복원 | `VisibilityScope` | 진입 시 스냅샷, `Dispose` 시 복원이라는 독립 수명 규칙으로 만들 수 있다. |
+| 파일명·폴더·페이지 누적 요청 조립 | `StruOutputPlan` | STRU 이름과 시트 목록만으로 결정되며 실제 2D/PDF SDK 호출과 분리할 수 있다. |
+
+### ③ 못 떼는 것과 이유
+
+- 코드로 만든 검색 컨트롤, 체크 이벤트의 “변경 전” 시점, `_suppressStruSelChanged`는 WinForms 이벤트 모델에 묶여 UI 어댑터에 남아야 한다.
+- BODY 표시·선택·`FlyToObject3d`, `Clash.IsBusy`, 2D 템플릿·페이지는 VIZCore3D의 상태형 API라 각각 SDK 어댑터가 필요하다.
+- 일괄 출력은 ⚠ `bomList`, `clashList`, `chainDimensionList`, `drawingSheetList`, X-Ray/UDA/Osnap 캐시를 다른 partial 파일과 공유한다. `DrawingJobContext`가 생기기 전에는 단계 호출 순서를 이 파일 밖으로 안전하게 옮길 수 없다.
+- 취소가 SDK 호출 자체를 중단하지 못하고 UI 체크포인트에서만 확인되므로, SDK가 취소 토큰을 지원하지 않는 한 “즉시 취소”는 분리만으로 해결되지 않는다.
+- 체크 해제 때 `RestoreColorAll`이 SDK 선택 상태까지 해제하는지는 XML만으로 확정되지 않는다 `(미확인)`.
+
+### ④ 지울 것
+
+- 값이 늘 0인 `pdfCount`, 호출되지 않는 `reportPdfSaved`, 사용하지 않는 `ProcessSingleStruFull` 반환 경로는 삭제한다.
+- 시트 행의 `Selected = true`가 일으키는 자동 적용과 바로 뒤 직접 `ApplySheetSelection` 중 하나를 삭제한다. 배치에서는 이벤트를 억제하고 직접 호출 하나만 남기는 편이 경계가 분명하다.
+- `Thread.Sleep(50~500ms)`, `Application.DoEvents`, `Clash.IsBusy` 폴링은 Clash 완료를 Task로 감싸는 어댑터가 생기면 삭제한다. SDK 이벤트 유실 시 복구 규칙은 별도 타임아웃 결과로 남긴다.
+- STRU 사이의 강제 `GC.Collect`는 네이티브 2D 자원 해제 API를 확인한 뒤 삭제한다 `(미확인)`.
+- 폐기된 PoC 명칭 `_p2aInProgress`와 현재 동작과 어긋난 파일 머리 주석은 `isStruBatchExportRunning`과 실제 단계 설명으로 바꾸면서 제거한다.

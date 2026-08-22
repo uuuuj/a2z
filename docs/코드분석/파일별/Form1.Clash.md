@@ -33,7 +33,40 @@
 
 ---
 
-## 2. 실행 순서 — 무엇이 어떤 순서로
+## 2. 실행 흐름 — 무엇이 어떤 순서로
+
+```mermaid
+flowchart TD
+    A["「BOM 수집」 또는 시트 준비"] --> B["CollectBOMInfo<br/>(L63)"]
+    B --> C{"준비된 시트 캐시가 있나?"}
+    C -- 있음 --> D["ApplyPreparedBomInfo<br/>(L627)"]
+    C -- 없음 --> E["BuildDrawingBomPreparationContext<br/>(L134)"]
+    E --> F["Part별 UDA 상향 탐색"]
+    F --> G["BuildDrawingBomSnapshot<br/>(L483)"]
+    G --> H{"시트 대상인가?"}
+    H -- 예 --> I["StorePreparedBomSnapshot<br/>(L617)"]
+    H -- 아니오 --> J["ApplyBomSnapshot<br/>(L637)"]
+    D --> K["8열 도면 BOM 표"]
+    I --> K
+    J --> K
+```
+
+```mermaid
+flowchart TD
+    A["「Clash」/치수 추출/일괄 출력"] --> B["DetectClash<br/>(L1004)"]
+    B --> C["대상 BODY와 N(N-1)/2 쌍 구성"]
+    C --> D{"외부 연결도 필요한가?"}
+    D -- 예 --> E["GetFabricationNeighborCandidates<br/>(L777)"]
+    D -- 아니오 --> F["StartSilentClashSequence<br/>(L857)"]
+    E --> F
+    F --> G["SDK 검사를 한 건씩 실행"]
+    G --> H["Clash_OnClashTestFinishedEvent<br/>(L1129)"]
+    H --> I["결과 중복 제거 + BODY 연결 그래프"]
+    I --> J{"한 연결 성분인가?"}
+    J -- 예 --> K["CompleteMainDimensionPostClash<br/>(BOM.cs L522)"]:::other
+    J -- 아니오 --> L["후속 도면 생성 중단"]
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
 
 ### 2-1. 도면 BOM 수집
 
@@ -123,7 +156,7 @@
 
 ---
 
-## 4. 외부 호출
+## 4. 의존 — 무엇과 묶여 있나
 
 ### VIZCore3D SDK API
 
@@ -225,19 +258,40 @@ Clash Part A ↔ Part B
 
 ---
 
-## 6. 의심 — 확인이 필요한 것
+## 6. 책임과 결합 — 다시 짠다면
 
-| 표시 | 내용 |
-|---|---|
-| 🔴 | `IsSingleConnectedComponent`는 두 번째 성분을 발견하는 즉시 false를 반환한다 (L1352~1360). 따라서 실제로 3개·10개 그룹이어도 `componentCount`는 항상 **2**이고, 사용자 메시지의 “그룹 N개 발견”이 틀린다. |
-| 🔴 | 같은 Part 아래 BODY끼리는 자체 간선을 만들지 않는다. 한 Part에 BODY가 여러 개이고 다른 Part와의 Clash가 없으면 논리적으로 Part 하나여도 BODY 수만큼 분리 성분으로 판정될 수 있다. Part 단위 BFS 또는 동일 Part 내부 연결이 필요한지 확인해야 한다. |
-| 🔴 | 시트 `BomPrepared` 캐시는 UDA 추가·편집·삭제 뒤 무효화되지 않는다. 같은 시트를 다시 선택해도 이전 SPREF·GWEI·MA·FA 행을 그대로 적용한다. `Form1.Attribute.cs`의 공유 UDA 캐시 미초기화와 같은 계열이다. |
-| 🔴 | `bomInfoNodeGroupMap`과 시트의 `PreparedBomNodeGroupMap`은 이 파일에서 계산·저장·복원하지만 코드베이스에 읽는 곳이 없다. 현재 출력이나 화면에 영향을 주지 않는 죽은 상태다. |
-| 🟠 | 화면의 **Clash** 버튼도 마지막 이벤트에서 `CompleteMainDimensionPostClash`를 호출한다. 즉 간섭 결과만 보여주는 데서 끝나지 않고 Osnap·치수·도면 시트까지 자동 생성한다. 버튼 이름과 기대 동작이 맞는지 확인이 필요하다. |
-| 🟠 | SDK XML에는 `PerformInterferenceCheck(List<int>)`와 `PerformInterferenceCheck(List<ClashTest>)` 일괄 오버로드가 있다. 다만 이 오버로드에는 `progressForm=false` 인자가 없으므로, 현재 무창 직렬 큐를 대체하면서 SDK 진행창을 숨길 수 있는지는 실기 확인이 필요하다. |
-| 🟠 | 외부 근접 캐시 완료 판정은 “모델 BODY 수가 이전과 같고 BBox 캐시가 하나 이상”뿐이다 (L690~692). 일부 BODY BBox 조회가 실패해 불완전한 캐시가 만들어져도 BODY 수만 같으면 이후 영구 재사용한다. |
-| 🟠 | 여러 STRUCTURE의 Part가 한 스냅샷에 섞이면 첫 번째 비어 있지 않은 STRU 무게 하나를 요약행에 쓰고 경고만 남긴다. 어떤 STRUCTURE를 대표해야 하는지 정책이 없다. |
-| 🟡 | `ParsePosString`은 축 토큰을 해석하지 않고 처음 세 숫자를 좌표로 가정하며 부족한 값은 0으로 채운다. 잘못된 UDA도 그럴듯한 길이로 조용히 통과한다 `(미확인)` . |
-| 🟡 | GWEI 정규화는 `1,234.56kg` 같은 천 단위 쉼표를 `1.234.56`으로 만들어 파싱하지 못하고, 단위를 제거한 뒤 환산하지 않는다. 모델 값 형식이 항상 단일 단위·단일 소수 구분자인지 확인이 필요하다. |
-| 🟡 | UDA Key 조회·조상 탐색의 여러 `catch { }`가 “값 없음”과 SDK 오류를 같은 빈값으로 만든다. 정상 경로에서는 로그에 원인이 남지 않는다. |
-| 🟡 | `_silentClashSequenceActive` 중 예상과 다른 완료 이벤트가 오면 무시하고 상태를 유지한다. 기대한 이벤트가 오지 않으면 큐가 끝나지 않는 복구 경로가 없다 `(미확인)` . |
+### ① 이 파일이 지는 책임
+
+- Part별 UDA를 조상까지 찾아 도면용 8열 BOM과 시트별 스냅샷을 만든다.
+- 내부 BODY 쌍과 설치도 외부 후보를 골라 SDK ClashTest로 등록한다.
+- SDK가 동시에 처리하기 어려운 검사를 무창 직렬 큐로 실행하고 완료 이벤트를 이어 붙인다.
+- SDK의 Part 결과를 BODY 연결 그래프와 설치도 외부 연결 목록으로 바꾼다.
+- 진행창, Clash 목록, 치수 추출·STRU 일괄 출력의 후속 흐름까지 제어한다.
+
+도면 BOM, 간섭 실행기, 연결성 분석, UI 오케스트레이션이 한 파일에 모여 있다.
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| SPREF·POS·GWEI 정규화와 요약행/Part 행 조립 | `DrawingBomBuilder` | UDA 조회 결과를 DTO로 받으면 문자열 파싱·정렬·합계는 SDK와 UI 없이 시험할 수 있다. |
+| BODY 조합과 3mm 외부 후보 계획 | `ClashTestPlanner` | BBox와 Part/BODY 관계만으로 검사 계획을 만들 수 있고 SDK에는 완성된 계획만 넘기면 된다. |
+| 무창 큐와 완료 이벤트 상태 기계 | `VizClashRunner` | SDK Test ID·`IsBusy`·이벤트를 한 어댑터가 소유하면 `Form1`의 bool 필드와 후속 화면 로직을 분리할 수 있다. |
+| 중복 제거·인접 리스트·BFS | `ConnectivityAnalyzer` | `ClashData`의 양 끝 인덱스만 쓰는 순수 그래프 계산이다. 실제 성분 수와 Part/BODY 정책을 단위 시험으로 고정할 수 있다. |
+| 시트별 BOM 캐시 | 모델 버전과 UDA 버전을 키로 삼는 `DrawingBomCache` | 현재 `BomPrepared` bool보다 무효화 근거를 명시할 수 있다. |
+
+### ③ 못 떼는 것과 이유
+
+- `PerformInterferenceCheck`와 완료 이벤트는 SDK 전역 Clash 상태와 Test ID에 묶이므로 SDK 어댑터 없이 순수 서비스로 옮길 수 없다.
+- 대상 범위가 ⚠ `xraySelectedNodeIndices`, `bomList`, 현재 가시성에 의존하고 결과도 ⚠ `clashList`, `drawingSheetList`를 바꾸므로 먼저 작업 단위 `DrawingJobContext`가 필요하다.
+- 진행창·취소와 `lvClash`, `lvDrawingBOMInfo` 갱신은 WinForms 어댑터 책임으로 남는다.
+- 같은 Part 아래 여러 BODY를 한 연결 단위로 볼지는 코드 문제가 아니라 도면 업무 규칙이다. Part 단위로 합칠지 확인 전에는 그래프 경계를 확정할 수 없다 `(미확인)`.
+- SDK 일괄 간섭 오버로드가 무창 실행을 지원하는지는 XML만으로 확인되지 않아 현재 직렬 큐를 바로 없앨 수 없다 `(미확인)`.
+
+### ④ 지울 것
+
+- 코드베이스에 소비자가 없는 `bomInfoNodeGroupMap`과 `PreparedBomNodeGroupMap` 생성·저장·복원은 삭제 대상이다.
+- `IsSingleConnectedComponent`가 두 번째 성분에서 즉시 반환해 개수를 항상 2로 만드는 조기 반환은 제거하고 전체 BFS 결과를 반환하게 한다.
+- 문자열을 처음 세 숫자로만 해석하는 `ParsePosString`과 단위 없는 GWEI 정규화는 공용 파서로 교체한 뒤 삭제한다. 실제 입력 형식 범위는 `(미확인)`이다.
+- `catch { }`로 UDA 없음과 SDK 오류를 합치는 분기는 명시적 조회 결과로 바꾼 뒤 제거한다.
+- **Clash** 버튼이 간섭 표시 뒤 치수·시트 생성까지 호출하는 결합은 버튼 의도가 “검사만”으로 확정되면 삭제한다 `(미확인)`.

@@ -37,7 +37,40 @@
 
 ---
 
-## 2. 실행 순서 — 무엇이 어떤 순서로
+## 2. 실행 흐름 — 무엇이 어떤 순서로
+
+```mermaid
+flowchart TD
+    A["SDK 초기화 완료"] --> B["Vizcore3d_OnInitializedVIZCore3D<br/>(L141)"]
+    B --> C{"라이선스 초기화 성공?"}
+    C -- 아니오 --> D["모델 작업 중단"]
+    C -- 예 --> E["SDK 이벤트·Edge 설정"]
+    E --> F["「파일 열기」<br/>btnOpen_Click (L173)"]
+    F --> G{"Model.Open 성공?"}
+    G -- 아니오 --> H["오류 표시"]
+    G -- 예 --> I["BuildBodyToPartNameMap<br/>(L42)"]
+    I --> J["PopulateStruCheckList<br/>(Stru.cs L149)"]:::other
+    J --> K["새 모델 작업 상태"]
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
+
+```mermaid
+flowchart TD
+    A["「치수 추출」<br/>btnMainDimension_Click (L345)"] --> B["GetBOMTargetNodes<br/>(L786)"]
+    B --> C["CollectBOMData<br/>(L829)"]
+    C --> D["DetectClash<br/>(Clash.cs L1004)"]:::other
+    D --> E{"검사를 시작했나?"}
+    E -- 예 --> F["Clash 완료 이벤트<br/>(Clash.cs L1129)"]:::other
+    E -- 아니오 --> G["단일 부재로 간주"]
+    F --> H{"한 연결 성분인가?"}
+    H -- 아니오 --> I["후속 생성 중단"]
+    H -- 예 --> J["CompleteMainDimensionPostClash<br/>(L522)"]
+    G --> J
+    J --> K["CollectAllOsnap<br/>(L668)"]
+    K --> L["ComputeViewDimensionsForMembers<br/>(Dimensions.cs L2433)"]:::other
+    L --> M["GenerateDrawingSheets<br/>(DrawingSheets.cs L20)"]:::other
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
 
 ### 2-1. SDK와 모델 준비
 
@@ -126,7 +159,7 @@
 
 ---
 
-## 4. 외부 호출
+## 4. 의존 — 무엇과 묶여 있나
 
 ### VIZCore3D SDK API
 
@@ -240,19 +273,40 @@ BOM·Osnap·홀 루프는 매 BODY마다 `ProcessCancelableUiCheckpoint`를 호�
 
 ---
 
-## 6. 의심 — 확인이 필요한 것
+## 6. 책임과 결합 — 다시 짠다면
 
-| 표시 | 내용 |
-|---|---|
-| 🔴 | `BuildBodyToPartNameMap`은 실제 `ParentIndex`를 걷지 않고 **BODY 인덱스 이하의 가장 큰 Part 인덱스**를 부모로 가정한다. SDK가 노드 인덱스의 트리 연속성을 보장하는지 XML에는 설명이 없다. Part/Body 인덱스가 끼어들거나 재배열되면 이름·Clash 연결성·도면 BOM 번호가 연쇄 오염될 수 있다 `(미확인)` . |
-| 🔴 | `DetectClash`가 false를 반환하면 대상 수나 실패 원인을 확인하지 않고 `isSingleMember:true`로 후속 파이프라인을 실행한다 (L421~430). false에는 단일 부재뿐 아니라 SDK 예외·테스트 등록 실패·첫 실행 실패도 포함돼, 다중 부재 연결성 검사를 우회할 수 있다. |
-| 🔴 | 새 파일 열기는 `balloonOverrides`, `_lastCollectedNodeOsnapMap`, `_mfgAxisDetectionCache`, `_udaValueCache`를 비우지 않는다. 새 모델이 같은 노드 인덱스를 재사용하면 이전 모델의 풍선 위치·UDA·축 판정이 적용될 수 있다. `CollectAllOsnap`을 거치면 일부는 뒤늦게 초기화되지만 파일 열기 직후 가공도 등 다른 경로는 위험하다. |
-| 🔴 | “현재 가시성” 대상에서 보이는 BODY가 0개면 전체 BODY로 fallback한다 (L824~826). 사용자가 전부 숨겨 “대상 없음”을 만든 경우 오히려 전체 모델을 처리한다. 간섭 파일에도 같은 fallback이 있다. |
-| 🟠 | 기본 `bomList`는 Part가 아니라 BODY마다 한 행을 만든다. 한 Part가 여러 BODY면 같은 Part 이름의 여러 행이 생기고 연결성도 BODY 단위로 계산된다. 논리 BOM 단위 정의와 맞는지 확인이 필요하다. |
-| 🟠 | **초기화**는 모델을 재로드하지만 STRU 목록과 체크 상태를 비우거나 `PopulateStruCheckList`를 다시 호출하지 않는다. 같은 파일이라도 새 SDK Node 객체가 만들어진 뒤 `_struNodeCache`는 이전 객체를 계속 보관한다. |
-| 🟠 | **파일 열기**는 새 모델을 실제로 열기 전에 현재 목록을 지우고 기존 모델을 닫는다. 새 파일의 `Model.Open`이 실패하면 이전 모델과 작업 상태로 되돌릴 수 없다. |
-| 🟠 | PURPOSE를 읽을 때 BODY마다 `UDA.Keys` 전체를 다시 순회한다 (L901~922). 수천 BODY에서는 동일 Key 검색이 반복되므로 Key를 한 번 찾아 재사용할 수 있다. |
-| 🟡 | `DetectHoles`의 XML 주석은 제거된 “원기둥 높이와 부재 두께 비교” 휴리스틱을 설명하고, `tolerance=1.0f` 매개변수도 본문에서 쓰지 않는다. 실제 구현은 공식 홀 API뿐이다. |
-| 🟡 | `RotationAngle`은 모든 BODY에서 `0.0f`로 고정인데 BOM 표에는 **각도** 열이 계속 노출된다. 계산 계획이 없다면 죽은 열이다. |
-| 🟡 | CIRCLE 반지름·PURPOSE·홀 조회 예외를 삼키거나 Debug 출력만 한다. 해당 값이 정말 없는 것과 SDK 조회 실패를 사용자가 구분할 수 없다. |
-| 🟡 | 매 BODY마다 UI 체크포인트를 실행해 취소 반응은 빠르지만 `Application.DoEvents()` 비용과 재진입 가능성이 큰 대상에서는 누적된다. 실제 처리시간 대비 비용 측정이 필요하다. |
+### ① 이 파일이 지는 책임
+
+- VIZCore3D 초기화 완료 뒤 라이선스·이벤트·Edge 옵션을 준비한다.
+- 모델 파일 열기와 같은 파일 재로드, 화면·캐시·목록 초기화를 수행한다.
+- 현재 X-Ray 또는 가시 BODY를 작업 대상으로 정하고 BODY→Part 관계를 만든다.
+- BODY별 BBox·원 반지름·PURPOSE·홀과 LINE/POINT Osnap을 수집한다.
+- **치수 추출** 한 번으로 BOM → Clash → Osnap → 체인 치수 → 시트 생성 파이프라인을 조정한다.
+
+모델 세션, 기본 BOM 수집, 특징점 수집, 전체 작업 오케스트레이션이 한 파일에 결합돼 있다.
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| 모델 열기·닫기·재로드와 모델별 캐시 버전 | `ModelSessionService` | 성공한 모델 교체 시점에 모든 모델 종속 캐시를 한 번에 무효화할 수 있다. UI 목록을 먼저 지우는 현재 순서도 트랜잭션 경계로 바꿀 수 있다. |
+| BODY→Part 해석과 대상 BODY 선택 | `ModelHierarchyIndex`와 `BOMTargetResolver` | UI에서는 선택 인덱스/가시 인덱스만 넘기고, 부모 관계와 fallback 정책을 별도 시험할 수 있다. |
+| BBox·PURPOSE·홀 기반 `BOMItem` 생성 | `BasicBomCollector` | SDK 조회를 얇은 어댑터로 감싸면 정렬·표시 데이터 조립은 화면 컨트롤과 무관하다. |
+| LINE/POINT Osnap 수집과 BODY별 맵 | `OsnapCollector` | 전역 목록과 BODY별 맵을 한 불변 결과로 반환하면 후속 치수 계산이 공유 필드에 기대지 않는다. |
+| 치수 추출의 단계 전환 | `DrawingExtractionCoordinator` | Clash 시작 여부를 bool이 아닌 `NoTestNeeded/Started/Failed` 결과로 받아 잘못된 단일 부재 fallback을 없앨 수 있다. |
+
+### ③ 못 떼는 것과 이유
+
+- SDK 초기화 이벤트, `Model.Open`, Edge 설정, 객체 선택·Clash 이벤트 배선은 상태를 가진 `vizcore3d` 인스턴스와 SDK 수명주기에 묶인다.
+- 파일 선택·확인창·진행창·버튼 잠금과 ListView 갱신은 WinForms 어댑터에 남아야 한다.
+- ⚠ `bomList`, `osnapList`, `chainDimensionList`, `drawingSheetList`, X-Ray 범위를 다른 partial 파일이 직접 읽으므로, 작업 결과 객체를 도입하기 전에는 오케스트레이터만 떼어낼 수 없다.
+- BODY가 0개일 때 전체 모델로 fallback할지 “대상 없음”으로 끝낼지는 제품 정책이다. 현재 동작을 제거하기 전에 확인해야 한다 `(미확인)`.
+- BODY 인덱스 순서가 부모 Part 연속성을 보장하는지는 SDK XML에서 확인되지 않는다. `ParentIndex` 기반으로 바꾸는 것이 안전해 보이지만 실기 검증이 필요하다 `(미확인)`.
+
+### ④ 지울 것
+
+- `DetectHoles`의 사용되지 않는 `tolerance=1.0f` 매개변수와 제거된 원기둥 휴리스틱을 설명하는 XML 주석은 삭제한다.
+- 항상 `0.0f`인 `RotationAngle`과 **각도** 열은 실제 계산 요구가 없다면 삭제한다 `(미확인)`.
+- `DetectClash == false`를 곧바로 `isSingleMember:true`로 해석하는 분기는 형식화된 결과로 교체한 뒤 제거한다.
+- 파일 열기·초기화에 흩어진 캐시/목록 clear 중복은 `ModelSessionService.Reset` 하나로 옮긴 뒤 삭제한다. 새 파일에서 남는 `balloonOverrides`, Osnap, 축, UDA 캐시도 이 경계에서 함께 비운다.
+- BODY마다 `UDA.Keys` 전체를 다시 찾는 반복은 모델 세션별 PURPOSE Key 캐시로 바꾼 뒤 제거한다.
