@@ -35,7 +35,38 @@
 
 ---
 
-## 2. 실행 순서 — 무엇이 어떤 순서로
+## 2. 실행 흐름 — 무엇이 어떤 순서로
+
+```mermaid
+flowchart TD
+    A["「ISO/X축/Y축/Z축」 버튼"] --> B["ApplyGlobalView<br/>(L49)"]
+    B --> C{"현재 작업 범위는?"}
+    C -- 선택 시트 --> D["ApplyDrawingSheetView<br/>(DrawingSheets.cs L838)"]:::other
+    C -- X-Ray 선택 --> E["ApplySelectedNodesView<br/>(L79)"]
+    C -- 전체 모델 --> F["ApplyFullModelView<br/>(L140)"]
+    E --> G{"ISO인가?"}
+    F --> G
+    G -- 예 --> H["CreateIsoBalloonNotes<br/>(DrawingSheets.cs L960)"]:::other
+    G -- 아니오 --> I["ShowAllDimensions<br/>(Dimensions.cs L393)"]:::other
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
+
+```mermaid
+flowchart TD
+    A["설치도 시트 생성·적용<br/>(DrawingSheets.cs)"]:::other --> B["PrepareInstallationConnectionData<br/>(L290)"]
+    B --> C["Part 쌍을 BODY 쌍으로 확장"]
+    C --> D{"접합선이 있나?"}
+    D -- 있음 --> E["MergeConnectedContactSegments<br/>(L588)"]
+    D -- 없음 --> F{"접합 Mesh/HotPoint가 있나?"}
+    F -- 있음 --> G["대표 접합점으로 보완"]
+    F -- 없음 --> H["후보 제외"]
+    E --> I["SnapToNearestOsnap<br/>(L998)"]
+    G --> I
+    I --> J["AssignInstallationConnectionLabels<br/>(L613)"]
+    J --> K["ComputeInstallationDimensions<br/>(L1033)"]
+    K --> L["뷰별 위치 치수 목록"]
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
 
 ### 2-1. ISO·축 버튼
 
@@ -118,7 +149,7 @@
 
 ---
 
-## 4. 외부 호출
+## 4. 의존 — 무엇과 묶여 있나
 
 ### VIZCore3D SDK API
 
@@ -239,15 +270,36 @@ coverage(axis) = 접합점의 축방향 extent / 대상 BODY의 축방향 extent
 
 ---
 
-## 6. 의심 — 확인이 필요한 것
+## 6. 책임과 결합 — 다시 짠다면
 
-| 표시 | 내용 |
-|---|---|
-| 🔴 | `ProjectInstallationPoint`(L796)와 `GetInstallationPerpendicularDistance`(L802)는 호출자가 없다. 접합 기준을 투영값에서 월드축 성분으로 재설계하면서 남은 죽은 계산으로 보인다. |
-| 🟠 | `BuildInstallationPlacementAnchor`는 `connectedPoints`를 조회해 비어 있으면 치수를 포기하지만, 실제 끝점 계산에는 이 목록을 쓰지 않고 접합점만 쓴다 (L873~901). 접합점이 유효해도 연결 BODY의 Osnap/BBox 조회 실패 때문에 결과가 사라질 수 있다. |
-| 🟠 | 주석은 “유의미하게 긴 축만”이라고 설명하지만 실제 게이트는 절대 길이가 아니라 `접합 extent / 부재 extent < 0.5`와 최종 거리 `> 3mm`뿐이다. 얇은 축에서도 접합 폭이 작으면 치수가 생길 가능성이 있다 (미확인). |
-| 🟠 | `ApplySelectedNodesView`의 `BeginUpdate`~`EndUpdate`가 `try/finally`로 묶여 있지 않다. 사이 SDK 호출이 예외를 던지면 일괄 갱신이 종료되지 않은 채 바깥 `ApplyGlobalView`가 오류창만 띄운다. |
-| 🟡 | `FromIndex`·`GetChildObject3d` 주변의 빈 `catch { }`가 여러 곳이라, 계층 조회 실패가 “STRU 없음/Body 없음”과 구분되지 않는다. |
-| 🟡 | `ApplyGlobalView` 방향은 문자열이고 `default`가 없다. 현재 네 고정 핸들러만 호출하므로 동작하지만 새 호출자가 오타를 넘기면 카메라를 바꾸지 않은 채 풍선·치수만 다시 그린다. |
-| 🟡 | `InstallationPlacementAnchor.ConnectedCornerPoint`에는 최종 접합 모서리가 아니라 접합 중심이 들어간다. 실제 모서리는 `InstallationAxisComponent.ConnectionCoord`에 있어 이름이 현재 의미와 어긋난다. |
-| 🟡 | `Dimensions`의 죽은 축/ISO 핸들러 4개는 모두 `ApplyGlobalView`만 호출하므로 살아 있는 버튼과 기능 차이가 없다. `DrawingSheets`의 죽은 4개는 `ApplyDrawingSheetView`를 직접 호출하지만, 살아 있는 글로벌 버튼도 시트 선택 상태에서는 같은 곳으로 라우팅한다. 즉 두 묶음은 옛 화면의 호환용 껍데기로 판단된다. |
+### ① 이 파일이 지는 책임
+
+- ISO·X·Y·Z 명령을 받아 **선택 시트 → X-Ray 선택 → 전체 모델** 우선순위로 표시 범위를 고른다.
+- SDK 카메라·가시성·X-Ray를 바꾸고, 방향에 맞는 풍선 또는 치수 표시를 다른 파일에 요청한다.
+- 제작도 근접 결과를 BODY 접합선·Mesh·HotPoint까지 내려 설치도 연결 데이터와 상대 STRU 표시 범위로 바꾼다.
+- 접합영역과 기준 부재 끝단 사이 거리를 계산해 직교 뷰별 설치 위치 치수를 만든다.
+
+글로벌 뷰 UI와 설치도 기하 계산이라는 서로 다른 책임이 한 파일에 함께 있다.
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| `MergeConnectedContactSegments`, 축별 extent·끝단·거리 계산 | `InstallationGeometryCalculator` 같은 순수 계산 모듈 | SDK 조회가 끝난 뒤에는 좌표·선분·BBox만으로 계산하므로 WinForms와 무관하다. 현재 1mm 병합, 0.5 비율, 3mm 최소 길이 규칙을 그대로 자산으로 옮길 수 있다. |
+| 접합선 → Mesh → HotPoint fallback과 Osnap 스냅 | `InstallationContactExtractor` | 입력을 BODY별 기하 DTO와 Osnap 목록으로 만들면 화면 상태 없이 시험할 수 있다. |
+| A, B, …, AA 라벨 정렬·부여 | `InstallationLabelAssigner` | Assembly·Part 이름과 인덱스만 받는 결정적 정렬 규칙이다. |
+| 문자열 방향과 범위 우선순위 | `ViewCommand`/`ViewScope` 값 객체와 라우터 | 카메라 실행 전에 결정되는 정책이므로 SDK 호출과 분리할 수 있다. 문자열 오타도 enum으로 없앨 수 있다. |
+
+### ③ 못 떼는 것과 이유
+
+- 네 버튼 핸들러와 현재 탭·선택 행 판독은 WinForms 컨트롤에 묶여 있어 UI 어댑터에 남아야 한다.
+- `MoveCamera`, `XRay`, `Show`, `BeginUpdate` 같은 실행은 상태를 가진 `vizcore3d` 인스턴스와 SDK Node 인덱스에 묶인다. SDK 전용 `ViewPort` 어댑터 경계가 필요하다.
+- 풍선·일반 치수·시트 전용 뷰는 `DrawingSheets`와 `Dimensions`의 ⚠ 공유 목록을 곧바로 바꾸므로, 현재 형태 그대로는 `Form1` 밖으로 옮길 수 없다.
+- `BuildInstallationPlacementAnchor`의 `connectedPoints` 선행 조건은 실제 계산에 직접 쓰이지 않는다. 제거 가능 여부는 연결 BODY의 기하 조회 실패를 어떻게 처리할지 정한 뒤 확인해야 한다 `(미확인)`.
+
+### ④ 지울 것
+
+- 호출자가 없는 `ProjectInstallationPoint`(L796)와 `GetInstallationPerpendicularDistance`(L802)는 삭제 대상이다.
+- `InstallationPlacementAnchor.ConnectedCornerPoint`처럼 실제로는 접합 중심을 담는 잘못된 이름은 새 DTO로 옮길 때 없애고 `ContactCenter`로 통일한다.
+- `Dimensions`와 `DrawingSheets`에 남은 미배선 축/ISO 핸들러 8개는 이 파일의 살아 있는 라우터와 기능이 겹치므로 통합 때 삭제 대상이다. 시트 선택 시 같은 `ApplyDrawingSheetView`로 가는 것은 확인했지만, 외부에서 리플렉션 호출하는지는 `(미확인)`이다.
+- 문자열 `viewDirection` 분기와 빈 `catch { }`는 enum 명령과 실패 결과형으로 대체한 뒤 제거한다.
