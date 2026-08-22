@@ -16,7 +16,7 @@
 | `A2Z/Models/MfgViewPose.cs` | 3개 | 가공도 전용 |
 
 > 🔴 **그런데 이게 전부가 아니다.** 프로젝트의 독립 타입은 **26개**인데 **13개만 여기 있다.**
-> 나머지 13개는 `Form1.*.cs` 안에 흩어져 있다 → [6절](#6-의심--확인-필요)
+> 나머지 13개는 `Form1.*.cs` 안에 흩어져 있다 → [6절](#6-책임과-결합--다시-짠다면)
 
 ---
 
@@ -24,27 +24,28 @@
 
 타입을 하나씩 보기 전에, **파이프라인의 어느 단계에서 무엇이 생기는지**부터 보면 읽기 쉽다.
 
+```mermaid
+flowchart TD
+    A["모델 열기"] --> B["BOM 수집"]
+    B --> B1["BOMData<br/>부재 하나"]
+    B1 --> B2["HoleInfo · SlotHoleInfo<br/>그 부재의 구멍"]
+    B --> C["간섭 검사"]
+    C --> C1["ClashData<br/>부딪힌 부재 쌍"]
+    C --> D["체인 치수 계산"]
+    D --> D1["ChainDimensionData<br/>치수 하나"]
+    D --> E["시트 자동 분할"]
+    E --> E1["DrawingSheetData<br/>도면 한 장"]
+    E1 --> E2["DrawingBomRowData<br/>BOM 표 한 행"]
+    E1 --> E3["InstallationConnectionData<br/>설치도 접합"]
+    E1 --> E4["RevisionEntry<br/>REV 이력 한 행"]
+    E --> F["가공도 생성"]
+    F --> F1["MfgViewPose<br/>뷰 하나의 카메라·회전"]
+    F1 --> F2["MfgPendingDim · MfgPendingNote<br/>나중에 그릴 것"]
+    E --> G["제작도 4면도"]
+    G --> G1["DrawingReferenceFrame<br/>기울어진 부재용 임시 좌표계"]
 ```
-모델 열기
-   ↓
-BOM 수집        →  BOMData (부재 하나 = 1개)
-                     └ HoleInfo · SlotHoleInfo (그 부재의 구멍들)
-   ↓
-간섭 검사        →  ClashData (부딪힌 부재 쌍 = 1개)
-   ↓
-체인 치수 계산    →  ChainDimensionData (치수 하나 = 1개)
-   ↓
-시트 자동 분할    →  DrawingSheetData (도면 한 장 = 1개)
-                     ├ DrawingBomRowData (그 시트 BOM 표의 한 행)
-                     ├ InstallationConnectionData (설치도 접합 정보)
-                     └ RevisionEntry (표제부 REV 이력 한 행)
-   ↓
-가공도 생성      →  MfgViewPose (뷰 하나의 카메라·회전 상태)
-                     ├ MfgPendingDim (나중에 그릴 치수)
-                     └ MfgPendingNote (나중에 그릴 형상 노트)
-   ↓
-제작도 4면도     →  DrawingReferenceFrame (기울어진 부재용 임시 좌표계)
-```
+
+**타입이 파이프라인 단계와 1:1로 붙는다.** 그래서 단계를 하나 바꾸면 그 타입이 같이 움직인다.
 
 ---
 
@@ -228,17 +229,78 @@ DrawMfgDimsAtScale  →  그제서야 그림
 
 ---
 
-## 6. 의심 · 확인 필요
+## 6. 책임과 결합 — 다시 짠다면
+
+### ① 이 파일이 지는 책임
+
+**데이터 모양 정의 하나뿐이다.** 문제는 책임이 아니라 **범위**다.
+
+### ② 떼어낼 수 있는 것 — 오히려 모아야 한다
+
+이 파일은 쪼갤 게 아니라 **흩어진 걸 모아야 하는 쪽**이다.
+
+| 지금 어디 | 타입 | 개수 |
+|---|---|---|
+| ✅ `Models.cs` | ChainDimensionData · BOMData · HoleInfo · SlotHoleInfo · ClashData · InstallationConnectionData · DrawingSheetData · DrawingReferenceFrame · DrawingBomRowData · RevisionEntry | **10** |
+| ✅ `Models/MfgViewPose.cs` | MfgViewPose · MfgPendingDim · MfgPendingNote | **3** |
+| 🔴 `Form1.MfgDrawing.cs` | MfgAxisVector · MfgAxisDirectionBin · MfgAxisDetectionResult · MfgDrawingResult · MfgPage | **5** |
+| 🔴 `Form1.Clash.cs` | DrawingBomPartData · DrawingBomPreparationContext · DrawingBomSnapshot | **3** |
+| 🔴 `Form1.GlobalViews.cs` | InstallationAxisComponent · InstallationPlacementAnchor | **2** |
+| 🔴 `Form1.DrawingSheets.cs` | DrawingSheetExportKind (enum) · FabricationNeighborAssemblyNote | **2** |
+| 🔴 `Form1.cs` | BodyBoundsData | **1** |
+
+**26개 중 13개만 모델 파일에 있다. 정확히 절반이다.**
+
+데이터 모양을 찾으려면 두 군데를 봐야 하고, `Form1.*.cs` 안에 있는 것은 **파일 중간(예: `MfgAxisVector`는 MfgDrawing.cs L3279)에 끼어 있어** 눈에 안 띈다.
+
+> 옮기는 건 **위험이 거의 없다.** 타입 선언을 파일만 바꾸는 것이고 `namespace A2Z`가 같아 참조가 안 깨진다. **가장 싸고 효과가 큰 정리 항목.**
+
+### ③ 못 떼는 것과 이유
+
+| 무엇 | 무엇에 묶였나 |
+|---|---|
+| `Vector3D` · `Vertex3D` · `CameraData` · `CameraDirection` | **SDK 형식.** 속성 타입으로 직접 쓴다 |
+
+**데이터 모델이 SDK에 형식으로 묶여 있다.** SDK를 갈아치우면 여기부터 바뀐다. 다만 지금 그럴 계획이 없으므로 **감수할 결합**이다.
+
+### ④ 지울 것
+
+| | |
+|---|---|
+| `StartPointStr` · `EndPointStr` (`ChainDimensionData`) | `StartPoint`/`EndPoint`의 문자열 사본. 표시용으로 보이나 원본과 어긋날 여지가 있다 **(미확인 — 지우기 전 사용처 확인 필요)** |
+
+### 🔑 리팩토링 관점에서 이 파일이 알려주는 것
+
+**`MfgViewPose`가 속성 30개 이상을 담고 있다.** 카메라·회전·참조축·지연 그리기·배치·EA 페어가 한 클래스에 섞여 있다.
+
+이건 그 자체로 문제라기보다 **`Form1.MfgDrawing.cs`(3,883줄)가 얼마나 많은 걸 한 번에 하는지를 보여주는 지표**다. 결과물 하나에 30개를 담아야 한다는 건, 그걸 만드는 쪽도 그만큼 복잡하다는 뜻이다.
+
+가르면 이렇게 된다 **(추정 — MfgDrawing 정독 후 확정)**.
+
+```
+MfgViewPose        카메라 · 회전 · 참조축        (12개)
+MfgDrawingPlan     지연 그리기 목록             (4개)
+MfgLayout          배치 · 여백                  (4개)
+MfgEaPair          EA 페어 코너·스왑·미러        (9개)
+```
+
+### ⑤ 센티넬을 이름 있는 상수로
+
+`DrawingSheetData.BaseMemberIndex`가 음수 센티넬을 쓴다 — 제작도 `-1` · 설치도 `-2` · 가공도 `-3`.
+
+**타입 정의에는 그 사실이 안 적혀 있다** (`DrawingSheets.cs` 주석에만 있음). 실제로 버그를 냈다 — TAG No. 조상 walk-up이 `currentIdx < 0`에서 즉시 멈춰 조립도만 값이 채워졌다 (#120).
+
+→ 최소한 **주석을 이 타입 옆에 옮기고**, 가능하면 `enum SheetKind`로 분리한다.
+
+---
+
+## 부록 — 지나가며 눈에 띈 것
 
 | | 내용 |
 |---|---|
-| 🟠 | **독립 타입 26개 중 13개만 모델 파일에 있다.** 나머지 13개가 `Form1.*.cs` 안에 흩어져 있다 — `MfgDrawing` 5개(`MfgAxisVector`·`MfgPage` 등), `Clash` 3개(`DrawingBomSnapshot` 등), `GlobalViews` 2개, `DrawingSheets` 2개, `Form1.cs` 1개(`BodyBoundsData`). **데이터 모양을 찾으려면 두 군데를 봐야 한다** |
-| 🟠 | **`MfgViewPose`가 속성 30개 이상을 담고 있다.** 카메라·회전·참조축·지연 그리기·배치·EA 페어가 한 클래스에 섞여 있다. 전역 필드 3개를 묶은 것이 출발점이었는데 계속 붙은 것으로 보인다 **(추정)**. EA 관련 9개는 별도 타입으로 뺄 수 있어 보인다 |
-| 🟠 | **`BaseMemberIndex`가 음수 센티넬을 쓴다** — 제작도 `-1` · 설치도 `-2` · 가공도 `-3`. **이 타입 정의에는 그 사실이 안 적혀 있다** (`DrawingSheets.cs` 주석에만 있음). 실제로 버그를 냈다 — TAG No. 조상 walk-up이 `currentIdx < 0`에서 즉시 멈춰 조립도만 값이 채워졌다 (#120) |
-| 🟡 | **좌표를 담는 방식이 두 가지다.** `BOMData`·`HoleInfo`는 `float CenterX/Y/Z` 낱개, `ChainDimensionData`·`InstallationConnectionData`는 `Vector3D`. 같은 프로젝트에서 섞여 있다 |
-| 🟡 | **`ChainDimensionData`에 문자열 사본이 있다** — `StartPointStr`/`EndPointStr`. `StartPoint`/`EndPoint`와 중복이고 표시용으로 보이나, 둘이 어긋날 여지가 있다 **(미확인)** |
-| 🟡 | **접근 수준이 섞여 있다.** `DrawingReferenceFrame`과 `MfgViewPose` 계열만 `internal sealed`, 나머지는 `public`. 기준이 불명확하다 |
-| 🟡 | `MfgPendingDim`·`MfgPendingNote`는 속성이 아니라 **공개 필드**(`public Vector3D Start;`)를 쓴다. 이 프로젝트에서 유일하다 |
+| · | **좌표를 담는 방식이 두 가지다.** `BOMData`·`HoleInfo`는 `float CenterX/Y/Z` 낱개, `ChainDimensionData`·`InstallationConnectionData`는 `Vector3D` |
+| · | **접근 수준이 섞여 있다.** `DrawingReferenceFrame`·`MfgViewPose` 계열만 `internal sealed`, 나머지는 `public` |
+| · | `MfgPendingDim`·`MfgPendingNote`는 속성이 아니라 **공개 필드**를 쓴다. 이 프로젝트에서 유일하다 |
 
 ---
 

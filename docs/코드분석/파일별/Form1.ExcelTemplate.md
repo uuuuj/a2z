@@ -53,7 +53,31 @@ vizcore3d.Drawing2D.Template.ImportExcelWithData(xlsx, data, 이미지)
 
 ---
 
-## 2. 실행 순서 — `FillRevisionTable(data, history)` L31
+## 2. 실행 흐름
+
+이 파일은 **엑셀 치환 파이프라인의 한 조각**이다. 전체에서 어디에 있는지부터 봐야 한다.
+
+```mermaid
+flowchart TD
+    A["「제작도」·「가공도」 버튼"]:::other --> B["도면 데이터 준비<br/>(DrawingSheets L2160~ / MfgDrawing L150~)"]:::other
+    B --> C["data 사전 만들기<br/>슬롯 1~240"]:::other
+    C --> D["FillRevisionTable (L31)"]
+    D --> E["BuildCurrentRevisionHistory (L60)<br/>REV.=0 · DATE=오늘 · 나머지 빈 값"]
+    E --> F{"이력 5건 초과?"}
+    F -- 예 --> G["5건까지만 + 로그"]
+    F -- 아니오 --> H
+    G --> H["행마다 슬롯 6칸 채우기<br/>RevRowSlotBase 기준"]
+    H --> I["KeepBorder (L80)<br/>빈 값 → 공백 1칸"]
+    I --> J["ImportExcelWithData<br/>{Input_N} 치환"]:::other
+    J --> K["RemoveEmptyTemplateBorders<br/>{Input} 남은 칸의 괘선 제거"]:::other
+    K --> L["2D 도면"]:::other
+    M["미기재 이력행 170~193<br/>키를 안 넣음"] -.의도적.-> K
+    classDef other fill:#eee,stroke:#999,stroke-dasharray:3
+```
+
+**회색 점선이 다른 파일이다.** 이 파일이 하는 일은 가운데 네 칸뿐이고, 앞뒤는 `DrawingSheets`·`MfgDrawing`과 SDK가 맡는다.
+
+### `FillRevisionTable(data, history)` L31
 
 호출부는 항상 이 한 줄이다.
 
@@ -159,16 +183,71 @@ data에 " " 를 넣는다   →  치환됨        →  TextBox 없음  →  ✅ 
 
 ---
 
-## 6. 의심 · 확인 필요
+## 6. 책임과 결합 — 다시 짠다면
+
+### ① 이 파일이 지는 책임
+
+**세 개가 섞여 있다.** 파일 이름은 하나를 말하는데 실제로는 셋이다.
+
+| | 무엇 | 줄 |
+|---|---|---|
+| 1 | **REV 이력 표 채우기** — 슬롯 170~199 | `FillRevisionTable` · `BuildCurrentRevisionHistory` · `RevRowSlotBase` |
+| 2 | **괘선 보존 규칙** — 도면 전체가 쓰는 공통 규칙 | `KeepBorder` |
+| 3 | **ListView 값 꺼내기** — 엑셀과 무관한 범용 유틸 | `SafeSubItem` |
+
+### ② 떼어낼 수 있는 것
+
+| 무엇을 | 어디로 | 근거 |
+|---|---|---|
+| `SafeSubItem` (L88) | 공용 유틸 클래스 | **엑셀과 아무 관계가 없다.** `ListViewItem`에서 안전하게 값을 꺼내는 3줄짜리 범용 함수. 여기 있을 이유가 하나도 없다 |
+| `KeepBorder` (L80) | `DrawingTemplate` 같은 도면 공통 클래스 | REV 표뿐 아니라 `DrawingSheets`의 PAINT CODE·DP No.·TAG No.도 쓴다. **REV 전용이 아니다** |
+| REV 표 3종 | `RevisionTableWriter` | 슬롯 번호·행 순서·5행 한도가 전부 여기에만 있다 |
+
+**셋 다 `static` 순수 함수라 상태를 안 들고 간다.** 옮기는 데 걸리는 게 없다.
+
+### ③ 못 떼는 것과 이유
+
+**없다.** 이 파일은 어디에도 묶여 있지 않다.
+
+| | |
+|---|---|
+| 공유 상태 | 안 씀 (인스턴스 필드 0개) |
+| SDK | 직접 호출 안 함 — `data` 사전만 채운다 |
+| UI | 안 건드림 |
+| `DiagLog` | 5건 초과 로그 1곳. 주입으로 해결 |
+
+> 🔑 **`partial class Form1`에서 떼어낼 수 있는 유일한 파일**이다. `License`는 UI(`MessageBox`)에 걸려 있는데 이 파일은 그것도 없다.
+
+### ④ 지울 것
+
+없다. 다만 **아직 안 쓰이는 코드**가 있다 — `FillRevisionTable`의 5행 처리 로직. 지금은 이력이 항상 1건뿐이라 첫 행만 쓴다. **지우지 말 것.** #64 Phase 3에서 쓸 자리다.
+
+### 🔑 진짜 문제는 이 파일 밖에 있다
+
+**엑셀 템플릿 처리의 본체가 `DrawingSheets`에 흩어져 있다.**
+
+| 무엇 | 지금 어디 |
+|---|---|
+| 슬롯 번호 컨벤션 (1~240) | `DrawingSheets` L2165~2183 **주석** |
+| `ImportExcelWithData` 호출 | `DrawingSheets` L2280 · `MfgDrawing` |
+| `RemoveEmptyTemplateBorders` 호출 | `DrawingSheets` L2290 · `MfgDrawing` L2669 |
+| 이미지 매핑 | `DrawingSheets` |
+| **REV 표만** | ✅ 이 파일 |
+
+**슬롯 번호가 주석으로만 있다.** 코드에는 `data[165]`, `data[166]` 같은 생짜 숫자가 박혀 있어서, 템플릿을 고치면 어디를 같이 고쳐야 하는지 주석을 읽어야 안다.
+
+→ 리팩토링 방향은 **"이 파일을 쪼개기"가 아니라 "엑셀 처리를 이 파일로 모으기"** 다. 슬롯 번호를 이름 있는 상수로 만들면 그 자리가 바로 여기다.
+
+---
+
+## 부록 — 지나가며 눈에 띈 것
 
 | | 내용 |
 |---|---|
-| 🟠 | **`""`와 `" "`의 차이가 문서 두 곳에서 다르게 읽힌다.** 이 파일 L26 주석은 *"`""` 대신 `" "`를 넣는다"* 로 둘을 구분하는데, `DrawingSheets` L2172 주석은 *"값이 있으면(`""`·`" "` 포함) 치환한다"* 로 둘을 같게 본다. 같다면 `KeepBorder`가 `" "`를 쓸 이유가 없다. **실기로 확인 필요** — 렌더 단계에서 갈리는 것으로 보이나 근거 없음 **(추정)** |
-| 🟠 | **`SafeSubItem`(L88)이 이 파일에 있을 이유가 없다.** `ListViewItem`에서 안전하게 값을 꺼내는 범용 헬퍼이고 엑셀과 무관하다. 실제 사용처도 `DrawingSheets` BOM 채우기뿐이다 |
-| 🟠 | **파일 이름과 내용이 어긋난다.** `ExcelTemplate`인데 실제로는 **REV 이력 표 전용 + 헬퍼 2개**다. 엑셀 템플릿 처리의 본체(슬롯 컨벤션·`ImportExcelWithData` 호출·이미지 매핑)는 `DrawingSheets`에 있다 |
-| 🟡 | **이력이 항상 1건이다.** `BuildCurrentRevisionHistory()`가 `REV.="0"` 한 건만 만든다. 즉 **몇 번을 출력해도 REV는 0**이고 표는 한 줄뿐이다. 5행 처리 로직은 아직 쓰이지 않는다 (#64 Phase 3 예정) |
-| 🟡 | **작성·검도·승인란이 항상 비어 있다.** 입력 수단이 없다 (#64 결정 필요 ①). DESCRIPTION 기본 문구도 미정 (결정 ②). `TODO` 4개가 코드에 남아 있다 |
-| 🟡 | **이력 6건 이상이면 조용히 잘린다.** 로그에는 남지만 도면에는 표시가 없다. 지금은 1건 고정이라 발생하지 않는다 |
+| ⚠ | **`""`와 `" "`의 차이가 문서 두 곳에서 다르게 읽힌다.** 이 파일 L26은 둘을 구분하는데 `DrawingSheets` L2172는 *"값이 있으면(`""`·`" "` 포함) 치환"* 으로 같게 본다. 같다면 `KeepBorder`가 `" "`를 쓸 이유가 없다. **실기 확인 필요 (추정)** |
+| · | **이력이 항상 1건이다.** 몇 번을 출력해도 REV는 0이다 (#64 Phase 3 예정) |
+| · | **작성·검도·승인란이 항상 비어 있다.** 입력 수단이 없다 (#64 결정 ①). `TODO` 4개가 남아 있다 |
+| · | 이력 6건 이상이면 조용히 잘린다. 로그에만 남는다 |
 
 ---
 
