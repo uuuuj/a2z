@@ -59,7 +59,7 @@ flowchart TD
     C --> D["CollectBOMData<br/>(BOM.cs)"]:::other
     D --> E["지금 화면에 보이는 Body 만 골라<br/>xraySelectedNodeIndices 재구성"]
     E --> F["CollectAllOsnap<br/>(BOM.cs)"]:::other
-    F --> G["MergeCoordinates (L2233)<br/>0.5mm 안은 같은 점"]
+    F --> G["MergeCoordinates (L2233)<br/>0.5mm 격자로 반올림 (경계는 안 합쳐짐 #8)"]
     G --> H["AddChainDimensionByAxis (L2303)<br/>X · Y · Z 세 번"]
     H --> I["lvDimension 목록 채우기"]
     I --> J["🟠 MessageBox 로 결과 표시"]
@@ -430,8 +430,8 @@ L115~118 (`MouseControl` 실험 흔적)
                           약 -350줄  (동작 불변)
 
 그 다음
-        DimensionFilter          약 300줄  순수 계산, 테스트 가능
-        ChainDimensionBuilder    약 250줄  순수 계산, 테스트 가능
+        DimensionFilter          약 300줄  SDK 무관 (입력 변이·로그 정리 후 테스트 가능 — #10)
+        ChainDimensionBuilder    약 250줄  SDK 무관 계산
         기하 유틸                약 150줄
 ```
 

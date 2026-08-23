@@ -104,7 +104,7 @@ flowchart TD
     S --> T["상하 스왑 결정"]
     P -- 아니오 --> U
     T --> U["FilterHiddenLineOsnap<br/>뒷면 점 제거"]
-    U --> V["4점 선별<br/>가로 max/min + 세로 max/min"]
+    U --> V["극점 선별<br/>축당 최대 4점 × 2축 = 최대 8점 (#15)"]
     V --> W["MergeCoordinates + AddChainDimensionByAxis<br/>(Dimensions.cs)"]:::other
     W --> X["FilterMfgDimensions<br/>축당 8개"]
     X --> Y["🔑 PendingDims 에 쌓기만<br/>offset 미적용 · 그리지 않음"]
@@ -197,7 +197,7 @@ flowchart TD
 | 메서드 | 어디 | 맡기는 일 |
 |---|---|---|
 | `MergeCoordinates` · `AddChainDimensionByAxis` · `ApplySmartFiltering` · `ComputeCanvasAbsoluteOffsets` · `DrawDimension` | `Form1.Dimensions.cs` | **치수 계산 전부** |
-| `FilterOsnapForDimAxis` | `Form1.DrawingSheets.cs` | 4점 선별 |
+| `FilterOsnapForDimAxis` | `Form1.DrawingSheets.cs` | 축당 극점 최대 4점 선별 (2축이라 합계 최대 8점) |
 | `PrepareDrawingCanvas` · `SaveCurrentDrawingToPdf` · `EndPdfPageAccumulation` | `Form1.Drawing2D.cs` | PDF 페이지 |
 | `FillRevisionTable` · `KeepBorder` | `Form1.ExcelTemplate.cs` | 표제부 |
 | `ShowBusyOverlay` · `BeginCancelableOperation` · `DiagLog` | `Form1.cs` | 진행·취소·로그 |

@@ -69,7 +69,7 @@ flowchart TD
     G --> H["🔑 중복 제거<br/>MemberIndices 가 같으면 뒤엣것 삭제"]
     H --> I["번호 재채번 1..N"]
     I --> J["PrepareDrawingSheetDimensionCaches<br/>PrepareDrawingSheetBomCaches"]
-    J --> K["목록 표시 — 이후 클릭은 캐시만 적용"]
+    J --> K["목록 표시 — 일반·설치 클릭은 캐시 적용<br/>가공도는 매번 재실행 (#19)"]
     classDef other fill:#eee,stroke:#999,stroke-dasharray:3
 ```
 
@@ -120,7 +120,7 @@ flowchart TD
 | ⚠ `_lastModelShiftCanvasX` / `Y` | **읽기** | 🔑 `Dimensions`가 계산한 값을 여기서 실제로 민다 |
 | ⚠ `fabricationNeighborClashList` 계열 6개 | 읽기·쓰기 | 제작도 점선 이웃 |
 | ⚠ `_drawingActiveReferenceAxisId` | 읽기·쓰기 | 참조축 리뷰 ID |
-| ⚠ `bomInfoNodeGroupMap` · `bodyToPartIndexMap` | 읽기·쓰기 | 매핑 |
+| ⚠ `bodyToPartIndexMap` | 읽기 | Body → Part 매핑 (쓰기는 BOM.cs — 3차 S10 정정. `bomInfoNodeGroupMap`은 이 파일 참조 0건이라 행 삭제) |
 
 ### 시트 종류를 음수로 구분한다
 
@@ -315,13 +315,13 @@ SetFocus(뷰어)  →  SendMessage(WM_MOUSEWHEEL) × 약 7회  →  약 3배 확
 
 | 무엇을 | 어디로 | 근거 |
 |---|---|---|
-| 🔑 **시트 분할의 그래프 코어** (L39~160: 인접 리스트·1-hop·BFS·중복 제거) | `SheetSplitter` | **이 구간은** `bomList`·`clashList`·`bodyToPartIndexMap`만 쓰는 그래프 계산이다. 단 `GenerateDrawingSheets` 444줄 **전체는 아니다** (교차검증 #20) — 반환형 `void`로 `drawingSheetList`·`lvDrawingSheet`를 직접 채우고, `CreateFullDrawingSheetData`(호출 L33, 선언 L464)는 선택 노드를 SDK로 조회하며 설치 연결 준비(L167)도 SDK를 부른다. **코어만 추출**하는 제안이다 |
+| 🔑 **시트 분할의 그래프 코어** (L39~220: 인접 리스트·1-hop·BFS·중복 제거) | `SheetSplitter` | **이 구간은** `bomList`·`clashList`·`bodyToPartIndexMap`만 쓰는 그래프 계산이다. 단 `GenerateDrawingSheets` 444줄 **전체는 아니다** (교차검증 #20) — 반환형 `void`로 `drawingSheetList`·`lvDrawingSheet`를 직접 채우고, `CreateFullDrawingSheetData`(호출 L33, 선언 L464)는 선택 노드를 SDK로 조회하며 설치 연결 준비(L167)도 SDK를 부른다. **코어만 추출**하는 제안이다 |
 | **UDA·이름 조회 5종** — `GetStruPntUdaValues` · `GetNamedUdaValue` · `GetOrCacheDrawingPaintCode` · `GetTagNoValue` · `GetDpNoValue` (L3557~3760) | `UdaReader` | `MfgDrawing`의 UDA 조회와 **같은 곳으로 가야 한다** |
 | **부모 탐색** — `FindParentStru` · `FindNearestParentAssembly` · `ResolveDrawingStruName` | 노드 트리 유틸 | GlobalViews도 쓴다 |
 | **배율 추정** — `EstimateFitScaleForCell` · `EstimateFitScaleForViewArea` | 배치 계산 | ⚠ 지금은 SDK를 직접 읽는다 (교차검증 #21) — 전자는 `Drawing2D.GridStructure`에서 셀·여백을, 후자는 참조 프레임 없으면 `GetBoundBox`를 호출. **영역·bbox를 값으로 받는 앞단을 만든 뒤에야** 순수 계산으로 뺄 수 있다 |
 | **파일명·이미지** — `PlaceImageInTemplateArea` · `SanitizeStruForFileName` | 유틸 | |
 
-**①만 해도 444줄이 순수 계산으로 빠진다.** 시트 분할은 **테스트를 쓸 수 있는 형태**가 되고, "왜 이 부재가 이 도면에 들어갔나"를 SDK 없이 재현할 수 있게 된다.
+**①의 그래프 코어(약 180줄)가 SDK 무관 계산으로 빠진다** (444줄 전체가 아니다 — #20). 그러면 시트 분할 규칙이 **테스트를 쓸 수 있는 형태**가 되고, "왜 이 부재가 이 도면에 들어갔나"를 SDK 없이 재현할 수 있게 된다.
 
 ### ③ 못 떼는 것과 이유
 
@@ -364,7 +364,7 @@ SetFocus(뷰어)  →  SendMessage(WM_MOUSEWHEEL) × 약 7회  →  약 3배 확
         죽은 핸들러 4개        -20
 
 순수 계산 분리
-        SheetSplitter         -444   ← 테스트 가능해진다
+        SheetSplitter (코어)  약 -180  ← 그래프 규칙만, 테스트 가능해진다 (#20)
         UdaReader 로 이관      -350   ← MfgDrawing 것과 합친다
         부모 탐색·배율·유틸    -300
                               ─────
