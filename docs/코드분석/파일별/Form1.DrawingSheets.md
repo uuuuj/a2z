@@ -350,7 +350,7 @@ SetFocus(뷰어)  →  SendMessage(WM_MOUSEWHEEL) × 약 7회  →  약 3배 확
 | | 내용 |
 |---|---|
 | 🔴 **죽은 버튼 핸들러 4개** (L1134~1153) | `btnDrawingISO/AxisX/AxisY/AxisZ_Click`. 배선 없음 |
-| 🟠 **`GenerateSheetDrawing2DCore` 361줄** | `_WithExcelTemplate`(965줄)와 **같은 일을 템플릿 없이** 한다. `GenerateSheetDrawing2D`(L1707)가 App.config 스위치로 둘 중 하나를 고르는데 **기본이 템플릿 경로**다. 옛 경로가 살아 있는지 확인 필요 **(미확인)** |
+| 🟠 **`GenerateSheetDrawing2DCore` 361줄** | `_WithExcelTemplate`(965줄)와 **같은 일을 템플릿 없이** 한다. 분기 스위치는 App.config가 아니라 **하드코딩 필드 `UseExcelTemplate = true`**(L1681)이고 false로 바꾸는 코드가 없어 **사실상 도달 불가** (자기 정정 2026-08-23, [`죽은 코드.md`](../판정/죽은%20코드.md) #7). "템플릿 없이 뽑는" 비상 경로로 남길지는 사용자 결정 |
 | 🟠 **`ApplyDrawingSheetView`(L838, 122줄)와 `ApplySheetSelection`(L636, 158줄)** | 겹치는 부분이 있다. 둘 다 시트를 3D에 적용한다 **(미확인 — 차이 확인 필요)** |
 
 ### 🔑 정리하면

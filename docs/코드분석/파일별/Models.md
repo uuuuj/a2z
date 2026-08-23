@@ -261,13 +261,13 @@ DrawMfgDimsAtScale  →  그제서야 그림
 |---|---|
 | `Vector3D` · `Vertex3D` · `CameraData` · `CameraDirection` | **SDK 형식.** 속성 타입으로 직접 쓴다 |
 
-**데이터 모델이 SDK에 형식으로 묶여 있다.** SDK를 갈아치우면 여기부터 바뀐다. 다만 지금 그럴 계획이 없으므로 **감수할 결합**이다.
+**데이터 모델이 SDK에 형식으로 묶여 있다.** 엄밀히는 **구조적 불가가 아니라 선택**이다 (교차검증 #4) — 프로젝트 소유 좌표·카메라 타입을 만들고 SDK 경계에서 변환하면 떼어진다. 지금은 SDK 교체 계획이 없어 그 변환 계층 비용을 **치르지 않기로 선택**한 것이다.
 
 ### ④ 지울 것
 
 | | |
 |---|---|
-| `StartPointStr` · `EndPointStr` (`ChainDimensionData`) | `StartPoint`/`EndPoint`의 문자열 사본. 표시용으로 보이나 원본과 어긋날 여지가 있다 **(미확인 — 지우기 전 사용처 확인 필요)** |
+| `StartPointStr` · `EndPointStr` (`ChainDimensionData`) | 문자열 사본이지만 **지금 지우면 안 된다** — 치수 목록 화면이 직접 소비한다 (`Dimensions.cs` L2196~97 · `DrawingSheets.cs` L568~69, 교차검증 #3). 표시 형식을 Presenter/계산 속성으로 옮긴 **뒤에만** 제거 가능 |
 
 ### 🔑 리팩토링 관점에서 이 파일이 알려주는 것
 

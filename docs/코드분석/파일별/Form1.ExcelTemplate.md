@@ -96,7 +96,7 @@ FillRevisionTable(data, BuildCurrentRevisionHistory());
 
 ## 3. 상태
 
-**인스턴스 필드가 없다.** 상수 하나뿐이고 나머지는 전부 `static` 순수 함수다.
+**인스턴스 필드가 없다.** 상수 하나뿐이다. 단 "전부 `static` 순수 함수"는 아니다 (교차검증 #2) — `static`은 `KeepBorder`·`SafeSubItem`뿐이고, `FillRevisionTable`·`BuildCurrentRevisionHistory`는 **인스턴스 메서드**로 입력 사전을 제자리 변경하고 `DiagLog`·`DateTime.Now`를 쓴다.
 
 | | 값 | 무엇 |
 |---|---|---|
@@ -203,7 +203,7 @@ data에 " " 를 넣는다   →  치환됨        →  TextBox 없음  →  ✅ 
 | `KeepBorder` (L80) | `DrawingTemplate` 같은 도면 공통 클래스 | REV 표뿐 아니라 `DrawingSheets`의 PAINT CODE·DP No.·TAG No.도 쓴다. **REV 전용이 아니다** |
 | REV 표 3종 | `RevisionTableWriter` | 슬롯 번호·행 순서·5행 한도가 전부 여기에만 있다 |
 
-**셋 다 `static` 순수 함수라 상태를 안 들고 간다.** 옮기는 데 걸리는 게 없다.
+옮기는 데 큰 걸림은 없으나 정확히는 (교차검증 #2) — 순수 `static`은 `KeepBorder`뿐이다. REV 표 2종은 로거·시계를 주입받으면 되고, `SafeSubItem`은 `ListViewItem` 형식에 묶여 **UI 어댑터 쪽**이 맞다.
 
 ### ③ 못 떼는 것과 이유
 
@@ -213,7 +213,7 @@ data에 " " 를 넣는다   →  치환됨        →  TextBox 없음  →  ✅ 
 |---|---|
 | 공유 상태 | 안 씀 (인스턴스 필드 0개) |
 | SDK | 직접 호출 안 함 — `data` 사전만 채운다 |
-| UI | 안 건드림 |
+| UI | 컨트롤은 안 건드리나 `SafeSubItem`이 WinForms `ListViewItem` **형식**에 묶임 |
 | `DiagLog` | 5건 초과 로그 1곳. 주입으로 해결 |
 
 > 🔑 **`partial class Form1`에서 떼어낼 수 있는 유일한 파일**이다. `License`는 UI(`MessageBox`)에 걸려 있는데 이 파일은 그것도 없다.

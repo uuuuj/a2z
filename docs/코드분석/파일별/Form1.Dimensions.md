@@ -187,7 +187,7 @@ flowchart TD
 x' = round(x / 0.5) × 0.5      // y, z 도 같이
 ```
 
-반올림한 뒤 **다시 0.5mm 안에 있는 것을 중복 제거**한다. 반올림만으로는 경계에 걸친 점이 갈리기 때문.
+반올림 뒤 후단에서 성분별 차이 `< 0.5` 검사를 한 번 더 하지만, 반올림 결과는 전부 0.5의 배수라 차이가 0 아니면 ≥ 0.5다 — **후단 검사는 같은 반올림 좌표의 중복 제거일 뿐이고, 인접 격자로 갈린 점(차이 정확히 0.5)은 합쳐지지 않는다** (교차검증 #8. 첫 작성의 "경계 보완" 해석은 틀렸다).
 
 > ⚠ `Any()` 선형 탐색이라 점 개수의 제곱에 비례한다. 좌표가 수천 개면 느려진다.
 
@@ -313,10 +313,14 @@ gap = min(기본 gap, 보조선 길이 × 0.5)
 
 ```
 부재마다:  판형(PAD/PLATE) 제외 → Osnap LINE 점 수집 → 길이축 방향 계산
-방향벡터를 뷰 평면에 투영 (깊이축 버림)
-부재 쌍의 각도가 90° 배수에서 1.0° 넘게 벗어나면 → AddCustom3PointAngle
-접합 판정: Osnap 끝점 간 거리 ≤ 3.0mm
+접합 판정:  Clash 표면 접촉(면접합 — 끝점이 부재 폭만큼 벌어져도 잡음)
+           또는 같은 Part의 다른 Body  또는 Osnap 최근접쌍 ≤ 3.0mm
+각도 판정:  화면 투영각이 아니라 실제 3D 내적으로 90° 배수 ±1.0° 검사
+뷰 선택:    두 축 평면의 법선이 깊이축과 가장 정렬된 한 뷰에만 표시
+표시:       AddCustom3PointAngle
 ```
+
+(첫 작성은 접합을 "Osnap 3mm"로만 축약했다 — Clash·같은 Part 경로와 3D 내적·단일 뷰 선택이 빠져 있었다. 교차검증 #9로 보강)
 
 **판형 부재는 길이 방향이 모호해서 아예 제외**한다. 제외 사유를 전부 로그로 남긴다 — *"기울어 붙었는데 각도가 안 나온다"* 를 진단하려고.
 
@@ -341,13 +345,13 @@ gap = min(기본 gap, 보조선 길이 × 0.5)
 
 | 무엇을 | 어디로 | 근거 |
 |---|---|---|
-| 🔑 **필터링 3종** — `AssignDimensionPriorities` · `ApplySmartFiltering` · `MergeShortDimensions` | `DimensionFilter` | **`vizcore3d`를 한 번도 안 부른다.** `ChainDimensionData` 목록을 받아 목록을 돌려주는 순수 계산 |
+| 🔑 **필터링 3종** — `AssignDimensionPriorities` · `ApplySmartFiltering` · `MergeShortDimensions` | `DimensionFilter` | **`vizcore3d`를 한 번도 안 부른다.** 단 "순수"는 아니다 (교차검증 #10) — 입력의 `Priority`·`IsVisible`·`DisplayLevel`을 제자리 변경하고 `DiagLog`를 부른다. 분리 시 불변 결과로 바꾸거나 변이를 명시하고 로거를 주입한다 |
 | 🔑 **체인 치수 생성** — `AddChainDimensionByAxis` · `MergeCoordinates` · `RoundToTolerance` · `GetRemainingAxis` · `GetViewNameByAxis` | `ChainDimensionBuilder` | 좌표 목록만 받는다. SDK도 UI도 안 씀 |
 | **좌표 계산 헬퍼** — `TryNormalizeDimensionAxis` · `MovePointToAxisProjection` · `GetBoundingBoxProjectionRange` · `GetAxisValue` · `OffsetTowardLineEnd` · `DrawingReferenceLocalToWorld` | 기하 유틸 | 전부 순수 함수 |
 | **`ComputeCanvasAbsoluteOffsets`** (L378) | 도면 사양 상수 클래스 | 나눗셈 두 줄. 상수 5개와 함께 |
 | **풍선 조정 다이얼로그** (L237~360) | 별도 Form | 대화상자를 코드로 만드는 124줄. `balloonOverrides`만 건드린다 |
 
-**①②만 빼도 700줄쯤이 순수 계산으로 분리된다.** 그러면 **테스트를 쓸 수 있게 된다** — 지금은 SDK 없이 치수 하나도 못 만들어 본다.
+**①②만 빼도 700줄쯤이 SDK 무관 계산으로 분리된다.** 그러면 **테스트를 쓸 수 있게 된다** — 지금은 SDK 없이 치수 하나도 못 만들어 본다.
 
 ### ③ 못 떼는 것과 이유
 

@@ -161,7 +161,7 @@ vizcore3d.License.LicenseServer(ip, port) 호출
 |---|---|
 | **무엇을** | 파일 전체 (145줄) |
 | **어디로** | `LicenseManager` 독립 클래스 |
-| **근거** | 공유 상태를 하나도 안 쓴다. 필드 3개가 전부 자기 것이고 밖에서 아무도 안 본다. UI 컨트롤도 안 건드린다 |
+| **근거** | 자기 소유 필드 3개는 밖에서 아무도 안 본다. 공유 상태 중 `vizcore3d`·`DiagLog`는 쓰지만 ③처럼 주입으로 풀린다. UI 컨트롤은 안 건드리나 `System.Windows.Forms.Timer`(L33)가 **UI 메시지 루프에 묶이므로** 타이머 소유·해제 경계를 같이 정해야 한다 (교차검증 #1) |
 
 인터페이스는 이 정도면 된다.
 
@@ -180,8 +180,9 @@ LicenseManager(vizcore3d, DiagLog)
 | `vizcore3d.License.LicenseServer()` | **SDK.** 생성자로 주입받으면 해결 |
 | `DiagLog` | `Form1.cs`의 static 메서드. 로거를 주입받는 형태로 바꾸면 해결 |
 | `MessageBox.Show` (L48) | **UI.** 위처럼 반환값으로 바꾸면 해결 |
+| `licenseRefreshTimer` (L33) | **WinForms Timer = UI 메시지 루프 의존.** 호출자가 타이머를 소유하거나 스레드 타이머 + 마샬링으로 교체 (교차검증 #1) |
 
-**셋 다 주입으로 풀린다.** 구조적으로 막힌 게 없다.
+**넷 다 주입·소유 이전으로 풀린다.** 구조적으로 막힌 게 없다.
 
 ### ④ 지울 것
 
