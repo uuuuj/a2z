@@ -820,7 +820,7 @@ namespace A2Z
             pose.ShapeDrawingIds.Clear();
 
             // 실측 배율로 캔버스 절대 오프셋(가공도 9/18mm) 역산 — 제작도와 동일 정책(ComputeCanvasAbsoluteOffsets).
-            ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp, out _,
+            ComputeCanvasAbsoluteOffsets(newScale, out float baseOff, out float lvlSp,
                 MfgCanvasBaseOff, MfgCanvasLvlSp);
 
             // 짧은 체인 치수 승격은 캡처 전 PromoteMfgSmallPendingDimensions에서 확정했다.

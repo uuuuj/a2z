@@ -2009,8 +2009,6 @@ namespace A2Z
                     vizcore3d.Review.Note.Clear();
                     vizcore3d.Review.Measure.Clear();
                     vizcore3d.ShapeDrawing.Clear();
-                    _lastModelShiftCanvasX = 0f;
-                    _lastModelShiftCanvasY = 0f;
 
                     // 시트 부재만 보이기 (X-Ray off)
                     vizcore3d.BeginUpdate();

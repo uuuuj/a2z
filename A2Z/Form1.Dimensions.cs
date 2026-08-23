@@ -336,10 +336,9 @@ namespace A2Z
         /// canvasScale은 호출자가 0 초과를 보장.
         /// </summary>
         private void ComputeCanvasAbsoluteOffsets(
-            float canvasScale, out float baseOffset, out float levelSpacing, out float canvasMaxOff,
+            float canvasScale, out float baseOffset, out float levelSpacing,
             float canvasBase = 7.5f, float canvasLvl = 7.5f)
         {
-            canvasMaxOff = canvasBase + canvasLvl;
             baseOffset   = canvasBase / canvasScale;
             levelSpacing = canvasLvl  / canvasScale;
         }
@@ -518,14 +517,12 @@ namespace A2Z
                 //   (canvasScaleOverride ≤ 0인 3D 미리보기 경로만 모델좌표 fallback: baseOffset=100 / levelSpacing=80)
                 float baseOffset, levelSpacing;
 
-                // canvasMaxOff: 분기 밖 선언 (모델 이동량 계산이 axisPositiveOffset 결정 후 같은 값 사용)
-                float canvasMaxOff = 0f;  // 2D 캔버스 mm. 1단 + 차분 = 2단
                 float extGapModel = -1f;  // 보조선 시작 gap (모델좌표). -1 = 기본 10mm (3D 미리보기 경로)
 
                 if (canvasScaleOverride > 0f && filteredDims.Count > 0)
                 {
                     // 보조선 길이 = 캔버스 절대 7.5/15mm. 공용 헬퍼 — 가공도와 동일 정책 (한 곳에서 관리).
-                    ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing, out canvasMaxOff);
+                    ComputeCanvasAbsoluteOffsets(canvasScaleOverride, out baseOffset, out levelSpacing);
                     // 보조선 시작 gap도 종이 절대(2mm)로 — 옛 모델좌표 10mm는 축척마다 종이 gap이 달라졌음 (2026-07-03)
                     extGapModel = FabCanvasExtGap / canvasScaleOverride;
 
@@ -537,10 +534,6 @@ namespace A2Z
                     baseOffset = 100.0f;
                     levelSpacing = 80.0f;
                 }
-
-                // T-038+039 v4 (2026-05-12): 모델 이동량 사전 초기화. axisPositiveOffset 결정 후(아래) 계산.
-                _lastModelShiftCanvasX = 0f;
-                _lastModelShiftCanvasY = 0f;
 
                 List<VIZCore3D.NET.Data.Vertex3DItemCollection> extensionLines = new List<VIZCore3D.NET.Data.Vertex3DItemCollection>();
 
@@ -571,53 +564,6 @@ namespace A2Z
                     }
                 }
 
-                // T-038+039 v4 (2026-05-12 사용자 사양): 보조선이 나간 방향 *반대*로 모델 이동
-                // "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동"
-                // axisPositiveOffset + canvasMaxOff 사용해 화면 H/V 외곽 방향·거리 계산
-                if (canvasScaleOverride > 0f && viewDirection != null && canvasMaxOff > 0f)
-                {
-                    string hAxis_3d, vAxis_3d;
-                    switch (viewDirection)
-                    {
-                        case "Z": hAxis_3d = "X"; vAxis_3d = "Y"; break;  // 화면 H=X, V=Y
-                        case "X": hAxis_3d = "Y"; vAxis_3d = "Z"; break;
-                        case "Y": hAxis_3d = "X"; vAxis_3d = "Z"; break;
-                        default:  hAxis_3d = "X"; vAxis_3d = "Y"; break;
-                    }
-
-                    // 화면 H 방향 외곽: vAxis_3d dim → 보조선 hAxis_3d → 화면 H
-                    // 화면 V 방향 외곽: hAxis_3d dim → 보조선 vAxis_3d → 화면 V
-                    float canvasHOff = 0f, canvasVOff = 0f;
-                    bool hPositive = false, vPositive = false;
-
-                    if (axisPositiveOffset.ContainsKey(vAxis_3d))
-                    {
-                        hPositive = axisPositiveOffset[vAxis_3d];
-                        canvasHOff = canvasMaxOff;
-                    }
-                    if (axisPositiveOffset.ContainsKey(hAxis_3d))
-                    {
-                        vPositive = axisPositiveOffset[hAxis_3d];
-                        canvasVOff = canvasMaxOff;
-                    }
-
-                    // T-038+039 v8 (2026-05-12 사용자 사양 — 뷰별 차등 공식):
-                    //   vPositive=true (외곽 위, 모델 아래 이동, 라벨 안전): 0.25 — 모든 뷰
-                    //   vPositive=false (외곽 아래 = 치수 아래, 모델 위 이동):
-                    //     - Z뷰(평면도): 0.5 (사용자 확인 OK)
-                    //     - X뷰/Y뷰: 0.75 (더 위로 — 사용자 사양 "라벨 가림 해소 추가 보강")
-                    // 표준 카메라 화면축: X뷰 right=+Y, Y뷰 right=+X, Z뷰 right=+X
-                    float vShiftScale;
-                    if (vPositive)
-                        vShiftScale = 0.25f;
-                    else
-                        vShiftScale = (viewDirection == "Z") ? 0.5f : 0.75f;
-                    const float hShiftScale = 0.25f;
-                    float horizontalShift = (hPositive ? -canvasHOff : canvasHOff) * hShiftScale;
-                    _lastModelShiftCanvasX = horizontalShift;
-                    _lastModelShiftCanvasY = (vPositive ? -canvasVOff : canvasVOff) * vShiftScale;
-                    DiagLog($"T-038+039 v8 ModelShift view={viewDirection} hAxis={hAxis_3d} vAxis={vAxis_3d} hPositive={hPositive} vPositive={vPositive} canvasH={canvasHOff:F1} canvasV={canvasVOff:F1} hShiftScale={hShiftScale} vShiftScale={vShiftScale} → shiftXY=({_lastModelShiftCanvasX:F1}, {_lastModelShiftCanvasY:F1})");
-                }
 
                 // ========== Level-Based Layout ==========
                 var level0Dims = filteredDims.Where(d => d.IsTotal && d.IsVisible).ToList();
