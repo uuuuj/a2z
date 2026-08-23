@@ -33,7 +33,7 @@
 
 버튼 둘과 목록 이벤트는 Designer에서, 검색 버튼은 `InitStruSearchUI`에서 직접 배선된다.
 
-다른 파일에서는 `GetSheetKindLabel`(L1078)과 `GetSheetKindLabelWithSequence`(L1095)를 도면 목록·표제부 종류명에 사용한다.
+다른 파일에서는 `GetSheetKindLabel`(L1093)과 `GetSheetKindLabelWithSequence`(L1110)를 도면 목록·표제부 종류명에 사용한다.
 
 ---
 

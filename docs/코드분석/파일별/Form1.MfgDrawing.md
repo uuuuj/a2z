@@ -25,8 +25,8 @@
 
 | 경로 | 무엇 |
 |---|---|
-| **도면 시트 목록에서 가공도 행 선택** | `LvDrawingSheet_SelectedIndexChanged`(DrawingSheets.cs) → `ExecuteMfgDrawing` L2358 → **3D 미리보기** |
-| **도면 일괄 출력** | `Form1.Stru.cs` → `GenerateMfgDrawingManual` L2486 → **PDF** |
+| **도면 시트 목록에서 가공도 행 선택** | `LvDrawingSheet_SelectedIndexChanged`(DrawingSheets.cs) → `ExecuteMfgDrawing` L2326 → **3D 미리보기** |
+| **도면 일괄 출력** | `Form1.Stru.cs` → `GenerateMfgDrawingManual` L2454 → **PDF** |
 
 **미리보기와 PDF가 같은 코어를 쓰고 어댑터만 다르다.**
 
@@ -35,7 +35,7 @@
                   부재 격리 · 카메라 · 축 · Osnap · EA · 치수·풍선 목록
                         │
         ┌───────────────┴───────────────┐
-ExecuteMfgDrawing (L2358)      RenderMfgRowToViewArea (L1305)
+ExecuteMfgDrawing (L2326)      RenderMfgRowToViewArea (L1305)
   3D 미리보기 어댑터              PDF 어댑터
   SMOOTH · 실루엣 · FitToView     DASH_LINE · 캡처 · 배율 확정 · 그리기
 ```
@@ -64,7 +64,7 @@ flowchart TD
     C --> D{"0개?"}
     D -- 예 --> Z2["안내 후 종료"]
     D -- 아니오 --> E["컨트롤 비활성 + 취소 가능 구간 시작<br/>진행창 표시"]:::other
-    E --> F["GenerateMfgDrawingManual (L2486)"]
+    E --> F["GenerateMfgDrawingManual (L2454)"]
     F --> G["SplitMfgIntoPages (L91)<br/>페이지로 나누기"]
     G --> H["부재마다 RenderMfgRowToViewArea (L1305)"]
     H --> I["결과 객체 반환<br/>MfgDrawingResult"]
@@ -118,7 +118,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["RenderMfgRowToViewArea (L1305)"] --> B["BuildMfgSceneCore<br/>장면 + 그릴 목록"]
-    B --> C["ProbeAndRollLandscape (L560)<br/>🔑 임시로 한 번 찍어 W/H 측정"]
+    B --> C["ProbeAndRollLandscape (L485)<br/>🔑 임시로 한 번 찍어 W/H 측정"]
     C --> D{"세로로 나왔나"}
     D -- 예 --> E["화면축 90° 회전 → 가로화"]
     D -- 아니오 --> F
@@ -220,7 +220,7 @@ Z가 최장이면          →  ApplyZ90 = true          = 화면에서 90° 눕
 
 **판형이냐 아니냐로 규칙이 정반대다.** 판은 넓은 면을 봐야 하고, 형강은 길이를 봐야 한다. 판정은 `SPREF` UDA 문자열로 한다.
 
-### ② 🔑 방향을 추측하지 않고 **찍어서 잰다** (`ProbeAndRollLandscape` L560)
+### ② 🔑 방향을 추측하지 않고 **찍어서 잰다** (`ProbeAndRollLandscape` L485)
 
 ```
 임시로 한 번 캡처  →  GetObjectSize 로 W·H 측정  →  즉시 삭제
@@ -347,7 +347,7 @@ BeginUpdate 안에서 MoveCamera 직후 FlyToObject3d 를 부르면
 | **ORIENTATION 파싱** — `TryParseMfgOrientationDirection` · `TryGetMfgCardinalDirection` (L3466~3528) | `OrientationParser` | 문자열 → 축·각도. 순수 파싱 |
 | **ORIENTATION 조회** — `ParseOrientation` · `GetOrientationLabel` (L3197~3245, L3261~) | `UdaReader` 쪽 | ⚠ 순수 파서가 아니다 (교차검증 #17) — `nodeIndex`를 받아 `GetUdaValue`로 **SDK-backed UDA를 조회**한 뒤 파싱한다. 조회와 파싱을 먼저 갈라야 위 파서가 분리된다 |
 | **벡터 헬퍼** — `DotMfgVector` · `MfgAxisVector` · `FormatMfgVector` | 기하 유틸 | 순수 함수 |
-| `MfgAxisUpPositive` (L1007) | ⚠ 기하 유틸 아님 | `vizcore3d.View.GetCameraAxis()`로 **현재 카메라 상태를 읽는다** (교차검증 #18). 축 벡터를 인자로 받게 바꾼 뒤에야 분리 가능 |
+| `MfgAxisUpPositive` (L947) | ⚠ 기하 유틸 아님 | `vizcore3d.View.GetCameraAxis()`로 **현재 카메라 상태를 읽는다** (교차검증 #18). 축 벡터를 인자로 받게 바꾼 뒤에야 분리 가능 |
 | **`FilterHiddenLineOsnap`** (L3067, 71줄) | 기하 유틸 | 좌표와 BBox만 받는다 |
 | **종이 절대 상수 10개** (L1474~1493) | 도면 사양 클래스 | 제작도 상수(`Dimensions.cs`)와 **한 곳에 모아야 비교가 된다** |
 | **`MfgDrawingResult` · `MfgPage`** (L44~70) | `Models.cs` | 데이터 그릇 → [`Models.md`](./Models.md) |

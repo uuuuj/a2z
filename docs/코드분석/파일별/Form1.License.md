@@ -18,7 +18,7 @@
 
 | 시점 | 무엇 |
 |---|---|
-| **앱 시작** | SDK 준비가 끝나면 `Vizcore3d_OnInitializedVIZCore3D` (BOM.cs L142) 안에서 `InitializeLicense()` 호출 |
+| **앱 시작** | SDK 준비가 끝나면 `Vizcore3d_OnInitializedVIZCore3D` (BOM.cs L150) 안에서 `InitializeLicense()` 호출 |
 | **30분마다** | `licenseRefreshTimer`가 `LicenseRefreshTimer_Tick` 실행 |
 
 > 🔴 **인증에 실패하면 SDK 초기 설정 전체가 중단된다.**
@@ -34,7 +34,7 @@
 
 ```mermaid
 flowchart TD
-    S["SDK 준비 완료<br/>Vizcore3d_OnInitializedVIZCore3D<br/>(BOM.cs L142)"]:::other --> A["InitializeLicense (L39)"]
+    S["SDK 준비 완료<br/>Vizcore3d_OnInitializedVIZCore3D<br/>(BOM.cs L150)"]:::other --> A["InitializeLicense (L39)"]
     A --> B["ConnectLicenseServer (L59)"]
     B --> O["GetLicenseServerOrder (L99)<br/>직전 성공 서버를 맨 앞에"]
     O --> C{"후보 하나 시도<br/>License.LicenseServer(ip, port)"}

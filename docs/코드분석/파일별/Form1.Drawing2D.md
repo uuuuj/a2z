@@ -60,7 +60,7 @@ flowchart TD
     F --> H["부재마다 GetOsnapPoint"]
     G --> H
     H --> I{"Osnap 종류"}
-    I -- LINE --> J["시작점·끝점 둘 다 추가<br/>EstimateOsnapLineAxis (L804) 로 축 판정"]
+    I -- LINE --> J["시작점·끝점 둘 다 추가<br/>EstimateOsnapLineAxis (L796) 로 축 판정"]
     I -- POINT --> K["중심점 추가 · 축은 빈 문자열"]
     I -- "CIRCLE · SURFACE" --> L["버림"]
     J --> M["lvOsnap 목록 채우기"]
@@ -84,7 +84,7 @@ flowchart TD
     C -- 예 --> D["false — 바깥 누적이 주인"]
     C -- 아니오 --> E{"IsPdfPageMergeEnabled (L1024)<br/>App.config Pdf.MergePages"}
     E -- "false (기본)" --> F["🔴 묶지 않음<br/>장마다 저장하고 뷰를 비운다"]
-    E -- true --> G["Clear2DView (L1245)<br/>누적 시작"]
+    E -- true --> G["Clear2DView (L1248)<br/>누적 시작"]
     G --> H["장마다 PrepareDrawingCanvas (L1056)<br/>AddCanvasBy2DView 로 캔버스 덧붙임"]
     H --> I{"그리기 성공?"}
     I -- 실패 --> J["DiscardCurrentPdfPage (L1081)<br/>반쪽 캔버스 제거"]
@@ -173,7 +173,7 @@ flowchart TD
 | CIRCLE | 버린다 — 곡면·원형은 체인 치수에 안 쓴다 |
 | SURFACE | 버린다 — 곡면 데이터가 너무 많다 |
 
-**축 판정 (L804)** — `start→end` 벡터의 **최대 성분**이 그 선의 축이다.
+**축 판정 (L796)** — `start→end` 벡터의 **최대 성분**이 그 선의 축이다.
 
 ```
 dx = |end.X - start.X|,  dy, dz 도 같이
@@ -265,7 +265,7 @@ Y·Z도 같다. **실제 접촉면이 아니라 겹침 구간의 중점**이다.
 | 무엇을 | 어디로 | 근거 |
 |---|---|---|
 | 🔑 **PDF 페이지 관리 8함수 + 필드 4개** | `PdfPageAccumulator` | 자기 필드 4개와 `vizcore3d.Drawing2D` 중심. 버튼 없음. 단 **DrawingSheets 헬퍼 3종에 걸려 있다** (교차검증 #7) — `GetAppSetting`(호출 L1026) · `CleanupDrawingSheetExportCanvas`(호출 L1104) · `SanitizeFileName` 계열(호출 L1192~). 설정·정리·파일명을 주입하거나 유틸로 **함께 이동**해야 분리된다 |
-| `EstimateOsnapLineAxis` (L804) | 기하 유틸 | `static` 순수 함수. 상태 없음 |
+| `EstimateOsnapLineAxis` (L796) | 기하 유틸 | `static` 순수 함수. 상태 없음 |
 | `GetSolutionPath` (L16) | 경로 유틸 | `.sln`을 위로 찾아 올라가는 함수. **Drawing2D와 무관** |
 | `BuildMergedDrawingPdfPath` (L1190) | 파일명 유틸 | `currentFilePath`만 참조 |
 
@@ -315,7 +315,7 @@ Y·Z도 같다. **실제 접촉면이 아니라 겹침 구간의 중점**이다.
 | ⚠ | `lvOsnap` 행 순서 = `osnapPoints` 인덱스라고 전제한다. 목록 정렬 기능이 붙으면 **엉뚱한 좌표가 지워진다** |
 | ⚠ | `btnOsnapShowSelected_Click` (L852) 이 풍선 텍스트를 만들 때 `SubItems[1]`(축)을 부재명으로, `SubItems[5]`(Z좌표)를 홀사이즈로 읽는다. **컬럼 순서가 `No/축/부재명/X/Y/Z` 라 어긋난다 (미확인 — 실기 확인 필요)** |
 | · | `btnGenerate2D_Click`이 만드는 임시 시트의 `BaseMemberIndex = -1`. 제작도 센티넬과 같은 값이다 → [`Models.md`](./Models.md) |
-| · | `Clear2DView` (L1245) 는 예외를 다섯 겹으로 삼킨다. 2026-07-22에 깜빡임 제거하며 ViewMode 토글·sleep을 걷어낸 자리다. 잔상 재발 시 롤백하라는 주석이 있다 |
+| · | `Clear2DView` (L1248) 는 예외를 다섯 겹으로 삼킨다. 2026-07-22에 깜빡임 제거하며 ViewMode 토글·sleep을 걷어낸 자리다. 잔상 재발 시 롤백하라는 주석이 있다 |
 | · | `CleanupBetweenPdfPages` 에서 `GC.WaitForPendingFinalizers()` 를 뺐다 — **UI 스레드 데드락 원인** (이슈 #116, 2026-08-04) |
 
 ---
