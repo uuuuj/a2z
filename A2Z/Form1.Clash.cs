@@ -50,14 +50,12 @@ namespace A2Z
         private sealed class DrawingBomPreparationContext
         {
             public Dictionary<int, DrawingBomPartData> PartByIndex = new Dictionary<int, DrawingBomPartData>();
-            public Dictionary<int, List<int>> PartToBodyIndices = new Dictionary<int, List<int>>();
             public Dictionary<int, int> PartToBomNo = new Dictionary<int, int>();
         }
 
         private sealed class DrawingBomSnapshot
         {
             public List<DrawingBomRowData> Rows = new List<DrawingBomRowData>();
-            public Dictionary<int, int> NodeGroupMap = new Dictionary<int, int>();
         }
 
         private void CollectBOMInfo(bool showAlert = true, DrawingSheetData sheetOverride = null)
@@ -213,35 +211,6 @@ namespace A2Z
                     ? "속성 덤프: App.config Uda.DumpOnLoad=true — 조상 체인 전체 덤프"
                     : "BOM 요약행 T/W: STRUCTURE 노드를 못 찾았다 — 조상 체인 덤프");
                 DumpDrawingBomStruDiagnostics(context.PartByIndex.Keys, wantedUdaKeys);
-            }
-
-            foreach (var pair in bodyToPartIndexMap)
-            {
-                if (!relevantPartIndices.Contains(pair.Value)) continue;
-                List<int> bodies;
-                if (!context.PartToBodyIndices.TryGetValue(pair.Value, out bodies))
-                {
-                    bodies = new List<int>();
-                    context.PartToBodyIndices[pair.Value] = bodies;
-                }
-                bodies.Add(pair.Key);
-            }
-
-            if (targetBodySet != null)
-            {
-                foreach (int bodyIndex in targetBodySet)
-                {
-                    int partIndex;
-                    if (!bodyToPartIndexMap.TryGetValue(bodyIndex, out partIndex))
-                        partIndex = bodyIndex;
-                    List<int> bodies;
-                    if (!context.PartToBodyIndices.TryGetValue(partIndex, out bodies))
-                    {
-                        bodies = new List<int>();
-                        context.PartToBodyIndices[partIndex] = bodies;
-                    }
-                    if (!bodies.Contains(bodyIndex)) bodies.Add(bodyIndex);
-                }
             }
 
             for (int i = 0; i < bomList.Count; i++)
@@ -564,18 +533,6 @@ namespace A2Z
                 Ma = "F",
                 Fa = "F"
             });
-
-            var partToGroup = new Dictionary<int, int>();
-            for (int i = 0; i < parts.Count; i++)
-                partToGroup[parts[i].PartIndex] = i + 1;
-
-            foreach (var pair in partToGroup)
-            {
-                List<int> bodies;
-                if (!context.PartToBodyIndices.TryGetValue(pair.Key, out bodies)) continue;
-                foreach (int bodyIndex in bodies)
-                    snapshot.NodeGroupMap[bodyIndex] = pair.Value;
-            }
 
             int fallbackNo = bomList.Count + 1;
             var dataRows = new List<DrawingBomRowData>();
