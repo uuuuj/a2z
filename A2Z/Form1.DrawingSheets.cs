@@ -461,6 +461,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// BOM 목록 전체를 부재로 담은 Sheet 1(제작도, 기준부재 -1) 시트 데이터를 만들어 돌려준다.
+        /// 시트 이름은 노드 선택 시 그 이름(없으면 파일명), 미선택 시 파일명 → 없으면 "전체"로 정한다.
+        /// 도면 시트 목록 생성 시작 시와 2D 출력에서 제작도 행이 없을 때 임시 시트로도 쓴다.
+        /// </summary>
         private DrawingSheetData CreateFullDrawingSheetData()
         {
             DrawingSheetData sheet = new DrawingSheetData
@@ -493,6 +498,11 @@ namespace A2Z
             return sheet;
         }
 
+        /// <summary>
+        /// 목록을 보여주기 전에 가공도를 뺀 모든 시트의 체인치수를 미리 계산해 각 시트의 사전 준비 치수에 저장한다.
+        /// 제작도는 치수 추출 결과가 있으면 재사용, 설치도는 설치 치수 엔진, 나머지는 Osnap 엔진으로 계산한다.
+        /// 엔진·부재 집합이 같은 시트끼리는 한 번만 계산해 공유하고, 번호를 1부터 다시 매긴다.
+        /// </summary>
         private void PrepareDrawingSheetDimensionCaches(List<ChainDimensionData> initiallyComputedDimensions)
         {
             var swTotal = System.Diagnostics.Stopwatch.StartNew();
@@ -548,6 +558,11 @@ namespace A2Z
                 $"cacheSets={dimensionsByMemberSet.Count} elapsed={swTotal.ElapsedMilliseconds}ms");
         }
 
+        /// <summary>
+        /// 시트에 미리 준비된 체인치수를 받아 공유 치수 목록과 치수 ListView에 그대로 옮겨 표시한다.
+        /// 시트 행 선택·시트 목록 생성 직후에 호출되며, 준비 안 된 시트면 아무것도 하지 않는다.
+        /// SDK 재조회나 치수 재계산 없이 캐시만 붙이므로 일반·설치 시트 클릭이 빠르다.
+        /// </summary>
         private void ApplyPreparedDimensionsToUi(DrawingSheetData sheet)
         {
             if (sheet == null || !sheet.DimensionsPrepared) return;
@@ -1239,16 +1254,25 @@ namespace A2Z
             Installation
         }
 
+        /// <summary>
+        /// [제작도] 클릭 → 도면 목록에서 제작도 시트만 골라 순서대로 2D 변환·PDF 저장하는 일괄 출력을 시작한다.
+        /// </summary>
         private void btnExportFabricationSheets_Click(object sender, EventArgs e)
         {
             ExportSheetsByKind(DrawingSheetExportKind.Fabrication);
         }
 
+        /// <summary>
+        /// [조립도] 클릭 → 도면 목록에서 조립도 시트만 골라 순서대로 2D 변환·PDF 저장하는 일괄 출력을 시작한다.
+        /// </summary>
         private void btnExportAssemblySheets_Click(object sender, EventArgs e)
         {
             ExportSheetsByKind(DrawingSheetExportKind.Assembly);
         }
 
+        /// <summary>
+        /// [설치도] 클릭 → 도면 목록에서 설치도 시트만 골라 순서대로 2D 변환·PDF 저장하는 일괄 출력을 시작한다.
+        /// </summary>
         private void btnExportInstallationSheets_Click(object sender, EventArgs e)
         {
             ExportSheetsByKind(DrawingSheetExportKind.Installation);
@@ -1440,6 +1464,10 @@ namespace A2Z
             DiagLog($"[{kindLabel} 출력] 결과 표시 완료 — 정상 종료");
         }
 
+        /// <summary>
+        /// 출력 종류를 받아 도면 시트 ListView에서 그 종류에 맞고 부재가 있는 행을 (행, 시트) 쌍 목록으로 돌려준다.
+        /// 종류별 일괄 출력의 대상 선정에 쓰이며, 부재가 비었거나 종류가 다른 행은 건너뛴다.
+        /// </summary>
         private List<KeyValuePair<ListViewItem, DrawingSheetData>> GetDrawingSheetExportTargets(
             DrawingSheetExportKind exportKind)
         {
@@ -1457,6 +1485,10 @@ namespace A2Z
             return result;
         }
 
+        /// <summary>
+        /// 시트와 출력 종류를 받아 기준부재 번호 규약(제작도 -1 / 조립도 0 이상 / 설치도 -2)으로 해당 종류인지 판정한다.
+        /// 가공도(-3)는 어느 종류에도 속하지 않아 항상 false다.
+        /// </summary>
         private bool MatchesDrawingSheetExportKind(
             DrawingSheetData sheet, DrawingSheetExportKind exportKind)
         {
@@ -1473,6 +1505,9 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 출력 종류를 받아 메시지·파일명에 쓸 한글 라벨(제작도/조립도/설치도)을 돌려주고, 그 외는 "도면"이다.
+        /// </summary>
         private string GetDrawingSheetExportKindLabel(DrawingSheetExportKind exportKind)
         {
             switch (exportKind)
@@ -1488,6 +1523,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 도면 시트 행 하나를 받아 기존 선택을 모두 풀고 그 행만 선택·포커스·화면에 보이게 한다.
+        /// 일괄 출력이 장마다 호출하며, 선택 변경 핸들러가 동작하지 않도록 억제 플래그를 켰다 끈다.
+        /// 3D 뷰 적용은 여기서 하지 않고 호출자가 따로 시트 선택 적용을 부른다.
+        /// </summary>
         private void SelectDrawingSheetItemForExport(ListViewItem item)
         {
             _suppressSheetSelectionHandler = true;
@@ -1506,6 +1546,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 도면 출력 관련 버튼 7개와 시트 ListView의 현재 활성 여부를 사전으로 담아 돌려준다.
+        /// 치수 추출·종류별 출력·가공도 출력 시작 전에 찍어두고, 끝나면 복원에 쓴다.
+        /// </summary>
         private Dictionary<Control, bool> CaptureDrawingExportControlStates()
         {
             var result = new Dictionary<Control, bool>();
@@ -1527,6 +1571,10 @@ namespace A2Z
             return result;
         }
 
+        /// <summary>
+        /// 활성 여부 하나를 받아 도면 출력 버튼 7개와 시트 ListView를 일괄로 켜거나 끈다.
+        /// 긴 작업(치수 추출·종류별 출력·가공도 출력) 중 중복 클릭을 막으려고 false로 부른다.
+        /// </summary>
         private void SetDrawingExportControlsEnabled(bool enabled)
         {
             btnExportFabricationSheets.Enabled = enabled;
@@ -1539,6 +1587,10 @@ namespace A2Z
             lvDrawingSheet.Enabled = enabled;
         }
 
+        /// <summary>
+        /// 앞서 찍어둔 컨트롤별 활성 여부 사전을 받아 각 컨트롤을 그 상태로 되돌린다. null이면 아무것도 안 한다.
+        /// 긴 작업이 끝나거나 취소될 때(대개 finally) 호출돼 일괄 비활성화 이전 상태를 복원한다.
+        /// </summary>
         private void RestoreDrawingExportControlStates(Dictionary<Control, bool> previousStates)
         {
             if (previousStates == null)
@@ -1548,6 +1600,11 @@ namespace A2Z
                 state.Key.Enabled = state.Value;
         }
 
+        /// <summary>
+        /// 2D 뷰를 비우고 GC를 한 번 돌려 직전 장의 2D 객체 메모리를 정리한다. 실패해도 로그만 남기고 계속 간다.
+        /// PDF 묶음 누적이 아닐 때 장과 장 사이에 호출된다.
+        /// 파이널라이저 대기는 UI 스레드 데드락을 일으켜 일부러 쓰지 않는다.
+        /// </summary>
         private void CleanupDrawingSheetExportCanvas()
         {
             // [issue #116] 무한 대기의 1순위 후보였던 `GC.WaitForPendingFinalizers()`를 뺐다 (2026-08-04).
@@ -1570,6 +1627,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 종류 라벨·저장 경로·장수·PDF 개수·실패 목록·취소 여부를 받아 일괄 출력 결과를 메시지 상자로 보여준다.
+        /// PDF가 여러 개면 폴더 경로를, 하나면 파일 경로를 표시하고, 취소나 실패가 있으면 경고 아이콘으로 띄운다.
+        /// </summary>
         private void ShowDrawingSheetExportResult(
             string kindLabel,
             string savedPdfPath,
@@ -1692,6 +1753,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 시트 하나를 받아 히든라인 투영용 엣지 데이터를 먼저 갱신한 뒤 엑셀 템플릿 기반 2D 도면 생성으로 넘긴다.
+        /// 자동·수동 2D 출력이 모두 이 지점을 지나므로 엣지 갱신을 한 곳에서 보장하고, 전후에 취소 체크포인트를 둔다.
+        /// 2D 생성 경로는 엑셀 템플릿 기반 하나뿐이다(무템플릿 직접 그리기 경로 없음).
+        /// </summary>
         private void GenerateSheetDrawing2DCore(DrawingSheetData sheet)
         {
             string sheetKind = GetSheetKindLabel(sheet);
@@ -2830,6 +2896,11 @@ namespace A2Z
             return frame;
         }
 
+        /// <summary>
+        /// 제작도 참조 프레임을 받아 SDK 참조축을 만들어 활성화하고 카메라를 지정 방향으로 옮긴다. 성공 시 true.
+        /// 프레임이 null이면 바로 false. 생성·활성화에 실패하면 참조축을 해제하고 세계축 카메라로 폴백한 뒤 false.
+        /// 활성 참조축 ID를 공유 필드에 남기며, 이전 참조축이 있으면 먼저 해제한다.
+        /// </summary>
         private bool ActivateDrawingReferenceAxis(
             DrawingReferenceFrame frame,
             VIZCore3D.NET.Data.CameraDirection cameraDirection,
@@ -2863,6 +2934,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 사유 문자열을 받아 현재 활성 참조축을 SDK에서 리셋·삭제하고 공유 ID 필드를 -1로 돌린다.
+        /// 활성 참조축이 없으면 즉시 반환하며, 리셋·삭제 실패는 경고 로그만 남긴다.
+        /// 뷰마다 시작·완료 시, 참조축 교체·활성화 실패 시, 도면 생성 종료 시 호출된다.
+        /// </summary>
         private void ReleaseActiveDrawingReferenceAxis(string reason)
         {
             if (_drawingActiveReferenceAxisId < 0) return;
@@ -2881,6 +2957,10 @@ namespace A2Z
             DiagLog($"[DrawingRefAxis] release id={referenceAxisId} reason={reason}");
         }
 
+        /// <summary>
+        /// 세계 좌표 점과 참조 프레임을 받아 프레임 원점 기준으로 X·Y·Z 축에 투영한 로컬 좌표를 돌려준다.
+        /// 참조 프레임 구성 시 부재 범위 계산과 치수 엔진의 Osnap 점 변환에 쓰인다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vertex3D DrawingReferenceWorldToLocal(
             VIZCore3D.NET.Data.Vertex3D world,
             DrawingReferenceFrame frame)
@@ -2894,6 +2974,10 @@ namespace A2Z
                 dx * frame.ZAxis.X + dy * frame.ZAxis.Y + dz * frame.ZAxis.Z);
         }
 
+        /// <summary>
+        /// 참조 프레임 기준 로컬 좌표를 받아 원점과 세 축으로 되돌린 세계 좌표를 돌려준다.
+        /// 치수 엔진이 로컬축에서 계산한 치수·보조선 끝점을 3D 뷰에 그릴 때 쓴다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vertex3D DrawingReferenceLocalToWorld(
             VIZCore3D.NET.Data.Vertex3D local,
             DrawingReferenceFrame frame)
@@ -2920,6 +3004,10 @@ namespace A2Z
             return result.Where(index => index >= 0).Distinct().ToList();
         }
 
+        /// <summary>
+        /// 설치도 연결 부재 이름 풍선의 지시 대상점·뷰 방향·오프셋을 받아 라벨을 놓을 위치를 돌려준다.
+        /// X뷰는 Y 방향으로, 그 외(Y·Z·ISO)는 X 방향으로 오프셋만큼 민다. 현재 호출자는 설치도 ISO 뷰뿐이다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D GetInstallationNoteLabelPoint(
             VIZCore3D.NET.Data.Vector3D target, string viewDirection, float offset)
         {

@@ -481,6 +481,11 @@ namespace A2Z
             return result.ToList();
         }
 
+        /// <summary>
+        /// Part 인덱스를 받아 → 그 Part에 속한 BODY 인덱스 목록을 돌려준다. 캐시·SDK 모두 못 찾으면 빈 목록.
+        /// 제작도 근접 검사의 BODY→Part 캐시를 먼저 쓰고, 없으면 SDK로 하위 자식 중 BODY만 모은다.
+        /// 설치도 연결 데이터 준비에서 간섭 Part 쌍을 BODY 쌍으로 넓힐 때 호출. SDK 예외는 조용히 삼킨다.
+        /// </summary>
         private List<int> GetBodyIndicesForPart(int partIndex)
         {
             var result = fabricationBodyToPartIndexCache
@@ -503,6 +508,10 @@ namespace A2Z
             return result.Distinct().ToList();
         }
 
+        /// <summary>
+        /// 노드 인덱스를 받아 → 그 노드 자신(BODY일 때)과 모든 하위 BODY 인덱스를 중복 없이 돌려준다. 없으면 빈 목록.
+        /// 설치도 점선 표시 범위를 상대 STRU 하위 BODY 전체로 넓힐 때 호출. SDK 예외는 조용히 삼킨다.
+        /// </summary>
         private List<int> GetDescendantBodyIndices(int nodeIndex)
         {
             var result = new List<int>();
@@ -525,6 +534,11 @@ namespace A2Z
             return result.Distinct().ToList();
         }
 
+        /// <summary>
+        /// 두 BODY 인덱스를 받아 → SDK 접합선을 1mm 이내로 이어진 접합영역으로 묶어 돌려준다. 접합선이 없으면 접합 Mesh, 둘 다 없으면 빈 목록.
+        /// 영역의 각 점은 양쪽 BODY의 LINE/POINT Osnap에 3mm 이내면 스냅하고 같은 좌표는 하나로 합친다.
+        /// 설치도 연결 데이터 준비에서 BODY 쌍마다 호출. SDK 조회 실패는 진단 로그만 남긴다.
+        /// </summary>
         private List<List<VIZCore3D.NET.Data.Vector3D>> GetBodyContactAreas(
             int targetBodyIndex, int connectedBodyIndex)
         {
@@ -585,6 +599,11 @@ namespace A2Z
             return areas;
         }
 
+        /// <summary>
+        /// 접합 선분 목록을 받아 → 어느 점이든 1mm 이내로 맞닿는 선분끼리 한 접합영역으로 합쳐 돌려준다.
+        /// 새 선분이 여러 영역에 동시에 닿으면 그 영역들까지 하나로 병합한다.
+        /// 순수 좌표 계산. SDK·화면 상태를 건드리지 않는다.
+        /// </summary>
         private List<List<VIZCore3D.NET.Data.Vector3D>> MergeConnectedContactSegments(
             List<List<VIZCore3D.NET.Data.Vector3D>> segments)
         {
@@ -610,6 +629,10 @@ namespace A2Z
             return areas;
         }
 
+        /// <summary>
+        /// 설치 연결 목록을 받아 → 상대 Assembly·Part 단위로 묶어 이름순 정렬한 뒤 A, B, … Z, AA 순 라벨을 각 연결에 써 넣는다.
+        /// 같은 상대 Part의 접합영역 여러 개는 같은 라벨을 받는다. 설치도 연결 데이터 준비 끝에 호출.
+        /// </summary>
         private void AssignInstallationConnectionLabels(List<InstallationConnectionData> connections)
         {
             int partOrder = 0;
@@ -631,6 +654,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 0부터 시작하는 순번을 받아 → 엑셀 열 이름 방식의 알파벳 라벨(A…Z, AA, AB…)을 돌려준다.
+        /// 설치 연결 라벨 부여에서 사용.
+        /// </summary>
         private string ToAlphabeticLabel(int index)
         {
             string label = "";
@@ -644,6 +671,11 @@ namespace A2Z
             return label;
         }
 
+        /// <summary>
+        /// BODY 인덱스 목록과 한 점을 받아 → 점에서 경계상자까지 바깥 거리가 가장 짧은 BODY 인덱스를 돌려준다. 목록이 비면 -1.
+        /// 경계상자는 제작도 근접 검사 캐시에서 읽고, 캐시에 없는 BODY는 건너뛴다(전부 없으면 첫 항목).
+        /// 접합선·Mesh가 없을 때 간섭 HotPoint의 대표 BODY를 고르는 fallback에서 호출.
+        /// </summary>
         private int FindClosestBodyToPoint(List<int> bodyIndices, VIZCore3D.NET.Data.Vector3D point)
         {
             int closest = bodyIndices.Count > 0 ? bodyIndices[0] : -1;
@@ -661,6 +693,11 @@ namespace A2Z
             return closest;
         }
 
+        /// <summary>
+        /// BODY 인덱스들을 받아 → 각 BODY Osnap 중 LINE의 시작·끝점과 POINT의 중심을 모아 좌표 목록으로 돌려준다.
+        /// CIRCLE 등 다른 종류는 제외. 중복 좌표는 합치지 않으므로 호출측이 정리한다.
+        /// 조회 실패는 진단 로그만 남기고 그 BODY를 건너뛴다. 접합점 스냅·끝단 후보 수집에서 호출.
+        /// </summary>
         private List<VIZCore3D.NET.Data.Vector3D> GetLinePointOsnaps(IEnumerable<int> bodyIndices)
         {
             var points = new List<VIZCore3D.NET.Data.Vector3D>();
@@ -691,6 +728,11 @@ namespace A2Z
             return points;
         }
 
+        /// <summary>
+        /// BODY 인덱스를 받아 → 끝단 후보가 될 LINE/POINT Osnap 좌표를 중복 없이 돌려준다. 없으면 경계상자 8개 모서리로 대신한다.
+        /// 경계상자로 대신한 경우 boundsFallback이 true. 경계상자도 못 구하면 빈 목록.
+        /// 설치 위치 기준점 계산에서 대상·상대 BODY 각각에 호출.
+        /// </summary>
         private List<VIZCore3D.NET.Data.Vector3D> GetInstallationBodyPoints(
             int bodyIndex, out bool boundsFallback)
         {
@@ -837,6 +879,11 @@ namespace A2Z
                 .First();
         }
 
+        /// <summary>
+        /// 같은 BODY 쌍의 설치 연결들을 받아 → 대상 BODY 길이축·접합 중심·축별 끝단·접합 모서리를 담은 위치 기준점을 돌려준다. 못 구하면 null.
+        /// 접합 extent가 부재 extent의 절반 이상인 축은 가로지르는 접합으로 보고 성분에서 뺀다. 진단 로그를 남긴다.
+        /// 설치 위치 치수 계산과 설치도 ISO 연결 이름 위치 선정에서 호출.
+        /// </summary>
         private InstallationPlacementAnchor BuildInstallationPlacementAnchor(
             IEnumerable<InstallationConnectionData> sourceConnections)
         {
@@ -973,6 +1020,10 @@ namespace A2Z
             return best;
         }
 
+        /// <summary>
+        /// 한 점·Osnap 좌표 목록·허용거리를 받아 → 가장 가까운 Osnap이 허용거리 안이면 그 좌표 복사본을, 아니면 원래 점을 돌려준다.
+        /// 접합선·Mesh 점을 실제 모서리 좌표로 맞출 때 호출. 목록이 비면 원래 점 그대로.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D SnapToNearestOsnap(
             VIZCore3D.NET.Data.Vector3D point,
             List<VIZCore3D.NET.Data.Vector3D> osnaps,
@@ -994,6 +1045,10 @@ namespace A2Z
                 : point;
         }
 
+        /// <summary>
+        /// 두 3D 점을 받아 → 유클리드 직선거리를 돌려준다.
+        /// 접합 선분 병합·Osnap 스냅·끝단 후보 정렬의 거리 비교에 공용으로 사용.
+        /// </summary>
         private double Distance3D(VIZCore3D.NET.Data.Vector3D a, VIZCore3D.NET.Data.Vector3D b)
         {
             double dx = a.X - b.X;
@@ -1097,6 +1152,11 @@ namespace A2Z
             return distinct;
         }
 
+        /// <summary>
+        /// 설치 위치 치수 한 건의 양 끝점·축·뷰·이름·부재 목록을 받아 → 체인치수 데이터로 만들어 결과 목록에 추가한다.
+        /// 지정 축 성분 차이가 3mm 이하면 추가하지 않는다. 부재 목록의 음수 인덱스는 제거한다.
+        /// 설치 위치 치수 계산에서 축 성분마다, 그 축이 보이는 뷰별로 호출.
+        /// </summary>
         private void AddInstallationDimension(
             List<ChainDimensionData> result,
             VIZCore3D.NET.Data.Vector3D start,
@@ -1127,6 +1187,10 @@ namespace A2Z
             });
         }
 
+        /// <summary>
+        /// 3D 점과 축 문자열(X/Y/Z)을 받아 → 그 축의 좌표값을 돌려준다. 알 수 없는 축이면 0.
+        /// 설치 위치 치수의 축별 투영·끝단 선정·중복 제거 키 생성에 공용으로 사용.
+        /// </summary>
         private float GetVectorAxisValue(VIZCore3D.NET.Data.Vector3D point, string axis)
         {
             switch (axis)

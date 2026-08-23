@@ -990,6 +990,10 @@ namespace A2Z
             return measureId;
         }
 
+        /// <summary>
+        /// 참조축 프레임과 축 이름(X/Y/Z)을 받아 그 축의 방향 벡터를 Vertex3D로 바꿔 돌려준다. 프레임이 없거나 축이 X/Y/Z가 아니면 null.
+        /// ShowAllDimensions가 DrawDimension에 넘길 측정축·오프셋축을 만들 때 부른다. 기울어진 부재의 UserAxis 치수 경로용.
+        /// </summary>
         private VIZCore3D.NET.Data.Vertex3D GetDrawingReferenceAxisVertex(
             DrawingReferenceFrame frame, string axis)
         {
@@ -1007,6 +1011,10 @@ namespace A2Z
                 : new VIZCore3D.NET.Data.Vertex3D(source.X, source.Y, source.Z);
         }
 
+        /// <summary>
+        /// 점과 축 이름, 값을 받아 그 점의 해당 축 좌표만 제자리에서 바꾼다. 점이 null이거나 축이 X/Y/Z가 아니면 아무것도 안 한다.
+        /// DrawDimension이 참조축 로컬 좌표에서 치수선·보조선의 오프셋축 값을 기준선 위치로 옮길 때 쓴다. 입력 객체를 직접 변경한다.
+        /// </summary>
         private void SetDrawingReferenceLocalAxisValue(
             VIZCore3D.NET.Data.Vertex3D point, string axis, float value)
         {
@@ -1019,6 +1027,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 축 이름(X/Y/Z)과 시작·끝점을 받아 해당 월드축 방향의 SDK 축 치수를 추가하고 측정 ID를 돌려준다. 축이 X/Y/Z가 아니면 -1.
+        /// DrawDimension의 월드축 기본 경로와 UserAxis 실패 시 폴백에서 부른다. Review.Measure.AddCustomAxisDistance를 호출한다.
+        /// </summary>
         private int AddWorldAxisDistance(
             string axis,
             VIZCore3D.NET.Data.Vertex3D startVertex,
@@ -1040,6 +1052,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 축 벡터를 받아 단위벡터로 정규화해 out으로 돌려준다. null이거나 길이가 거의 0이면 false(정규화값은 null).
+        /// DrawDimension이 사용자 측정축·오프셋축이 둘 다 정규화되는지로 UserAxis 경로를 쓸지 결정한다.
+        /// </summary>
         private bool TryNormalizeDimensionAxis(
             VIZCore3D.NET.Data.Vertex3D axis,
             out VIZCore3D.NET.Data.Vertex3D normalized)
@@ -1053,6 +1069,10 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// 점과 단위 축 벡터, 목표 투영값을 받아 그 축 방향으로 점을 밀어 투영값이 목표와 같아지는 새 점을 돌려준다.
+        /// 참조축 프레임이 없는 UserAxis 경로에서 치수선 시작·끝점을 오프셋축 기준선으로 옮길 때 쓴다. 축은 정규화돼 있어야 한다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vertex3D MovePointToAxisProjection(
             VIZCore3D.NET.Data.Vertex3D point,
             VIZCore3D.NET.Data.Vertex3D axis,
@@ -1066,6 +1086,10 @@ namespace A2Z
                 point.Z + axis.Z * delta);
         }
 
+        /// <summary>
+        /// 단위 축 벡터와 경계상자 최소·최대 XYZ를 받아 상자 8개 꼭짓점을 그 축에 투영한 최소·최대값을 out으로 돌려준다.
+        /// 참조축 프레임이 없는 UserAxis 경로에서 치수 기준선(모델 바깥쪽 경계)을 정할 때 쓴다.
+        /// </summary>
         private void GetBoundingBoxProjectionRange(
             VIZCore3D.NET.Data.Vertex3D axis,
             float minX, float minY, float minZ,
@@ -1515,6 +1539,12 @@ namespace A2Z
         /// LvClash 흐름의 SelectRelatedDimensionItems 연쇄 트리거 가드: _suppressDimSelChanged
         /// </summary>
         private bool _suppressDimSelChanged = false;
+
+        /// <summary>
+        /// [치수 목록 행 선택] → 선택한 체인치수들의 부재 인덱스를 모아 3D에서 그 부재들을 선택 강조하고 카메라를 맞춘다.
+        /// Clash 선택 흐름의 연쇄 호출을 막는 억제 플래그가 켜져 있거나 부재 인덱스가 없으면 건너뛴다.
+        /// 색 전부 복원 → Select → FlyToObject3d 순서를 BeginUpdate/EndUpdate로 묶고, 실패는 진단 로그만 남긴다.
+        /// </summary>
         private void LvDimension_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_suppressDimSelChanged) return;
@@ -1948,6 +1978,11 @@ namespace A2Z
             return "X";
         }
 
+        /// <summary>
+        /// Osnap 좌표 목록과 치수축·허용오차(선택: 뷰 방향)를 받아 그 축의 체인치수 목록을 돌려준다. 점 2개 미만이면 빈 목록.
+        /// 같은 축값 점 중 필터축(뷰의 나머지 축, 뷰 없으면 X→Z·Y→X·Z→Y) 최소인 점만 남기고 오름차순 인접 순차 치수를 만든다.
+        /// 남은 점이 3개 이상이면 전체 치수(IsTotal)도 붙인다. 허용오차 이하 간격은 버린다. SDK 없는 순수 계산.
+        /// </summary>
         private List<ChainDimensionData> AddChainDimensionByAxis(
             List<VIZCore3D.NET.Data.Vector3D> points, string axis, float tolerance,
             string viewDirection = null)
@@ -2427,6 +2462,11 @@ namespace A2Z
         private const float MarkAngleTol = 1.0f;        // 90° 배수 판정 공차(도)
         private const float MarkJunctionTol = 3.0f;     // 부재 접합 판정 — osnap 끝점 간 3D 거리 임계(mm)
 
+        /// <summary>
+        /// 부재 Body 인덱스 목록과 뷰 방향을 받아 접합한 두 부재의 길이축 사잇각이 90° 배수가 아니면 파란 각도 치수를 3D에 찍는다.
+        /// 판형(PAD/PLATE) 부재는 제외, 접합은 clashList 표면접촉·같은 Part·Osnap 끝점 3mm 이내로 판정하고 각도는 실제 3D 내적이다.
+        /// 접합 평면 법선이 깊이축에 가장 가까운 한 뷰에만 그린다. 시트 출력에서 ShowAllDimensions 직후 부르며 ISO 뷰면 건너뛴다.
+        /// </summary>
         private void MarkNonRightAngles(List<int> memberIndices, string viewDirection)
         {
             if (memberIndices == null || memberIndices.Count < 2) return;
