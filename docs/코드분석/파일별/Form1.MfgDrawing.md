@@ -280,13 +280,15 @@ openH 의 부호    →  ±카메라 선택   (뷰 방향마다 규칙이 다르
 
 2차 뷰용으로 **같은 판정을 축만 바꿔 한 번 더** 한다.
 
-### ⑥ Osnap을 4점으로 줄인다 (L2200~2220)
+### ⑥ Osnap을 극점만 남긴다 — 최대 8점 (L2200~2220)
 
 ```
-보는 뷰의 가로축 max/min + 세로축 max/min  =  4점만 남긴다
+보이는 축(2개)마다 FilterOsnapForDimAxis 호출  →  축당 극점 최대 4점 강제 포함
+두 결과를 AddRange — 축 사이 중복 제거 없음     →  최종 최대 8점 (같은 극점 중복 가능)
 ```
 
 2026-06-23 사용자 사양. **EA 중간 station이 폭주해 치수가 겹치던 문제를 원천 제거**한 것. 제작도의 `FilterOsnapForDimAxis`를 그대로 쓴다.
+(첫 작성은 "4점만 남긴다"로 축약했는데 축당 4점 × 2축이라 최대 8점이 맞다 — 교차검증 #15)
 
 ### ⑦ 미리보기 회전 누적 차단
 
@@ -341,9 +343,11 @@ BeginUpdate 안에서 MoveCamera 직후 FlyToObject3d 를 부르면
 
 | 무엇을 | 어디로 | 근거 |
 |---|---|---|
-| 🔑 **UDA 조회 6종** — `GetSprefValue` · `GetSprefValueUncached` · `GetUdaValue` · `GetUdaValueUncached` · `IsPadOrPlateFromSpref` · `IsAngleFromSpref` (L2979~3066, L3138~3196) | `UdaReader` | **`vizcore3d.Object3D.UDA`와 캐시 하나만 쓴다.** 가공도와 아무 상관이 없고, `Dimensions`·`DrawingSheets`도 부른다. 여기 있을 이유가 없다 |
-| **ORIENTATION 파싱** — `ParseOrientation` · `TryParseMfgOrientationDirection` · `TryGetMfgCardinalDirection` · `GetOrientationLabel` (L3197~3245, L3466~3528) | `OrientationParser` | **문자열 → 축·각도.** SDK도 화면도 안 씀 |
-| **벡터 헬퍼** — `DotMfgVector` · `MfgAxisVector` · `FormatMfgVector` · `MfgAxisUpPositive` | 기하 유틸 | 순수 함수 |
+| 🔑 **UDA 조회 6종** — `GetSprefValue` · `GetSprefValueUncached` · `GetUdaValue` · `GetUdaValueUncached` · `IsPadOrPlateFromSpref` · `IsAngleFromSpref` (L2979~3066, L3138~3196) | `UdaReader` | 가공도와 무관하고 `Dimensions`·`DrawingSheets`도 부른다. 의존은 `UDA` API + 캐시 + **부모 walk-up용 노드 트리 조회**(`FromIndex`·`ParentIndex`, 교차검증 #16) — 분리하려면 UDA 어댑터에 **노드 트리 어댑터도 같이** 필요하다 |
+| **ORIENTATION 파싱** — `TryParseMfgOrientationDirection` · `TryGetMfgCardinalDirection` (L3466~3528) | `OrientationParser` | 문자열 → 축·각도. 순수 파싱 |
+| **ORIENTATION 조회** — `ParseOrientation` · `GetOrientationLabel` (L3197~3245, L3261~) | `UdaReader` 쪽 | ⚠ 순수 파서가 아니다 (교차검증 #17) — `nodeIndex`를 받아 `GetUdaValue`로 **SDK-backed UDA를 조회**한 뒤 파싱한다. 조회와 파싱을 먼저 갈라야 위 파서가 분리된다 |
+| **벡터 헬퍼** — `DotMfgVector` · `MfgAxisVector` · `FormatMfgVector` | 기하 유틸 | 순수 함수 |
+| `MfgAxisUpPositive` (L1007) | ⚠ 기하 유틸 아님 | `vizcore3d.View.GetCameraAxis()`로 **현재 카메라 상태를 읽는다** (교차검증 #18). 축 벡터를 인자로 받게 바꾼 뒤에야 분리 가능 |
 | **`FilterHiddenLineOsnap`** (L3067, 71줄) | 기하 유틸 | 좌표와 BBox만 받는다 |
 | **종이 절대 상수 10개** (L1474~1493) | 도면 사양 클래스 | 제작도 상수(`Dimensions.cs`)와 **한 곳에 모아야 비교가 된다** |
 | **`MfgDrawingResult` · `MfgPage`** (L44~70) | `Models.cs` | 데이터 그릇 → [`Models.md`](./Models.md) |

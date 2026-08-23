@@ -299,7 +299,7 @@ BOM·Osnap·홀 루프는 매 BODY마다 `ProcessCancelableUiCheckpoint`를 호�
 
 - SDK 초기화 이벤트, `Model.Open`, Edge 설정, 객체 선택·Clash 이벤트 배선은 상태를 가진 `vizcore3d` 인스턴스와 SDK 수명주기에 묶인다.
 - 파일 선택·확인창·진행창·버튼 잠금과 ListView 갱신은 WinForms 어댑터에 남아야 한다.
-- ⚠ `bomList`, `osnapList`, `chainDimensionList`, `drawingSheetList`, X-Ray 범위를 다른 partial 파일이 직접 읽으므로, 작업 결과 객체를 도입하기 전에는 오케스트레이터만 떼어낼 수 없다.
+- ⚠ `bomList`, `osnapPoints`, `osnapPointsWithNames`, `chainDimensionList`, `drawingSheetList`, X-Ray 범위를 다른 partial 파일이 직접 읽으므로, 작업 결과 객체를 도입하기 전에는 오케스트레이터만 떼어낼 수 없다. `osnapList`는 SDK 조회 결과를 잠시 담는 지역변수일 뿐 공유 상태가 아니다.
 - BODY가 0개일 때 전체 모델로 fallback할지 “대상 없음”으로 끝낼지는 제품 정책이다. 현재 동작을 제거하기 전에 확인해야 한다 `(미확인)`.
 - BODY 인덱스 순서가 부모 Part 연속성을 보장하는지는 SDK XML에서 확인되지 않는다. `ParentIndex` 기반으로 바꾸는 것이 안전해 보이지만 실기 검증이 필요하다 `(미확인)`.
 

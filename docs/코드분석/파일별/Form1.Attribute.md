@@ -198,7 +198,7 @@ Y·Z도 같다. 프로젝트 모델 좌표 단위가 mm이므로 크기와 중�
 
 - 선택·버튼 핸들러, 대화상자, 파일 선택창, `lvAttribute` 갱신은 WinForms에 묶이므로 얇은 UI 어댑터로 남아야 한다.
 - UDA의 `recursive=true`가 실제로 어느 노드까지 적용되는지는 SDK 계약이다. 서비스로 옮겨도 SDK 어댑터와 사용자의 적용 범위 확인은 필요하다.
-- 선택 노드 인덱스와 이름은 ⚠ `selectedObjectIndex`·`selectedObjectName`으로 다른 partial 파일과 공유된다. 먼저 `SelectionContext` 같은 단일 소유 상태가 필요하다.
+- 선택 노드 인덱스는 ⚠ `selectedAttributeNodeIndex`로 `Form1.cs`에 선언되어 이 파일이 직접 읽고 쓴다. 노드 이름은 공유 필드로 보관하지 않고 `lblSelectedNode`에만 표시한다. 분리하려면 인덱스를 `SelectionContext` 같은 단일 소유 상태로 넘겨야 한다.
 - `_udaValueCache`는 가공도 등 다른 파일이 소비하므로 이 파일만 분리해서는 일관된 무효화 시점을 정할 수 없다.
 
 ### ④ 지울 것

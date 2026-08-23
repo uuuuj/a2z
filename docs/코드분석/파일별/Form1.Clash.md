@@ -235,7 +235,7 @@ a.MaxX + clearance ≥ b.MinX  &&  b.MaxX + clearance ≥ a.MinX
 
 대상이 N개면 테스트 수는 `N(N-1)/2`다. 각 테스트의 GroupA·GroupB에 BODY 하나씩 넣는다. clearance와 range는 둘 다 3mm이고 penetration tolerance는 1mm다. 주석상 2mm 떨어진 부재까지 안전하게 연결로 잡기 위해 1→3mm로 올렸다.
 
-SDK 호출 하나가 끝나기 전에 다음 호출을 시작하지 않도록 ID 큐와 완료 이벤트를 사용한다. 이벤트 콜백 시점에는 `IsBusy`가 아직 true일 수 있어 콜백을 빠져나온 뒤 최대 2초 폴링한다. 이 비동기 직렬화가 간섭 코드 중 SDK 호출보다 긴 부분이다.
+SDK 호출 하나가 끝나기 전에 다음 호출을 시작하지 않도록 ID 큐와 완료 이벤트를 사용한다. 이벤트 콜백 시점에는 `IsBusy`가 아직 true일 수 있어 콜백을 빠져나온 뒤 **최대 40회 × 50ms ≈ 2초** 폴링한다 (`StartNextSilentClashTestAfterEvent`, L902~928). 이 비동기 직렬화가 간섭 코드 중 SDK 호출보다 긴 부분이다.
 
 ### 5-6. PART 결과를 BODY 연결 그래프로 다시 펼친다
 
