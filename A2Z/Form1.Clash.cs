@@ -618,9 +618,6 @@ namespace A2Z
         {
             sheet.PreparedBomRows.Clear();
             sheet.PreparedBomRows.AddRange(snapshot.Rows);
-            sheet.PreparedBomNodeGroupMap.Clear();
-            foreach (var pair in snapshot.NodeGroupMap)
-                sheet.PreparedBomNodeGroupMap[pair.Key] = pair.Value;
             sheet.BomPrepared = true;
         }
 
@@ -629,17 +626,11 @@ namespace A2Z
             if (sheet == null || !sheet.BomPrepared) return;
             var snapshot = new DrawingBomSnapshot();
             snapshot.Rows.AddRange(sheet.PreparedBomRows);
-            foreach (var pair in sheet.PreparedBomNodeGroupMap)
-                snapshot.NodeGroupMap[pair.Key] = pair.Value;
             ApplyBomSnapshot(snapshot);
         }
 
         private void ApplyBomSnapshot(DrawingBomSnapshot snapshot)
         {
-            bomInfoNodeGroupMap.Clear();
-            foreach (var pair in snapshot.NodeGroupMap)
-                bomInfoNodeGroupMap[pair.Key] = pair.Value;
-
             lvDrawingBOMInfo.BeginUpdate();
             try
             {

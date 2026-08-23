@@ -220,14 +220,6 @@ namespace A2Z
                     if (bodyNodes.Count == 0) bodyNodes = allBodyNodes;
                 }
 
-
-                //MessageBox.Show(
-                //    $"Count = {bodyNodes.Count}\n" +
-                //    $"First Index = {bodyNodes[0].Index}\n" +
-                //    $"First Name = {bodyNodes[0].NodeName}",
-                //    "Debug"
-                //);
-
                 System.Text.StringBuilder debugSb = new System.Text.StringBuilder();
                 debugSb.AppendLine("=== Osnap 수집 (GetOsnapPoint API) ===\n");
                 if (isFilteredMode)
