@@ -1131,26 +1131,6 @@ namespace A2Z
             return nodeToNoteMap;
         }
 
-        private void btnDrawingISO_Click(object sender, EventArgs e)
-        {
-            ApplyDrawingSheetView("ISO");
-        }
-
-        private void btnDrawingAxisX_Click(object sender, EventArgs e)
-        {
-            ApplyDrawingSheetView("X");
-        }
-
-        private void btnDrawingAxisY_Click(object sender, EventArgs e)
-        {
-            ApplyDrawingSheetView("Y");
-        }
-
-        private void btnDrawingAxisZ_Click(object sender, EventArgs e)
-        {
-            ApplyDrawingSheetView("Z");
-        }
-
         /// <summary>
         /// "2D 출력" 버튼 클릭 — 선택된 도면시트 또는 전체 제작도의 3D 뷰 상태를 2D 도면으로 생성
         /// </summary>

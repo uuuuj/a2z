@@ -200,38 +200,6 @@ namespace A2Z
         }
 
         /// <summary>
-        /// X축 방향 보기 버튼 - 기존 호환용
-        /// </summary>
-        private void btnShowAxisX_Click(object sender, EventArgs e)
-        {
-            ApplyGlobalView("X");
-        }
-
-        /// <summary>
-        /// Y축 방향 보기 버튼 - 기존 호환용
-        /// </summary>
-        private void btnShowAxisY_Click(object sender, EventArgs e)
-        {
-            ApplyGlobalView("Y");
-        }
-
-        /// <summary>
-        /// Z축 방향 보기 버튼 - 기존 호환용
-        /// </summary>
-        private void btnShowAxisZ_Click(object sender, EventArgs e)
-        {
-            ApplyGlobalView("Z");
-        }
-
-        /// <summary>
-        /// ISO 방향 보기 버튼 (등각 투영) - 기존 호환용
-        /// </summary>
-        private void btnShowISO_Click(object sender, EventArgs e)
-        {
-            ApplyGlobalView("ISO");
-        }
-
-        /// <summary>
         /// 풍선 위치 수동 조정 다이얼로그
         /// </summary>
         private void btnBalloonAdjust_Click(object sender, EventArgs e)
