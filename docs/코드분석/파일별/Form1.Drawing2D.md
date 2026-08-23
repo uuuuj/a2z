@@ -295,7 +295,7 @@ Y·Z도 같다. **실제 접촉면이 아니라 겹침 구간의 중점**이다.
 지금  Form1.Drawing2D.cs 1,270줄
         Osnap 수집·편집   640   ← 수집 로직이 두 벌
         간섭 3D 표시      220
-        PDF 페이지 관리   300   ← 완전히 독립
+        PDF 페이지 관리   300   ← 자기 상태로 닫힘 (단 DrawingSheets 헬퍼 3종 주입 필요 — #7)
 
 제안  PdfPageAccumulator      300줄   독립 클래스, 위험 낮음
       OsnapCollector          150줄   순수 함수로 뽑고 중복 제거
