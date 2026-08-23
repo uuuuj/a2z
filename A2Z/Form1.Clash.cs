@@ -58,6 +58,11 @@ namespace A2Z
             public List<DrawingBomRowData> Rows = new List<DrawingBomRowData>();
         }
 
+        /// <summary>
+        /// 넘겨받은 시트(없으면 선택된 시트, 그것도 없으면 모델 전체)를 대상으로 도면 BOM 표를 만들어 lvDrawingBOMInfo에 채운다.
+        /// [BOM 수집] 클릭·시트 선택·시트 도면 생성·가공도 생성에서 호출. 시트에 준비된 BOM이 있으면 계산 없이 적용, 새로 계산하면 시트에 저장한다.
+        /// showAlert=false면 알림창·오류창을 띄우지 않고 진단 로그만 남긴다. Part를 못 찾으면 표를 비운다.
+        /// </summary>
         private void CollectBOMInfo(bool showAlert = true, DrawingSheetData sheetOverride = null)
         {
             DrawingSheetData targetSheet = sheetOverride;
@@ -129,6 +134,11 @@ namespace A2Z
                 $"parts={context.PartByIndex.Count} bodies={allSheetBodies.Count} elapsed={sw.ElapsedMilliseconds}ms");
         }
 
+        /// <summary>
+        /// 대상 Body 인덱스를 받아 → Part로 묶고 Part마다 UDA를 한 번씩 읽어 → Part별 BOM 원자료와 BOM 번호 맵을 돌려준다.
+        /// 대상이 null이면 모델 전체 Part. 읽는 UDA는 SPREF·MATREF·GWEI·POSSTART·POSEND·STRU + App.config의 MA·FA 키.
+        /// STRU 노드를 하나도 못 찾았거나 Uda.DumpOnLoad=true면 조상 체인 진단 덤프를 남긴다(느림).
+        /// </summary>
         private DrawingBomPreparationContext BuildDrawingBomPreparationContext(IEnumerable<int> targetBodyIndices)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -228,6 +238,11 @@ namespace A2Z
             return context;
         }
 
+        /// <summary>
+        /// Part 노드를 받아 → 부모 방향 최대 10단계까지 UDA 첫 값을 모으고 → ITEM·SIZE·MATERIAL·무게·MA·FA 원자료를 돌려준다.
+        /// SPREF는 '/'·':' 기준으로 ITEM/SIZE 분리, POSSTART~POSEND 거리를 SIZE 뒤에 'x길이'로 붙인다.
+        /// STRU 값과 이름이 같은 조상을 STRUCTURE로 보고 그 GWEI를 요약행 T/W용으로 챙긴다. 못 찾으면 -1.
+        /// </summary>
         private DrawingBomPartData ReadDrawingBomPartData(
             VIZCore3D.NET.Data.Node node,
             Dictionary<string, string> udaKeys,
@@ -429,6 +444,10 @@ namespace A2Z
             return gweiVal;
         }
 
+        /// <summary>
+        /// 노드 인덱스와 정규화된 UDA 키를 받아 → 이미 값이 있으면 그대로, 없으면 실제 키로 UDA를 읽어 → 공백 제거한 값을 돌려준다.
+        /// 키 매핑이 없거나 SDK 조회가 실패하면 넘겨받은 현재 값을 그대로 돌려준다(예외 삼킴).
+        /// </summary>
         private string ReadDrawingBomUdaValue(
             int nodeIndex,
             string normalizedKey,
@@ -449,6 +468,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 준비 컨텍스트와 Body 인덱스를 받아 → 요약행(00 Support&Seat) 1개와 부재 행을 BOM 번호순으로 만들어 → 스냅샷을 돌려준다.
+        /// 요약행 T/W는 STRU 노드 GWEI 우선, 없을 때만 부재 무게 합산으로 폴백하고 로그를 남긴다.
+        /// Body가 null이면 컨텍스트의 Part 전부. 빈 MATERIAL·SIZE·T/W·MA·FA는 '-', Q'TY는 항상 1.
+        /// </summary>
         private DrawingBomSnapshot BuildDrawingBomSnapshot(
             DrawingBomPreparationContext context,
             IEnumerable<int> bodyIndices)
@@ -571,6 +595,10 @@ namespace A2Z
             return snapshot;
         }
 
+        /// <summary>
+        /// 시트와 BOM 스냅샷을 받아 → 시트의 준비된 BOM 행을 교체하고 준비 완료 플래그를 켠다.
+        /// 이후 시트 선택 때는 계산 없이 준비된 행을 바로 표시한다.
+        /// </summary>
         private void StorePreparedBomSnapshot(DrawingSheetData sheet, DrawingBomSnapshot snapshot)
         {
             sheet.PreparedBomRows.Clear();
@@ -578,6 +606,10 @@ namespace A2Z
             sheet.BomPrepared = true;
         }
 
+        /// <summary>
+        /// 시트를 받아 → 미리 준비된 BOM 행이 있으면 그대로 lvDrawingBOMInfo에 표시한다.
+        /// 시트가 null이거나 준비되지 않았으면 아무것도 하지 않는다.
+        /// </summary>
         private void ApplyPreparedBomInfo(DrawingSheetData sheet)
         {
             if (sheet == null || !sheet.BomPrepared) return;
@@ -586,6 +618,10 @@ namespace A2Z
             ApplyBomSnapshot(snapshot);
         }
 
+        /// <summary>
+        /// BOM 스냅샷을 받아 → lvDrawingBOMInfo를 비우고 No/ITEM/MATERIAL/SIZE/Q'TY/T/W/MA/FA 8열로 다시 채운다.
+        /// 갱신 중 BeginUpdate/EndUpdate로 화면 깜빡임을 막는다.
+        /// </summary>
         private void ApplyBomSnapshot(DrawingBomSnapshot snapshot)
         {
             lvDrawingBOMInfo.BeginUpdate();
@@ -611,6 +647,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 제작도 연결 후보 탐색용 Body Bounding Box 캐시·Body→Part 캐시·기준 Body 수를 비우고, 근접 검사 결과도 함께 지운다.
+        /// 모델을 새로 열어 Body→Part 매핑을 다시 만들 때 호출된다.
+        /// </summary>
         private void ResetFabricationNeighborSearchCache()
         {
             fabricationBodyBoundsCache.Clear();
@@ -619,6 +659,10 @@ namespace A2Z
             ClearFabricationNeighborResults();
         }
 
+        /// <summary>
+        /// 제작도 외부 연결 간섭 결과(연결 Clash 목록·연결 Part 집합·대상 Body/Part 집합)를 비운다. 캐시는 유지한다.
+        /// DetectClash 시작 시와 캐시 초기화 때 호출된다.
+        /// </summary>
         private void ClearFabricationNeighborResults()
         {
             fabricationNeighborClashList.Clear();
@@ -685,6 +729,10 @@ namespace A2Z
             return fabricationBodyBoundsCache.Count > 0;
         }
 
+        /// <summary>
+        /// Body 노드와 Part 인덱스 집합을 받아 → 부모 체인을 최대 20단계 올라가며 실제 소속 Part 인덱스를 찾아 돌려준다.
+        /// 체인에서 못 찾으면 bodyToPartIndexMap으로 폴백하고, 거기에도 없으면 -1.
+        /// </summary>
         private int ResolveActualParentPartIndex(
             VIZCore3D.NET.Data.Node body,
             HashSet<int> partIndices)
@@ -708,6 +756,10 @@ namespace A2Z
                 : -1;
         }
 
+        /// <summary>
+        /// 두 Body Bounding Box와 여유 거리를 받아 → 세 축 모두에서 여유 거리 이내로 겹치면 true, 아니면 false.
+        /// 제작도 연결 후보 선별(3mm)과 설치도 연결 부재 판정(0.5mm)에서 광역 필터로 쓴다.
+        /// </summary>
         private bool BoundsOverlapWithinClearance(
             BodyBoundsData a,
             BodyBoundsData b,
@@ -793,6 +845,10 @@ namespace A2Z
             return candidates;
         }
 
+        /// <summary>
+        /// 무창 간섭검사 직렬 실행 상태(대기 ID 큐·활성 플래그·현재 ID·진행 카운트)를 모두 초기값으로 되돌린다.
+        /// 새 검사 시작 전, 취소·예외·후속 시작 실패 시 호출된다.
+        /// </summary>
         private void ResetSilentClashSequence()
         {
             _silentClashPendingTestIds.Clear();
@@ -802,6 +858,10 @@ namespace A2Z
             _silentClashCompletedCount = 0;
         }
 
+        /// <summary>
+        /// 테스트 ID 목록을 받아 → 음수·중복을 걸러 큐에 넣고 첫 검사를 무창으로 시작한다. 시작되면 true, 없거나 실패하면 false.
+        /// 첫 시작 실패 시 상태를 되돌린다. DetectClash가 등록을 마친 뒤 호출하며 이후는 완료 이벤트가 이어받는다.
+        /// </summary>
         private bool StartSilentClashSequence(IEnumerable<int> testIds)
         {
             ResetSilentClashSequence();
@@ -822,6 +882,10 @@ namespace A2Z
             return false;
         }
 
+        /// <summary>
+        /// 큐 맨 앞 테스트 ID를 SDK에 무창으로 실행시키고 → 시작되면 큐에서 빼고 true, 실패하면 활성 ID를 -1로 돌리고 false.
+        /// 직렬 실행이 비활성이거나 큐가 비어 있으면 바로 false. SDK가 Busy인 동안 부르면 실패할 수 있다.
+        /// </summary>
         private bool StartNextSilentClashTest()
         {
             if (!_silentClashSequenceActive || _silentClashPendingTestIds.Count == 0)
@@ -883,6 +947,11 @@ namespace A2Z
             HandleSilentClashStartFailure(nextTestId);
         }
 
+        /// <summary>
+        /// 후속 간섭검사 시작에 실패한 테스트 ID를 받아 → 직렬 실행 상태를 초기화하고 치수 추출 또는 진행 오버레이를 정리한다.
+        /// 취소 요청 중이면 상태만 초기화하고(치수 추출 중이면 취소 처리) 끝낸다. 후속 검사 Busy 대기가 실패하면 호출된다.
+        /// STRU 일괄 출력 중이면 최소 시트 생성을 시도하고, 아니면 재실행 안내창을 띄운다.
+        /// </summary>
         private void HandleSilentClashStartFailure(int nextTestId)
         {
             if (IsCancellationRequested("간섭검사 후속 항목 시작 실패"))
@@ -1354,6 +1423,9 @@ namespace A2Z
             return new[] { nums[0], nums[1], nums[2] };
         }
 
+        /// <summary>
+        /// 문자열을 받아 → 비어 있거나 공백뿐이면 '-', 아니면 그대로 돌려준다. 도면 BOM 표의 빈 칸 표시용.
+        /// </summary>
         private static string ToDrawingBomDisplayValue(string value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
     }
 }

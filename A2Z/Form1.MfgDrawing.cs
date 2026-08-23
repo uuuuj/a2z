@@ -68,6 +68,11 @@ namespace A2Z
             public bool HasIssues => Warnings.Count > 0 || InsufficientBomPdfs > 0 || TemplateMissing;
         }
 
+        /// <summary>
+        /// 취소 판정 함수·진행 문구·체크포인트명을 받아 → UI 메시지를 처리하고 취소 요청이면 OperationCanceledException을 던진다.
+        /// 가공도 PDF 행 렌더링·페이지 루프의 SDK 호출 사이 경계마다 호출. 취소 판정 함수가 null이면 아무것도 안 한다.
+        /// 취소 가능 구간 중이면 진행창 문구도 갱신하고, 아니면 DoEvents만 돌린다.
+        /// </summary>
         private void CheckMfgCancellation(
             Func<bool> shouldCancel,
             string progressMessage,
@@ -287,6 +292,12 @@ namespace A2Z
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }
+
+        /// <summary>
+        /// 현재 3D 장면을 은선 2D 캡처로 만들어 → viewArea에 실측 배율로 맞추고 치수·풍선·보조선을 2D로 옮긴다. 실패하면 false.
+        /// PDF 어댑터가 1차 뷰·EA 2차 뷰마다 호출. DASH_LINE 렌더모드로 캡처하고 2D 개체 ID를 objId로 준다.
+        /// 캡처 뒤 실패해도 objId는 남는다. 주석 몫을 먼저 예약하되 모델 높이 35% 보장, MirrorVertical이면 배치 전 상하 미러.
+        /// </summary>
         private bool CaptureMfgSceneToViewArea(
             int rowIdx,
             BOMData bom,
@@ -762,6 +773,11 @@ namespace A2Z
             return CalculateMfgAnnotationBudgetCanvas(noteCount, dimensionEnvelope);
         }
 
+        /// <summary>
+        /// EA 부재 pose를 받아 → 1차·2차 뷰 풍선 수 중 큰 쪽 기준으로 두 뷰가 공통 예약할 주석 높이(종이 mm)를 돌려준다. 풍선이 없으면 0.
+        /// PDF 어댑터가 EA 부재 1차 캡처 전에 호출해 pose.SharedAnnotationBudgetCanvas에 저장한다.
+        /// 2차 뷰 치수는 아직 없으므로 치수 영역은 최대 3단 오프셋으로 고정해 계산한다.
+        /// </summary>
         private float GetMfgEaSharedAnnotationBudgetCanvas(MfgViewPose pose)
         {
             if (pose == null)
@@ -786,6 +802,10 @@ namespace A2Z
             return sharedBudget;
         }
 
+        /// <summary>
+        /// 풍선 개수와 같은 쪽 치수 영역 높이를 받아 → 치수 영역에 치수 문자 여유·풍선 간격·풍선 글자 높이·행 간격을 더한 값(종이 mm)을 돌려준다.
+        /// 풍선이 0개면 0. 치수 영역이 있을 때만 치수 문자 높이+여백을 더하고, 행 간격은 풍선 수−1만큼 곱한다.
+        /// </summary>
         private float CalculateMfgAnnotationBudgetCanvas(int noteCount, float dimensionEnvelope)
         {
             if (noteCount <= 0)
@@ -918,6 +938,12 @@ namespace A2Z
         /// MfgUpRollSign: +90° 화면회전 시 새 상축 = -기존 우축 가정. 실기 반대면 부호만 반전. 2026-07-02
         /// </summary>
         private const float MfgUpRollSign = -1f;
+
+        /// <summary>
+        /// 3D 축 이름(X/Y/Z)을 받아 → 현재 카메라에서 그 축의 +방향이 캡처 화면의 '위'인지 판정한다. 판정 불가면 true.
+        /// 카메라 세팅 후·가로화 회전 전에 부른다. 축이 지금 가로면 회전 후 세로가 된다고 보고 우축 성분에 부호를 곱한다.
+        /// vizcore3d.View.GetCameraAxis()로 현재 카메라를 읽으므로 순수 계산이 아니다.
+        /// </summary>
         private bool MfgAxisUpPositive(string axis)
         {
             try
@@ -976,6 +1002,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// EA 앵글 부재와 1차 pose를 받아 → 2차 뷰 카메라를 세우고 길이·폭 체인치수를 PendingDims에 모은 새 pose를 돌려준다.
+        /// PDF 어댑터가 1차 캡처 뒤에 호출. 1차 참조축·측정·풍선을 지우고 2차 전용 참조축을 새로 만든다.
+        /// 코너가 슬롯 가운데를 향하도록 MirrorVertical 결정. 길이 치수는 위 슬롯 뷰 몫이라 스왑이면 건너뛴다.
+        /// </summary>
         private MfgViewPose BuildEaSecondaryScene(
             BOMData bom,
             MfgViewPose primaryPose,
@@ -1595,6 +1626,9 @@ namespace A2Z
             return false;
         }
 
+        /// <summary>
+        /// 벡터를 받아 → 소수 3자리 "(x,y,z)" 진단 로그용 문자열을 돌려준다. null이면 "-".
+        /// </summary>
         private string FormatMfgVector(VIZCore3D.NET.Data.Vector3D vector)
         {
             return vector == null
@@ -1602,6 +1636,10 @@ namespace A2Z
                 : $"({vector.X:F3},{vector.Y:F3},{vector.Z:F3})";
         }
 
+        /// <summary>
+        /// pose와 뷰 방향(X/Y/Z)을 받아 → 그 뷰의 시선(깊이) 축 단위벡터를 돌려준다. 정규화 실패 시 null.
+        /// 참조축을 쓰는 pose면 로컬 참조축을, 아니면 월드축을 쓴다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D GetMfgViewDepthAxis(MfgViewPose pose, string viewDirection)
         {
             var localX = new VIZCore3D.NET.Data.Vector3D(1f, 0f, 0f);
@@ -1626,11 +1664,18 @@ namespace A2Z
             return TryNormalizeMfgVector(depth, out var normalized) ? normalized : null;
         }
 
+        /// <summary>
+        /// 1차 pose를 받아 → EA 2차 뷰 방향을 돌려준다. 최장축이 Z면 "X", 그 외는 "Z".
+        /// </summary>
         private string GetMfgEaSecondaryViewDirection(MfgViewPose primaryPose)
         {
             return primaryPose != null && primaryPose.LongestAxis == "Z" ? "X" : "Z";
         }
 
+        /// <summary>
+        /// 홀·슬롯홀의 관통축과 중심을 받아 → 1차·2차 뷰 깊이축 중 어느 쪽에 더 나란한지로 풍선을 2차 뷰에 둘지 판정한다. 2차면 true.
+        /// EA 부재가 아니거나 관통축·깊이축이 없으면 항상 1차(false). 판정 근거를 진단 로그에 남긴다.
+        /// </summary>
         private bool AssignMfgFeatureToSecondary(
             BOMData bom,
             MfgViewPose pose,
@@ -1667,6 +1712,10 @@ namespace A2Z
             return useSecondary;
         }
 
+        /// <summary>
+        /// 홀 목록과 대상 풍선 목록을 받아 → 지름(소수 1자리)별로 묶어 "Ø지름" 풍선을 추가한다. 2개 이상이면 "* N개"를 붙인다.
+        /// 풍선 색은 녹색, 지시선은 그룹 첫 홀 중심. 입력이 null이면 아무것도 안 한다.
+        /// </summary>
         private void AddMfgGroupedHoleNotes(
             IEnumerable<HoleInfo> holes,
             IList<MfgPendingNote> destination)
@@ -1686,6 +1735,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 슬롯홀 목록과 대상 풍선 목록을 받아 → 반지름·길이·깊이가 같은 것끼리 묶어 "R반지름/(폭*길이*깊이)" 풍선을 추가한다.
+        /// 2개 이상이면 "* N개"를 붙이고, 폭은 반지름×2로 계산한다. 풍선 색은 보라, 지시선은 그룹 첫 슬롯 중심.
+        /// 입력이 null이면 아무것도 안 한다.
+        /// </summary>
         private void AddMfgGroupedSlotNotes(
             IEnumerable<SlotHoleInfo> slots,
             IList<MfgPendingNote> destination)
@@ -1709,6 +1763,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 부재·pose·홀·슬롯홀 목록을 받아 → 형상별로 1차/2차 뷰를 배정하고 묶음 풍선을 PendingNotes·SecondaryPendingNotes에 채운다.
+        /// 장면 코어가 Osnap 수집 뒤에 호출. 기존 목록은 비우고 시작한다.
+        /// 용도가 EBOS인 부재는 1차 뷰에만 "EarthBoss" 풍선을 부재 중심에 한 번 추가한다.
+        /// </summary>
         private void BuildMfgPendingNotes(
             BOMData bom,
             MfgViewPose pose,
@@ -2891,6 +2950,11 @@ namespace A2Z
             return result;
         }
 
+        /// <summary>
+        /// 노드 인덱스를 받아 → UDA에서 SPREF 값을 찾아 돌려준다. 현재 노드에 없으면 부모로 최대 10단계 올라가며 찾고, 없으면 "".
+        /// 캐시를 거치지 않고 SDK를 직접 조회한다. 보통은 캐시 적용 버전을 거쳐 들어온다.
+        /// SDK 예외는 모두 삼키고 빈 문자열로 처리한다.
+        /// </summary>
         private string GetSprefValueUncached(int nodeIndex)
         {
             List<string> udaKeyList = null;
@@ -3050,6 +3114,10 @@ namespace A2Z
             return result;
         }
 
+        /// <summary>
+        /// 노드 인덱스와 UDA 키 이름을 받아 → 그 키의 값을 찾아 돌려준다. 현재 노드에 없으면 부모로 최대 10단계 올라가며 찾고, 없으면 "".
+        /// 키 비교는 공백 제거·대문자 기준. 캐시를 거치지 않고 SDK를 직접 조회하므로 보통은 캐시 버전을 쓴다.
+        /// </summary>
         private string GetUdaValueUncached(int nodeIndex, string keyName)
         {
             List<string> udaKeyList = null;
@@ -3196,6 +3264,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 사유 문자열을 받아 → 활성 가공도 참조축을 해제한 뒤 3D 측정(치수)과 ShapeDrawing(보조선)을 모두 지운다.
+        /// 장면 코어·EA 2차 뷰·PDF 행 렌더링의 시작과 끝마다 호출. 참조축이 Measure.Clear에 함께 지워지므로 축 생성 전에 부른다.
+        /// </summary>
         private void ClearMfgViewAnnotations(string reason)
         {
             ReleaseActiveMfgReferenceAxis(reason + "/clear");
@@ -3203,6 +3275,10 @@ namespace A2Z
             vizcore3d.ShapeDrawing.Clear();
         }
 
+        /// <summary>
+        /// 사유 문자열을 받아 → 활성 가공도 참조축이 있으면 활성 ID를 먼저 -1로 비운 뒤 SDK 참조축을 리셋하고 리뷰 항목을 삭제한다.
+        /// 활성 축이 없으면 아무것도 안 한다. 리셋·삭제 실패는 로그만 남기고 계속 간다.
+        /// </summary>
         private void ReleaseActiveMfgReferenceAxis(string reason)
         {
             if (_mfgActiveReferenceAxisId < 0) return;
@@ -3230,6 +3306,11 @@ namespace A2Z
             DiagLog($"[MfgRefAxis] release id={referenceAxisId} reason={reason}");
         }
 
+        /// <summary>
+        /// pose의 로컬 참조축(X·Y·원점)과 부재를 받아 → SDK 참조축을 만들어 활성화하고 그 축 기준으로 카메라를 옮긴다. 성공 시 true.
+        /// 기존 활성 축은 먼저 해제. 실패하면 참조축 사용을 끄고 월드 카메라+ORIENTATION 화면 회전으로 폴백해 false.
+        /// 활성화 이후 CameraDirection은 참조축 기준으로 해석된다.
+        /// </summary>
         private bool ActivateMfgReferenceAxis(MfgViewPose pose, BOMData bom, string stage)
         {
             if (pose == null || bom == null || !pose.UseReferenceAxis)
@@ -3269,6 +3350,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 사유 문자열을 받아 → 직전 미리보기가 건 화면축 누적 회전을 되돌리고 활성 참조축을 해제한다.
+        /// 미리보기 진입·오류, PDF 출력 시작, 비가공도 시트 선택 시 호출. _mfgPreviewNetRoll을 0으로 초기화한다.
+        /// </summary>
         private void ResetMfgPreviewViewState(string reason)
         {
             if (_mfgPreviewNetRoll != 0f)
@@ -3288,6 +3373,11 @@ namespace A2Z
             ReleaseActiveMfgReferenceAxis(reason);
         }
 
+        /// <summary>
+        /// 부재와 pose를 받아 → ORIENTATION UDA의 축 방향 문자열로 직교 로컬 참조축(X·Y·Z)과 부재 중심 원점을 pose에 세운다. 성공 시 true.
+        /// 기울기 1° 이하·UDA 없음·쓸 축 조합 없음(Z만 읽힌 경우 포함)이면 false. 두 축이면 직교화, X나 Y 하나뿐이면 월드축과 외적으로 보완.
+        /// 장면 코어가 카메라 이동 직후 호출. 여기서는 pose만 채우고 SDK 참조축은 만들지 않는다.
+        /// </summary>
         private bool TryBuildMfgOrientationReferenceFrame(BOMData bom, MfgViewPose pose)
         {
             if (bom == null || pose == null ||
@@ -3369,6 +3459,10 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// ORIENTATION 원문과 로컬축 이름을 받아 → "X IS N 45 E" 꼴을 정규식으로 읽어 월드 방향 단위벡터를 돌려준다. 못 읽으면 false.
+        /// 각도가 있으면 1차 방위에 cos, 2차 방위에 sin을 곱해 합성한 뒤 정규화한다.
+        /// </summary>
         private bool TryParseMfgOrientationDirection(
             string raw,
             string localAxis,
@@ -3416,6 +3510,9 @@ namespace A2Z
             return TryNormalizeMfgVector(direction, out direction);
         }
 
+        /// <summary>
+        /// 방위 문자(N/E/S/W/U/D)를 받아 → 대응하는 월드 단위벡터를 돌려준다. N=+X, E=+Y, U=+Z. 그 외 문자면 false.
+        /// </summary>
         private bool TryGetMfgCardinalDirection(
             char direction,
             out VIZCore3D.NET.Data.Vector3D vector)
@@ -3432,6 +3529,9 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 두 벡터를 받아 → 내적(float)을 돌려준다.
+        /// </summary>
         private float DotMfgVector(
             VIZCore3D.NET.Data.Vector3D a,
             VIZCore3D.NET.Data.Vector3D b)
@@ -3439,6 +3539,9 @@ namespace A2Z
             return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
         }
 
+        /// <summary>
+        /// 두 벡터를 받아 → 외적 벡터를 돌려준다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D CrossMfgVector(
             VIZCore3D.NET.Data.Vector3D a,
             VIZCore3D.NET.Data.Vector3D b)
@@ -3449,6 +3552,9 @@ namespace A2Z
                 a.X * b.Y - a.Y * b.X);
         }
 
+        /// <summary>
+        /// 벡터와 배율을 받아 → 각 성분에 배율을 곱한 새 벡터를 돌려준다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D ScaleMfgVector(
             VIZCore3D.NET.Data.Vector3D vector,
             float scale)
@@ -3459,6 +3565,9 @@ namespace A2Z
                 vector.Z * scale);
         }
 
+        /// <summary>
+        /// 두 벡터를 받아 → 앞에서 뒤를 뺀 차 벡터를 돌려준다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vector3D SubtractMfgVector(
             VIZCore3D.NET.Data.Vector3D a,
             VIZCore3D.NET.Data.Vector3D b)
@@ -3469,6 +3578,9 @@ namespace A2Z
                 a.Z - b.Z);
         }
 
+        /// <summary>
+        /// 벡터를 받아 → 길이 1로 정규화한 벡터를 out으로 돌려준다. null·NaN·무한대·길이가 거의 0이면 false.
+        /// </summary>
         private bool TryNormalizeMfgVector(
             VIZCore3D.NET.Data.Vector3D vector,
             out VIZCore3D.NET.Data.Vector3D normalized)
@@ -3495,6 +3607,10 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// pose와 로컬축 이름을 받아 → 참조축 사용 중이면 해당 로컬 참조축을 Vertex3D로 돌려준다. 축 이름이 틀리거나 축이 비었으면 null.
+        /// 참조축 미사용 pose도 null. 치수 그리기에서 측정축·오프셋축을 로컬 기준으로 넘길 때 쓴다.
+        /// </summary>
         private VIZCore3D.NET.Data.Vertex3D GetMfgOrientationAxisVector(
             MfgViewPose pose,
             string localAxis)
@@ -3529,6 +3645,11 @@ namespace A2Z
                 get { return NormalizeMfgAxisVector(new MfgAxisVector(WeightedX, WeightedY, WeightedZ)); }
             }
 
+            /// <summary>
+            /// 방향 단위벡터와 선 길이를 받아 → 길이 가중 누적 방향에 더하고 선 개수·총 길이를 갱신한다.
+            /// 기존 누적 방향과 반대면 부호를 뒤집어 같은 쪽으로 모은다.
+            /// 주축 판정에서 5° 이내 같은 방향 군집의 대표 방향을 만드는 데 쓴다.
+            /// </summary>
             public void Add(MfgAxisVector direction, double length)
             {
                 if (LineCount > 0 && DotMfgAxisVector(Direction, direction) < 0.0)
@@ -3575,6 +3696,10 @@ namespace A2Z
             return osnapList;
         }
 
+        /// <summary>
+        /// 노드 인덱스를 받아 → 캐시된 주축 판정 결과를 돌려주고, 없으면 Osnap을 조회해 판정한 뒤 캐시에 넣는다. cacheHit로 캐시 여부 반환.
+        /// 가공도 참조축 진단 로그와 설치도 길이축 판정이 같이 쓴다. 캐시 miss면 GetOsnapPoint가 돌아 느리다.
+        /// </summary>
         private MfgAxisDetectionResult GetMfgAxisDetection(int nodeIndex, out bool cacheHit)
         {
             MfgAxisDetectionResult cached;
@@ -3689,6 +3814,11 @@ namespace A2Z
             return result;
         }
 
+        /// <summary>
+        /// 부재를 받아 → LINE Osnap 기반 주축 판정과 ORIENTATION UDA 파싱값을 비교한 "참조축판정" 진단 로그 한 줄을 남긴다.
+        /// 장면 코어가 Osnap 수집 직후 호출. 카메라·좌표계는 바꾸지 않는다.
+        /// ORIENTATION이 있으면 그것을, 없으면 기하 판정을 기울어짐 결정 근거로 표기한다.
+        /// </summary>
         private void LogMfgAxisDetection(BOMData bom)
         {
             bool cacheHit;
@@ -3744,6 +3874,9 @@ namespace A2Z
             DiagLog(message);
         }
 
+        /// <summary>
+        /// 축 벡터를 받아 → 길이 1로 정규화한 벡터를 돌려준다. 길이가 0이면 영벡터.
+        /// </summary>
         private static MfgAxisVector NormalizeMfgAxisVector(MfgAxisVector vector)
         {
             double length = LengthMfgAxisVector(vector);
@@ -3751,6 +3884,10 @@ namespace A2Z
             return new MfgAxisVector(vector.X / length, vector.Y / length, vector.Z / length);
         }
 
+        /// <summary>
+        /// 축 벡터를 받아 → 절댓값이 가장 큰 성분이 양수가 되도록 부호를 맞춘 벡터를 돌려준다.
+        /// 같은 선의 양쪽 방향을 하나로 취급하기 위한 정규 표현.
+        /// </summary>
         private static MfgAxisVector CanonicalizeMfgAxisVector(MfgAxisVector vector)
         {
             double absX = Math.Abs(vector.X);
@@ -3764,21 +3901,33 @@ namespace A2Z
                 : vector;
         }
 
+        /// <summary>
+        /// 축 벡터를 받아 → 길이를 돌려준다.
+        /// </summary>
         private static double LengthMfgAxisVector(MfgAxisVector vector)
         {
             return Math.Sqrt(vector.X * vector.X + vector.Y * vector.Y + vector.Z * vector.Z);
         }
 
+        /// <summary>
+        /// 두 축 벡터를 받아 → 내적(double)을 돌려준다.
+        /// </summary>
         private static double DotMfgAxisVector(MfgAxisVector left, MfgAxisVector right)
         {
             return left.X * right.X + left.Y * right.Y + left.Z * right.Z;
         }
 
+        /// <summary>
+        /// 내적값을 받아 → −1~1 범위로 잘라 돌려준다. Acos에 넣기 전 부동소수 오차를 막는다.
+        /// </summary>
         private static double ClampMfgAxisDot(double value)
         {
             return Math.Max(-1.0, Math.Min(1.0, value));
         }
 
+        /// <summary>
+        /// 라디안을 받아 → 도 단위로 바꿔 돌려준다.
+        /// </summary>
         private static double RadiansToDegrees(double radians)
         {
             return radians * 180.0 / Math.PI;

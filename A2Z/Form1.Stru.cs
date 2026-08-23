@@ -243,6 +243,11 @@ namespace A2Z
             DiagLog($"#36 STRU 검색 UI: panelW={panelW} txtW={txtW} btnX={btnX}");
         }
 
+        /// <summary>
+        /// [검색] 클릭 → STRU 검색 입력칸의 텍스트로 STRU를 이름 검색한다.
+        /// 찾으면 그 STRU의 BODY만 격리 표시하고 STRU 목록 선택·카메라 fit까지 이어진다.
+        /// 입력이 비었거나 이름에 맞는 STRU가 없으면 안내 창만 띄우고 끝난다.
+        /// </summary>
         private void BtnStruSearch_Click(object sender, EventArgs e)
         {
             SearchStruByName(txtStruSearch != null ? txtStruSearch.Text : null);
@@ -372,6 +377,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// STRU 목록의 체크 변경 인자를 받아 → 변경 후 체크될 STRU 전체의 후손 BODY 합집합을 구해 전체 색을 초기화하고 그 BODY들만 3D에서 강조한다.
+        /// 체크박스 ItemCheck 핸들러가 가드를 건 뒤 호출. 이벤트가 상태 변경 직전에 오므로 NewValue로 미래 체크 집합을 계산한다.
+        /// 카메라 fit은 의도적으로 하지 않는다(체크 시 시점 변동 방지). 오류는 로그만 남기고 삼킨다.
+        /// </summary>
         private void ItemCheckCore(ItemCheckEventArgs e)
         {
             if (clbStruList == null) return;
@@ -439,6 +449,11 @@ namespace A2Z
                 PerformFlyToSelectedStru();
         }
 
+        /// <summary>
+        /// STRU 목록에서 현재 선택된 STRU의 후손 BODY를 찾아 → 그 BODY들을 표시 상태로 켜고 카메라를 그쪽으로 fit한다.
+        /// 행 선택 이벤트(메시지 큐 지연 후)와 STRU 검색에서 같은 항목을 재검색할 때 호출. 체크박스 클릭으로 인한 선택이면 가드로 건너뛴다.
+        /// 강조 색은 건드리지 않아 체크 강조가 유지된다. 선택이 없거나 BODY가 없으면 아무것도 안 한다.
+        /// </summary>
         private void PerformFlyToSelectedStru()
         {
             if (_suppressStruSelChanged) return;  // 체크박스 클릭으로 인한 SelectedIndexChanged면 fit 차단

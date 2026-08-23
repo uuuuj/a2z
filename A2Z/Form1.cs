@@ -16,8 +16,17 @@ namespace A2Z
 {
     public partial class Form1 : Form
     {
+        /// <summary>
+        /// 창 핸들과 윈도우 메시지·인자를 받아 user32 SendMessage로 직접 보내고 그 결과값을 돌려준다 (Win32 선언).
+        /// 뷰어에 가짜 휠 메시지(WM_MOUSEWHEEL)를 보내 줌하던 우회용으로 보이나(추정), 현재 소스에 호출처가 없다.
+        /// </summary>
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>
+        /// 창 핸들을 받아 user32 SetFocus로 키보드 포커스를 그 창에 옮기고 이전 포커스 창 핸들을 돌려준다 (Win32 선언).
+        /// 휠 메시지를 보내기 전 뷰어에 포커스를 주던 용도로 보이나(추정), 현재 소스에 호출처가 없다.
+        /// </summary>
         [DllImport("user32.dll")]
         private static extern IntPtr SetFocus(IntPtr hWnd);
         private const int WM_MOUSEWHEEL = 0x020A;
@@ -239,6 +248,10 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 진단 메시지를 받아 시각을 붙여 exe 폴더의 logs/diag-날짜.log 파일과 VS 출력창(Debug)에 같이 기록한다.
+        /// 파일 쓰기 실패는 삼켜서 앱 흐름에 영향을 주지 않는다. 모든 Form1 파일이 공용으로 부른다.
+        /// </summary>
         private static void DiagLog(string msg)
         {
             string line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
@@ -358,6 +371,11 @@ namespace A2Z
             Application.DoEvents(); // 즉시 화면 갱신
         }
 
+        /// <summary>
+        /// [취소] 클릭 → 취소 가능 작업이 진행 중일 때만 취소 요청 플래그를 세우고 오버레이를 다시 그린다.
+        /// 취소 버튼은 '취소 요청됨'으로 바뀌며 비활성화되고, 오버레이 문구에 안내 한 줄이 덧붙는다.
+        /// 실제 중단은 현재 SDK 호출이 끝난 뒤 다음 체크포인트에서 일어난다. 이미 요청됐으면 무시한다.
+        /// </summary>
         private void BusyOverlayCancelButton_Click(object sender, EventArgs e)
         {
             if (!_cancelableOperationInProgress || _cancelRequested)
@@ -370,6 +388,11 @@ namespace A2Z
             Application.DoEvents();
         }
 
+        /// <summary>
+        /// 취소 가능 작업 여부와 취소 요청 상태에 맞춰 진행 오버레이의 크기·문구·취소 버튼 표시/활성을 다시 맞춘다.
+        /// 오버레이 컨트롤이 아직 안 만들어졌으면 아무것도 하지 않는다.
+        /// ShowBusyOverlay·취소 클릭·진행 체크포인트 갱신·구간 종료 때 부른다.
+        /// </summary>
         private void UpdateBusyOverlayContents()
         {
             if (busyOverlayMessage == null || busyOverlayCancelButton == null)
@@ -406,6 +429,11 @@ namespace A2Z
             ThrowIfCancellationRequested(checkpoint);
         }
 
+        /// <summary>
+        /// 취소 가능 구간을 시작한다 — 취소 요청·마지막 체크포인트 기록을 지우고 진행 중 플래그를 켠다.
+        /// STRU 일괄 출력·주치수 추출·시트/가공도 PDF 출력 진입부에서 부르며 EndCancelableOperation과 짝으로 쓴다.
+        /// 오버레이 자체는 건드리지 않으므로 취소 버튼은 뒤따르는 ShowBusyOverlay 호출 때 나타난다.
+        /// </summary>
         private void BeginCancelableOperation()
         {
             _cancelRequested = false;
@@ -413,6 +441,10 @@ namespace A2Z
             _cancelableOperationInProgress = true;
         }
 
+        /// <summary>
+        /// 취소 가능 구간을 끝낸다 — 진행 중·취소 요청·체크포인트 상태를 모두 지우고 오버레이에서 취소 버튼을 거둔다.
+        /// 작업이 끝나거나 취소를 정리하는 경로에서 HideBusyOverlay와 함께 부른다.
+        /// </summary>
         private void EndCancelableOperation()
         {
             _cancelableOperationInProgress = false;
@@ -421,6 +453,11 @@ namespace A2Z
             UpdateBusyOverlayContents();
         }
 
+        /// <summary>
+        /// 체크포인트 이름을 받아 사용자의 취소 요청이 걸려 있는지 돌려준다. 요청 없으면 false, 있으면 true.
+        /// 직전과 다른 체크포인트일 때만 진단 로그를 남겨 같은 지점이 반복 기록되는 것을 막는다.
+        /// 예외를 던지지 않으므로 루프에서 조용히 빠져나갈 때 쓴다.
+        /// </summary>
         private bool IsCancellationRequested(string checkpoint)
         {
             if (!_cancelRequested)
@@ -434,6 +471,10 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// 체크포인트 이름을 받아 취소 요청이 있으면 그 이름을 담은 OperationCanceledException을 던지고, 없으면 그냥 지나간다.
+        /// SDK 호출 사이의 안전 경계마다 박아 두며, 호출자의 catch/finally가 정리와 오버레이 해제를 맡는다.
+        /// </summary>
         private void ThrowIfCancellationRequested(string checkpoint)
         {
             if (IsCancellationRequested(checkpoint))

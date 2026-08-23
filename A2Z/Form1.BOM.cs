@@ -15,6 +15,10 @@ namespace A2Z
         private const int CancelableBomScanInterval = 200;
         private Dictionary<Control, bool> _mainDimensionDrawingControlStates;
 
+        /// <summary>
+        /// BOM 목록의 기존 컬럼을 지우고 → No./부재 이름/각도/중심·최소·최대 좌표/원형/용도/홀사이즈 15개 컬럼을 폭과 함께 새로 만든다.
+        /// 폼 생성자에서 한 번 호출된다. BOM 수집 시 행에 넣는 SubItem 순서가 이 컬럼 순서와 일치해야 한다.
+        /// </summary>
         private void SetupBOMColumns()
         {
             lvBOM.Columns.Clear();
@@ -138,6 +142,11 @@ namespace A2Z
             dgvAttributes.RowTemplate.Height = 24;
         }
 
+        /// <summary>
+        /// [OnInitializedVIZCore3D] → 라이선스를 초기화하고, 통과하면 2D 툴바·모델트리·축 표시기를 켠다.
+        /// 간섭검사 완료·3D 객체 선택 이벤트를 등록한다. 라이선스 초기화에 실패하면 즉시 반환한다.
+        /// 모델 열기 전에 필요한 Edge 데이터 생성·읽기 옵션을 켜고, 이미 로드된 객체의 Edge 데이터도 만든다.
+        /// </summary>
         private void Vizcore3d_OnInitializedVIZCore3D(object sender, EventArgs e)
         {
             // 라이선스 초기화 + 자동 갱신 타이머 (Form1.License.cs로 분리 — T-017)
@@ -453,6 +462,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 체크포인트 이름을 받아 → 취소 요청이 있으면 진행 중인 치수 추출의 임시 결과를 정리·종료하고 취소 안내를 띄운 뒤 true, 없으면 false.
+        /// 치수 추출 파이프라인의 단계 사이와 간섭검사 완료 이벤트에서 호출된다. true면 호출자는 즉시 반환해야 한다.
+        /// 치수 추출 진행 플래그가 꺼져 있으면 정리·안내 없이 true만 돌려준다.
+        /// </summary>
         private bool CancelMainDimensionAtCheckpoint(string checkpoint)
         {
             if (!IsCancellationRequested(checkpoint))
@@ -472,6 +486,10 @@ namespace A2Z
             return true;
         }
 
+        /// <summary>
+        /// 치수 추출 진행 플래그를 내리고 → 오버레이 해제, 취소 가능 작업 종료, 치수 추출 버튼과 도면 출력 버튼들의 활성 상태를 시작 전으로 되돌린다.
+        /// 정상 완료·예외·취소 모든 종료 경로에서 호출된다. 진행 중이 아니면 아무것도 하지 않아 중복 호출이 안전하다.
+        /// </summary>
         private void FinishMainDimensionOperation()
         {
             if (!_mainDimensionInProgress)
@@ -488,6 +506,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 중간 취소 뒤 남은 부분 결과를 지운다 → 2D 객체·캔버스와 3D 노트·측정·형상을 삭제하고 시트·체인치수·Osnap·BOM 목록, X-Ray 선택을 비운다.
+        /// 치수 추출 취소 시와 도면 일괄 출력 취소 시 호출된다. 무음 간섭검사 시퀀스와 UDA 캐시도 함께 초기화한다.
+        /// SDK 삭제 호출은 각각 예외를 삼켜 하나가 실패해도 나머지 정리를 계속한다.
+        /// </summary>
         private void ClearCanceledOperationArtifacts()
         {
             try { ResetSilentClashSequence(); } catch { }
@@ -826,6 +849,11 @@ namespace A2Z
             return targetNodes.Count > 0 ? targetNodes : allNodes;
         }
 
+        /// <summary>
+        /// BODY 노드 목록을 받아(없으면 X-Ray 선택·가시 부재로 수집) → BOM 데이터를 모아 bomList와 BOM 목록을 채우고 한 건 이상이면 true.
+        /// 수집 항목: Part 이름, 바운딩박스 최소·최대·중심, CIRCLE Osnap 최대 반지름, UDA PURPOSE, 홀·슬롯사이즈. Z_Max 내림차순 정렬.
+        /// 치수 추출·치수·BOM 버튼과 도면 일괄 출력에서 호출. 루프마다 취소 체크포인트를 지나며 취소 예외는 그대로 올린다.
+        /// </summary>
         private bool CollectBOMData(
             List<VIZCore3D.NET.Data.Node> preparedTargetNodes = null,
             string progressLabel = "BOM 수집 중")

@@ -809,6 +809,12 @@ namespace A2Z
         /// BOM 행 선택(T-021) 패턴 복제. SelectedItems[i].SubItems[2] = 부재이름 (No, 축 다음)
         /// </summary>
         private bool _suppressOsnapSelChanged = false;
+
+        /// <summary>
+        /// [lvOsnap SelectedIndexChanged] → 선택한 Osnap 행의 부재를 bomList에서 찾아 전체 색 초기화 후 3D 강조·카메라 fit한다.
+        /// bomList가 비어 있거나 이름이 일치하는 부재가 없으면 아무것도 하지 않는다.
+        /// 간섭 목록 등 코드로 Osnap 행을 선택하는 흐름에서는 가드 플래그로 이 처리를 건너뛴다.
+        /// </summary>
         private void LvOsnap_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_suppressOsnapSelChanged) return;  // LvClash 흐름 등 외부 프로그래밍 선택 시 가드
@@ -1234,6 +1240,11 @@ namespace A2Z
             }
         }
 
+        /// <summary>
+        /// 2D 뷰를 Both 모드로 열어 둔 채 → 2D 객체·비객체·캔버스를 전부 삭제하고 다시 렌더해 이전 도면 잔상을 지운다.
+        /// 초기화(파일 재로드) 후, PDF 묶음 시작, 도면 캔버스 준비, 시트 출력 정리에서 호출된다.
+        /// 뷰 모드 토글 없이 삭제 API만 써서 깜빡임을 막는다. 뷰 모드를 바꾸면 안 되는 경로는 호출자가 되돌린다.
+        /// </summary>
         private void Clear2DView()
         {
             // [깜빡임 제거 2026-07-22] 기존엔 2D 뷰 "완전 리셋"을 위해 ViewMode를 Model3D↔Both로
