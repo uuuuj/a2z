@@ -181,7 +181,7 @@ flowchart TD
 
 | 타입 | 위치 | 무엇 |
 |---|---|---|
-| `BodyBoundsData` (struct) | L55 | Min/Max XYZ 6개. 제작도 근접 후보 광역 필터용 경계상자 |
+| `BodyBoundsData` (struct) | L64 | Min/Max XYZ 6개. 제작도 근접 후보 광역 필터용 경계상자 |
 
 ## 7. Win32 직접 호출 — SDK 우회
 
@@ -227,7 +227,7 @@ SetFocus(뷰어 핸들)
 |---|---|---|
 | **진단 로그** (L241~280) | `DiagLogger` static 클래스 | `Form1`의 어떤 필드도 안 쓴다. 이미 전부 `static`이다. **그냥 파일만 옮기면 된다** |
 | **진행창·취소** (L333~460) | `BusyOverlayController` | `panelViewer` 하나에만 묶여 있다. 생성자로 받으면 끝 |
-| `BodyBoundsData` (L55) | `Models.cs` | 중첩 구조체를 밖으로 |
+| `BodyBoundsData` (L64) | `Models.cs` | 중첩 구조체를 밖으로 |
 | Win32 P/Invoke (L19~24) | `NativeZoom` 유틸 | 쓰는 곳은 `DrawingSheets` 한 곳뿐인데 선언만 여기 있다 |
 
 > 🔑 **진단 로그와 진행창을 빼면 `Form1.cs`의 절반(약 220줄)이 나간다.**

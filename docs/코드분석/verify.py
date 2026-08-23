@@ -35,7 +35,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 SRC = ROOT / "A2Z"
 DOCS = HERE / "파일별"
-SDK_XML = ROOT / "VIZCore3D.NET.xml"
+SDK_XML = ROOT / "lib" / "VIZCore3D.NET.xml"   # DLL 옆 단일 정본 (2026-08-24 루트 중복본 제거)
 
 RE_METHOD = re.compile(
     r'^\s*(?:\[[^\]]*\]\s*)?'
@@ -164,7 +164,7 @@ def main():
     lines, decl, names = load_code()
     sdk = load_sdk()
     if sdk is None:
-        print("⚠ VIZCore3D.NET.xml 없음 — SDK 검사 건너뜀 (.gitignore 대상이라 로컬에만 있다)")
+        print("⚠ lib/VIZCore3D.NET.xml 없음 — SDK 검사 건너뜀 (.gitignore 대상이라 로컬에만 있다)")
 
     docs = sorted(DOCS.glob("*.md"))
     if only:

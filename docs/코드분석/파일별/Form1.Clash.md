@@ -25,11 +25,11 @@
 
 | 경로 | 메서드 | 언제 |
 |---|---|---|
-| 간섭검사 완료 이벤트 | `Clash_OnClashTestFinishedEvent` (L1129) | SDK 초기화 때 `Form1.BOM.cs` L157에서 배선. 등록한 검사 한 건이 끝날 때마다 호출 |
-| **치수 추출** | `DetectClash` (L1004) | `Form1.BOM.cs`가 BOM 수집 뒤 연결성 확인을 시작 |
-| **도면 일괄 출력** | `DetectClash` (L1004) | `Form1.Stru.cs`가 STRU마다 검사와 설치도 외부 연결 검사를 시작 |
-| 도면 시트 생성·선택·출력 | `CollectBOMInfo` (L63), `PrepareDrawingSheetBomCaches` (L114) | `Form1.DrawingSheets.cs`와 `Form1.MfgDrawing.cs`가 시트별 BOM을 미리 계산하거나 화면에 적용 |
-| 모델 열기 | `ResetFabricationNeighborSearchCache` (L666) | `Form1.BOM.cs`의 Body→Part 매핑 재구축 시 근접 검사 캐시 초기화 |
+| 간섭검사 완료 이벤트 | `Clash_OnClashTestFinishedEvent` (L1146) | SDK 초기화 때 `Form1.BOM.cs` L157에서 배선. 등록한 검사 한 건이 끝날 때마다 호출 |
+| **치수 추출** | `DetectClash` (L1021) | `Form1.BOM.cs`가 BOM 수집 뒤 연결성 확인을 시작 |
+| **도면 일괄 출력** | `DetectClash` (L1021) | `Form1.Stru.cs`가 STRU마다 검사와 설치도 외부 연결 검사를 시작 |
+| 도면 시트 생성·선택·출력 | `CollectBOMInfo` (L66), `PrepareDrawingSheetBomCaches` (L117) | `Form1.DrawingSheets.cs`와 `Form1.MfgDrawing.cs`가 시트별 BOM을 미리 계산하거나 화면에 적용 |
+| 모델 열기 | `ResetFabricationNeighborSearchCache` (L654) | `Form1.BOM.cs`의 Body→Part 매핑 재구축 시 근접 검사 캐시 초기화 |
 
 ---
 
@@ -37,7 +37,7 @@
 
 ```mermaid
 flowchart TD
-    A["「BOM 수집」 또는 시트 준비"] --> B["CollectBOMInfo<br/>(L63)"]
+    A["「BOM 수집」 또는 시트 준비"] --> B["CollectBOMInfo<br/>(L66)"]
     B --> C{"준비된 시트 캐시가 있나?"}
     C -- 있음 --> D["ApplyPreparedBomInfo<br/>(L627)"]
     C -- 없음 --> E["BuildDrawingBomPreparationContext<br/>(L134)"]
@@ -53,14 +53,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["「Clash」/치수 추출/일괄 출력"] --> B["DetectClash<br/>(L1004)"]
+    A["「Clash」/치수 추출/일괄 출력"] --> B["DetectClash<br/>(L1021)"]
     B --> C["대상 BODY와 N(N-1)/2 쌍 구성"]
     C --> D{"외부 연결도 필요한가?"}
     D -- 예 --> E["GetFabricationNeighborCandidates<br/>(L777)"]
     D -- 아니오 --> F["StartSilentClashSequence<br/>(L857)"]
     E --> F
     F --> G["SDK 검사를 한 건씩 실행"]
-    G --> H["Clash_OnClashTestFinishedEvent<br/>(L1129)"]
+    G --> H["Clash_OnClashTestFinishedEvent<br/>(L1146)"]
     H --> I["결과 중복 제거 + BODY 연결 그래프"]
     I --> J{"한 연결 성분인가?"}
     J -- 예 --> K["CompleteMainDimensionPostClash<br/>(BOM.cs L522)"]:::other
@@ -70,7 +70,7 @@ flowchart TD
 
 ### 2-1. 도면 BOM 수집
 
-1. **`CollectBOMInfo`** (L63) — 선택 도면 시트가 있으면 그 시트, 없으면 전체 모델을 대상으로 고른다. 시트에 준비된 캐시가 있으면 계산을 건너뛴다.
+1. **`CollectBOMInfo`** (L66) — 선택 도면 시트가 있으면 그 시트, 없으면 전체 모델을 대상으로 고른다. 시트에 준비된 캐시가 있으면 계산을 건너뛴다.
 2. **`BuildDrawingBomPreparationContext`** (L134) — BODY를 Part로 묶고, 필요한 UDA 실제 Key를 찾은 뒤 Part마다 한 번만 값을 읽는다.
 3. **`ReadDrawingBomPartData`** (L262) — Part에서 부모 방향으로 최대 10단계를 올라가 SPREF·MATREF·GWEI·POSSTART·POSEND·STRU·MA·FA를 채운다.
 4. **`BuildDrawingBomSnapshot`** (L483) — 요약행 1개와 Part별 데이터행을 만들고 BODY→그룹 번호 맵을 만든다.
@@ -81,7 +81,7 @@ flowchart TD
 
 ### 2-2. 일반 간섭검사 등록과 실행
 
-1. **`DetectClash`** (L1004) — 이전 일반/근접 결과와 화면 목록을 비운다.
+1. **`DetectClash`** (L1021) — 이전 일반/근접 결과와 화면 목록을 비운다.
 2. 모델의 BODY 노드를 가져오고, X-Ray 목록이 있으면 그 인덱스만, 없으면 현재 보이는 BODY만 검사 대상으로 잡는다 (L1012~1034).
 3. 대상 BODY의 모든 조합 `N(N-1)/2`마다 `ClashTest` 하나를 만들고 SDK에 등록한다 (L1040~1064).
 4. 설치도 외부 연결까지 필요하면 **`GetFabricationNeighborCandidates`** (L777)로 3mm 안의 외부 BODY만 먼저 거른 뒤, 대상 그룹 대 후보 그룹 검사 하나를 추가한다 (L1066~1096).
@@ -99,7 +99,7 @@ flowchart TD
 
 ### 2-4. 완료 결과를 연결 그래프로 변환
 
-1. **`Clash_OnClashTestFinishedEvent`** (L1129) — 마지막 테스트 완료 때만 등록된 모든 테스트를 순회한다.
+1. **`Clash_OnClashTestFinishedEvent`** (L1146) — 마지막 테스트 완료 때만 등록된 모든 테스트를 순회한다.
 2. 각 테스트 결과를 SDK의 `PART` 그룹으로 읽고 `ClashData`에 Part 인덱스·이름·HotPoint XYZ를 보존한다 (L1160~1201).
 3. A-B와 B-A를 같은 쌍으로 보고 일반 결과와 외부 연결 결과에서 각각 중복 제거한다 (L1203~1211).
 4. 외부 연결 결과의 실제 상대 Part만 `fabricationNeighborPartIndices`에 넣는다. 이는 AABB 광역 후보 목록이 아니라 **SDK 간섭 결과를 통과한 Part 목록**이다 (L1213~1221).

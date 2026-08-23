@@ -25,7 +25,7 @@
 | **조립도** | `btnExportAssemblySheets_Click` | L1267 | 4줄 |
 | **설치도** | `btnExportInstallationSheets_Click` | L1272 | 4줄 |
 
-**뒤의 셋은 4줄짜리로 전부 `ExportSheetsByKind`(L1281)에 종류만 바꿔 넘긴다.**
+**뒤의 셋은 4줄짜리로 전부 `ExportSheetsByKind`(L1286)에 종류만 바꿔 넘긴다.**
 
 ### 🔴 죽은 버튼 핸들러 4개
 
@@ -46,8 +46,8 @@
 |---|---|---|
 | `GenerateDrawingSheets` | L20 | BOM (치수 추출 사슬의 마지막) |
 | `GenerateSheetDrawing2D` | L1707 | Drawing2D · Stru |
-| `ApplySheetSelection` | L636 | Stru (자동 출력) |
-| `ApplyDrawingSheetView` | L838 | GlobalViews |
+| `ApplySheetSelection` | L651 | Stru (자동 출력) |
+| `ApplyDrawingSheetView` | L853 | GlobalViews |
 | `CreateIsoBalloonNotes` | L960 | Dimensions · GlobalViews |
 | `FindParentStru` · `FindNearestParentAssembly` | L3394 · L3367 | GlobalViews |
 | `FilterOsnapForDimAxis` | — | MfgDrawing |
@@ -279,7 +279,7 @@ chainDimensionList.AddRange(GetDrawingSheetDimensionsFor2D(sheet, null));
 
 ### ⑦ 시트 클릭이 빠른 이유 — 미리 계산해 둔다
 
-목록을 보여주기 **전에** 일반·설치 시트의 치수와 BOM을 계산해 `DrawingSheetData`에 넣어둔다 (`PrepareDrawingSheetDimensionCaches` L496 · `PrepareDrawingSheetBomCaches`).
+목록을 보여주기 **전에** 일반·설치 시트의 치수와 BOM을 계산해 `DrawingSheetData`에 넣어둔다 (`PrepareDrawingSheetDimensionCaches` L506 · `PrepareDrawingSheetBomCaches`).
 
 **이후 일반·설치 시트 클릭은 SDK 재조회·치수 재계산 없이 캐시를 UI에 붙이기만 한다.**
 
@@ -353,7 +353,7 @@ SetFocus(뷰어)  →  SendMessage(WM_MOUSEWHEEL) × 약 7회  →  약 3배 확
 |---|---|
 | 🔴 **죽은 버튼 핸들러 4개** (L1134~1153) | `btnDrawingISO/AxisX/AxisY/AxisZ_Click`. 배선 없음 |
 | 🟠 **`GenerateSheetDrawing2DCore` 361줄** | `_WithExcelTemplate`(965줄)와 **같은 일을 템플릿 없이** 한다. 분기 스위치는 App.config가 아니라 **하드코딩 필드 `UseExcelTemplate = true`**(L1681)이고 false로 바꾸는 코드가 없어 **사실상 도달 불가** (자기 정정 2026-08-23, [`죽은 코드.md`](../판정/죽은%20코드.md) #7). "템플릿 없이 뽑는" 비상 경로로 남길지는 사용자 결정 |
-| 🟠 **`ApplyDrawingSheetView`(L838, 122줄)와 `ApplySheetSelection`(L636, 158줄)** | 겹치는 부분이 있다. 둘 다 시트를 3D에 적용한다 **(미확인 — 차이 확인 필요)** |
+| 🟠 **`ApplyDrawingSheetView`(L853, 122줄)와 `ApplySheetSelection`(L651, 158줄)** | 겹치는 부분이 있다. 둘 다 시트를 3D에 적용한다 **(미확인 — 차이 확인 필요)** |
 
 ### 🔑 정리하면
 

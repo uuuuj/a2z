@@ -33,7 +33,7 @@
 
 ### 다른 파일에서 시작
 
-`CollectBOMData`(L829)는 치수·도면 일괄 출력 경로에서도 호출되고, `GetPartNameFromBodyIndex`(L110)는 Osnap·2D 표시에서 BODY 이름을 Part 이름으로 바꿀 때 쓰인다. `CompleteMainDimensionPostClash`(L522)는 Clash 완료 이벤트가 호출한다.
+`CollectBOMData`(L857)는 치수·도면 일괄 출력 경로에서도 호출되고, `GetPartNameFromBodyIndex`(L114)는 Osnap·2D 표시에서 BODY 이름을 Part 이름으로 바꿀 때 쓰인다. `CompleteMainDimensionPostClash`(L545)는 Clash 완료 이벤트가 호출한다.
 
 ---
 
@@ -57,14 +57,14 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["「치수 추출」<br/>btnMainDimension_Click (L345)"] --> B["GetBOMTargetNodes<br/>(L786)"]
-    B --> C["CollectBOMData<br/>(L829)"]
+    B --> C["CollectBOMData<br/>(L857)"]
     C --> D["DetectClash<br/>(Clash.cs L1004)"]:::other
     D --> E{"검사를 시작했나?"}
     E -- 예 --> F["Clash 완료 이벤트<br/>(Clash.cs L1129)"]:::other
     E -- 아니오 --> G["단일 부재로 간주"]
     F --> H{"한 연결 성분인가?"}
     H -- 아니오 --> I["후속 생성 중단"]
-    H -- 예 --> J["CompleteMainDimensionPostClash<br/>(L522)"]
+    H -- 예 --> J["CompleteMainDimensionPostClash<br/>(L545)"]
     G --> J
     J --> K["CollectAllOsnap<br/>(L668)"]
     K --> L["ComputeViewDimensionsForMembers<br/>(Dimensions.cs L2433)"]:::other
@@ -92,7 +92,7 @@ flowchart TD
 ### 2-3. BOM 버튼
 
 1. **`GetBOMTargetNodes`** (L786) — X-Ray 선택이 있으면 그 BODY 또는 선택 Part의 BODY, 없으면 보이는 BODY를 대상으로 고른다.
-2. **`CollectBOMData`** (L829) — BODY마다 Part 이름, AABB 좌표·중심, 최대 원 반지름, PURPOSE를 수집한다.
+2. **`CollectBOMData`** (L857) — BODY마다 Part 이름, AABB 좌표·중심, 최대 원 반지름, PURPOSE를 수집한다.
 3. `MaxZ` 내림차순으로 정렬한다 (L927~928).
 4. **`DetectHoles`** (L982) — 공식 홀 API를 사용하는 외부 공용 메서드로 원형홀·슬롯홀을 채우고 규격별 문자열을 만든다.
 5. `lvBOM`에 번호·이름·중심/Min/Max·원형 반지름·용도·홀 크기를 표시한다 (L933~962).
@@ -104,10 +104,10 @@ flowchart TD
 1. **`btnMainDimension_Click`** (L345) — 중복 자동 작업을 막고, 출력 버튼을 비활성화하며 취소 가능한 진행창을 시작한다.
 2. 이전 X-Ray 범위를 지워 **현재 가시성**만 대상이 되게 하고 **`GetBOMTargetNodes`** (L786)로 모수를 센다.
 3. 대상이 5,000개 이상이면 오래 걸린다는 확인창을 띄운다 (L383~400).
-4. **`CollectBOMData`** (L829)로 BOM을 매번 새로 수집한다.
+4. **`CollectBOMData`** (L857)로 BOM을 매번 새로 수집한다.
 5. **`DetectClash(includeOutsideNeighbors: true)`** (`Form1.Clash.cs` L1004)로 내부 연결성과 설치도 외부 연결 검사를 시작한다.
-6. 검사 시작에 성공하면 SDK 완료 이벤트가 이어서 실행한다. 시작하지 못하면 단일 부재로 간주해 곧바로 **`CompleteMainDimensionPostClash`** (L522)로 간다.
-7. **`CompleteMainDimensionPostClash`** (L522) — `CollectAllOsnap` → 공용 체인 치수 계산 → 화면 목록 갱신 → 도면 시트 생성 순으로 실행한다.
+6. 검사 시작에 성공하면 SDK 완료 이벤트가 이어서 실행한다. 시작하지 못하면 단일 부재로 간주해 곧바로 **`CompleteMainDimensionPostClash`** (L545)로 간다.
+7. **`CompleteMainDimensionPostClash`** (L545) — `CollectAllOsnap` → 공용 체인 치수 계산 → 화면 목록 갱신 → 도면 시트 생성 순으로 실행한다.
 8. 시트 생성 뒤 진행창을 먼저 닫고 최종 BOM·Osnap·치수·Clash 수를 보여준다 (L613~639).
 
 ### 2-5. Clash 이후 후속 처리

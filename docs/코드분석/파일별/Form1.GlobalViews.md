@@ -29,7 +29,7 @@
 |---|---|
 | `PrepareInstallationConnectionData` (L290) | 설치도 시트를 만들 때 간섭 결과를 실제 접합 BODY·접합점·표시할 상대 STRU로 변환 |
 | `ExtractInstallationDimensions` (L246) | 설치도 시트를 3D 화면에 적용하면서 기존 치수를 지우고 설치 위치 치수를 다시 구성 |
-| `ComputeInstallationDimensions` (L1033) | 2D 설치도 출력용으로 UI를 건드리지 않고 같은 위치 치수 목록만 계산 |
+| `ComputeInstallationDimensions` (L1067) | 2D 설치도 출력용으로 UI를 건드리지 않고 같은 위치 치수 목록만 계산 |
 
 목록 선택이나 더블클릭에 직접 연결된 핸들러는 없다.
 
@@ -63,7 +63,7 @@ flowchart TD
     E --> I["SnapToNearestOsnap<br/>(L998)"]
     G --> I
     I --> J["AssignInstallationConnectionLabels<br/>(L613)"]
-    J --> K["ComputeInstallationDimensions<br/>(L1033)"]
+    J --> K["ComputeInstallationDimensions<br/>(L1067)"]
     K --> L["뷰별 위치 치수 목록"]
     classDef other fill:#eee,stroke:#999,stroke-dasharray:3
 ```
@@ -98,7 +98,7 @@ flowchart TD
 ### 2-3. 설치 위치 치수 계산
 
 1. **`ExtractInstallationDimensions(sheet)`** (L246) — 3D 치수·선·풍선과 화면 목록을 지운다.
-2. **`ComputeInstallationDimensions(sheet)`** (L1033) — 접합 BODY 쌍별로 위치 치수 후보를 만든다.
+2. **`ComputeInstallationDimensions(sheet)`** (L1067) — 접합 BODY 쌍별로 위치 치수 후보를 만든다.
 3. **`BuildInstallationPlacementAnchor`** (L862) — 대상 BODY의 길이축, 접합 중심, 축별 가까운 끝단과 접합 모서리를 정한다.
 4. 접합이 대상 BODY 폭의 절반 이상을 덮는 축은 “가로지르는 접합”으로 보고 제외하고, 국소 접합인 축만 남긴다 (L938~975).
 5. 각 축의 두 끝점을 그 축 성분만 다른 순수 축정렬 좌표로 투영한다 (L1078~1094).
