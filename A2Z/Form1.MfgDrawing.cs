@@ -3374,8 +3374,10 @@ namespace A2Z
         }
 
         /// <summary>
-        /// 부재와 pose를 받아 → ORIENTATION UDA의 축 방향 문자열로 직교 로컬 참조축(X·Y·Z)과 부재 중심 원점을 pose에 세운다. 성공 시 true.
-        /// 기울기 1° 이하·UDA 없음·쓸 축 조합 없음(Z만 읽힌 경우 포함)이면 false. 두 축이면 직교화, X나 Y 하나뿐이면 월드축과 외적으로 보완.
+        /// 부재와 pose를 받아 → ORIENTATION UDA의 축 방향 문자열로 직교 로컬 참조축(X·Y·Z)과
+        /// 부재 중심 원점을 pose에 세운다. 성공 시 true.
+        /// 기울기 1° 이하·UDA 없음·쓸 축 조합 없음(Z만 읽힌 경우)이면 false.
+        /// 두 축이면 직교화하고, X나 Y 하나뿐이면 월드축과 외적으로 보완한다.
         /// 장면 코어가 카메라 이동 직후 호출. 여기서는 pose만 채우고 SDK 참조축은 만들지 않는다.
         /// </summary>
         private bool TryBuildMfgOrientationReferenceFrame(BOMData bom, MfgViewPose pose)
@@ -3817,7 +3819,7 @@ namespace A2Z
         /// <summary>
         /// 부재를 받아 → LINE Osnap 기반 주축 판정과 ORIENTATION UDA 파싱값을 비교한 "참조축판정" 진단 로그 한 줄을 남긴다.
         /// 장면 코어가 Osnap 수집 직후 호출. 카메라·좌표계는 바꾸지 않는다.
-        /// ORIENTATION이 있으면 그것을, 없으면 기하 판정을 기울어짐 결정 근거로 표기한다.
+        /// ORIENTATION이 유효한 축으로 파싱될 때만 그 각도를, 아니면 기하 판정을 기울어짐 근거로 표기한다.
         /// </summary>
         private void LogMfgAxisDetection(BOMData bom)
         {

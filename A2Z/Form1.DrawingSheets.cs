@@ -970,7 +970,8 @@ namespace A2Z
 
         /// <summary>
         /// ISO 뷰 풍선 노트 생성 (3D 고정 오프셋 + 2D AABB 겹침 검사)
-        /// 화면 풍선(ApplyDrawingSheetView·GlobalViews·Dimensions)과 도면 풍선(GenerateSheetDrawing2D_WithExcelTemplate)에서 공유
+        /// 화면 풍선(ApplyDrawingSheetView·GlobalViews·Dimensions)과
+        /// 도면 풍선(GenerateSheetDrawing2D_WithExcelTemplate)에서 공유
         /// </summary>
         private Dictionary<int, int> CreateIsoBalloonNotes(List<int> memberIndices, bool forDrawing2D = false)
         {

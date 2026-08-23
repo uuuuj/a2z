@@ -136,7 +136,7 @@ namespace A2Z
 
         /// <summary>
         /// 대상 Body 인덱스를 받아 → Part로 묶고 Part마다 UDA를 한 번씩 읽어 → Part별 BOM 원자료와 BOM 번호 맵을 돌려준다.
-        /// 대상이 null이면 모델 전체 Part. 읽는 UDA는 SPREF·MATREF·GWEI·POSSTART·POSEND·STRU + App.config의 MA·FA 키.
+        /// 대상이 null이면 모델 전체 Part. UDA는 SPREF·MATREF·GWEI·POSSTART·POSEND·STRU + MA·FA 키.
         /// STRU 노드를 하나도 못 찾았거나 Uda.DumpOnLoad=true면 조상 체인 진단 덤프를 남긴다(느림).
         /// </summary>
         private DrawingBomPreparationContext BuildDrawingBomPreparationContext(IEnumerable<int> targetBodyIndices)
@@ -471,7 +471,7 @@ namespace A2Z
         /// <summary>
         /// 준비 컨텍스트와 Body 인덱스를 받아 → 요약행(00 Support&Seat) 1개와 부재 행을 BOM 번호순으로 만들어 → 스냅샷을 돌려준다.
         /// 요약행 T/W는 STRU 노드 GWEI 우선, 없을 때만 부재 무게 합산으로 폴백하고 로그를 남긴다.
-        /// Body가 null이면 컨텍스트의 Part 전부. 빈 MATERIAL·SIZE·T/W·MA·FA는 '-', Q'TY는 항상 1.
+        /// 요약행은 MATERIAL·SIZE·Q'TY가 빈칸이고 MA·FA는 'F'. 부재 행만 빈 값이 '-', Q'TY가 1이다.
         /// </summary>
         private DrawingBomSnapshot BuildDrawingBomSnapshot(
             DrawingBomPreparationContext context,

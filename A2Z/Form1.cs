@@ -250,7 +250,7 @@ namespace A2Z
 
         /// <summary>
         /// 진단 메시지를 받아 시각을 붙여 exe 폴더의 logs/diag-날짜.log 파일과 VS 출력창(Debug)에 같이 기록한다.
-        /// 파일 쓰기 실패는 삼켜서 앱 흐름에 영향을 주지 않는다. 모든 Form1 파일이 공용으로 부른다.
+        /// 파일 쓰기 실패는 삼켜서 앱 흐름에 영향을 주지 않는다. Form1의 여러 부분 클래스가 공용으로 부른다.
         /// </summary>
         private static void DiagLog(string msg)
         {

@@ -1029,7 +1029,8 @@ namespace A2Z
 
         /// <summary>
         /// 축 이름(X/Y/Z)과 시작·끝점을 받아 해당 월드축 방향의 SDK 축 치수를 추가하고 측정 ID를 돌려준다. 축이 X/Y/Z가 아니면 -1.
-        /// DrawDimension의 월드축 기본 경로와 UserAxis 실패 시 폴백에서 부른다. Review.Measure.AddCustomAxisDistance를 호출한다.
+        /// DrawDimension의 월드축 기본 경로와 UserAxis 실패 시 폴백에서 부른다.
+        /// SDK Review.Measure.AddCustomAxisDistance를 호출한다.
         /// </summary>
         private int AddWorldAxisDistance(
             string axis,
@@ -2464,7 +2465,7 @@ namespace A2Z
 
         /// <summary>
         /// 부재 Body 인덱스 목록과 뷰 방향을 받아 접합한 두 부재의 길이축 사잇각이 90° 배수가 아니면 파란 각도 치수를 3D에 찍는다.
-        /// 판형(PAD/PLATE) 부재는 제외, 접합은 clashList 표면접촉·같은 Part·Osnap 끝점 3mm 이내로 판정하고 각도는 실제 3D 내적이다.
+        /// 판형(PAD/PLATE)은 제외. 접합은 같은 Part·간섭검사 3mm 근접쌍·Osnap 끝점 3mm 중 하나만 맞아도 인정하고, 각도는 실제 3D 내적이다.
         /// 접합 평면 법선이 깊이축에 가장 가까운 한 뷰에만 그린다. 시트 출력에서 ShowAllDimensions 직후 부르며 ISO 뷰면 건너뛴다.
         /// </summary>
         private void MarkNonRightAngles(List<int> memberIndices, string viewDirection)
