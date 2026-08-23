@@ -730,7 +730,8 @@ namespace A2Z
 
         /// <summary>
         /// BODY 인덱스를 받아 → 끝단 후보가 될 LINE/POINT Osnap 좌표를 중복 없이 돌려준다. 없으면 경계상자 8개 모서리로 대신한다.
-        /// 경계상자로 대신한 경우 boundsFallback이 true. 경계상자도 못 구하면 빈 목록.
+        /// Osnap이 하나도 없으면 boundsFallback을 true로 올린 뒤 경계상자를 시도하므로,
+        /// 경계상자마저 못 구해 빈 목록을 돌려줄 때도 boundsFallback은 true다.
         /// 설치 위치 기준점 계산에서 대상·상대 BODY 각각에 호출.
         /// </summary>
         private List<VIZCore3D.NET.Data.Vector3D> GetInstallationBodyPoints(
