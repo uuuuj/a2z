@@ -159,15 +159,6 @@ namespace A2Z
             = new Dictionary<(int, string), string>();
 
         /// <summary>
-        /// T-038+039 v4 (2026-05-12 사용자 사양): ShowAllDimensions가 계산한 *모델 이동량* (2D 캔버스 mm).
-        /// "보조선이 나간 방향 반대쪽으로 그리드 안의 모델을 보조선 길이만큼 이동" — 화면 H/V 외곽 반대.
-        /// 옛 RenderSheetViewForDrawing(2026-08-23 삭제)이 MoveObject에 쓰던 값 — 현 경로는 뷰 시작마다 리셋만 하고
-        /// 읽지 않는다. 남은 소비처는 ShowAllDimensions의 진단 로그뿐 (정리 후보 — 죽은 코드.md 미확정 참조).
-        /// </summary>
-        private float _lastModelShiftCanvasX = 0f;
-        private float _lastModelShiftCanvasY = 0f;
-
-        /// <summary>
         /// Step B2 (2026-05-19): 가공도 공통 코어 결과 보존.
         /// 옛 _mfgDrawingZ90Applied / _mfgDrawingR180Applied / _mfgDrawingCameraSnapshot 3 필드 통합.
         /// ExecuteMfgDrawing(수동)이 BuildMfgSceneCore 결과로 채움.
