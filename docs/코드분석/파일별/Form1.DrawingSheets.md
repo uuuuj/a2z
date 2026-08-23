@@ -279,9 +279,11 @@ chainDimensionList.AddRange(GetDrawingSheetDimensionsFor2D(sheet, null));
 
 ### ⑦ 시트 클릭이 빠른 이유 — 미리 계산해 둔다
 
-목록을 보여주기 **전에** 모든 시트의 치수와 BOM을 계산해 `DrawingSheetData`에 넣어둔다 (`PrepareDrawingSheetDimensionCaches` L496 · `PrepareDrawingSheetBomCaches`).
+목록을 보여주기 **전에** 일반·설치 시트의 치수와 BOM을 계산해 `DrawingSheetData`에 넣어둔다 (`PrepareDrawingSheetDimensionCaches` L496 · `PrepareDrawingSheetBomCaches`).
 
-**이후 시트 클릭은 SDK 재조회·치수 재계산 없이 캐시를 UI에 붙이기만 한다.**
+**이후 일반·설치 시트 클릭은 SDK 재조회·치수 재계산 없이 캐시를 UI에 붙이기만 한다.**
+
+⚠ **가공도(−3)는 예외다** (교차검증 #19) — 사전 준비 루프가 명시적으로 건너뛰고(L501~505), 가공도 행을 클릭하면 **매번 `ExecuteMfgDrawing`을 다시 실행**한다 (L719~727). 그래서 가공도 클릭만 느리다 (Osnap 캐시가 그 체감을 줄인 것 — [`Form1.MfgDrawing.md`](./Form1.MfgDrawing.md) 5절 ⑨).
 
 ### ⑧ 가짜 마우스 휠로 줌인 (L2020~2044)
 
@@ -313,10 +315,10 @@ SetFocus(뷰어)  →  SendMessage(WM_MOUSEWHEEL) × 약 7회  →  약 3배 확
 
 | 무엇을 | 어디로 | 근거 |
 |---|---|---|
-| 🔑 **시트 분할 알고리즘** (L20~180) | `SheetSplitter` | **`vizcore3d`를 한 번도 안 부른다.** `bomList`·`clashList`·`bodyToPartIndexMap`만 받아 `DrawingSheetData` 목록을 돌려준다. **순수 그래프 계산** |
+| 🔑 **시트 분할의 그래프 코어** (L39~160: 인접 리스트·1-hop·BFS·중복 제거) | `SheetSplitter` | **이 구간은** `bomList`·`clashList`·`bodyToPartIndexMap`만 쓰는 그래프 계산이다. 단 `GenerateDrawingSheets` 444줄 **전체는 아니다** (교차검증 #20) — 반환형 `void`로 `drawingSheetList`·`lvDrawingSheet`를 직접 채우고, `CreateFullDrawingSheetData`(호출 L33, 선언 L464)는 선택 노드를 SDK로 조회하며 설치 연결 준비(L167)도 SDK를 부른다. **코어만 추출**하는 제안이다 |
 | **UDA·이름 조회 5종** — `GetStruPntUdaValues` · `GetNamedUdaValue` · `GetOrCacheDrawingPaintCode` · `GetTagNoValue` · `GetDpNoValue` (L3557~3760) | `UdaReader` | `MfgDrawing`의 UDA 조회와 **같은 곳으로 가야 한다** |
 | **부모 탐색** — `FindParentStru` · `FindNearestParentAssembly` · `ResolveDrawingStruName` | 노드 트리 유틸 | GlobalViews도 쓴다 |
-| **배율 추정** — `EstimateFitScaleForCell` · `EstimateFitScaleForViewArea` | 배치 계산 | 영역과 bbox만 받는다 |
+| **배율 추정** — `EstimateFitScaleForCell` · `EstimateFitScaleForViewArea` | 배치 계산 | ⚠ 지금은 SDK를 직접 읽는다 (교차검증 #21) — 전자는 `Drawing2D.GridStructure`에서 셀·여백을, 후자는 참조 프레임 없으면 `GetBoundBox`를 호출. **영역·bbox를 값으로 받는 앞단을 만든 뒤에야** 순수 계산으로 뺄 수 있다 |
 | **파일명·이미지** — `PlaceImageInTemplateArea` · `SanitizeStruForFileName` | 유틸 | |
 
 **①만 해도 444줄이 순수 계산으로 빠진다.** 시트 분할은 **테스트를 쓸 수 있는 형태**가 되고, "왜 이 부재가 이 도면에 들어갔나"를 SDK 없이 재현할 수 있게 된다.
