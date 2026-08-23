@@ -187,7 +187,6 @@ namespace A2Z
         public List<ChainDimensionData> PreparedDimensions { get; set; }
         public bool DimensionsPrepared { get; set; }
         public List<DrawingBomRowData> PreparedBomRows { get; set; }
-        public Dictionary<int, int> PreparedBomNodeGroupMap { get; set; }
         public bool BomPrepared { get; set; }
         /// <summary>
         /// 설치도에 점선으로 표시할 외부 부재 인덱스.
@@ -203,7 +202,6 @@ namespace A2Z
             MemberNames = new List<string>();
             PreparedDimensions = new List<ChainDimensionData>();
             PreparedBomRows = new List<DrawingBomRowData>();
-            PreparedBomNodeGroupMap = new Dictionary<int, int>();
             InstallationContextIndices = new List<int>();
             InstallationConnections = new List<InstallationConnectionData>();
         }

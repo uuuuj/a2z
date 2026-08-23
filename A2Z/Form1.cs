@@ -84,11 +84,6 @@ namespace A2Z
         private List<int> xraySelectedNodeIndices = new List<int>();
 
         /// <summary>
-        /// BOM정보 탭 그룹 매핑 (key: nodeIndex, value: BOM정보 탭 그룹 No)
-        /// </summary>
-        private Dictionary<int, int> bomInfoNodeGroupMap = new Dictionary<int, int>();
-
-        /// <summary>
         /// 현재 열린 파일 경로
         /// </summary>
         private string currentFilePath = "";

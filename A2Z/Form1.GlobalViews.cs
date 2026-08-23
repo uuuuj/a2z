@@ -792,28 +792,6 @@ namespace A2Z
                 return false;
             }
         }
-
-        private double ProjectInstallationPoint(
-            VIZCore3D.NET.Data.Vector3D point, MfgAxisVector direction)
-        {
-            return point.X * direction.X + point.Y * direction.Y + point.Z * direction.Z;
-        }
-
-        private double GetInstallationPerpendicularDistance(
-            VIZCore3D.NET.Data.Vector3D first,
-            VIZCore3D.NET.Data.Vector3D second,
-            MfgAxisVector direction)
-        {
-            double dx = first.X - second.X;
-            double dy = first.Y - second.Y;
-            double dz = first.Z - second.Z;
-            double along = dx * direction.X + dy * direction.Y + dz * direction.Z;
-            double px = dx - along * direction.X;
-            double py = dy - along * direction.Y;
-            double pz = dz - along * direction.Z;
-            return Math.Sqrt(px * px + py * py + pz * pz);
-        }
-
         /// <summary>
         /// 월드 축(worldAxis)에 직교하는 평면에서 두 점의 거리 — 그 축 성분을 제외한 나머지 두 성분의 거리.
         /// 축별 끝단 후보를 연결 모서리에 가까운 순으로 정렬할 때 사용한다.
