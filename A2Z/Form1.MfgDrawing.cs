@@ -3228,20 +3228,6 @@ namespace A2Z
             }
         }
 
-        /// <summary>
-        /// ORIENTATION 기반 Looking 라벨 생성 (카메라 회전 없이 라벨만)
-        /// 예: "Looking X 45 Y" 또는 "Looking \"X\""
-        /// </summary>
-        private string GetOrientationLabel(int nodeIndex, string viewDirection)
-        {
-            var (orientAxis, orientAngle) = ParseOrientation(nodeIndex);
-
-            if (orientAngle != 0f)
-                return $"Looking {viewDirection} {orientAngle:F0} {orientAxis}";
-            else
-                return $"Looking \"{viewDirection}\"";
-        }
-
         // 참조축 자동 정렬 1단계 진단값. 이 단계에서는 카메라·모델 좌표계를 변경하지 않는다.
         private const double MfgAxisDirectionToleranceDegrees = 5.0;
         private const double MfgAxisTiltToleranceDegrees = 1.0;
