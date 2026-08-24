@@ -5,7 +5,6 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -16,22 +15,6 @@ namespace A2Z
 {
     public partial class Form1 : Form
     {
-        /// <summary>
-        /// 창 핸들과 윈도우 메시지·인자를 받아 user32 SendMessage로 직접 보내고 그 결과값을 돌려준다 (Win32 선언).
-        /// 뷰어에 가짜 휠 메시지(WM_MOUSEWHEEL)를 보내 줌하던 우회용으로 보이나(추정), 현재 소스에 호출처가 없다.
-        /// </summary>
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
-
-        /// <summary>
-        /// 창 핸들을 받아 user32 SetFocus로 키보드 포커스를 그 창에 옮기고 이전 포커스 창 핸들을 돌려준다 (Win32 선언).
-        /// 휠 메시지를 보내기 전 뷰어에 포커스를 주던 용도로 보이나(추정), 현재 소스에 호출처가 없다.
-        /// </summary>
-        [DllImport("user32.dll")]
-        private static extern IntPtr SetFocus(IntPtr hWnd);
-        private const int WM_MOUSEWHEEL = 0x020A;
-        private const int WHEEL_DELTA = 120;
-
         /// <summary>
         /// VIZCore3D.NET 컨트롤
         /// </summary>
