@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>버튼 하나가 지나는 길</title>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+:root{
+  --paper:#F5F4F1;
+  --ink:#1A1C20;
+  --ink-2:#5F6570;
+  --ink-3:#9A9EA6;
+  --ink-4:#B6B9BF;
+  --rule:#DFDDD8;
+  --flow:#0071DB;
+  --brk:#C2410C;
+  --brk-soft:#A8734F;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#E4E2DD;height:100%}
+body{
+  font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;
+  -webkit-font-smoothing:antialiased;
+}
+.slide{
+  width:1280px;height:720px;background:var(--paper);color:var(--ink);
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:58px 72px 48px;
+  box-shadow:0 1px 3px rgba(26,28,32,.08), 0 12px 40px rgba(26,28,32,.10);
+}
+.slide > *{position:relative}
+
+/* ── 헤드 ── */
+.eyebrow{
+  display:flex;align-items:center;gap:11px;
+  font-size:11.5px;font-weight:700;letter-spacing:.16em;color:var(--ink-3);
+}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--flow);flex:none}
+h1{
+  margin-top:12px;
+  font-size:48px;font-weight:800;letter-spacing:-.035em;line-height:1.05;
+}
+.lead{
+  margin-top:14px;font-size:18px;font-weight:400;color:var(--ink-2);
+  line-height:1.5;white-space:nowrap;
+}
+.lead b{color:var(--brk);font-weight:600}
+.divider{
+  margin-top:24px;height:2px;flex:none;
+  background:linear-gradient(to right,
+    var(--flow) 0, var(--flow) 56px,
+    var(--rule) 56px, var(--rule) 100%);
+}
+
+/* ── 도식 ── */
+.fig{flex:1;display:flex;align-items:center;margin:0 -10px}
+svg{width:100%;height:auto}
+
+/* ── 각주: 좌하단으로 모음 ── */
+.note{
+  position:absolute;left:72px;bottom:44px;
+  font-size:11.5px;line-height:1.85;color:var(--ink-3);
+  letter-spacing:-.005em;
+}
+.note div{display:flex;gap:9px}
+.note .k{
+  color:var(--ink-4);font-weight:700;
+  min-width:52px;
+}
+.note b{color:var(--ink-2);font-weight:600}
+.note .mono{font-family:"JetBrains Mono","D2Coding",Consolas,monospace;font-size:11px}
+.pg{
+  position:absolute;right:72px;bottom:44px;
+  font-size:12px;color:var(--ink-3);letter-spacing:.1em;font-weight:700;
+}
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <div class="eyebrow">02 &nbsp;·&nbsp; 실행 구조</div>
+  <h1>버튼 하나가 지나는 길</h1>
+  <div class="lead">
+    버튼 한 번에 일곱 단계가 돈다. 단 <b>간섭검사에서 멈췄다가</b>, SDK가 알려줘야 이어진다.
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="fig">
+  <svg viewBox="0 0 1200 292" xmlns="http://www.w3.org/2000/svg" role="img"
+       aria-label="모델 열기부터 PDF까지의 진행 순서. 간섭검사 지점에서 대기했다가 SDK 알림으로 재개된다.">
+    <defs>
+      <marker id="tip" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
+        <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/>
+      </marker>
+      <style>
+        .lab  { font-size:15px;   font-weight:700; fill:#1A1C20; letter-spacing:-.015em }
+        .term { font-size:10px;   font-weight:600; fill:#9A9EA6 }
+        .step { font-size:10.5px; font-weight:700; fill:#B6B9BF; letter-spacing:.11em;
+                font-family:"JetBrains Mono","D2Coding",Consolas,monospace }
+        .val  { font-size:12.5px; font-weight:450; fill:#5F6570 }
+        .valk { font-size:12.5px; font-weight:700; fill:#0071DB }
+        .who  { font-size:11px;   font-weight:700; fill:#B6B9BF; letter-spacing:.09em }
+        .brk  { font-size:14.5px; font-weight:700; fill:#C2410C }
+        .brks { font-size:11px;   font-weight:500; fill:#A8734F }
+        .brkn { font-size:11.5px; font-weight:450; fill:#A8734F }
+      </style>
+    </defs>
+
+    <!-- ══ 구간 라벨 ══ -->
+    <text class="who" x="6"   y="16">프로그램이 직접 진행</text>
+    <line x1="6"   y1="25" x2="150" y2="25" stroke="#E8E6E1" stroke-width="1.2"/>
+    <text class="who" x="790" y="16">SDK가 알려줘야 재개</text>
+    <line x1="790" y1="25" x2="934" y2="25" stroke="#E8E6E1" stroke-width="1.2"/>
+
+    <!-- ══ 진행 축 ══ -->
+    <line x1="6"   y1="126" x2="570"  y2="126" stroke="#0071DB" stroke-width="2"/>
+    <line x1="768" y1="126" x2="1180" y2="126" stroke="#0071DB" stroke-width="2"/>
+    <path d="M1180 126 H1206" stroke="#0071DB" stroke-width="2" marker-end="url(#tip)"/>
+
+    <!-- ══ 대기 구간 ══ -->
+    <g>
+      <rect x="570" y="94" width="198" height="64" rx="9"
+            fill="#FBF2EA" stroke="#E6CBB2" stroke-width="1.5"/>
+      <!-- 종 -->
+      <path d="M604 116.5 c-4.4 0-7.6 3.2-7.6 7.6 v4.4 l-2 3 h19.2 l-2-3 v-4.4
+               c0-4.4-3.2-7.6-7.6-7.6 z M601 134.5 a3.2 3.2 0 0 0 6 0"
+            fill="none" stroke="#C2410C" stroke-width="1.7" stroke-linejoin="round"/>
+      <text class="brk"  x="624" y="122">여기서 멈춘다</text>
+      <text class="brks" x="624" y="140">완료 알림을 기다림</text>
+
+      <line x1="669" y1="158" x2="669" y2="180" stroke="#E0CDBC" stroke-width="1" stroke-dasharray="3 3"/>
+      <text class="brkn" x="669" y="196" text-anchor="middle">검사는 SDK에 맡기고 함수는 이미 끝난 상태</text>
+      <text class="brkn" x="669" y="213" text-anchor="middle">언제 올지 모름 · 최대 60초 대기</text>
+    </g>
+
+    <!-- ══ 지점 ══ -->
+    <!-- 01 -->
+    <circle cx="52" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
+    <text class="step" x="52" y="58" text-anchor="middle">01</text>
+    <text x="52" y="86" text-anchor="middle"><tspan class="lab">모델 열기</tspan></text>
+    <text class="val" x="52" y="162" text-anchor="middle">부재 5,000개</text>
+    <text class="val" x="52" y="180" text-anchor="middle">구조물 12개</text>
+
+    <!-- 02 -->
+    <circle cx="180" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
+    <text class="step" x="180" y="58" text-anchor="middle">02</text>
+    <text x="180" y="86" text-anchor="middle"><tspan class="lab">대상 고르기</tspan><tspan class="term" dx="6">(STRU 체크)</tspan></text>
+    <text class="val" x="180" y="162" text-anchor="middle">화면은 그대로</text>
+
+    <!-- 03 -->
+    <circle cx="330" cy="126" r="6.5" fill="#0071DB"/>
+    <text class="step" x="330" y="58" text-anchor="middle">03</text>
+    <text x="330" y="86" text-anchor="middle"><tspan class="lab">대상만 남기기</tspan><tspan class="term" dx="6">(가시성 격리)</tspan></text>
+    <text class="val"  x="330" y="162" text-anchor="middle">5,000개 끄고 40개만 켜기</text>
+    <text class="valk" x="330" y="181" text-anchor="middle">이후 모든 계산의 대상</text>
+
+    <!-- 04 -->
+    <circle cx="492" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
+    <text class="step" x="492" y="58" text-anchor="middle">04</text>
+    <text x="492" y="86" text-anchor="middle"><tspan class="lab">붙은 것 찾기</tspan><tspan class="term" dx="6">(간섭검사)</tspan></text>
+    <text class="val" x="492" y="162" text-anchor="middle">3mm 안이면 붙은 것</text>
+
+    <!-- 05 -->
+    <circle cx="852" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
+    <text class="step" x="852" y="58" text-anchor="middle">05</text>
+    <text x="852" y="86" text-anchor="middle"><tspan class="lab">치수 뽑기</tspan><tspan class="term" dx="6">(Osnap)</tspan></text>
+    <text class="val" x="852" y="162" text-anchor="middle">3방향 × 2축 = 6조합</text>
+
+    <!-- 06 -->
+    <circle cx="1012" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
+    <text class="step" x="1012" y="58" text-anchor="middle">06</text>
+    <text x="1012" y="86" text-anchor="middle"><tspan class="lab">도면 나누기</tspan><tspan class="term" dx="6">(시트 분할)</tspan></text>
+    <text class="val" x="1012" y="162" text-anchor="middle">이어진 것끼리 한 장에</text>
+
+    <!-- 07 -->
+    <circle cx="1152" cy="126" r="6.5" fill="#0071DB"/>
+    <text class="step" x="1152" y="58" text-anchor="middle">07</text>
+    <text x="1152" y="86" text-anchor="middle"><tspan class="lab">그리고 저장</tspan></text>
+    <text class="val"  x="1152" y="162" text-anchor="middle">구조물 1개당</text>
+    <text class="valk" x="1152" y="181" text-anchor="middle">PDF 1개</text>
+
+    <!-- ══ 반복 표시 ══ -->
+    <g>
+      <line x1="330"  y1="244" x2="330"  y2="224" stroke="#D3D0CA" stroke-width="1"/>
+      <line x1="330"  y1="244" x2="1090" y2="244" stroke="#D3D0CA" stroke-width="1"/>
+      <line x1="1090" y1="244" x2="1090" y2="224" stroke="#D3D0CA" stroke-width="1"/>
+      <line x1="710"  y1="244" x2="710"  y2="238" stroke="#D3D0CA" stroke-width="1"/>
+      <text class="val" x="710" y="266" text-anchor="middle" fill="#B6B9BF">
+        같은 “숨기고 남기기”가 구조물 · 도면 · 뷰 세 단계에서 되풀이
+      </text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="note">
+    <div><span class="k">작업 범위</span><span>전 구간이 <b>화면에 보이는 것</b> 기준</span></div>
+    <div><span class="k">추적 난점</span><span>멈춘 자리는 <b>참조 검색으로 안 이어짐</b></span></div>
+    <div><span class="k">코드</span><span class="mono">Stru.cs:803 → Clash.cs:1146 → DrawingSheets.cs:1799</span></div>
+  </div>
+
+  <div class="pg">02</div>
+</div>
+</body>
+</html>
