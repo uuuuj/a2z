@@ -95,7 +95,7 @@ svg{width:100%;height:auto}
   <h1>도면 자동 생성 프로그램<br>코드 리뷰</h1>
   <div class="sub">전수조사 · 검증 · 정리, 그리고 앞으로</div>
   <div class="meta">
-    2026. 08. 27<br>
+    2026. 08. 31<br>
     <b>생산AX/PI팀 · 생산지능화그룹</b><br>
     허영인
   </div>
@@ -201,8 +201,8 @@ svg{width:100%;height:auto}
 <!-- ══════════ 03 구조 ══════════ -->
 <section class="slide">
   <div class="eyebrow">02 &nbsp;·&nbsp; 코드 구조</div>
-  <h1>파일은 열셋, 클래스는 하나</h1>
-  <div class="lead">파일 경계가 <b>벽이 아니다</b>. 필드 92개를 열셋이 함께 만진다.</div>
+  <h1>동작하는 코드가 한 클래스에</h1>
+  <div class="lead">파일 열셋이 <code style="font-family:'JetBrains Mono',Consolas,monospace;font-size:16px">partial</code>로 이어져 클래스 하나. <b>파일 경계가 벽이 아니다.</b></div>
   <div class="divider"></div>
   <div class="body">
   <svg viewBox="0 0 1200 296" xmlns="http://www.w3.org/2000/svg">
@@ -446,7 +446,7 @@ svg{width:100%;height:auto}
 <section class="slide">
   <div class="eyebrow">05 &nbsp;·&nbsp; 이번에 한 일</div>
   <h1>전부 읽고, 세 번 검증하고, 덜어냈다</h1>
-  <div class="lead">문서 열셋 · 주석 318개 · <span class="g">죽은 코드 1,416줄 제거</span></div>
+  <div class="lead">문서 열셋 · 주석 318개 · <span class="g">죽은 코드 1,416줄 제거 · 실기 확인 통과</span></div>
   <div class="divider"></div>
   <div class="body">
     <div class="stats">
@@ -475,14 +475,87 @@ svg{width:100%;height:auto}
   <div class="note">
     <div><span class="k">검증</span><span>최종 무작위 표본 <b>30건 중 29 일치</b>, 불일치 1건은 그 자리에서 수정</span></div>
     <div><span class="k">정직</span><span>실기로만 확인 가능한 <b>21건</b>은 <span class="mono">(미확인)</span> 으로 남겨둠</span></div>
-    <div><span class="k">결과</span><span>코드 <b>20,441 → 19,542줄</b> · 삭제 1,416 / 주석 추가 517</span></div>
+    <div><span class="k">결과</span><span>코드 <b>20,441 → 19,542줄</b> · 삭제 1,416 / 주석 추가 517 · <b>도면 4종 정상 출력 확인</b></span></div>
   </div>
   <div class="pg">05</div>
 </section>
 
-<!-- ══════════ 07 앞으로 ══════════ -->
+<!-- ══════════ 07 어젯밤에 있었던 일 ══════════ -->
 <section class="slide">
-  <div class="eyebrow">06 &nbsp;·&nbsp; 앞으로</div>
+  <div class="eyebrow">06 &nbsp;·&nbsp; 정리가 값을 한 날</div>
+  <h1>도면이 한 장도 안 나왔다</h1>
+  <div class="lead">발표 이틀 전 밤. <b>원인을 찾는 데 3분</b>이 걸렸다.</div>
+  <div class="divider"></div>
+  <div class="body">
+  <svg viewBox="0 0 1200 290" xmlns="http://www.w3.org/2000/svg">
+    <defs><style>
+      .tm{font-size:12px;font-weight:700;fill:#9A9EA6;letter-spacing:.04em;
+          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
+      .ev{font-size:14px;font-weight:600;fill:#1A1C20}
+      .evs{font-size:12.5px;font-weight:450;fill:#5F6570}
+      .ok{font-size:13px;font-weight:800;fill:#0F7B4F}
+      .ng{font-size:13px;font-weight:800;fill:#C2410C}
+      .hd{font-size:12px;font-weight:800;fill:#B6B9BF;letter-spacing:.1em}
+      .cd{font-size:12px;font-weight:500;fill:#5F6570;
+          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
+    </style></defs>
+
+    <!-- 세로 타임라인 -->
+    <line x1="118" y1="18" x2="118" y2="214" stroke="#DFDDD8" stroke-width="2"/>
+
+    <text class="tm" x="20" y="28">22:17</text>
+    <circle cx="118" cy="24" r="5.5" fill="#0F7B4F"/>
+    <text class="ev"  x="140" y="21">라이선스 인증 성공</text>
+    <text class="cd"  x="140" y="39">[License] 인증 성공 127.0.0.1:8901</text>
+
+    <text class="tm" x="20" y="76">22:18</text>
+    <circle cx="118" cy="72" r="5.5" fill="#0F7B4F"/>
+    <text class="ev"  x="140" y="69">도면 정상 출력</text>
+    <text class="ok"  x="326" y="69">views=4/4</text>
+    <text class="evs" x="140" y="87">같은 빌드 · 같은 코드</text>
+
+    <text class="tm" x="20" y="132">22:47</text>
+    <circle cx="118" cy="128" r="5.5" fill="#C2410C"/>
+    <text class="ev"  x="140" y="125" fill="#C2410C">30분 뒤 자동 갱신 실패</text>
+    <text class="cd"  x="140" y="143" fill="#A8734F">AVAILABLE_QUANTITY_EXCEEDS · LICENSE_SERVER_DOWN</text>
+    <text class="evs" x="140" y="161" fill="#C2410C">사용자에게는 아무 알림도 없었다</text>
+
+    <text class="tm" x="20" y="210">23:36</text>
+    <circle cx="118" cy="206" r="5.5" fill="#C2410C"/>
+    <text class="ev"  x="140" y="203">도면 0장 — 이후 13회 전부 실패</text>
+    <text class="ng"  x="418" y="203">views=0/4</text>
+    <text class="cd"  x="140" y="221" fill="#A8734F">P2 View_1 Object2D 생성 실패 objId=-1</text>
+
+    <!-- 오른쪽: 무엇이 도왔나 -->
+    <line x1="700" y1="10" x2="700" y2="250" stroke="#DFDDD8" stroke-width="1"/>
+    <text class="hd" x="728" y="24">무엇이 도왔나</text>
+    <circle cx="736" cy="56" r="3" fill="#0071DB"/>
+    <text class="ev"  x="752" y="61">진단 로그</text>
+    <text class="evs" x="836" y="61">단계마다 남겨둔 기록으로 3분 만에 특정</text>
+    <circle cx="736" cy="92" r="3" fill="#0071DB"/>
+    <text class="ev"  x="752" y="97">같은 빌드 대조</text>
+    <text class="evs" x="866" y="97">한 시간 전엔 정상 → 코드 문제 아님</text>
+    <circle cx="736" cy="128" r="3" fill="#0071DB"/>
+    <text class="ev"  x="752" y="133">증상 구분</text>
+    <text class="evs" x="836" y="133">치수·풍선은 정상, 모델 투영만 실패</text>
+
+    <text class="hd" x="728" y="176">이미 알고 있던 결함</text>
+    <rect x="728" y="190" width="460" height="58" rx="7" fill="#FBF2EA" stroke="#E6CBB2" stroke-width="1.5"/>
+    <text class="ev"  x="748" y="212" fill="#C2410C">B-5 · 라이선스 실패를 사용자가 알 수 없다</text>
+    <text class="evs" x="748" y="232" fill="#A8734F">조사에서 미리 잡아둔 7건 중 하나 — 실제로 터졌다</text>
+  </svg>
+  </div>
+  <div class="note">
+    <div><span class="k">결론</span><span>코드는 정상. <b>삭제한 1,416줄과 무관</b>함을 로그로 증명</span></div>
+    <div><span class="k">수리</span><span>갱신 실패가 이어지면 <b>화면에 알리고 재연결 수단</b>을 준다</span></div>
+    <div><span class="k">교훈</span><span>기록이 없었다면 <b>코드를 뒤졌을</b> 밤</span></div>
+  </div>
+  <div class="pg">06</div>
+</section>
+
+<!-- ══════════ 08 앞으로 ══════════ -->
+<section class="slide">
+  <div class="eyebrow">07 &nbsp;·&nbsp; 앞으로</div>
   <h1>덜어낸 다음에 묶는다</h1>
   <div class="lead">동작을 바꾸지 않는 것부터. <span class="g">0단계는 이미 끝났다.</span></div>
   <div class="divider"></div>
@@ -542,7 +615,7 @@ svg{width:100%;height:auto}
     <text class="pd" x="648" y="264" font-size="13">벤더 요청 <tspan font-weight="700" fill="#1A1C20">2건</tspan><tspan dx="18">조사 중 나온 결함 <tspan font-weight="700" fill="#1A1C20">7건</tspan> — 리팩토링과 분리해 이슈로 관리</tspan></text>
   </svg>
   </div>
-  <div class="pg">06</div>
+  <div class="pg">07</div>
 </section>
 
 </div>
