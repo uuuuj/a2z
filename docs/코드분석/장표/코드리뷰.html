@@ -435,7 +435,62 @@ svg{width:100%;height:auto}
   </div>
 </section>
 
-<!-- === 05 제작도 출력 과정 === -->
+<!-- === 05 클래스와 필드 === -->
+<section class="s" data-title="클래스와 필드">
+  <h1>클래스와 필드</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="two cf">
+      <div>
+        <div class="h2">클래스 &#8212; 어떻게 선언돼 있나</div>
+<pre class="code"><span class="c">// Form1.cs &#8212; 여기가 본체</span>
+<b>public partial class</b> Form1 : Form
+{
+    <b>private</b> VIZCore3DControl vizcore3d;        <span class="m">12파일 659회</span>
+    <b>private</b> List&lt;BOMData&gt; bomList = <b>new</b> ...  <span class="m">9파일 91회</span>
+    <span class="c">// … 공유 필드 36개</span>
+}
+
+<span class="c">// Form1.BOM.cs &#8212; 같은 클래스, 다른 파일</span>
+<b>public partial class</b> Form1
+{
+    <b>private void</b> btnOpen_Click(...) { ... }
+}</pre>
+        <div class="cfnote"><b>partial</b> = 한 클래스를 여러 파일에 나눠 적는 문법.
+          컴파일하면 <b>하나로 합쳐진다</b> — 그래서 파일이 달라도 서로의 필드를 그냥 쓴다</div>
+        <table style="margin-top:14px">
+          <tr><th>동작 · 데이터 타입 27개</th><th class="n" style="width:44px">개</th><th style="width:210px">어디에</th></tr>
+          <tr><td class="k"><span class="f">Form1</span></td><td class="n">1</td><td class="d"><b>파일 13개</b>에 나뉘어 선언</td></tr>
+          <tr><td class="k">데이터 클래스</td><td class="n">26</td><td class="d">Models 13 : 쓰는 파일 안 13</td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="h2">필드 &#8212; 얼마나, 어디까지 퍼지나</div>
+        <div class="figs">
+          <div class="fig"><div class="n">95<small>개</small></div><div class="l">사람이 쓴 <span class="f">Form1</span> 필드</div><div class="was">Designer 자동 생성 111개 별도</div></div>
+          <div class="fig"><div class="n">40<small>개</small></div><div class="l">파일 경계를 넘음</div><div class="was">95개 중 42%</div></div>
+        </div>
+        <table>
+          <tr><th>필드</th><th style="width:104px">선언 위치</th><th class="n" style="width:48px">파일</th><th class="n" style="width:48px">사용</th></tr>
+          <tr><td class="f">bomList</td><td class="d">Form1.cs</td><td class="n" style="color:var(--brand-500);font-weight:700">9</td><td class="n" style="color:var(--brand-500);font-weight:700">91</td></tr>
+          <tr><td class="f">chainDimensionList</td><td class="d">Form1.cs</td><td class="n">7</td><td class="n">57</td></tr>
+          <tr><td class="f">xraySelectedNodeIndices</td><td class="d">Form1.cs</td><td class="n">8</td><td class="n">49</td></tr>
+          <tr><td class="f">drawingSheetList</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">46</td></tr>
+          <tr><td class="f">osnapPoints</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">45</td></tr>
+          <tr><td class="f">_struNodeCache</td><td class="d">Form1.Stru.cs</td><td class="n">2</td><td class="n">24</td></tr>
+        </table>
+        <div class="cfnote" style="margin-top:12px">파일별 선언 &#8212;
+          <span class="f">Form1.cs</span> 36 · <span class="f">MfgDrawing</span> 16 ·
+          <span class="f">DrawingSheets</span> 9 · <span class="f">Clash</span> 7 · 나머지 27</div>
+        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
+          <b>어느 파일에서든 바뀔 수 있음</b> — 값이 언제 어디서 달라졌는지 추적이 어려움
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === 06 제작도 출력 과정 === -->
 <section class="s" data-title="제작도 출력 과정">
   <h1>제작도 출력 과정</h1>
   <div class="rule"></div>
@@ -577,63 +632,6 @@ svg{width:100%;height:auto}
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
       <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:644</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">치수가 끝나면 <b>바로 이어서</b> 호출된다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets() 정의</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">일괄 출력이 이 전체를 체크한 STRU 수만큼 반복한다</div></div></li></ol>
-    </div>
-  </div>
-</section>
-
-<!-- === 12 클래스와 필드 === -->
-<section class="s" data-title="클래스와 필드">
-  <h1>클래스와 필드</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="two cf">
-      <div>
-        <div class="h2">클래스 &#8212; 어떻게 선언돼 있나</div>
-<pre class="code"><span class="c">// Form1.cs &#8212; 여기가 본체</span>
-<b>public partial class</b> Form1 : Form
-{
-    <b>private</b> VIZCore3DControl vizcore3d;        <span class="m">12파일 659회</span>
-    <b>private</b> List&lt;BOMData&gt; bomList = <b>new</b> ...  <span class="m">9파일 91회</span>
-    <span class="c">// … 공유 필드 36개</span>
-}
-
-<span class="c">// Form1.BOM.cs &#8212; 같은 클래스, 다른 파일</span>
-<b>public partial class</b> Form1
-{
-    <b>private void</b> btnOpen_Click(...) { ... }
-}</pre>
-        <div class="cfnote"><b>partial</b> = 한 클래스를 여러 파일에 나눠 적는 문법.
-          컴파일하면 <b>하나로 합쳐진다</b> — 그래서 파일이 달라도 서로의 필드를 그냥 쓴다</div>
-        <table style="margin-top:14px">
-          <tr><th>타입 30개</th><th class="n" style="width:44px">개</th><th style="width:210px">어디에</th></tr>
-          <tr><td class="k"><span class="f">Form1</span></td><td class="n">1</td><td class="d"><b>파일 13개</b>에 나뉘어 선언</td></tr>
-          <tr><td class="k">데이터 클래스</td><td class="n">26</td><td class="d">Models 13 : 쓰는 파일 안 13</td></tr>
-          <tr><td class="k"><span class="f">Program</span> · 자동 생성</td><td class="n">3</td><td class="d">진입점 · Resources · Settings</td></tr>
-        </table>
-      </div>
-      <div class="rt">
-        <div class="h2">필드 &#8212; 얼마나, 어디까지 퍼지나</div>
-        <div class="figs">
-          <div class="fig"><div class="n">95<small>개</small></div><div class="l">사람이 쓴 <span class="f">Form1</span> 필드</div><div class="was">Designer 자동 생성 111개 별도</div></div>
-          <div class="fig"><div class="n">40<small>개</small></div><div class="l">파일 경계를 넘음</div><div class="was">95개 중 42%</div></div>
-        </div>
-        <table>
-          <tr><th>필드</th><th style="width:104px">선언 위치</th><th class="n" style="width:48px">파일</th><th class="n" style="width:48px">사용</th></tr>
-          <tr><td class="f">vizcore3d</td><td class="d">Form1.cs</td><td class="n" style="color:var(--brand-500);font-weight:700">12</td><td class="n" style="color:var(--brand-500);font-weight:700">659</td></tr>
-          <tr><td class="f">bomList</td><td class="d">Form1.cs</td><td class="n">9</td><td class="n">91</td></tr>
-          <tr><td class="f">chainDimensionList</td><td class="d">Form1.cs</td><td class="n">7</td><td class="n">57</td></tr>
-          <tr><td class="f">xraySelectedNodeIndices</td><td class="d">Form1.cs</td><td class="n">8</td><td class="n">49</td></tr>
-          <tr><td class="f">drawingSheetList</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">46</td></tr>
-          <tr><td class="f">osnapPoints</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">45</td></tr>
-          <tr><td class="f">_struNodeCache</td><td class="d">Form1.Stru.cs</td><td class="n">2</td><td class="n">24</td></tr>
-        </table>
-        <div class="cfnote" style="margin-top:12px">파일별 선언 &#8212;
-          <span class="f">Form1.cs</span> 36 · <span class="f">MfgDrawing</span> 16 ·
-          <span class="f">DrawingSheets</span> 9 · <span class="f">Clash</span> 7 · 나머지 27</div>
-        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          <b>어느 파일에서든 바뀔 수 있음</b> — 값이 언제 어디서 달라졌는지 추적이 어려움
-        </div>
-      </div>
     </div>
   </div>
 </section>
