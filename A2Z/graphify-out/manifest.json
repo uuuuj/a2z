@@ -1,0 +1,122 @@
+{
+  "A2Z.csproj": {
+    "mtime": 1787279616.5065532,
+    "seen": 1788070282.9539995,
+    "ast_hash": "fbf5b23df51554b62adb1f1d952de2d6",
+    "semantic_hash": ""
+  },
+  "Form1.Attribute.cs": {
+    "mtime": 1784857018.0685773,
+    "seen": 1788070282.9539995,
+    "ast_hash": "aeb793d298ebe3c63e57c9b4a631a3ec",
+    "semantic_hash": ""
+  },
+  "Form1.BOM.cs": {
+    "mtime": 1787465374.4809778,
+    "seen": 1788070282.9539995,
+    "ast_hash": "b259c8f7ff94792c7cd14a3cd15ca1d6",
+    "semantic_hash": ""
+  },
+  "Form1.Clash.cs": {
+    "mtime": 1787466618.1654544,
+    "seen": 1788070282.9539995,
+    "ast_hash": "5d700b08401980498d775f2aef93f38e",
+    "semantic_hash": ""
+  },
+  "Form1.Designer.cs": {
+    "mtime": 1785294582.4201539,
+    "seen": 1788070282.9539995,
+    "ast_hash": "32fc7db770a86cea1163cf26f81c63a6",
+    "semantic_hash": ""
+  },
+  "Form1.Dimensions.cs": {
+    "mtime": 1787466651.2529705,
+    "seen": 1788070282.9539995,
+    "ast_hash": "4292420c6caa4d63721f21c30712dc28",
+    "semantic_hash": ""
+  },
+  "Form1.Drawing2D.cs": {
+    "mtime": 1787465411.0207105,
+    "seen": 1788070282.9539995,
+    "ast_hash": "788f5a1f001ac58b66a2817bff9a5272",
+    "semantic_hash": ""
+  },
+  "Form1.DrawingSheets.cs": {
+    "mtime": 1787566597.3686414,
+    "seen": 1788070282.9539995,
+    "ast_hash": "4d5257a1dd9b7bba646ee6903afb8f6c",
+    "semantic_hash": ""
+  },
+  "Form1.ExcelTemplate.cs": {
+    "mtime": 1786353570.531545,
+    "seen": 1788070282.9539995,
+    "ast_hash": "6163d134708d66c6025108a8b7c69ee8",
+    "semantic_hash": ""
+  },
+  "Form1.GlobalViews.cs": {
+    "mtime": 1787466618.1663532,
+    "seen": 1788070282.9539995,
+    "ast_hash": "1fac567a70139380ceca6cbad2d6b56e",
+    "semantic_hash": ""
+  },
+  "Form1.License.cs": {
+    "mtime": 1785294582.4261699,
+    "seen": 1788070282.9539995,
+    "ast_hash": "6e9cf28b69824c41551c5288bab6e032",
+    "semantic_hash": ""
+  },
+  "Form1.MfgDrawing.cs": {
+    "mtime": 1787566597.3709476,
+    "seen": 1788070282.9539995,
+    "ast_hash": "b23f387b5ee6a2ee5d1b3b694e3d16f5",
+    "semantic_hash": ""
+  },
+  "Form1.Stru.cs": {
+    "mtime": 1787465374.4819775,
+    "seen": 1788070282.9539995,
+    "ast_hash": "5a1976a06aee6802ef2d204c08ba5733",
+    "semantic_hash": ""
+  },
+  "Form1.cs": {
+    "mtime": 1787566297.0855398,
+    "seen": 1788070282.9539995,
+    "ast_hash": "66146c1d2b89eb3ffa380097e9ebae56",
+    "semantic_hash": ""
+  },
+  "Models.cs": {
+    "mtime": 1787465428.9740696,
+    "seen": 1788070282.9539995,
+    "ast_hash": "0ca17ce4b82ed7007769b459ade37356",
+    "semantic_hash": ""
+  },
+  "Models/MfgViewPose.cs": {
+    "mtime": 1785294582.4301567,
+    "seen": 1788070282.9539995,
+    "ast_hash": "3978e40edad1818fe46c44a786f9339f",
+    "semantic_hash": ""
+  },
+  "Program.cs": {
+    "mtime": 1775630859.6620555,
+    "seen": 1788070282.9539995,
+    "ast_hash": "d1872ce3820f400f8099b4cd08bd9ac3",
+    "semantic_hash": ""
+  },
+  "Properties/AssemblyInfo.cs": {
+    "mtime": 1775630859.6810553,
+    "seen": 1788070282.9539995,
+    "ast_hash": "73d846aaadcb038787cf7853bf70232b",
+    "semantic_hash": ""
+  },
+  "Properties/Resources.Designer.cs": {
+    "mtime": 1775630859.6886075,
+    "seen": 1788070282.9539995,
+    "ast_hash": "df438ed691c64b49261a87e430d26856",
+    "semantic_hash": ""
+  },
+  "Properties/Settings.Designer.cs": {
+    "mtime": 1775630859.7038915,
+    "seen": 1788070282.9539995,
+    "ast_hash": "b1153034e014d5cfc1aee19c2caa0fcd",
+    "semantic_hash": ""
+  }
+}
