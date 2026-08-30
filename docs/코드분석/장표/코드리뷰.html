@@ -424,7 +424,7 @@ svg{width:100%;height:auto}
   <h1>제작도 출력 과정</h1>
   <div class="rule"></div>
   <div class="body">
-<svg viewBox="0 0 1144 400" xmlns="http://www.w3.org/2000/svg" role="img"
+<svg viewBox="0 0 1144 434" xmlns="http://www.w3.org/2000/svg" role="img"
      aria-label="제작도가 나오기까지의 일곱 단계와 각 단계가 실제로 어느 파일 어느 메서드인지.">
   <defs><marker id="tip" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
     <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/></marker>
@@ -484,7 +484,11 @@ svg{width:100%;height:auto}
   <line x1="362" y1="320" x2="960" y2="320" stroke="#E7EAEE"/>
   <line x1="960" y1="320" x2="960" y2="300" stroke="#E7EAEE"/>
   <text class="nte" x="661" y="344" text-anchor="middle" fill="#667085">같은 &#8220;숨기고 남기기&#8221;가 구조물 &#183; 도면 &#183; 뷰 세 단계에서 반복 &#8212; 코드로는 10곳</text>
-  <text class="brs" x="661" y="370" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">DrawingSheets.cs:688 &#183; 893 &#183; 942 &#183; 2083 &#183; 2268 &#183; 2330 &#183; 2372 &#183; 2381 &#160;&#183;&#160; MfgDrawing.cs:1855 &#183; 2785</text>
+  <text class="brs" x="661" y="368" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">DrawingSheets.cs:688 &#183; 893 &#183; 942 &#183; 2083 &#183; 2268 &#183; 2330 &#183; 2372 &#183; 2381 &#160;&#183;&#160; MfgDrawing.cs:1855 &#183; 2785</text>
+  <line x1="2" y1="398" x2="1142" y2="398" stroke="#E7EAEE"/>
+  <text class="nte" x="2" y="422" font-size="12" fill="#101828" font-weight="700">&#12300;도면 일괄 출력&#12301; 버튼</text>
+  <text class="nte" x="122" y="422" fill="#475467">을 누르면 &#8212; 02~07 전체를 <tspan font-weight="700" fill="#0071DB">체크한 STRU 수만큼 자동 반복</tspan>한다</text>
+  <text class="brs" x="1142" y="422" text-anchor="end" font-family="D2Coding,Consolas,monospace" font-size="10.5">Stru.cs:514 &#8594; 659 &#8594; 803</text>
 </svg>
   </div>
 </section>
@@ -496,7 +500,7 @@ svg{width:100%;height:auto}
   <div class="body">
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">모델열기_코드.png</span>VS 편집기 — btnOpen_Click 함수 전체</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 여기서 모델 트리가 만들어진다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:150</div><div class="wm">Vizcore3d_OnInitializedVIZCore3D</div><div class="wd">SDK가 준비됐다고 알려주는 자리. 이 알림을 받고 목록을 채운다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:56</div><div class="wm">STRU 단위 추출</div><div class="wd">모델 트리를 훑어 STRU를 골라 좌측 목록에 넣는다</div></div></li></ol>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 여기서 모델 트리가 만들어지고, 성공하면 <span class="f">FitToView()</span>로 화면에 맞춘다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:245</div><div class="wm">BuildBodyToPartNameMap()</div><div class="wd">부재(Body)와 부품(Part) 이름을 짝지어 캐시해 둔다. 이후 BOM·도면이 이 이름을 쓴다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:248</div><div class="wm">PopulateStruCheckList()</div><div class="wd">정의는 <span class="f">Stru.cs:149</span>. <b>좌측 STRU 목록이 여기서 채워진다</b></div></div></li></ol>
     </div>
   </div>
 </section>
@@ -545,6 +549,18 @@ svg{width:100%;height:auto}
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
       <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">체크한 STRU 수만큼 반복하면 도면 일괄 출력이 된다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 11 도면 일괄 출력 === -->
+<section class="s" data-title="도면 일괄 출력">
+  <h1>도면 일괄 출력</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">일괄출력_화면.png</span>「도면 일괄 출력」을 누른 뒤 완료 메시지 · 또는 Drawings 폴더에 쌓인 PDF</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:514</div><div class="wm">btnExtractDrawingList_Click</div><div class="wd">[도면 일괄 출력] 버튼. 체크된 STRU를 모으고 저장 폴더 <span class="f">Drawings\</span>를 만든다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:659</div><div class="wm">for (int s = 0; s &lt; checkedStrus.Count; s++)</div><div class="wd"><b>체크한 STRU 하나씩</b> 순서대로 돈다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Stru.cs:803</div><div class="wm">ProcessSingleStruFull(...)</div><div class="wd">STRU 한 개에 대해 <b>앞의 03~07을 그대로 수행</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:843</div><div class="wm">Show(전체,false) → Show(대상,true)</div><div class="wd">사람이 클릭으로 하던 <b>가시성 격리를 코드가 대신</b>한다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Stru.cs:887</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">제작 · 조립 · 설치 · 가공 <b>4종</b>을 이어서 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wl">Form1.Drawing2D.cs:1152</div><div class="wm">FlushPendingMergedPdf()</div><div class="wd">쌓아둔 페이지를 묶음 PDF로 저장. 완료 창에 <b>성공 STRU 수와 PDF 개수</b>가 뜬다</div></div></li></ol>
     </div>
   </div>
 </section>
