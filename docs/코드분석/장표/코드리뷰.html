@@ -2,98 +2,155 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>a2z 코드 리뷰</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2D자동 제작도 코드리뷰</title>
 <style>
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+/* ═══ 엔진 ═══ */
 :root{
-  --paper:#F5F4F1;
-  --ink:#1A1C20;
-  --ink-2:#5F6570;
-  --ink-3:#9A9EA6;
-  --ink-4:#B6B9BF;
-  --rule:#DFDDD8;
-  --rule-2:#E8E6E1;
-  --flow:#0071DB;
-  --flow-soft:#C9D6E6;
-  --brk:#C2410C;
-  --brk-bg:#FBF2EA;
-  --brk-line:#E6CBB2;
-  --brk-soft:#A8734F;
-  --ok:#0F7B4F;
+  --stage-w:1280px; --stage-h:720px; --fit:1;
+  --brand-700:#0061BD; --brand-500:#0071DB; --brand-300:#3898FF;
+  --brand-100:#CCE3FA; --brand-50:#E6F2FF;
+  --text:#101828; --muted:#475467; --subtle:#667085;
+  --border:#D0D5DD; --hair:#E7EAEE;
+  --surface:#FFFFFF; --surface-muted:#F7F8FA;
+  --success:#067647; --danger:#B42318;
+  --font:Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+  --mono:"D2Coding",Consolas,"Courier New",monospace;
+  --rail-w:206px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{background:#E4E2DD;height:100%;overflow:hidden}
-body{
-  font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif;
-  display:flex;align-items:center;justify-content:center;height:100vh;
-  -webkit-font-smoothing:antialiased;
-}
-#stage{width:1280px;height:720px;position:relative;transform-origin:center}
-.slide{
-  position:absolute;inset:0;background:var(--paper);color:var(--ink);
-  overflow:hidden;display:none;flex-direction:column;padding:58px 72px 48px;
-  box-shadow:0 1px 3px rgba(26,28,32,.08), 0 12px 40px rgba(26,28,32,.10);
-}
-.slide.on{display:flex}
-.slide > *{position:relative}
+html,body{height:100%;overflow:hidden;background:#C9CDD3}
+body{font-family:var(--font);-webkit-font-smoothing:antialiased}
 
-/* ── 공통 헤드 ── */
-.eyebrow{display:flex;align-items:center;gap:11px;
-  font-size:11.5px;font-weight:700;letter-spacing:.16em;color:var(--ink-3)}
-.eyebrow::before{content:"";width:22px;height:2px;background:var(--flow);flex:none}
-h1{margin-top:12px;font-size:48px;font-weight:800;letter-spacing:-.035em;line-height:1.05}
-.lead{margin-top:14px;font-size:18px;font-weight:400;color:var(--ink-2);
-  line-height:1.5;white-space:nowrap}
-.lead b{color:var(--brk);font-weight:600}
-.lead .g{color:var(--ok);font-weight:600}
-.divider{margin-top:24px;height:2px;flex:none;
-  background:linear-gradient(to right,var(--flow) 0,var(--flow) 56px,var(--rule) 56px,var(--rule) 100%)}
-.body{flex:1;display:flex;align-items:center;margin:0 -10px}
+#app{display:flex;height:100vh}
+#rail{width:var(--rail-w);flex:none;background:#EDEFF2;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;transition:margin-left .2s ease-out}
+#app.rail-off #rail{margin-left:calc(var(--rail-w) * -1)}
+#app.rail-off.rail-peek #rail{margin-left:0;box-shadow:2px 0 12px rgba(16,24,40,.14)}
+#railHead{padding:11px 12px;border-bottom:1px solid var(--border);display:flex;
+  align-items:center;justify-content:space-between;flex:none}
+#railHead span{font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--subtle)}
+#railList{flex:1;overflow-y:auto;padding:10px}
+.tItem{display:block;width:100%;background:none;border:0;padding:0;margin-bottom:12px;
+  cursor:pointer;text-align:left;font-family:inherit}
+.tItem .tn{font-size:10.5px;font-weight:700;color:var(--subtle);margin-bottom:4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tItem .tbox{position:relative;width:100%;height:var(--tbh,104px);overflow:hidden;
+  background:var(--surface);border:1px solid var(--border)}
+.tItem[aria-current="true"] .tbox{border-color:var(--brand-500);box-shadow:0 0 0 1px var(--brand-500)}
+.tItem[aria-current="true"] .tn{color:var(--brand-500)}
+.tbox > .s{position:absolute;left:0;top:0;width:var(--stage-w);height:var(--stage-h);
+  transform:scale(var(--ts,.16));transform-origin:0 0;display:flex!important;pointer-events:none}
+#railHot{position:fixed;left:0;top:0;width:12px;height:100vh;z-index:5;display:none}
+#app.rail-off #railHot{display:block}
+
+#main{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
+#stage{width:var(--stage-w);height:var(--stage-h);flex:none;position:relative;
+  transform:scale(var(--fit));transform-origin:center;
+  box-shadow:0 1px 2px rgba(16,24,40,.10),0 8px 28px rgba(16,24,40,.12)}
+nav button{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:60px;
+  border:1px solid var(--border);background:rgba(255,255,255,.86);color:var(--muted);
+  cursor:pointer;font-size:15px;border-radius:4px;z-index:4}
+nav button:hover:not(:disabled){background:#fff;color:var(--brand-500)}
+nav button:disabled{opacity:.28;cursor:default}
+#prev{left:14px} #next{right:14px}
+.iconBtn{border:1px solid var(--border);background:#fff;color:var(--subtle);cursor:pointer;
+  width:22px;height:22px;border-radius:4px;font-size:11px;line-height:1;font-family:inherit}
+
+/* ═══ 장표 ═══ */
+.s{position:absolute;inset:0;background:var(--surface);color:var(--text);
+  display:none;flex-direction:column;padding:56px 68px 58px;overflow:hidden}
+.s.on{display:flex}
+.s h1{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.1;flex:none}
+.s .lead{margin-top:11px;font-size:20px;font-weight:400;color:var(--muted);
+  line-height:1.4;letter-spacing:-.015em;flex:none}
+.s .lead b{color:var(--brand-500);font-weight:600}
+.s .lead .ok{color:var(--success);font-weight:600}
+.s .rule{margin-top:20px;height:1px;background:var(--border);flex:none}
+.s .body{flex:1;padding-top:24px;min-height:0;display:flex;flex-direction:column}
+.foot{position:absolute;left:68px;right:68px;bottom:20px;display:flex;
+  justify-content:space-between;align-items:baseline;font-size:12px;color:var(--subtle);flex:none}
+.foot .pg{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+table{width:100%;border-collapse:collapse;font-size:16px}
+th{font-size:12px;font-weight:700;color:var(--subtle);letter-spacing:.07em;
+  text-align:left;padding:0 12px 7px 0;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 12px 8px 0;border-bottom:1px solid var(--hair);vertical-align:top;line-height:1.4}
+tr:last-child td{border-bottom:none}
+th.n,td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:14px}
+td.n{color:var(--muted)}
+.f{font-family:var(--mono);font-size:14px;white-space:nowrap;letter-spacing:-.01em}
+.k{font-weight:600}
+.d{color:var(--muted);font-size:15px}
+.hi{color:var(--brand-500);font-weight:600}
+.ok{color:var(--success);font-weight:700}
+.h2{font-size:12px;font-weight:700;color:var(--subtle);letter-spacing:.1em;margin-bottom:11px;flex:none}
+table.dense td{padding:5px 12px 5px 0}
+table.dense .d{font-size:14px;line-height:1.35}
+
+.two{display:flex;gap:40px;flex:1;min-height:0}
+.two>*{flex:1;min-width:0;display:flex;flex-direction:column}
+.two>.rt{border-left:1px solid var(--hair);padding-left:40px}
+
+.figs{display:flex;margin-bottom:22px;flex:none}
+.fig{padding-right:38px}
+.fig+.fig{border-left:1px solid var(--hair);padding-left:38px}
+.fig .n{font-size:40px;font-weight:700;letter-spacing:-.035em;line-height:1}
+.fig .n small{font-size:17px;font-weight:600;margin-left:2px;color:var(--muted)}
+.fig .l{margin-top:8px;font-size:13px;color:var(--muted)}
+.fig .was{font-size:12px;color:var(--subtle);margin-top:2px}
 svg{width:100%;height:auto}
 
-/* ── 각주 ── */
-.note{position:absolute;left:72px;bottom:44px;
-  font-size:11.5px;line-height:1.85;color:var(--ink-3)}
-.note div{display:flex;gap:9px}
-.note .k{color:var(--ink-4);font-weight:700;min-width:52px}
-.note b{color:var(--ink-2);font-weight:600}
-.mono{font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-.pg{position:absolute;right:72px;bottom:44px;
-  font-size:12px;color:var(--ink-3);letter-spacing:.1em;font-weight:700}
+/* 표지 */
+.cover{background:var(--text);color:#fff;justify-content:center;padding-left:88px}
+.cover .cbar{width:52px;height:3px;background:var(--brand-300);margin-bottom:32px}
+.cover h1{font-size:60px;font-weight:700;letter-spacing:-.038em;line-height:1.12;color:#fff}
+.cover .sub{margin-top:20px;font-size:22px;color:#98A2B3;font-weight:400;letter-spacing:-.01em}
+.cover .meta{position:absolute;left:88px;bottom:64px;font-size:14px;color:#98A2B3;line-height:1.9}
+.cover .meta b{color:#E7EAEE;font-weight:600}
+.cover .grid{position:absolute;right:0;top:0;width:430px;height:100%;opacity:.5}
 
-/* ── 표지 ── */
-.cover{justify-content:center;padding:0 96px}
-.cover .mark{width:64px;height:3px;background:var(--flow)}
-.cover h1{margin-top:34px;font-size:66px;letter-spacing:-.04em;line-height:1.06}
-.cover .sub{margin-top:20px;font-size:22px;color:var(--ink-2);font-weight:400}
-.cover .meta{position:absolute;left:96px;bottom:64px;
-  font-size:14px;color:var(--ink-3);font-weight:500;line-height:1.9}
-.cover .meta b{color:var(--ink-2);font-weight:600}
-
-/* ── 수치 카드(6장) ── */
-.stats{display:flex;gap:0;width:100%;align-items:stretch}
-.stat{flex:1;padding:0 30px}
-.stat:first-child{padding-left:0}
-.stat + .stat{border-left:1px solid var(--rule)}
-.stat .n{font-size:52px;font-weight:800;letter-spacing:-.04em;line-height:1}
-.stat .n small{font-size:22px;font-weight:700;margin-left:2px;letter-spacing:-.02em}
-.stat .t{margin-top:12px;font-size:15px;font-weight:700;color:var(--ink)}
-.stat .d{margin-top:6px;font-size:13px;color:var(--ink-2);line-height:1.55}
-.stat .d b{color:var(--ink);font-weight:600}
-
-/* ── 진행바 ── */
-#bar{position:fixed;left:0;top:0;height:2px;background:var(--flow);transition:width .18s ease-out;z-index:9}
+@media print{
+  @page{size:1280px 720px;margin:0}
+  html,body{overflow:visible;background:#fff}
+  #rail,#railHot,nav{display:none!important}
+  #main{display:block}
+  #stage{transform:none;box-shadow:none;width:1280px;height:auto}
+  .s{position:relative;inset:auto;display:flex!important;width:1280px;height:720px;
+     page-break-after:always;break-after:page}
+}
 </style>
 </head>
 <body>
-<div id="bar"></div>
-<div id="stage">
+<div id="app">
+  <aside id="rail">
+    <div id="railHead"><span>목차</span><button class="iconBtn" id="railToggle" title="레일 접기">&#9664;</button></div>
+    <div id="railList"></div>
+  </aside>
+  <div id="railHot"></div>
 
-<!-- ══════════ 01 표지 ══════════ -->
-<section class="slide cover on">
-  <div class="mark"></div>
-  <h1>도면 자동 생성 프로그램<br>코드 리뷰</h1>
-  <div class="sub">전수조사 · 검증 · 정리, 그리고 앞으로</div>
+  <main id="main">
+    <div id="stage">
+
+<!-- ═══ 01 표지 ═══ -->
+<section class="s cover" data-title="표지">
+  <svg class="grid" viewBox="0 0 430 720" preserveAspectRatio="none" aria-hidden="true">
+    <g stroke="#2A3243" stroke-width="1" fill="none">
+      <path d="M0 0 H430 M0 120 H430 M0 240 H430 M0 360 H430 M0 480 H430 M0 600 H430 M0 719 H430"/>
+      <path d="M70 0 V720 M170 0 V720 M270 0 V720 M370 0 V720"/>
+    </g>
+    <g stroke="#0071DB" stroke-width="2" fill="none">
+      <path d="M70 240 H270 V480 H70 Z"/>
+      <path d="M170 120 V240 M270 360 H370"/>
+    </g>
+    <g fill="#3898FF">
+      <circle cx="70" cy="240" r="4"/><circle cx="270" cy="240" r="4"/>
+      <circle cx="270" cy="480" r="4"/><circle cx="70" cy="480" r="4"/>
+    </g>
+  </svg>
+  <div class="cbar"></div>
+  <h1>2D자동 제작도<br>코드리뷰</h1>
+  <div class="sub">구조 · 정리 · 앞으로</div>
   <div class="meta">
     2026. 08. 31<br>
     <b>생산AX/PI팀 · 생산지능화그룹</b><br>
@@ -101,548 +158,463 @@ svg{width:100%;height:auto}
   </div>
 </section>
 
-<!-- ══════════ 02 파이프라인 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">01 &nbsp;·&nbsp; 실행 구조</div>
-  <h1>버튼 하나가 지나는 길</h1>
-  <div class="lead">버튼 한 번에 일곱 단계가 돈다. 단 <b>간섭검사에서 멈췄다가</b>, SDK가 알려줘야 이어진다.</div>
-  <div class="divider"></div>
+<!-- ═══ 02 파일 구조 ═══ -->
+<section class="s" data-title="파일 구조">
+  <h1>파일 구조</h1>
+  <div class="lead">파일 열셋이 컴파일하면 <b>한 클래스</b> — 파일 경계는 접근 경계가 아님</div>
+  <div class="rule"></div>
   <div class="body">
-  <svg viewBox="0 0 1200 292" xmlns="http://www.w3.org/2000/svg">
+    <div class="two">
+      <div>
+        <div class="h2">구성 — 파일 17개</div>
+        <table>
+          <tr><td class="k" style="width:104px">동작</td><td class="d"><span class="f">Form1</span> 한 클래스가 <b class="hi">파일 13개</b>로 쪼개져 있음</td></tr>
+          <tr><td class="k">데이터</td><td class="d"><span class="f">Models.cs</span> · <span class="f">MfgViewPose.cs</span> — 값만 담는 그릇</td></tr>
+          <tr><td class="k">화면</td><td class="d"><span class="f">Form1.Designer.cs</span> — VS 자동 생성, 손대지 않음</td></tr>
+          <tr><td class="k">시작</td><td class="d"><span class="f">Program.cs</span> 22줄</td></tr>
+        </table>
+        <div class="h2" style="margin-top:24px">쓰임에 따른 세 층</div>
+        <table>
+          <tr><td class="k" style="width:104px">조립자</td><td class="d">버튼 뒤에서 남을 부르는 쪽<br><span style="color:var(--subtle)">DrawingSheets · MfgDrawing · Stru · BOM · Clash · GlobalViews</span></td></tr>
+          <tr><td class="k">중간</td><td class="d">계산과 그리기<br><span style="color:var(--subtle)">Dimensions · Drawing2D · Attribute · License</span></td></tr>
+          <tr><td class="k">기반</td><td class="d">모두가 참조<br><span style="color:var(--subtle)">Form1.cs · ExcelTemplate · Models</span></td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="figs">
+          <div class="fig"><div class="n">19,542<small>줄</small></div><div class="l">전체 코드</div></div>
+          <div class="fig"><div class="n">318<small>개</small></div><div class="l">메서드</div></div>
+          <div class="fig"><div class="n">107<small>개</small></div><div class="l">공유 필드</div></div>
+        </div>
+        <div class="h2">파일 경계를 넘는 필드 — 107개 중 36개</div>
+        <table>
+          <tr><th>필드</th><th class="n">사용</th><th class="n">파일</th></tr>
+          <tr><td class="f">vizcore3d</td><td class="n" style="color:var(--brand-500);font-weight:700">651</td><td class="n">11</td></tr>
+          <tr><td class="f">bomList</td><td class="n">90</td><td class="n">8</td></tr>
+          <tr><td class="f">chainDimensionList</td><td class="n">56</td><td class="n">6</td></tr>
+          <tr><td class="f">xraySelectedNodeIndices</td><td class="n">48</td><td class="n">7</td></tr>
+          <tr><td class="f">drawingSheetList</td><td class="n">45</td><td class="n">4</td></tr>
+        </table>
+        <div class="lead" style="font-size:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--hair)">
+          층은 이미 갈려 있음 — 다만 <b>컴파일러가 강제하지 않는 상태</b>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 03 파일별 기능 · 조립자 ═══ -->
+<section class="s" data-title="파일별 기능 — 버튼 뒤">
+  <h1>파일별 기능 — 버튼 뒤</h1>
+  <div class="lead">버튼이 부르는 여섯 — <b>도면이 나오는 경로 전부</b></div>
+  <div class="rule"></div>
+  <div class="body">
+    <table>
+      <tr><th style="width:210px">파일</th><th class="n" style="width:74px">줄</th><th class="n" style="width:74px">메서드</th><th>하는 일</th></tr>
+      <tr><td class="f">Form1.MfgDrawing</td><td class="n">3,926</td><td class="n">69</td>
+        <td>가공도 — 부재 하나를 세워 찍고 <b>그다음에</b> 치수 부착. 최종 배율을 미리 못 얻어 순서가 역순</td></tr>
+      <tr><td class="f">Form1.DrawingSheets</td><td class="n">3,564</td><td class="n">56</td>
+        <td>시트 분할 + 도면 그리기. 엑셀 양식 위 4면도 투영 — <span class="f">954줄</span> 단일 메서드가 심장</td></tr>
+      <tr><td class="f">Form1.Dimensions</td><td class="n">2,674</td><td class="n">34</td>
+        <td>체인치수 엔진. 도면 4종 전부 경유 — 잴 대상 선정 · 중복 제거 · 3D 작도</td></tr>
+      <tr><td class="f">Form1.Clash</td><td class="n">1,431</td><td class="n">30</td>
+        <td>간섭검사(3mm 근접)로 접합 판정 + <b>도면 BOM 표 조립 532줄</b></td></tr>
+      <tr><td class="f">Form1.GlobalViews</td><td class="n">1,206</td><td class="n">28</td>
+        <td>축 전환 버튼 193줄 + <b>설치도 연결 계산 960줄</b></td></tr>
+      <tr><td class="f">Form1.Stru</td><td class="n">1,125</td><td class="n">17</td>
+        <td>STRU 목록 · 검색 + <b>도면 일괄 출력</b> — 사람의 클릭 순서를 코드로 재현</td></tr>
+      <tr><td class="f">Form1.BOM</td><td class="n">1,095</td><td class="n">18</td>
+        <td>SDK 시동 · 파일 열기 · 부재/Osnap/구멍 수집 · <b>치수 파이프라인 지휘</b></td></tr>
+    </table>
+    <div class="lead" style="font-size:16px;margin-top:auto;padding-top:16px;border-top:1px solid var(--hair)">
+      이름과 내용의 불일치 — <b>Clash · GlobalViews · Drawing2D</b>는 파일명과 다른 일이 절반 이상
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 04 파일별 기능 · 불려 다니는 쪽 ═══ -->
+<section class="s" data-title="파일별 기능 — 불려 다니는 쪽">
+  <h1>파일별 기능 — 불려 다니는 쪽</h1>
+  <div class="lead">스스로 시작하지 않는 쪽 — 계산 · 그리기 · <b>모두가 쓰는 공유 상태</b></div>
+  <div class="rule"></div>
+  <div class="body">
+    <table>
+      <tr><th style="width:210px">파일</th><th class="n" style="width:74px">줄</th><th class="n" style="width:74px">메서드</th><th>하는 일</th></tr>
+      <tr><td class="f">Form1.Designer</td><td class="n">1,485</td><td class="n">2</td>
+        <td class="d">VS 자동 생성 — 컨트롤 배치와 이벤트 배선. 사람이 고치지 않는 파일</td></tr>
+      <tr><td class="f">Form1.Drawing2D</td><td class="n">1,273</td><td class="n">28</td>
+        <td>Osnap 수집 · 편집 UI + <b>PDF 페이지 관리</b> — 서로 무관한 네 덩어리</td></tr>
+      <tr><td class="f">Form1.Attribute</td><td class="n">618</td><td class="n">17</td>
+        <td>부재 정보 탭 — UDA 조회 · 편집 · CSV. <b>공유 필드 2개만 사용</b>, 사실상 독립</td></tr>
+      <tr><td class="f">Form1.cs</td><td class="n">478</td><td class="n">13</td>
+        <td>공유 필드 40개 · 진단 로그 · 진행창과 취소. <b>다른 파일이 408회 호출</b></td></tr>
+      <tr><td class="f">Models.cs</td><td class="n">259</td><td class="n">0</td>
+        <td class="d">데이터 클래스 10개 — 로직 없음</td></tr>
+      <tr><td class="f">Form1.License</td><td class="n">145</td><td class="n">5</td>
+        <td>인증 + 30분 자동 갱신. 로컬 우선, 실패 시 사내 서버 폴백</td></tr>
+      <tr><td class="f">Models/MfgViewPose</td><td class="n">140</td><td class="n">0</td>
+        <td>가공도 데이터 클래스 3개 — <b>전역 필드를 객체로 묶은 유일한 사례</b></td></tr>
+      <tr><td class="f">Form1.ExcelTemplate</td><td class="n">101</td><td class="n">4</td>
+        <td>표제부 REV 표 채우기 — 빈 값을 공백으로 치환해 <b>괘선 보존</b></td></tr>
+      <tr><td class="f">Program.cs</td><td class="n">22</td><td class="n">1</td>
+        <td class="d">진입점 — 창 생성 후 역할 종료</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ 05 지운 것 ═══ -->
+<section class="s" data-title="지운 것">
+  <h1>지운 것</h1>
+  <div class="lead">실행되지 않음이 기계로 확인된 것만 — <b>한 건 = 한 커밋</b>, 매 건 빌드 통과</div>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="two">
+      <div>
+        <div class="h2">항목 8건</div>
+        <table class="dense">
+          <tr><th>무엇</th><th class="n" style="width:66px">줄</th></tr>
+          <tr><td>옛 무템플릿 도면 경로<div class="d">스위치가 하드코딩 상수라 도달 불가</div></td><td class="n">733</td></tr>
+          <tr><td>풍선 배치 블록<div class="d">채우던 코드가 먼저 삭제됨</div></td><td class="n">272</td></tr>
+          <tr><td>도달 불가 함수 2건<div class="d">호출 그래프로 발견 — 코드 주석이 폐기 명시</div></td><td class="n">97</td></tr>
+          <tr><td>카메라 검증 프로브<div class="d">게이트가 상수 false</div></td><td class="n">94</td></tr>
+          <tr><td>모델 이동량 계산 연쇄<div class="d">소비자가 사라진 뒤 계산만 잔존</div></td><td class="n">65</td></tr>
+          <tr><td>미배선 버튼 핸들러 8개<div class="d">배선이 없어 실행 0회</div></td><td class="n">52</td></tr>
+          <tr><td>쓰기 전용 연쇄<div class="d">채우기만 하고 읽는 곳 없음</div></td><td class="n">43</td></tr>
+          <tr><td>죽은 Win32 선언<div class="d">우회 기법이 이미 제거됨</div></td><td class="n">17</td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="figs">
+          <div class="fig"><div class="n">19,542<small>줄</small></div><div class="l">현재 코드</div><div class="was">20,441줄에서</div></div>
+          <div class="fig"><div class="n">&minus;1,416<small>줄</small></div><div class="l">삭제</div><div class="was">주석 +517줄</div></div>
+        </div>
+        <div class="h2">확인 방법</div>
+        <table>
+          <tr><td class="k" style="width:92px">기계 대조</td><td class="d">줄번호 · API명 · 링크 자동 검증</td></tr>
+          <tr><td class="k">교차 검증</td><td class="d">다른 AI와 상호 지적 2회전</td></tr>
+          <tr><td class="k">표본 감사</td><td class="d">무작위 30건 중 29건 일치</td></tr>
+          <tr><td class="k">누적 지적</td><td class="d"><b class="hi">34건 전원 반영</b></td></tr>
+        </table>
+        <div class="h2" style="margin-top:24px">최종 확인</div>
+        <table>
+          <tr><td class="k" style="width:92px">빌드</td><td class="d">8개 커밋 전건 통과</td></tr>
+          <tr><td class="k">실기</td><td><span class="ok">도면 4종 정상 출력</span><div class="d">제작도 · 가공도 · 설치도 · 일괄 출력</div></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 06 남은 것 ═══ -->
+<section class="s" data-title="남은 것">
+  <h1>남은 것</h1>
+  <div class="lead">타입 30개 · 메서드 318개 — <b>전원 설명 부착 완료</b></div>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="figs">
+      <div class="fig"><div class="n">30<small>개</small></div><div class="l">타입 (클래스 · enum)</div></div>
+      <div class="fig"><div class="n">318<small>개</small></div><div class="l">메서드</div></div>
+      <div class="fig"><div class="n">100<small>%</small></div><div class="l">주석 커버리지</div><div class="was">착수 시 63%</div></div>
+      <div class="fig"><div class="n">53<small>개</small></div><div class="l">진입점</div><div class="was">코드가 시작될 수 있는 자리</div></div>
+    </div>
+    <div class="two">
+      <div>
+        <div class="h2">타입 30개 — 동작하는 것은 하나</div>
+        <table>
+          <tr><td class="k" style="width:130px"><span class="f">Form1</span></td><td class="n" style="width:52px">1</td><td class="d">동작 전부. 파일 13개에 분산</td></tr>
+          <tr><td class="k">데이터 클래스</td><td class="n">26</td><td class="d">값만 담음. 로직 없음</td></tr>
+          <tr><td class="k"><span class="f">Program</span></td><td class="n">1</td><td class="d">진입점</td></tr>
+          <tr><td class="k">자동 생성</td><td class="n">2</td><td class="d">Resources · Settings — 미사용</td></tr>
+        </table>
+        <div class="lead" style="font-size:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)">
+          클래스가 하나가 아니라 <b>동작하는 클래스가 하나</b>
+        </div>
+      </div>
+      <div class="rt">
+        <div class="h2">진입점 53개 — 여기 아니면 시작 못 함</div>
+        <table>
+          <tr><td class="k" style="width:130px">버튼 클릭</td><td class="n" style="width:52px">41</td><td class="d">사람이 누르는 것</td></tr>
+          <tr><td class="k">목록 선택</td><td class="n">7</td><td class="d">클릭하면 3D가 반응</td></tr>
+          <tr><td class="k">SDK 알림</td><td class="n">4</td><td class="d"><b>끊긴 흐름이 여기서 재개</b></td></tr>
+          <tr><td class="k">타이머</td><td class="n">1</td><td class="d">라이선스 갱신</td></tr>
+        </table>
+        <div class="lead" style="font-size:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)">
+          <b>SDK 알림 4개</b>가 참조 검색으로 안 이어지는 자리
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 07 제작도가 나오는 길 ═══ -->
+<section class="s" data-title="제작도가 나오는 길">
+  <h1>제작도가 나오는 길</h1>
+  <div class="lead">버튼 한 번에 일곱 단계 — 단 <b>간섭검사에서 한 번 끊김</b></div>
+  <div class="rule"></div>
+  <div class="body">
+  <svg viewBox="0 0 1144 470" xmlns="http://www.w3.org/2000/svg" style="margin-top:4px"
+       role="img" aria-label="모델 열기부터 PDF 저장까지 일곱 단계. 간섭검사 지점에서 대기했다가 SDK 알림으로 재개.">
     <defs>
       <marker id="tip" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
         <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/></marker>
       <style>
-        .lab{font-size:15px;font-weight:700;fill:#1A1C20;letter-spacing:-.015em}
-        .term{font-size:10px;font-weight:600;fill:#9A9EA6}
-        .step{font-size:10.5px;font-weight:700;fill:#B6B9BF;letter-spacing:.11em;
-              font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-        .val{font-size:12.5px;font-weight:450;fill:#5F6570}
-        .valk{font-size:12.5px;font-weight:700;fill:#0071DB}
-        .who{font-size:11px;font-weight:700;fill:#B6B9BF;letter-spacing:.09em}
-        .brk{font-size:14.5px;font-weight:700;fill:#C2410C}
-        .brks{font-size:11px;font-weight:500;fill:#A8734F}
-        .brkn{font-size:11.5px;font-weight:450;fill:#A8734F}
+        .lab{font-size:17px;font-weight:700;fill:#101828;letter-spacing:-.02em}
+        .trm{font-size:11.5px;font-weight:600;fill:#667085}
+        .stp{font-size:11.5px;font-weight:700;fill:#98A2B3;letter-spacing:.12em;
+             font-family:"D2Coding",Consolas,monospace}
+        .val{font-size:13.5px;font-weight:400;fill:#475467}
+        .vlk{font-size:13.5px;font-weight:700;fill:#0071DB}
+        .who{font-size:12px;font-weight:700;fill:#98A2B3;letter-spacing:.1em}
+        .brk{font-size:15.5px;font-weight:700;fill:#B42318}
+        .brs{font-size:12.5px;font-weight:400;fill:#98A2B3}
       </style>
     </defs>
-    <text class="who" x="6" y="16">프로그램이 직접 진행</text>
-    <line x1="6" y1="25" x2="150" y2="25" stroke="#E8E6E1" stroke-width="1.2"/>
-    <text class="who" x="790" y="16">SDK가 알려줘야 재개</text>
-    <line x1="790" y1="25" x2="934" y2="25" stroke="#E8E6E1" stroke-width="1.2"/>
 
-    <line x1="6" y1="126" x2="570" y2="126" stroke="#0071DB" stroke-width="2"/>
-    <line x1="768" y1="126" x2="1180" y2="126" stroke="#0071DB" stroke-width="2"/>
-    <path d="M1180 126 H1206" stroke="#0071DB" stroke-width="2" marker-end="url(#tip)"/>
+    <text class="who" x="2" y="18">프로그램이 직접 진행</text>
+    <line x1="2" y1="28" x2="154" y2="28" stroke="#E7EAEE" stroke-width="1"/>
+    <text class="who" x="756" y="18">SDK 알림 후 재개</text>
+    <line x1="756" y1="28" x2="900" y2="28" stroke="#E7EAEE" stroke-width="1"/>
 
-    <rect x="570" y="94" width="198" height="64" rx="9" fill="#FBF2EA" stroke="#E6CBB2" stroke-width="1.5"/>
-    <path d="M604 116.5 c-4.4 0-7.6 3.2-7.6 7.6 v4.4 l-2 3 h19.2 l-2-3 v-4.4
-             c0-4.4-3.2-7.6-7.6-7.6 z M601 134.5 a3.2 3.2 0 0 0 6 0"
-          fill="none" stroke="#C2410C" stroke-width="1.7" stroke-linejoin="round"/>
-    <text class="brk" x="624" y="122">여기서 멈춘다</text>
-    <text class="brks" x="624" y="140">완료 알림을 기다림</text>
-    <line x1="669" y1="158" x2="669" y2="180" stroke="#E0CDBC" stroke-width="1" stroke-dasharray="3 3"/>
-    <text class="brkn" x="669" y="196" text-anchor="middle">검사는 SDK에 맡기고 함수는 이미 끝난 상태</text>
-    <text class="brkn" x="669" y="213" text-anchor="middle">언제 올지 모름 · 최대 60초 대기</text>
+    <line x1="2" y1="200" x2="546" y2="200" stroke="#0071DB" stroke-width="3"/>
+    <line x1="734" y1="200" x2="1122" y2="200" stroke="#0071DB" stroke-width="3"/>
+    <path d="M1122 200 H1142" stroke="#0071DB" stroke-width="3" marker-end="url(#tip)"/>
 
-    <circle cx="52" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
-    <text class="step" x="52" y="58" text-anchor="middle">01</text>
-    <text x="52" y="86" text-anchor="middle"><tspan class="lab">모델 열기</tspan></text>
-    <text class="val" x="52" y="162" text-anchor="middle">부재 5,000개</text>
-    <text class="val" x="52" y="180" text-anchor="middle">구조물 12개</text>
+    <line x1="546" y1="168" x2="546" y2="232" stroke="#D0D5DD" stroke-width="1"/>
+    <line x1="734" y1="168" x2="734" y2="232" stroke="#D0D5DD" stroke-width="1"/>
+    <path d="M634 194 c-5-0-8.6 3.6-8.6 8.6 v5 l-2.3 3.4 h21.8 l-2.3-3.4 v-5 c0-5-3.6-8.6-8.6-8.6 z
+             M630.6 214.6 a3.6 3.6 0 0 0 6.8 0" fill="none" stroke="#B42318" stroke-width="1.8" stroke-linejoin="round"/>
+    <text class="brk" x="656" y="186" text-anchor="middle">여기서 끊긴다</text>
+    <text class="brs" x="640" y="248" text-anchor="middle">함수는 이미 종료</text>
+    <text class="brs" x="640" y="269" text-anchor="middle">완료 알림 대기 · 최대 60초</text>
 
-    <circle cx="180" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
-    <text class="step" x="180" y="58" text-anchor="middle">02</text>
-    <text x="180" y="86" text-anchor="middle"><tspan class="lab">대상 고르기</tspan><tspan class="term" dx="6">(STRU 체크)</tspan></text>
-    <text class="val" x="180" y="162" text-anchor="middle">화면은 그대로</text>
+    <circle cx="48" cy="200" r="4.5" fill="#fff" stroke="#0071DB" stroke-width="2"/>
+    <text class="stp" x="48" y="80" text-anchor="middle">01</text>
+    <text class="lab" x="48" y="118" text-anchor="middle">모델 열기</text>
+    <text class="val" x="48" y="244" text-anchor="middle">부재 5,000</text>
+    <text class="val" x="48" y="266" text-anchor="middle">구조물 12</text>
 
-    <circle cx="330" cy="126" r="6.5" fill="#0071DB"/>
-    <text class="step" x="330" y="58" text-anchor="middle">03</text>
-    <text x="330" y="86" text-anchor="middle"><tspan class="lab">대상만 남기기</tspan><tspan class="term" dx="6">(가시성 격리)</tspan></text>
-    <text class="val" x="330" y="162" text-anchor="middle">5,000개 끄고 40개만 켜기</text>
-    <text class="valk" x="330" y="181" text-anchor="middle">이후 모든 계산의 대상</text>
+    <circle cx="176" cy="200" r="4.5" fill="#fff" stroke="#0071DB" stroke-width="2"/>
+    <text class="stp" x="176" y="80" text-anchor="middle">02</text>
+    <text class="lab" x="176" y="118" text-anchor="middle">대상 고르기</text>
+    <text class="trm" x="176" y="137" text-anchor="middle">STRU 체크</text>
+    <text class="val" x="176" y="244" text-anchor="middle">화면은 그대로</text>
 
-    <circle cx="492" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
-    <text class="step" x="492" y="58" text-anchor="middle">04</text>
-    <text x="492" y="86" text-anchor="middle"><tspan class="lab">붙은 것 찾기</tspan><tspan class="term" dx="6">(간섭검사)</tspan></text>
-    <text class="val" x="492" y="162" text-anchor="middle">3mm 안이면 붙은 것</text>
+    <circle cx="330" cy="200" r="7" fill="#0071DB"/>
+    <text class="stp" x="330" y="80" text-anchor="middle">03</text>
+    <text class="lab" x="330" y="118" text-anchor="middle">대상만 남기기</text>
+    <text class="trm" x="330" y="137" text-anchor="middle">가시성 격리</text>
+    <text class="val" x="330" y="244" text-anchor="middle">5,000 끄고 40 켜기</text>
+    <text class="vlk" x="330" y="266" text-anchor="middle">이후 모든 계산의 대상</text>
 
-    <circle cx="852" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
-    <text class="step" x="852" y="58" text-anchor="middle">05</text>
-    <text x="852" y="86" text-anchor="middle"><tspan class="lab">치수 뽑기</tspan><tspan class="term" dx="6">(Osnap)</tspan></text>
-    <text class="val" x="852" y="162" text-anchor="middle">3방향 × 2축 = 6조합</text>
+    <circle cx="486" cy="200" r="4.5" fill="#fff" stroke="#0071DB" stroke-width="2"/>
+    <text class="stp" x="486" y="80" text-anchor="middle">04</text>
+    <text class="lab" x="486" y="118" text-anchor="middle">붙은 것 찾기</text>
+    <text class="trm" x="486" y="137" text-anchor="middle">간섭검사</text>
+    <text class="val" x="486" y="244" text-anchor="middle">3mm 안이면 접합</text>
 
-    <circle cx="1012" cy="126" r="4.5" fill="#F5F4F1" stroke="#0071DB" stroke-width="2"/>
-    <text class="step" x="1012" y="58" text-anchor="middle">06</text>
-    <text x="1012" y="86" text-anchor="middle"><tspan class="lab">도면 나누기</tspan><tspan class="term" dx="6">(시트 분할)</tspan></text>
-    <text class="val" x="1012" y="162" text-anchor="middle">이어진 것끼리 한 장에</text>
+    <circle cx="812" cy="200" r="4.5" fill="#fff" stroke="#0071DB" stroke-width="2"/>
+    <text class="stp" x="812" y="80" text-anchor="middle">05</text>
+    <text class="lab" x="812" y="118" text-anchor="middle">치수 뽑기</text>
+    <text class="trm" x="812" y="137" text-anchor="middle">Osnap</text>
+    <text class="val" x="812" y="244" text-anchor="middle">3방향 &#215; 2축</text>
 
-    <circle cx="1152" cy="126" r="6.5" fill="#0071DB"/>
-    <text class="step" x="1152" y="58" text-anchor="middle">07</text>
-    <text x="1152" y="86" text-anchor="middle"><tspan class="lab">그리고 저장</tspan></text>
-    <text class="val" x="1152" y="162" text-anchor="middle">구조물 1개당</text>
-    <text class="valk" x="1152" y="181" text-anchor="middle">PDF 1개</text>
+    <circle cx="938" cy="200" r="4.5" fill="#fff" stroke="#0071DB" stroke-width="2"/>
+    <text class="stp" x="938" y="80" text-anchor="middle">06</text>
+    <text class="lab" x="938" y="118" text-anchor="middle">도면 나누기</text>
+    <text class="trm" x="938" y="137" text-anchor="middle">시트 분할</text>
+    <text class="val" x="938" y="244" text-anchor="middle">이어진 것끼리</text>
+    <text class="val" x="938" y="266" text-anchor="middle">한 장에</text>
 
-    <line x1="330" y1="244" x2="330" y2="224" stroke="#D3D0CA" stroke-width="1"/>
-    <line x1="330" y1="244" x2="1090" y2="244" stroke="#D3D0CA" stroke-width="1"/>
-    <line x1="1090" y1="244" x2="1090" y2="224" stroke="#D3D0CA" stroke-width="1"/>
-    <line x1="710" y1="244" x2="710" y2="238" stroke="#D3D0CA" stroke-width="1"/>
-    <text class="val" x="710" y="266" text-anchor="middle" fill="#B6B9BF">
-      같은 “숨기고 남기기”가 구조물 · 도면 · 뷰 세 단계에서 되풀이</text>
+    <circle cx="1068" cy="200" r="7" fill="#0071DB"/>
+    <text class="stp" x="1068" y="80" text-anchor="middle">07</text>
+    <text class="lab" x="1068" y="118" text-anchor="middle">그리고 저장</text>
+    <text class="trm" x="1068" y="137" text-anchor="middle">엑셀 양식 + 4면도</text>
+    <text class="vlk" x="1068" y="244" text-anchor="middle">구조물 1개</text>
+    <text class="vlk" x="1068" y="266" text-anchor="middle">= PDF 1장</text>
+
+    <line x1="330" y1="368" x2="330" y2="344" stroke="#E7EAEE" stroke-width="1"/>
+    <line x1="330" y1="368" x2="1000" y2="368" stroke="#E7EAEE" stroke-width="1"/>
+    <line x1="1000" y1="368" x2="1000" y2="344" stroke="#E7EAEE" stroke-width="1"/>
+    <text class="val" x="665" y="394" text-anchor="middle" fill="#667085">
+      같은 &#8220;숨기고 남기기&#8221;가 구조물 &#183; 도면 &#183; 뷰 세 단계에서 반복 &#8212; 코드로는 8곳</text>
+    <text class="brs" x="665" y="424" text-anchor="middle"
+      font-family="D2Coding,Consolas,monospace">Stru.cs:803 &#8594; Clash.cs:1146 &#8594; DrawingSheets.cs:1799</text>
   </svg>
   </div>
-  <div class="note">
-    <div><span class="k">작업 범위</span><span>전 구간이 <b>화면에 보이는 것</b> 기준</span></div>
-    <div><span class="k">추적 난점</span><span>멈춘 자리는 <b>참조 검색으로 안 이어짐</b></span></div>
-    <div><span class="k">코드</span><span class="mono">Stru.cs:803 → Clash.cs:1146 → DrawingSheets.cs:1799</span></div>
-  </div>
-  <div class="pg">01</div>
 </section>
 
-<!-- ══════════ 03 구조 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">02 &nbsp;·&nbsp; 코드 구조</div>
-  <h1>동작하는 코드가 한 클래스에</h1>
-  <div class="lead">파일 열셋이 <code style="font-family:'JetBrains Mono',Consolas,monospace;font-size:16px">partial</code>로 이어져 클래스 하나. <b>파일 경계가 벽이 아니다.</b></div>
-  <div class="divider"></div>
+<!-- ═══ 08 앞으로 ═══ -->
+<section class="s" data-title="앞으로">
+  <h1>앞으로</h1>
+  <div class="lead">동작을 바꾸지 않는 것부터 — <span class="ok">0단계 완료</span></div>
+  <div class="rule"></div>
   <div class="body">
-  <svg viewBox="0 0 1200 296" xmlns="http://www.w3.org/2000/svg">
-    <defs><style>
-      .fl{font-size:13.5px;font-weight:700;fill:#1A1C20}
-      .fn{font-size:11px;font-weight:500;fill:#9A9EA6;
-          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-      .ly{font-size:12px;font-weight:800;fill:#B6B9BF;letter-spacing:.1em}
-      .lyd{font-size:12.5px;font-weight:450;fill:#9A9EA6}
-      .cap{font-size:13px;font-weight:450;fill:#5F6570}
-      .capb{font-size:13px;font-weight:700;fill:#0071DB}
-    </style></defs>
-
-    <!-- 조립자층 -->
-    <text class="ly" x="6" y="18">조립자</text>
-    <text class="lyd" x="76" y="18">— 버튼 뒤에서 남을 부른다</text>
-    <g>
-      <rect x="6" y="30" width="182" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="97" y="50" text-anchor="middle">도면 시트</text>
-      <text class="fn" x="97" y="66" text-anchor="middle">DrawingSheets · 3,564</text>
-      <rect x="198" y="30" width="182" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="289" y="50" text-anchor="middle">가공도</text>
-      <text class="fn" x="289" y="66" text-anchor="middle">MfgDrawing · 3,926</text>
-      <rect x="390" y="30" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="465" y="50" text-anchor="middle">일괄 출력</text>
-      <text class="fn" x="465" y="66" text-anchor="middle">Stru · 1,125</text>
-      <rect x="550" y="30" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="625" y="50" text-anchor="middle">부재 목록</text>
-      <text class="fn" x="625" y="66" text-anchor="middle">BOM · 1,095</text>
-      <rect x="710" y="30" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="785" y="50" text-anchor="middle">간섭검사</text>
-      <text class="fn" x="785" y="66" text-anchor="middle">Clash · 1,431</text>
-      <rect x="870" y="30" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="945" y="50" text-anchor="middle">화면 전환</text>
-      <text class="fn" x="945" y="66" text-anchor="middle">GlobalViews · 1,206</text>
-    </g>
-
-    <!-- 중간층 -->
-    <text class="ly" x="6" y="122">중간</text>
-    <text class="lyd" x="60" y="122">— 계산과 그리기</text>
-    <g>
-      <rect x="6" y="134" width="182" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="97" y="154" text-anchor="middle">치수</text>
-      <text class="fn" x="97" y="170" text-anchor="middle">Dimensions · 2,674</text>
-      <rect x="198" y="134" width="182" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="289" y="154" text-anchor="middle">2D · PDF</text>
-      <text class="fn" x="289" y="170" text-anchor="middle">Drawing2D · 1,273</text>
-      <rect x="390" y="134" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="465" y="154" text-anchor="middle">부재 정보</text>
-      <text class="fn" x="465" y="170" text-anchor="middle">Attribute · 618</text>
-      <rect x="550" y="134" width="150" height="44" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="625" y="154" text-anchor="middle">라이선스</text>
-      <text class="fn" x="625" y="170" text-anchor="middle">License · 145</text>
-    </g>
-
-    <!-- 기반층 -->
-    <text class="ly" x="6" y="222">기반</text>
-    <text class="lyd" x="60" y="222">— 모두가 여기를 본다</text>
-    <g>
-      <rect x="6" y="234" width="694" height="46" rx="5" fill="#EAF2FC" stroke="#0071DB" stroke-width="1.6"/>
-      <text class="fl" x="120" y="254" text-anchor="middle" fill="#0071DB">공유 필드 92개 · 진행창 · 로그</text>
-      <text class="fn" x="120" y="270" text-anchor="middle" fill="#0071DB">Form1 · 478</text>
-      <text class="cap" x="270" y="255">다른 파일이 <tspan class="capb">408회</tspan> 부른다</text>
-      <text class="cap" x="270" y="273" font-size="12">이 파일이 남을 부르는 건 4회뿐</text>
-      <rect x="710" y="234" width="150" height="46" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="785" y="254" text-anchor="middle">엑셀 양식</text>
-      <text class="fn" x="785" y="270" text-anchor="middle">ExcelTemplate · 101</text>
-      <rect x="870" y="234" width="150" height="46" rx="5" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.4"/>
-      <text class="fl" x="945" y="254" text-anchor="middle">데이터 모양</text>
-      <text class="fn" x="945" y="270" text-anchor="middle">Models · 259</text>
-    </g>
-
-    <!-- 오른쪽: 경계 넘는 필드 -->
-    <line x1="1050" y1="24" x2="1050" y2="282" stroke="#DFDDD8" stroke-width="1"/>
-    <text class="ly" x="1074" y="40">경계를 넘는 필드</text>
-    <text x="1074" y="86" font-size="42" font-weight="800" fill="#0071DB" letter-spacing="-.03em">36<tspan font-size="19" dx="2">개</tspan></text>
-    <text class="cap" x="1074" y="112" font-size="12.5">92개 중 36개가 선언한</text>
-    <text class="cap" x="1074" y="130" font-size="12.5">파일 밖에서 쓰인다</text>
-    <text class="fn" x="1074" y="168">vizcore3d</text>
-    <text class="cap" x="1074" y="186" font-size="12.5">11개 파일 · 651회</text>
-    <text class="fn" x="1074" y="216">bomList</text>
-    <text class="cap" x="1074" y="234" font-size="12.5">8개 파일 · 90회</text>
-    <text class="fn" x="1074" y="264">chainDimensionList</text>
-    <text class="cap" x="1074" y="282" font-size="12.5">6개 파일 · 56회</text>
-  </svg>
-  </div>
-  <div class="note">
-    <div><span class="k">뜻</span><span><b>partial class</b> — 파일은 나뉘어도 컴파일하면 클래스 하나</span></div>
-    <div><span class="k">결과</span><span>어느 파일에서든 남의 필드에 <b>제한 없이 접근</b></span></div>
-    <div><span class="k">그래서</span><span>층은 이미 있는데 <b>컴파일러가 강제하지 않는다</b></span></div>
-  </div>
-  <div class="pg">02</div>
-</section>
-
-<!-- ══════════ 04 화면 상태 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">03 &nbsp;·&nbsp; 설계의 뿌리</div>
-  <h1>화면에 보이는 것이 곧 작업 대상</h1>
-  <div class="lead">「선택」이라는 개념이 없다. <b>숨기면 계산에서 빠진다.</b></div>
-  <div class="divider"></div>
-  <div class="body">
-  <svg viewBox="0 0 1200 288" xmlns="http://www.w3.org/2000/svg">
-    <defs><style>
-      .h{font-size:15.5px;font-weight:700;fill:#1A1C20}
-      .p{font-size:13px;font-weight:450;fill:#5F6570}
-      .c{font-size:11.5px;font-weight:600;fill:#9A9EA6;
-         font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-      .big{font-size:17px;font-weight:800;fill:#0071DB;letter-spacing:-.02em}
-    </style></defs>
-
-    <!-- 왼쪽: 화면 -->
-    <text class="h" x="6" y="18">3D 화면</text>
-    <rect x="6" y="32" width="300" height="150" rx="6" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.5"/>
-    <g opacity=".22">
-      <rect x="30" y="52" width="46" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="88" y="52" width="70" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="170" y="52" width="40" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="222" y="52" width="58" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="30" y="140" width="64" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="106" y="140" width="52" height="22" rx="2" fill="#8B93A0"/>
-      <rect x="216" y="140" width="64" height="22" rx="2" fill="#8B93A0"/>
-    </g>
-    <g>
-      <rect x="52" y="92" width="80" height="30" rx="3" fill="#0071DB"/>
-      <rect x="144" y="92" width="52" height="30" rx="3" fill="#0071DB"/>
-      <rect x="208" y="92" width="64" height="30" rx="3" fill="#0071DB"/>
-    </g>
-    <text class="c" x="6" y="200" fill="#0071DB">보이는 것 40개</text>
-    <text class="c" x="182" y="200">숨긴 것 4,960개</text>
-
-    <!-- 화살표 -->
-    <path d="M322 107 H392" stroke="#0071DB" stroke-width="2" marker-end="url(#tip2)"/>
-    <defs><marker id="tip2" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
-      <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/></marker></defs>
-
-    <!-- 가운데: 코드 -->
-    <text class="h" x="406" y="18">코드가 대상을 정하는 법</text>
-    <rect x="406" y="32" width="376" height="86" rx="6" fill="#FFFFFF" stroke="#D8DCE2" stroke-width="1.5"/>
-    <text class="c" x="424" y="56" fill="#5F6570">Node realNode = FromIndex(node.Index);</text>
-    <text class="c" x="424" y="76" fill="#1A1C20">if (realNode.Visible)</text>
-    <text class="c" x="444" y="96" fill="#0071DB">targetNodes.Add(node);</text>
-    <text class="p" x="406" y="140">이 조건 하나가 <tspan class="big">전 구간</tspan>의 범위를 정한다</text>
-    <text class="c" x="406" y="162">GetBOMTargetNodes · Form1.BOM.cs</text>
-
-    <!-- 오른쪽: 영향 -->
-    <line x1="812" y1="24" x2="812" y2="200" stroke="#DFDDD8" stroke-width="1"/>
-    <text class="h" x="838" y="18">그래서 이렇게 이어진다</text>
-    <g>
-      <circle cx="846" cy="52" r="3" fill="#0071DB"/>
-      <text class="p" x="862" y="57">부재 목록에 <tspan font-weight="700" fill="#1A1C20">보이는 것만</tspan> 담긴다</text>
-      <circle cx="846" cy="86" r="3" fill="#0071DB"/>
-      <text class="p" x="862" y="91">간섭검사도 <tspan font-weight="700" fill="#1A1C20">그 범위만</tspan> 돈다</text>
-      <circle cx="846" cy="120" r="3" fill="#0071DB"/>
-      <text class="p" x="862" y="125">치수·도면도 <tspan font-weight="700" fill="#1A1C20">따라서 좁아진다</tspan></text>
-      <circle cx="846" cy="154" r="3" fill="#C2410C"/>
-      <text class="p" x="862" y="159" fill="#C2410C">처리 중 화면을 건드리면 <tspan font-weight="700">결과가 바뀐다</tspan></text>
-    </g>
-
-    <!-- 하단 -->
-    <rect x="6" y="224" width="1188" height="52" rx="6" fill="#FBF2EA" stroke="#E6CBB2" stroke-width="1.5"/>
-    <text x="28" y="246" font-size="13.5" font-weight="700" fill="#C2410C">작업 범위가 데이터가 아니라 “화면 상태”로만 존재한다</text>
-    <text x="28" y="266" font-size="12.5" font-weight="450" fill="#A8734F">SDK의 표시 속성(Visible)에 업무 의미가 얹혀 있어, 화면을 만지면 계산 결과가 달라진다 — 리팩토링에서 명시적 데이터로 빼야 할 지점</text>
-  </svg>
-  </div>
-  <div class="pg">03</div>
-</section>
-
-<!-- ══════════ 05 SDK 우회 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">04 &nbsp;·&nbsp; 코드가 무거운 이유</div>
-  <h1>SDK가 못 하는 것을 대신한 자리</h1>
-  <div class="lead">“왜 2만 줄이나 되나” — 상당 부분이 <b>우회 코드</b>다.</div>
-  <div class="divider"></div>
-  <div class="body">
-  <svg viewBox="0 0 1200 290" xmlns="http://www.w3.org/2000/svg">
-    <defs><style>
-      .wt{font-size:14.5px;font-weight:700;fill:#1A1C20}
-      .wd{font-size:12.5px;font-weight:450;fill:#5F6570}
-      .wn{font-size:11px;font-weight:700;fill:#B6B9BF;letter-spacing:.1em;
-          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-      .tag{font-size:10.5px;font-weight:700;letter-spacing:.02em}
-    </style></defs>
-
-    <!-- 1 -->
-    <line x1="6" y1="14" x2="6" y2="76" stroke="#C2410C" stroke-width="2.5"/>
-    <text class="wn" x="24" y="26">01</text>
-    <text class="wt" x="24" y="46">캡처하면 프로세스가 죽는다</text>
-    <text class="wd" x="24" y="66">가공도 은선 캡처 API가 AccessViolation — 점선 모드로 우회 중</text>
-    <rect x="330" y="32" width="66" height="18" rx="3" fill="#FBE9E2"/>
-    <text class="tag" x="363" y="45" text-anchor="middle" fill="#C2410C">벤더 문의</text>
-
-    <!-- 2 -->
-    <line x1="6" y1="96" x2="6" y2="158" stroke="#C2410C" stroke-width="2.5"/>
-    <text class="wn" x="24" y="108">02</text>
-    <text class="wt" x="24" y="128">PDF 여러 장을 못 이어붙인다</text>
-    <text class="wd" x="24" y="148">MergePages를 켜면 메모리 오류로 즉사 — 꺼둔 채 운영</text>
-    <rect x="330" y="114" width="66" height="18" rx="3" fill="#FBE9E2"/>
-    <text class="tag" x="363" y="127" text-anchor="middle" fill="#C2410C">벤더 문의</text>
-
-    <!-- 3 -->
-    <line x1="6" y1="178" x2="6" y2="240" stroke="#0071DB" stroke-width="2.5"/>
-    <text class="wn" x="24" y="190">03</text>
-    <text class="wt" x="24" y="210">최종 배율을 미리 못 얻는다</text>
-    <text class="wd" x="24" y="230">먼저 찍어 배율을 실측한 뒤, 치수를 나중에 그린다</text>
-
-    <!-- 구분선 -->
-    <line x1="600" y1="6" x2="600" y2="284" stroke="#DFDDD8" stroke-width="1"/>
-
-    <!-- 4 -->
-    <line x1="624" y1="14" x2="624" y2="76" stroke="#0071DB" stroke-width="2.5"/>
-    <text class="wn" x="642" y="26">04</text>
-    <text class="wt" x="642" y="46">부모를 물어볼 방법이 없다</text>
-    <text class="wd" x="642" y="66">인덱스가 순서대로라는 성질로 이진 탐색해 부모를 추정</text>
-
-    <!-- 5 -->
-    <line x1="624" y1="96" x2="624" y2="158" stroke="#0071DB" stroke-width="2.5"/>
-    <text class="wn" x="642" y="108">05</text>
-    <text class="wt" x="642" y="128">빈 칸 괘선을 직접 못 켠다</text>
-    <text class="wd" x="642" y="148">값을 넣느냐 마느냐로 괘선을 간접 제어</text>
-
-    <!-- 6 -->
-    <line x1="624" y1="178" x2="624" y2="240" stroke="#0F7B4F" stroke-width="2.5"/>
-    <text class="wn" x="642" y="190">06</text>
-    <text class="wt" x="642" y="210">가짜 마우스 휠로 줌</text>
-    <text class="wd" x="642" y="230">정상 API로 이미 대체됨 — 이번 조사에서 잔재 확인 후 제거</text>
-    <rect x="1064" y="196" width="52" height="18" rx="3" fill="#E4F2EA"/>
-    <text class="tag" x="1090" y="209" text-anchor="middle" fill="#0F7B4F">해소</text>
-
-    <!-- 하단 -->
-    <line x1="6" y1="262" x2="1194" y2="262" stroke="#DFDDD8" stroke-width="1"/>
-    <text x="6" y="284" font-size="13" font-weight="450" fill="#5F6570">
-      다섯 건이 남아 있고, 그중 <tspan font-weight="700" fill="#C2410C">두 건은 벤더가 고쳐야 풀린다</tspan>
-      <tspan fill="#9A9EA6" dx="14">— 코드에 “소프트힐스 문의 후보”로 이미 표시돼 있음</tspan>
-    </text>
-  </svg>
-  </div>
-  <div class="pg">04</div>
-</section>
-
-<!-- ══════════ 06 이번에 한 일 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">05 &nbsp;·&nbsp; 이번에 한 일</div>
-  <h1>전부 읽고, 세 번 검증하고, 덜어냈다</h1>
-  <div class="lead">문서 열셋 · 주석 318개 · <span class="g">죽은 코드 1,416줄 제거 · 실기 확인 통과</span></div>
-  <div class="divider"></div>
-  <div class="body">
-    <div class="stats">
-      <div class="stat">
-        <div class="n" style="color:var(--flow)">20,441<small>줄</small></div>
-        <div class="t">전수 문서화</div>
-        <div class="d">파일 열셋을 한 줄도 빠짐없이 읽고<br>파일별 분석 문서 <b>13개</b> 작성</div>
+    <div class="two">
+      <div>
+        <div class="h2">순서</div>
+        <table>
+          <tr><th style="width:78px">단계</th><th>무엇</th><th class="n" style="width:62px">상태</th></tr>
+          <tr><td class="f">STEP 0</td>
+            <td><span class="k">죽은 코드 덜어내기</span><div class="d">실행되지 않는 1,416줄 &mdash; 동작 변화 없음</div></td>
+            <td class="n"><span class="ok">완료</span></td></tr>
+          <tr><td class="f">STEP 1</td>
+            <td><span class="k">같은 일 하는 코드 합치기</span><div class="d">Osnap 수집 3벌 · UDA 읽기 3벌 · 간섭 그래프 2벌 · 가시성 격리 8곳</div></td>
+            <td class="n">&mdash;</td></tr>
+          <tr><td class="f">STEP 2</td>
+            <td><span class="k">작업 범위를 데이터로</span><div class="d">화면 상태 대신 &ldquo;이번 대상은 이 목록&rdquo;을 인자로 전달</div></td>
+            <td class="n">&mdash;</td></tr>
+          <tr><td class="f">STEP 3</td>
+            <td><span class="k">계산을 SDK에서 분리</span><div class="d">순수 계산 12% &mdash; 테스트 가능한 형태로</div></td>
+            <td class="n">&mdash;</td></tr>
+        </table>
       </div>
-      <div class="stat">
-        <div class="n">3<small>중</small></div>
-        <div class="t">교차 검증</div>
-        <div class="d">기계 검사 + 다른 AI와 상호 검증 + 표본 감사<br>누적 지적 <b>34건 전원 반영</b></div>
-      </div>
-      <div class="stat">
-        <div class="n" style="color:var(--ok)">1,416<small>줄</small></div>
-        <div class="t">죽은 코드 제거</div>
-        <div class="d">실행되지 않음이 확인된 것만<br>한 건 = 한 커밋 · <b>매번 빌드 통과</b></div>
-      </div>
-      <div class="stat">
-        <div class="n">318<small>/318</small></div>
-        <div class="t">메서드 주석</div>
-        <div class="d">설명 없던 <b>118개</b>를 채워<br>커버리지 63% → <b>100%</b></div>
+      <div class="rt">
+        <div class="h2">지키는 것</div>
+        <table>
+          <tr><td class="k" style="width:120px">동작 불변</td><td class="d">결과 도면이 이전과 동일해야 함</td></tr>
+          <tr><td class="k">한 건 = 한 커밋</td><td class="d">되돌리기 가능한 단위 유지</td></tr>
+          <tr><td class="k">빌드 + 실기</td><td class="d">통과해야 다음 단계</td></tr>
+          <tr><td class="k">기능과 분리</td><td class="d">섞으면 원인 추적 불가</td></tr>
+        </table>
+        <div class="h2" style="margin-top:24px">별건으로 처리</div>
+        <table>
+          <tr><td class="k" style="width:120px">벤더 요청</td><td class="n" style="width:40px">2</td><td class="d">캡처 즉사 · PDF 병합 불가</td></tr>
+          <tr><td class="k">확인된 결함</td><td class="n">9</td><td class="d">이슈 등록 후 개별 대응</td></tr>
+        </table>
+        <div class="lead" style="font-size:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)">
+          결함 수정과 리팩토링은 <b>섞지 않음</b>
+        </div>
       </div>
     </div>
   </div>
-  <div class="note">
-    <div><span class="k">검증</span><span>최종 무작위 표본 <b>30건 중 29 일치</b>, 불일치 1건은 그 자리에서 수정</span></div>
-    <div><span class="k">정직</span><span>실기로만 확인 가능한 <b>21건</b>은 <span class="mono">(미확인)</span> 으로 남겨둠</span></div>
-    <div><span class="k">결과</span><span>코드 <b>20,441 → 19,542줄</b> · 삭제 1,416 / 주석 추가 517 · <b>도면 4종 정상 출력 확인</b></span></div>
-  </div>
-  <div class="pg">05</div>
 </section>
 
-<!-- ══════════ 07 어젯밤에 있었던 일 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">06 &nbsp;·&nbsp; 정리가 값을 한 날</div>
-  <h1>도면이 한 장도 안 나왔다</h1>
-  <div class="lead">발표 이틀 전 밤. <b>원인을 찾는 데 3분</b>이 걸렸다.</div>
-  <div class="divider"></div>
-  <div class="body">
-  <svg viewBox="0 0 1200 290" xmlns="http://www.w3.org/2000/svg">
-    <defs><style>
-      .tm{font-size:12px;font-weight:700;fill:#9A9EA6;letter-spacing:.04em;
-          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-      .ev{font-size:14px;font-weight:600;fill:#1A1C20}
-      .evs{font-size:12.5px;font-weight:450;fill:#5F6570}
-      .ok{font-size:13px;font-weight:800;fill:#0F7B4F}
-      .ng{font-size:13px;font-weight:800;fill:#C2410C}
-      .hd{font-size:12px;font-weight:800;fill:#B6B9BF;letter-spacing:.1em}
-      .cd{font-size:12px;font-weight:500;fill:#5F6570;
-          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-    </style></defs>
-
-    <!-- 세로 타임라인 -->
-    <line x1="118" y1="18" x2="118" y2="214" stroke="#DFDDD8" stroke-width="2"/>
-
-    <text class="tm" x="20" y="28">22:17</text>
-    <circle cx="118" cy="24" r="5.5" fill="#0F7B4F"/>
-    <text class="ev"  x="140" y="21">라이선스 인증 성공</text>
-    <text class="cd"  x="140" y="39">[License] 인증 성공 127.0.0.1:8901</text>
-
-    <text class="tm" x="20" y="76">22:18</text>
-    <circle cx="118" cy="72" r="5.5" fill="#0F7B4F"/>
-    <text class="ev"  x="140" y="69">도면 정상 출력</text>
-    <text class="ok"  x="326" y="69">views=4/4</text>
-    <text class="evs" x="140" y="87">같은 빌드 · 같은 코드</text>
-
-    <text class="tm" x="20" y="132">22:47</text>
-    <circle cx="118" cy="128" r="5.5" fill="#C2410C"/>
-    <text class="ev"  x="140" y="125" fill="#C2410C">30분 뒤 자동 갱신 실패</text>
-    <text class="cd"  x="140" y="143" fill="#A8734F">AVAILABLE_QUANTITY_EXCEEDS · LICENSE_SERVER_DOWN</text>
-    <text class="evs" x="140" y="161" fill="#C2410C">사용자에게는 아무 알림도 없었다</text>
-
-    <text class="tm" x="20" y="210">23:36</text>
-    <circle cx="118" cy="206" r="5.5" fill="#C2410C"/>
-    <text class="ev"  x="140" y="203">도면 0장 — 이후 13회 전부 실패</text>
-    <text class="ng"  x="418" y="203">views=0/4</text>
-    <text class="cd"  x="140" y="221" fill="#A8734F">P2 View_1 Object2D 생성 실패 objId=-1</text>
-
-    <!-- 오른쪽: 무엇이 도왔나 -->
-    <line x1="700" y1="10" x2="700" y2="250" stroke="#DFDDD8" stroke-width="1"/>
-    <text class="hd" x="728" y="24">무엇이 도왔나</text>
-    <circle cx="736" cy="56" r="3" fill="#0071DB"/>
-    <text class="ev"  x="752" y="61">진단 로그</text>
-    <text class="evs" x="836" y="61">단계마다 남겨둔 기록으로 3분 만에 특정</text>
-    <circle cx="736" cy="92" r="3" fill="#0071DB"/>
-    <text class="ev"  x="752" y="97">같은 빌드 대조</text>
-    <text class="evs" x="866" y="97">한 시간 전엔 정상 → 코드 문제 아님</text>
-    <circle cx="736" cy="128" r="3" fill="#0071DB"/>
-    <text class="ev"  x="752" y="133">증상 구분</text>
-    <text class="evs" x="836" y="133">치수·풍선은 정상, 모델 투영만 실패</text>
-
-    <text class="hd" x="728" y="176">이미 알고 있던 결함</text>
-    <rect x="728" y="190" width="460" height="58" rx="7" fill="#FBF2EA" stroke="#E6CBB2" stroke-width="1.5"/>
-    <text class="ev"  x="748" y="212" fill="#C2410C">B-5 · 라이선스 실패를 사용자가 알 수 없다</text>
-    <text class="evs" x="748" y="232" fill="#A8734F">조사에서 미리 잡아둔 7건 중 하나 — 실제로 터졌다</text>
-  </svg>
-  </div>
-  <div class="note">
-    <div><span class="k">결론</span><span>코드는 정상. <b>삭제한 1,416줄과 무관</b>함을 로그로 증명</span></div>
-    <div><span class="k">수리</span><span>갱신 실패가 이어지면 <b>화면에 알리고 재연결 수단</b>을 준다</span></div>
-    <div><span class="k">교훈</span><span>기록이 없었다면 <b>코드를 뒤졌을</b> 밤</span></div>
-  </div>
-  <div class="pg">06</div>
-</section>
-
-<!-- ══════════ 08 앞으로 ══════════ -->
-<section class="slide">
-  <div class="eyebrow">07 &nbsp;·&nbsp; 앞으로</div>
-  <h1>덜어낸 다음에 묶는다</h1>
-  <div class="lead">동작을 바꾸지 않는 것부터. <span class="g">0단계는 이미 끝났다.</span></div>
-  <div class="divider"></div>
-  <div class="body">
-  <svg viewBox="0 0 1200 288" xmlns="http://www.w3.org/2000/svg">
-    <defs><style>
-      .pt{font-size:16px;font-weight:800;fill:#1A1C20;letter-spacing:-.02em}
-      .pd{font-size:12.5px;font-weight:450;fill:#5F6570}
-      .pn{font-size:12px;font-weight:800;letter-spacing:.1em;
-          font-family:"JetBrains Mono","D2Coding",Consolas,monospace}
-      .ps{font-size:10.5px;font-weight:700;letter-spacing:.02em}
-    </style></defs>
-
-    <line x1="60" y1="30" x2="60" y2="250" stroke="#DFDDD8" stroke-width="2"/>
-
-    <!-- 0 -->
-    <circle cx="60" cy="44" r="9" fill="#0F7B4F"/>
-    <path d="M56 44 l3 3 l6 -6" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <text class="pn" x="90" y="38" fill="#0F7B4F">STEP 0</text>
-    <text class="pt" x="90" y="60">죽은 코드 덜어내기</text>
-    <text class="pd" x="90" y="80">실행되지 않는 1,416줄 제거 · 동작 변화 없음</text>
-    <rect x="470" y="44" width="52" height="19" rx="3" fill="#E4F2EA"/>
-    <text class="ps" x="496" y="58" text-anchor="middle" fill="#0F7B4F">완료</text>
-
-    <!-- 1 -->
-    <circle cx="60" cy="112" r="7" fill="#F5F4F1" stroke="#0071DB" stroke-width="2.5"/>
-    <text class="pn" x="90" y="106" fill="#0071DB">STEP 1</text>
-    <text class="pt" x="90" y="128">같은 일을 하는 코드 합치기</text>
-    <text class="pd" x="90" y="148">“숨기고 남기기”가 세 곳 · 초기화가 두 벌 · 간섭 그래프가 두 벌</text>
-
-    <!-- 2 -->
-    <circle cx="60" cy="180" r="7" fill="#F5F4F1" stroke="#0071DB" stroke-width="2.5"/>
-    <text class="pn" x="90" y="174" fill="#0071DB">STEP 2</text>
-    <text class="pt" x="90" y="196">작업 범위를 데이터로 만들기</text>
-    <text class="pd" x="90" y="216">화면 상태 대신 “이번 작업 대상은 이 목록” 을 들고 다니게</text>
-
-    <!-- 3 -->
-    <circle cx="60" cy="248" r="7" fill="#F5F4F1" stroke="#B6B9BF" stroke-width="2.5"/>
-    <text class="pn" x="90" y="242" fill="#B6B9BF">STEP 3</text>
-    <text class="pt" x="90" y="264" fill="#5F6570">계산을 SDK에서 떼어내기</text>
-
-    <!-- 오른쪽 -->
-    <line x1="620" y1="24" x2="620" y2="270" stroke="#DFDDD8" stroke-width="1"/>
-    <text x="648" y="42" font-size="12" font-weight="800" fill="#B6B9BF" letter-spacing=".1em">지키는 것</text>
-    <g>
-      <circle cx="656" cy="76" r="3" fill="#0071DB"/>
-      <text class="pd" x="672" y="81" font-size="13.5"><tspan font-weight="700" fill="#1A1C20">동작은 바꾸지 않는다</tspan> — 결과 도면이 같아야 한다</text>
-      <circle cx="656" cy="112" r="3" fill="#0071DB"/>
-      <text class="pd" x="672" y="117" font-size="13.5"><tspan font-weight="700" fill="#1A1C20">한 건 = 한 커밋</tspan> — 되돌리기 쉽게</text>
-      <circle cx="656" cy="148" r="3" fill="#0071DB"/>
-      <text class="pd" x="672" y="153" font-size="13.5"><tspan font-weight="700" fill="#1A1C20">빌드 + 실기 통과</tspan>해야 다음으로</text>
-      <circle cx="656" cy="184" r="3" fill="#C2410C"/>
-      <text class="pd" x="672" y="189" font-size="13.5" fill="#C2410C"><tspan font-weight="700">기능 개선과 섞지 않는다</tspan> — 문제가 생기면 원인을 못 찾는다</text>
-    </g>
-    <line x1="648" y1="214" x2="1194" y2="214" stroke="#E8E6E1" stroke-width="1"/>
-    <text x="648" y="240" font-size="12" font-weight="800" fill="#B6B9BF" letter-spacing=".1em">따로 가는 것</text>
-    <text class="pd" x="648" y="264" font-size="13">벤더 요청 <tspan font-weight="700" fill="#1A1C20">2건</tspan><tspan dx="18">조사 중 나온 결함 <tspan font-weight="700" fill="#1A1C20">7건</tspan> — 리팩토링과 분리해 이슈로 관리</tspan></text>
-  </svg>
-  </div>
-  <div class="pg">07</div>
-</section>
-
+    </div>
+    <nav>
+      <button id="prev" aria-label="이전 장">&#9664;</button>
+      <button id="next" aria-label="다음 장">&#9654;</button>
+    </nav>
+  </main>
 </div>
 
 <script>
 (function(){
-  var slides = document.querySelectorAll('.slide');
-  var i = 0, n = slides.length;
-  var bar = document.getElementById('bar');
-  function show(k){
-    i = Math.max(0, Math.min(n-1, k));
-    slides.forEach(function(s,j){ s.classList.toggle('on', j===i); });
-    bar.style.width = ((i)/(n-1)*100) + '%';
-  }
-  function fit(){
-    var s = Math.min(window.innerWidth/1280, window.innerHeight/720) * 0.96;
-    document.getElementById('stage').style.transform = 'scale('+s+')';
-  }
-  document.addEventListener('keydown', function(e){
-    if (e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ') { e.preventDefault(); show(i+1); }
-    if (e.key==='ArrowLeft' ||e.key==='PageUp')  { e.preventDefault(); show(i-1); }
-    if (e.key==='Home') show(0);
-    if (e.key==='End')  show(n-1);
+  "use strict";
+  var CFG={review:false,dept:"생산AX/PI팀",title:"2D자동 제작도 코드리뷰"};
+  var app=document.getElementById('app'), stage=document.getElementById('stage'),
+      rail=document.getElementById('rail'), list=document.getElementById('railList'),
+      hot=document.getElementById('railHot'),
+      prev=document.getElementById('prev'), next=document.getElementById('next');
+  var slides=[].slice.call(stage.querySelectorAll('.s')), N=slides.length, cur=0, thumbs=[];
+
+  /* §5 sid + 푸터 */
+  slides.forEach(function(s,i){
+    s.setAttribute('data-sid','s'+String(i+1).padStart(2,'0'));
+    if(s.classList.contains('cover')) return;
+    var f=document.createElement('div'); f.className='foot';
+    f.innerHTML='<span>'+CFG.dept+' &middot; '+CFG.title+'</span>'+
+                '<span class="pg">'+String(i+1).padStart(2,'0')+' / '+String(N).padStart(2,'0')+'</span>';
+    s.appendChild(f);
   });
-  document.addEventListener('click', function(e){ show(i + (e.clientX < window.innerWidth/2 ? -1 : 1)); });
-  window.addEventListener('resize', fit);
-  fit(); show(0);
+
+  /* §3 썸네일 레일 — cloneNode 실제 복제 */
+  slides.forEach(function(s,i){
+    var b=document.createElement('button');
+    b.className='tItem'; b.type='button';
+    var t=s.getAttribute('data-title')||('장 '+(i+1));
+    b.innerHTML='<div class="tn">'+String(i+1).padStart(2,'0')+'. '+t+'</div><div class="tbox"></div>';
+    var c=s.cloneNode(true); c.classList.remove('on'); c.style.display='flex';
+    b.querySelector('.tbox').appendChild(c);
+    b.addEventListener('click',function(){go(i)});
+    list.appendChild(b); thumbs.push(b);
+  });
+
+  /* §1 무대 배율 — 글자가 아니라 무대를 줄인다 */
+  function fitStage(){
+    var m=document.getElementById('main');
+    var w=m.clientWidth, h=m.clientHeight;
+    var f=Math.max(0.1, Math.min((w-48)/1280,(h-48)/720));
+    document.documentElement.style.setProperty('--fit',f);
+  }
+  /* §3.2 썸네일 배율 — 고정 비율이 아니라 실측 */
+  function fitThumbs(){
+    if(!thumbs.length) return;
+    var box=thumbs[0].querySelector('.tbox'); if(!box) return;
+    var w=box.clientWidth; if(!w) return;
+    document.documentElement.style.setProperty('--ts',w/1280);
+    document.documentElement.style.setProperty('--tbh',Math.round(w*720/1280)+'px');
+  }
+  function relayout(){fitStage();fitThumbs();}
+
+  /* §2.3 해시 — file:// 에서 막혀도 이동은 계속 */
+  function go(i){
+    cur=Math.max(0,Math.min(N-1,i));
+    slides.forEach(function(s,j){s.classList.toggle('on',j===cur)});
+    thumbs.forEach(function(b,j){
+      if(j===cur){b.setAttribute('aria-current','true');
+        b.scrollIntoView({block:'nearest',behavior:'smooth'});}
+      else b.removeAttribute('aria-current');
+    });
+    prev.disabled=(cur===0); next.disabled=(cur===N-1);
+    try{history.replaceState(null,'','#'+(cur+1));}catch(e){}
+  }
+  prev.addEventListener('click',function(){go(cur-1)});
+  next.addEventListener('click',function(){go(cur+1)});
+
+  /* §2.1 키보드 — 입력 중에는 가로채지 않는다 */
+  addEventListener('keydown',function(e){
+    var t=e.target, tag=t&&t.tagName;
+    if(tag==='INPUT'||tag==='TEXTAREA') return;
+    if(e.ctrlKey||e.altKey||e.metaKey) return;
+    switch(e.key){
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ':
+        e.preventDefault(); go(cur+1); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+        e.preventDefault(); go(cur-1); break;
+      case 'Home': e.preventDefault(); go(0); break;
+      case 'End':  e.preventDefault(); go(N-1); break;
+      case 'f': case 'F':
+        e.preventDefault();
+        try{ document.fullscreenElement?document.exitFullscreen()
+             :document.documentElement.requestFullscreen(); }catch(err){}
+        break;
+      /* CFG.review=false — C 키까지 완전히 꺼짐 (§6.1) */
+    }
+  });
+
+  /* §2.2 터치 스와이프 */
+  var tx=0,ty=0;
+  addEventListener('touchstart',function(e){
+    tx=e.changedTouches[0].clientX; ty=e.changedTouches[0].clientY;},{passive:true});
+  addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+    if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)) go(cur+(dx<0?1:-1));},{passive:true});
+
+  /* §3.3 접기 / 엿보기 */
+  document.getElementById('railToggle').addEventListener('click',function(){
+    app.classList.toggle('rail-off'); app.classList.remove('rail-peek');
+    this.innerHTML=app.classList.contains('rail-off')?'&#9654;':'&#9664;';
+    requestAnimationFrame(relayout);
+  });
+  hot.addEventListener('mouseenter',function(){app.classList.add('rail-peek')});
+  rail.addEventListener('mouseleave',function(){app.classList.remove('rail-peek')});
+
+  /* §7 인쇄 — 직전 전체 표시, 끝나면 원복 */
+  addEventListener('beforeprint',function(){slides.forEach(function(s){s.classList.add('on')})});
+  addEventListener('afterprint',function(){
+    slides.forEach(function(s,j){s.classList.toggle('on',j===cur)})});
+
+  if(window.ResizeObserver){
+    new ResizeObserver(fitStage).observe(document.getElementById('main'));
+    new ResizeObserver(fitThumbs).observe(rail);
+  }
+  addEventListener('resize',relayout);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(relayout);
+
+  relayout();
+  var h=0; try{h=parseInt((location.hash||'').replace('#',''),10)-1;}catch(e){}
+  go(isNaN(h)||h<0?0:h);
+  setTimeout(relayout,60);
 })();
 </script>
 </body>
