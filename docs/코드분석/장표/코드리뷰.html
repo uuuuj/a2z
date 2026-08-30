@@ -465,7 +465,7 @@ svg{width:100%;height:auto}
   <circle cx="700" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
   <text class="stp" x="700" y="56" text-anchor="middle">05</text>
   <text class="lab" x="700" y="88" text-anchor="middle">치수 뽑기</text>
-  <text class="loc" x="700" y="112" text-anchor="middle">Form1.Dimensions.cs:1786</text>
+  <text class="loc" x="700" y="112" text-anchor="middle">Form1.BOM.cs:557</text>
   <text class="mth" x="700" y="134" text-anchor="middle">CollectAllOsnap</text>
   <text class="nte" x="700" y="228" text-anchor="middle">축별 3회 체인 치수</text>
   <circle cx="880" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
@@ -500,7 +500,7 @@ svg{width:100%;height:auto}
   <div class="body">
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">모델열기_코드.png</span>VS 편집기 — btnOpen_Click 함수 전체</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 여기서 모델 트리가 만들어지고, 성공하면 <span class="f">FitToView()</span>로 화면에 맞춘다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:245</div><div class="wm">BuildBodyToPartNameMap()</div><div class="wd">부재(Body)와 부품(Part) 이름을 짝지어 캐시해 둔다. 이후 BOM·도면이 이 이름을 쓴다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:248</div><div class="wm">PopulateStruCheckList()</div><div class="wd">정의는 <span class="f">Stru.cs:149</span>. <b>좌측 STRU 목록이 여기서 채워진다</b></div></div></li></ol>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 모델 트리가 만들어지고, 성공하면 <span class="f">FitToView()</span>로 화면에 맞춘다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:245</div><div class="wm">BuildBodyToPartNameMap()</div><div class="wd">부재(Body)와 부품(Part) 이름을 짝지어 캐시해 둔다. 이후 BOM · 도면이 이 이름을 쓴다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:248</div><div class="wm">PopulateStruCheckList()</div><div class="wd">정의는 <span class="f">Stru.cs:149</span>. <b>좌측 STRU 목록이 여기서 채워진다</b></div></div></li></ol>
     </div>
   </div>
 </section>
@@ -512,55 +512,55 @@ svg{width:100%;height:auto}
   <div class="body">
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">STRU선택_화면.png</span>프로그램 좌측 STRU 목록에서 체크한 상태</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:362</div><div class="wm">ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)</div><div class="wd">체크박스를 누르면 불린다. 단 <b>체크가 반영되기 직전</b>에 오는 이벤트다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:385</div><div class="wm">ItemCheckCore(e)</div><div class="wd">아직 목록에 반영이 안 됐으므로 <span class="f">e.NewValue</span>로 &#8220;앞으로 될 상태&#8221;를 계산한다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">체크된 STRU의 부재 인덱스 합집합</div><div class="wd">이 목록이 다음 단계부터 끝까지의 작업 대상이 된다</div></div></li></ol>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:362</div><div class="wm">ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)</div><div class="wd">체크박스를 누르면 불린다. 단 <b>체크가 반영되기 직전</b>에 오는 이벤트다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:385</div><div class="wm">ItemCheckCore(e)</div><div class="wd">아직 반영 전이므로 <span class="f">e.NewValue</span>로 &#8220;앞으로 될 상태&#8221;를 계산한다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">체크된 STRU의 부재 인덱스 합집합</div><div class="wd">이 목록이 다음 단계부터 끝까지의 작업 대상이 된다</div></div></li></ol>
     </div>
   </div>
 </section>
 
-<!-- === 08 대상만 남기기 === -->
-<section class="s" data-title="대상만 남기기">
-  <h1>대상만 남기기</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">가시성격리_화면.png</span>체크 직후 3D 뷰 — 대상만 남고 나머지가 사라진 화면</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:307</div><div class="wm">vizcore3d.Object3D.Show(allBodyIndices, false)</div><div class="wd">먼저 <b>전부 끈다</b></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:308</div><div class="wm">vizcore3d.Object3D.Show(memberIndices, true)</div><div class="wd">그다음 <b>대상만 켠다</b></div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">이 두 줄이 한 짝</div><div class="wd">이후 모든 계산이 &#8220;지금 화면에 보이는 것&#8221;을 기준으로 돈다. 같은 짝이 코드 10곳에 반복된다</div></div></li></ol>
-    </div>
-  </div>
-</section>
-
-<!-- === 09 치수 뽑기 === -->
-<section class="s" data-title="치수 뽑기">
-  <h1>치수 뽑기</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">치수표시_화면.png</span>치수 추출 후 3D에 체인 치수가 그려진 화면</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1786</div><div class="wm">btnExtractDimension_Click</div><div class="wd">[치수 추출] 버튼. 여기서 아래를 순서대로 부른다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:857</div><div class="wm">CollectBOMData()</div><div class="wd">보이는 부재의 이름 · 규격 · 재질을 모은다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:691</div><div class="wm">CollectAllOsnap()</div><div class="wd">부재마다 모서리 · 끝점 좌표를 SDK에서 받아온다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1913</div><div class="wm">MergeCoordinates(...)</div><div class="wd">같은 자리로 볼 좌표를 합친다 — 안 합치면 치수가 겹쳐 나온다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1987</div><div class="wm">AddChainDimensionByAxis(X · Y · Z)</div><div class="wd">축마다 한 번씩, 총 3회. 이어지는 치수 사슬을 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wl">Form1.Dimensions.cs:360</div><div class="wm">ShowAllDimensions(...)</div><div class="wd">3D 화면에 실제로 그린다</div></div></li></ol>
-    </div>
-  </div>
-</section>
-
-<!-- === 10 도면 나누기 · 저장 === -->
-<section class="s" data-title="도면 나누기 · 저장">
-  <h1>도면 나누기 · 저장</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">체크한 STRU 수만큼 반복하면 도면 일괄 출력이 된다</div></div></li></ol>
-    </div>
-  </div>
-</section>
-
-<!-- === 11 도면 일괄 출력 === -->
+<!-- === 08 도면 일괄 출력 === -->
 <section class="s" data-title="도면 일괄 출력">
   <h1>도면 일괄 출력</h1>
   <div class="rule"></div>
   <div class="body">
     <div class="step">
       <div class="sbox"><div class="need"><span class="fn">일괄출력_화면.png</span>「도면 일괄 출력」을 누른 뒤 완료 메시지 · 또는 Drawings 폴더에 쌓인 PDF</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:514</div><div class="wm">btnExtractDrawingList_Click</div><div class="wd">[도면 일괄 출력] 버튼. 체크된 STRU를 모으고 저장 폴더 <span class="f">Drawings\</span>를 만든다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:659</div><div class="wm">for (int s = 0; s &lt; checkedStrus.Count; s++)</div><div class="wd"><b>체크한 STRU 하나씩</b> 순서대로 돈다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Stru.cs:803</div><div class="wm">ProcessSingleStruFull(...)</div><div class="wd">STRU 한 개에 대해 <b>앞의 03~07을 그대로 수행</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:843</div><div class="wm">Show(전체,false) → Show(대상,true)</div><div class="wd">사람이 클릭으로 하던 <b>가시성 격리를 코드가 대신</b>한다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Stru.cs:887</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">제작 · 조립 · 설치 · 가공 <b>4종</b>을 이어서 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wl">Form1.Drawing2D.cs:1152</div><div class="wm">FlushPendingMergedPdf()</div><div class="wd">쌓아둔 페이지를 묶음 PDF로 저장. 완료 창에 <b>성공 STRU 수와 PDF 개수</b>가 뜬다</div></div></li></ol>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:514</div><div class="wm">btnExtractDrawingList_Click</div><div class="wd">[도면 일괄 출력] 버튼. 체크된 STRU를 모으고 저장 폴더 <span class="f">Drawings\</span>를 만든 뒤 진행창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:659</div><div class="wm">for (int s = 0; s &lt; checkedStrus.Count; s++)</div><div class="wd"><b>체크한 STRU 하나씩</b> 순서대로 돈다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Stru.cs:803</div><div class="wm">ProcessSingleStruFull(...)</div><div class="wd">STRU 한 개에 대해 <b>다음 세 장(대상만 남기기 · 치수 · 도면)을 그대로 수행</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:1046</div><div class="wm">GenerateMfgDrawingManual(...)</div><div class="wd">제작 · 조립 · 설치에 이어 <b>가공도</b>까지 만든다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Stru.cs:693</div><div class="wm">FlushPendingMergedPdf()</div><div class="wd">쌓아둔 페이지를 묶음 PDF로 저장. 완료 창에 <b>성공 STRU 수와 PDF 개수</b>가 뜬다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 09 대상만 남기기 === -->
+<section class="s" data-title="대상만 남기기">
+  <h1>대상만 남기기</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">가시성격리_화면.png</span>격리 직후 3D 뷰 — 대상만 남고 나머지가 사라진 화면</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:843</div><div class="wm">vizcore3d.Object3D.Show(allBodyIndices, false)</div><div class="wd">먼저 <b>전부 끈다</b></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:844</div><div class="wm">vizcore3d.Object3D.Show(memberIndices, true)</div><div class="wd">그다음 <b>이번 STRU의 부재만 켠다</b></div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">이 두 줄이 한 짝</div><div class="wd">이후 모든 계산이 &#8220;지금 화면에 보이는 것&#8221;을 기준으로 돈다. 같은 짝이 코드 10곳에 반복된다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 10 치수 뽑기 === -->
+<section class="s" data-title="치수 뽑기">
+  <h1>치수 뽑기</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">치수표시_화면.png</span>치수 추출 후 3D에 체인 치수가 그려진 화면</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:869</div><div class="wm">CollectBOMData(...)</div><div class="wd">보이는 부재의 이름 · 규격 · 재질을 모은다. 정의는 <span class="f">BOM.cs:857</span></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:878</div><div class="wm">DetectClash(includeOutsideNeighbors: true)</div><div class="wd">3mm 안이면 접합으로 본다. <b>SDK에 맡기고 함수는 그대로 반환</b>된다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Clash.cs:1146</div><div class="wm">Clash_OnClashTestFinishedEvent</div><div class="wd">SDK가 끝났다고 알려주면 <b>여기서 이어받는다</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:557</div><div class="wm">CollectAllOsnap()</div><div class="wd">부재마다 모서리 · 끝점 좌표를 SDK에서 받아온다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.BOM.cs:585</div><div class="wm">ComputeViewDimensionsForMembers(...)</div><div class="wd">좌표를 합치고 축별로 <span class="f">AddChainDimensionByAxis</span>(X · Y · Z)를 돌려 치수 사슬을 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wm">사람이 직접 할 때는</div><div class="wd"><span class="f">Dimensions.cs:1786 btnExtractDimension_Click</span> 이 같은 일을 한다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 11 도면 나누기 · 저장 === -->
+<section class="s" data-title="도면 나누기 · 저장">
+  <h1>도면 나누기 · 저장</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:644</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">치수가 끝나면 <b>바로 이어서</b> 호출된다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets() 정의</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">일괄 출력이 이 전체를 체크한 STRU 수만큼 반복한다</div></div></li></ol>
     </div>
   </div>
 </section>
