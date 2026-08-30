@@ -91,48 +91,66 @@ table.dense .d{font-size:14px;line-height:1.35}
 .two{display:flex;gap:40px;flex:1;min-height:0}
 .two>*{flex:1;min-width:0;display:flex;flex-direction:column}
 .two>.rt{border-left:1px solid var(--hair);padding-left:40px}
+/* DECKGEN:START */
+.s h1{margin-bottom:2px}
 .rd{color:var(--danger)!important}
-.s .lead b.rd{color:var(--danger);font-weight:600}
+
+/* 3단 */
+.two.three{gap:24px}
+.two.three>.rt{padding-left:24px}
+.two.three table{font-size:14.5px}
+.two.three td{padding:6px 8px 6px 0}
+.two.three th{padding-bottom:6px}
+.two.three .d{font-size:13.5px}
+.two.three .f{font-size:12.5px}
+.two.three .h2{font-size:11px;letter-spacing:.06em;margin-bottom:9px}
 
 /* 03 — 검출 방법 */
-.how{display:flex;gap:18px;margin-bottom:12px;flex:none}
+.how{display:flex;gap:18px;margin-bottom:14px;flex:none}
 .how .hw{flex:1;border-left:2px solid var(--brand-500);padding-left:14px}
 .how .hn{font-size:10.5px;font-weight:700;color:var(--subtle);letter-spacing:.1em}
 .how .ht{font-size:15px;font-weight:700;margin-top:2px;letter-spacing:-.02em}
 .how .hd2{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.4}
-table.dead td{padding:4px 10px 4px 0;font-size:13px;line-height:1.38}
+table.dead td{padding:5px 10px 5px 0;font-size:13px;line-height:1.4}
 table.dead th{padding-bottom:5px}
 table.dead .d{font-size:12px;margin-top:1px}
 table.dead .f{font-size:11.5px}
 
 /* 04 — 캡처 + 표 */
-.withshot{display:flex;gap:30px;flex:1;min-height:0}
+.withshot{display:flex;gap:28px;flex:1;min-height:0}
 .withshot .shot{height:100%;width:auto;object-fit:contain;object-position:top left;
   border:1px solid var(--border);border-radius:4px;flex:none;background:#1B1B1B}
 .withshot .shot.ph{width:170px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;color:var(--subtle);font-size:13px;text-align:center;background:var(--surface-muted)}
 .withshot .shot.ph span{font-size:11px;font-family:var(--mono);color:#98A2B3}
 .withshot .sw{flex:1;min-width:0}
-table.left td{padding:5px 10px 5px 0;font-size:13px}
-table.left .f{font-size:12px}
-table.left .d{font-size:12px}
+table.left td{padding:2px 10px 2px 0;font-size:11.5px;line-height:1.3;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+table.left th{padding-bottom:5px;font-size:11px}
+table.left .f{font-size:11px}
+table.left .d{font-size:11px}
 
-/* 06 — 필름스트립 */
-.film{display:flex;gap:16px;flex:1;min-height:0}
-.film .fm{flex:1;display:flex;flex-direction:column;min-width:0}
-.film .fbox{flex:1;border:1px solid var(--border);border-radius:4px;overflow:hidden;
+/* 06~10 — 단계별 */
+.step{display:flex;gap:34px;flex:1;min-height:0}
+.step .sbox{flex:0 0 512px;border:1px solid var(--border);border-radius:4px;overflow:hidden;
   background:var(--surface-muted);display:flex;align-items:center;justify-content:center}
-.film .fbox img{width:100%;height:100%;object-fit:contain}
-.film .need{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;color:#98A2B3;font-size:11.5px;text-align:center;padding:10px;
-  border:1px dashed var(--border);border-radius:3px;width:100%;height:100%}
-.film .need .fn{font-family:var(--mono);font-size:11px;color:var(--brand-500);font-weight:700}
-.film figcaption{margin-top:9px;font-size:13.5px;font-weight:600;line-height:1.35}
-.film figcaption .fn2{display:block;font-size:10.5px;font-weight:700;color:var(--subtle);
-  letter-spacing:.1em;margin-bottom:3px}
-.film figcaption em{display:block;font-style:normal;font-size:11.5px;font-weight:400;
-  color:var(--subtle);margin-top:3px;font-family:var(--mono)}
-
+.step .sbox img{width:100%;height:100%;object-fit:contain}
+.step .need{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  color:#98A2B3;font-size:12.5px;text-align:center;padding:20px;width:100%;height:100%;
+  border:1px dashed var(--border);border-radius:3px;line-height:1.5}
+.step .need .fn{font-family:var(--mono);font-size:12px;color:var(--brand-500);font-weight:700}
+ol.walk{flex:1;min-width:0;list-style:none;display:flex;flex-direction:column;justify-content:center;gap:13px}
+ol.walk li{display:flex;gap:12px}
+ol.walk .wn{flex:none;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--subtle);
+  letter-spacing:.06em;padding-top:3px;width:20px}
+ol.walk .wc{flex:1;min-width:0;border-left:2px solid var(--brand-100);padding-left:13px}
+ol.walk .wl{font-family:var(--mono);font-size:10.5px;color:var(--subtle);margin-bottom:2px}
+ol.walk .wm{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--brand-500);
+  letter-spacing:-.02em;word-break:break-all;line-height:1.3}
+ol.walk .wd{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.45}
+ol.walk .wd b{color:var(--text);font-weight:600}
+ol.walk .wd .f,ol.walk .wm .f{font-family:var(--mono)}
+/* DECKGEN:END */
 
 .figs{display:flex;margin-bottom:22px;flex:none}
 .fig{padding-right:38px}
@@ -173,7 +191,7 @@ svg{width:100%;height:auto}
   <main id="main">
     <div id="stage">
 
-<!-- ═══ 01 표지 ═══ -->
+<!-- === 01 표지 === -->
 <section class="s cover" data-title="표지">
   <svg class="grid" viewBox="0 0 430 720" preserveAspectRatio="none" aria-hidden="true">
     <g stroke="#2A3243" stroke-width="1" fill="none">
@@ -190,18 +208,15 @@ svg{width:100%;height:auto}
   </svg>
   <div class="cbar"></div>
   <h1>2D자동 제작도 코드리뷰</h1>
-  <div class="meta">
-    2026. 08. 31<br><b>생산AX/PI팀 · 생산지능화그룹</b><br>허영인
-  </div>
+  <div class="meta">2026. 08. 31<br><b>생산AX/PI팀 · 생산지능화그룹</b><br>허영인</div>
 </section>
 
-<!-- ═══ 02 파일 구조 ═══ -->
+<!-- === 02 파일 구조 — 지우기 전 === -->
 <section class="s" data-title="파일 구조 — 지우기 전">
   <h1>파일 구조 &#8212; 지우기 전</h1>
-  <div class="lead">항목 21개 · 20,441줄 — 이 중 <b class="rd">1,416줄이 한 번도 실행되지 않던 코드</b></div>
   <div class="rule"></div>
   <div class="body">
-<svg viewBox="0 0 1144 500" xmlns="http://www.w3.org/2000/svg" role="img"
+<svg viewBox="0 0 1144 520" xmlns="http://www.w3.org/2000/svg" role="img"
      aria-label="지우기 전 A2Z 폴더 21개 항목의 역할과, 그중 실행되지 않던 코드가 어느 파일에 얼마나 있었는지.">
   <style>
     .nm{font-size:12.5px;font-weight:500;fill:#101828;font-family:"D2Coding",Consolas,monospace;letter-spacing:-.02em}
@@ -212,136 +227,135 @@ svg{width:100%;height:auto}
     .lnq{font-size:12px;fill:#BCC3CC;font-family:"D2Coding",Consolas,monospace}
     .kk{font-size:12px;font-weight:700;fill:#B42318;font-family:"D2Coding",Consolas,monospace}
     .hd{font-size:10px;font-weight:700;fill:#98A2B3;letter-spacing:.09em}
-    .hdd{font-size:10px;font-weight:700;fill:#D0A29E;letter-spacing:.09em}
-    .tt{font-size:12.5px;font-weight:700;fill:#475467}
+    .hdd{font-size:10px;font-weight:700;fill:#C58A84;letter-spacing:.09em}
+    .tt{font-size:13px;font-weight:700;fill:#101828}
   </style>
-  <text class="hd" x="30" y="14">항목 21</text>
-  <text class="hd" x="208" y="14">하는 일</text>
-  <text class="hdd" x="610" y="14">이 중 한 번도 실행되지 않던 것</text>
-  <text class="hd" x="1030" y="14" text-anchor="end">지우기 전</text>
-  <text class="hdd" x="1144" y="14" text-anchor="end">지운 줄</text>
-  <line x1="0" y1="21" x2="1144" y2="21" stroke="#D0D5DD"/>
-  <line x1="598" y1="21" x2="1144" y2="21" stroke="#E8C4C0" stroke-width="2"/>
-  <path d="M6,25 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
-  <text class="nmd" x="30" y="34">Models\</text>
-  <text class="rl" x="208" y="34">가공도 장면 결과 클래스 3개</text>
-  <text class="ln" x="1030" y="34" text-anchor="end">140</text>
-  <path d="M6,46 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
-  <text class="nmd" x="30" y="55">Properties\</text>
-  <text class="rl" x="208" y="55">VS 자동 생성 리소스 · 설정</text>
-  <text class="lnq" x="1030" y="55" text-anchor="end">137</text>
-  <path d="M6,67 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
-  <text class="nmd" x="30" y="76">templates\</text>
-  <text class="rlq" x="208" y="76">배포용 도면 양식 자리 — 비어 있음</text>
-  <text class="lnq" x="1030" y="76" text-anchor="end">—</text>
-  <path d="M7.0,87 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,87 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="97">A2Z.csproj</text>
-  <text class="rlq" x="208" y="97">빌드 설정 · 참조 DLL 목록</text>
-  <text class="lnq" x="1030" y="97" text-anchor="end">—</text>
-  <path d="M7.0,108 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,108 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="118">App.config</text>
-  <text class="rlq" x="208" y="118">실행 설정 · .NET 버전</text>
-  <text class="lnq" x="1030" y="118" text-anchor="end">—</text>
-  <path d="M7.0,129 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,129 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="139">Form1.Attribute.cs</text>
-  <text class="rl" x="208" y="139">부재 클릭 → 속성 표시, UDA · CSV</text>
-  <text class="ln" x="1030" y="139" text-anchor="end">618</text>
-  <path d="M7.0,150 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,150 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="160">Form1.BOM.cs</text>
-  <text class="rl" x="208" y="160">파일 열기 · 부재/Osnap 수집 지휘</text>
-  <text class="ln" x="1030" y="160" text-anchor="end">1,067</text>
-  <rect x="598" y="167" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,171 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,171 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="181">Form1.Clash.cs</text>
-  <text class="rl" x="208" y="181">간섭검사 접합 판정 · BOM 표 조립</text>
-  <text class="dd" x="610" y="181">쓰기 전용 연쇄 — 읽는 곳 0</text>
-  <text class="ln" x="1030" y="181" text-anchor="end">1,411</text>
-  <text class="kk" x="1144" y="181" text-anchor="end">&#8722;52</text>
-  <rect x="598" y="188" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,192 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,192 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="202">Form1.cs</text>
-  <text class="rl" x="208" y="202">뷰어 생성 · 공유 필드 · 진행창</text>
-  <text class="dd" x="610" y="202">죽은 필드 · Win32 선언</text>
-  <text class="ln" x="1030" y="202" text-anchor="end">467</text>
-  <text class="kk" x="1144" y="202" text-anchor="end">&#8722;21</text>
-  <path d="M7.0,213 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,213 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="223">Form1.Designer.cs</text>
-  <text class="rl" x="208" y="223">탭 3개 · 버튼 37개 배치</text>
-  <text class="ln" x="1030" y="223" text-anchor="end">1,485</text>
-  <rect x="598" y="230" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,234 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,234 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="244">Form1.Dimensions.cs</text>
-  <text class="rl" x="208" y="244">Osnap → 체인 치수 · 3D 표시</text>
-  <text class="dd" x="610" y="244">풍선 배치 · 미배선 핸들러 4 · 이동량</text>
-  <text class="ln" x="1030" y="244" text-anchor="end">2,985</text>
-  <text class="kk" x="1144" y="244" text-anchor="end">&#8722;359</text>
-  <rect x="598" y="251" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,255 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,255 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="265">Form1.Drawing2D.cs</text>
-  <text class="rl" x="208" y="265">Osnap 목록화 · 2D 도면 · 묶음 PDF</text>
-  <text class="dd" x="610" y="265">주석 처리된 디버그 블록</text>
-  <text class="ln" x="1030" y="265" text-anchor="end">1,270</text>
-  <text class="kk" x="1144" y="265" text-anchor="end">&#8722;8</text>
-  <rect x="598" y="272" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,276 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,276 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="286">Form1.DrawingSheets.cs</text>
-  <text class="rl" x="208" y="286">시트 묶기 → 엑셀 양식 위 도면</text>
-  <text class="dd" x="610" y="286">옛 무템플릿 경로 · 도달 불가 함수</text>
-  <text class="ln" x="1030" y="286" text-anchor="end">4,313</text>
-  <text class="kk" x="1144" y="286" text-anchor="end">&#8722;846</text>
-  <path d="M7.0,297 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,297 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="307">Form1.ExcelTemplate.cs</text>
-  <text class="rl" x="208" y="307">표제부 REV 표 기재 · 괘선 보존</text>
-  <text class="ln" x="1030" y="307" text-anchor="end">101</text>
-  <rect x="598" y="314" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,318 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,318 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="328">Form1.GlobalViews.cs</text>
-  <text class="rl" x="208" y="328">시점 전환 · 설치도 접합 치수</text>
-  <text class="dd" x="610" y="328">미호출 함수 2개</text>
-  <text class="ln" x="1030" y="328" text-anchor="end">1,163</text>
-  <text class="kk" x="1144" y="328" text-anchor="end">&#8722;22</text>
-  <path d="M7.0,339 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,339 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="349">Form1.License.cs</text>
-  <text class="rl" x="208" y="349">로컬 → 사내 서버 폴백 · 30분 갱신</text>
-  <text class="ln" x="1030" y="349" text-anchor="end">145</text>
-  <rect x="598" y="356" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,360 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,360 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="370">Form1.MfgDrawing.cs</text>
-  <text class="rl" x="208" y="370">부재 1개 격리 → 가공도 PDF</text>
-  <text class="dd" x="610" y="370">카메라 프로브 · 도달 불가 함수</text>
-  <text class="ln" x="1030" y="370" text-anchor="end">3,883</text>
-  <text class="kk" x="1144" y="370" text-anchor="end">&#8722;106</text>
-  <path d="M7.0,381 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,381 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="391">Form1.resx</text>
-  <text class="rlq" x="208" y="391">폼 리소스 — VS 템플릿 4개뿐</text>
-  <text class="lnq" x="1030" y="391" text-anchor="end">—</text>
-  <path d="M7.0,402 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,402 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="412">Form1.Stru.cs</text>
-  <text class="rl" x="208" y="412">STRU 체크 · 강조 → 도면 일괄 출력</text>
-  <text class="ln" x="1030" y="412" text-anchor="end">1,110</text>
-  <rect x="598" y="419" width="546" height="19" fill="#FEF3F2"/>
-  <path d="M7.0,423 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,423 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="433">Models.cs</text>
-  <text class="rl" x="208" y="433">치수 · BOM · 시트 담는 그릇 10개</text>
-  <text class="dd" x="610" y="433">미사용 필드</text>
-  <text class="ln" x="1030" y="433" text-anchor="end">261</text>
-  <text class="kk" x="1144" y="433" text-anchor="end">&#8722;2</text>
-  <path d="M7.0,444 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,444 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
-  <text class="nm" x="30" y="454">Program.cs</text>
-  <text class="rl" x="208" y="454">실행하면 Form1 뜨는 시작 지점</text>
-  <text class="ln" x="1030" y="454" text-anchor="end">22</text>
-  <line x1="0" y1="467" x2="1144" y2="467" stroke="#D0D5DD"/>
-  <text class="tt" x="30" y="485">합계 &#8212; Properties\ 137줄(자동 생성) 제외</text>
-  <text class="tt" x="1030" y="485" text-anchor="end" font-family="D2Coding,Consolas,monospace">20,441</text>
-  <text class="tt" x="1144" y="485" text-anchor="end" font-family="D2Coding,Consolas,monospace" fill="#B42318">&#8722;1,416</text>
+  <text class="hd" x="30" y="13">항목 21</text>
+  <text class="hd" x="208" y="13">하는 일</text>
+  <text class="hdd" x="610" y="13">이 중 한 번도 실행되지 않던 것</text>
+  <text class="hd" x="1030" y="13" text-anchor="end">지우기 전</text>
+  <text class="hdd" x="1144" y="13" text-anchor="end">지운 줄</text>
+  <line x1="0" y1="20" x2="1144" y2="20" stroke="#D0D5DD"/>
+  <line x1="598" y1="20" x2="1144" y2="20" stroke="#E8C4C0" stroke-width="2"/>
+  <path d="M6,23 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
+  <text class="nmd" x="30" y="32">Models\</text>
+  <text class="rl" x="208" y="32">가공도 장면 결과 클래스 3개</text>
+  <text class="ln" x="1030" y="32" text-anchor="end">140</text>
+  <path d="M6,44 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
+  <text class="nmd" x="30" y="53">Properties\</text>
+  <text class="rl" x="208" y="53">VS 자동 생성 리소스 · 설정</text>
+  <text class="ln" x="1030" y="53" text-anchor="end">137</text>
+  <path d="M6,65 h5.5 l2,2 h8.5 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-16 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z" fill="#B9C1CB" stroke="#98A2B3" stroke-linejoin="round"/>
+  <text class="nmd" x="30" y="74">templates\</text>
+  <text class="rlq" x="208" y="74">배포용 도면 양식 자리 — 비어 있음</text>
+  <text class="lnq" x="1030" y="74" text-anchor="end">—</text>
+  <path d="M7.0,85 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,85 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="95">A2Z.csproj</text>
+  <text class="rlq" x="208" y="95">빌드 설정 · 참조 DLL 목록</text>
+  <text class="lnq" x="1030" y="95" text-anchor="end">—</text>
+  <path d="M7.0,106 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,106 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="116">App.config</text>
+  <text class="rlq" x="208" y="116">실행 설정 · .NET 버전</text>
+  <text class="lnq" x="1030" y="116" text-anchor="end">—</text>
+  <path d="M7.0,127 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,127 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="137">Form1.Attribute.cs</text>
+  <text class="rl" x="208" y="137">부재 클릭 → 속성 표시, UDA · CSV</text>
+  <text class="ln" x="1030" y="137" text-anchor="end">618</text>
+  <path d="M7.0,148 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,148 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="158">Form1.BOM.cs</text>
+  <text class="rl" x="208" y="158">파일 열기 · 부재/Osnap 수집 지휘</text>
+  <text class="ln" x="1030" y="158" text-anchor="end">1,067</text>
+  <rect x="598" y="165" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,169 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,169 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="179">Form1.Clash.cs</text>
+  <text class="rl" x="208" y="179">간섭검사 접합 판정 · BOM 표 조립</text>
+  <text class="dd" x="610" y="179">쓰기 전용 연쇄 — 읽는 곳 0</text>
+  <text class="ln" x="1030" y="179" text-anchor="end">1,411</text>
+  <text class="kk" x="1144" y="179" text-anchor="end">&#8722;52</text>
+  <rect x="598" y="186" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,190 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,190 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="200">Form1.cs</text>
+  <text class="rl" x="208" y="200">뷰어 생성 · 공유 필드 · 진행창</text>
+  <text class="dd" x="610" y="200">죽은 필드 · Win32 선언</text>
+  <text class="ln" x="1030" y="200" text-anchor="end">467</text>
+  <text class="kk" x="1144" y="200" text-anchor="end">&#8722;21</text>
+  <path d="M7.0,211 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,211 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="221">Form1.Designer.cs</text>
+  <text class="rl" x="208" y="221">탭 3개 · 버튼 37개 배치</text>
+  <text class="ln" x="1030" y="221" text-anchor="end">1,485</text>
+  <rect x="598" y="228" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,232 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,232 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="242">Form1.Dimensions.cs</text>
+  <text class="rl" x="208" y="242">Osnap → 체인 치수 · 3D 표시</text>
+  <text class="dd" x="610" y="242">풍선 배치 · 미배선 핸들러 4 · 이동량</text>
+  <text class="ln" x="1030" y="242" text-anchor="end">2,985</text>
+  <text class="kk" x="1144" y="242" text-anchor="end">&#8722;359</text>
+  <rect x="598" y="249" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,253 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,253 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="263">Form1.Drawing2D.cs</text>
+  <text class="rl" x="208" y="263">Osnap 목록화 · 2D 도면 · 묶음 PDF</text>
+  <text class="dd" x="610" y="263">주석 처리된 디버그 블록</text>
+  <text class="ln" x="1030" y="263" text-anchor="end">1,270</text>
+  <text class="kk" x="1144" y="263" text-anchor="end">&#8722;8</text>
+  <rect x="598" y="270" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,274 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,274 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="284">Form1.DrawingSheets.cs</text>
+  <text class="rl" x="208" y="284">시트 묶기 → 엑셀 양식 위 도면</text>
+  <text class="dd" x="610" y="284">옛 무템플릿 경로 · 도달 불가 함수</text>
+  <text class="ln" x="1030" y="284" text-anchor="end">4,313</text>
+  <text class="kk" x="1144" y="284" text-anchor="end">&#8722;846</text>
+  <path d="M7.0,295 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,295 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="305">Form1.ExcelTemplate.cs</text>
+  <text class="rl" x="208" y="305">표제부 REV 표 기재 · 괘선 보존</text>
+  <text class="ln" x="1030" y="305" text-anchor="end">101</text>
+  <rect x="598" y="312" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,316 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,316 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="326">Form1.GlobalViews.cs</text>
+  <text class="rl" x="208" y="326">시점 전환 · 설치도 접합 치수</text>
+  <text class="dd" x="610" y="326">미호출 함수 2개</text>
+  <text class="ln" x="1030" y="326" text-anchor="end">1,163</text>
+  <text class="kk" x="1144" y="326" text-anchor="end">&#8722;22</text>
+  <path d="M7.0,337 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,337 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="347">Form1.License.cs</text>
+  <text class="rl" x="208" y="347">로컬 → 사내 서버 폴백 · 30분 갱신</text>
+  <text class="ln" x="1030" y="347" text-anchor="end">145</text>
+  <rect x="598" y="354" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,358 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,358 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="368">Form1.MfgDrawing.cs</text>
+  <text class="rl" x="208" y="368">부재 1개 격리 → 가공도 PDF</text>
+  <text class="dd" x="610" y="368">카메라 프로브 · 도달 불가 함수</text>
+  <text class="ln" x="1030" y="368" text-anchor="end">3,883</text>
+  <text class="kk" x="1144" y="368" text-anchor="end">&#8722;106</text>
+  <path d="M7.0,379 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,379 v3.5 h3.5" fill="#FFF" stroke="#B0B7C1" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="389">Form1.resx</text>
+  <text class="rlq" x="208" y="389">폼 리소스 — VS 템플릿 4개뿐</text>
+  <text class="lnq" x="1030" y="389" text-anchor="end">—</text>
+  <path d="M7.0,400 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,400 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="410">Form1.Stru.cs</text>
+  <text class="rl" x="208" y="410">STRU 체크 · 강조 → 도면 일괄 출력</text>
+  <text class="ln" x="1030" y="410" text-anchor="end">1,110</text>
+  <rect x="598" y="417" width="546" height="19" fill="#FEF3F2"/>
+  <path d="M7.0,421 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,421 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="431">Models.cs</text>
+  <text class="rl" x="208" y="431">치수 · BOM · 시트 담는 그릇 10개</text>
+  <text class="dd" x="610" y="431">미사용 필드</text>
+  <text class="ln" x="1030" y="431" text-anchor="end">261</text>
+  <text class="kk" x="1144" y="431" text-anchor="end">&#8722;2</text>
+  <path d="M7.0,442 h7.5 l3.5,3.5 v9.5 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-12 a1,1 0 0 1 1,-1 z M14.5,442 v3.5 h3.5" fill="#FFF" stroke="#667085" stroke-linejoin="round"/>
+  <text class="nm" x="30" y="452">Program.cs</text>
+  <text class="rl" x="208" y="452">실행하면 Form1 뜨는 시작 지점</text>
+  <text class="ln" x="1030" y="452" text-anchor="end">22</text>
+  <line x1="0" y1="467" x2="1144" y2="467" stroke="#101828"/>
+  <text class="tt" x="30" y="487">합계</text>
+  <text class="tt" x="1030" y="487" text-anchor="end" font-family="D2Coding,Consolas,monospace">20,578</text>
+  <text class="tt" x="1144" y="487" text-anchor="end" font-family="D2Coding,Consolas,monospace" fill="#B42318">&#8722;1,416</text>
 </svg>
   </div>
 </section>
 
-<!-- ═══ 03 지운 것 ═══ -->
+<!-- === 03 지운 것 === -->
 <section class="s" data-title="지운 것">
   <h1>지운 것</h1>
-  <div class="lead">감으로 지우지 않음 — <b>세 가지 기계 검사로 "부르는 곳 0건"이 나온 것만</b></div>
   <div class="rule"></div>
   <div class="body">
     <div class="how">
@@ -369,7 +383,8 @@ svg{width:100%;height:auto}
         <td>진입점 54개에서 호출을 따라 끝까지 퍼뜨렸는데 <b>끝내 안 닿음</b>. 주석에도 &#8220;폐기&#8221; 명시</td>
         <td class="n">97</td><td class="n d">3</td></tr>
       <tr><td class="k">카메라 검증 프로브<div class="d"><span class="f">RunMfgCameraSignProbe</span></div></td>
-        <td>게이트가 <span class="f">const bool … = false</span> — <b>상수라 실행 중 바뀔 수 없음</b>. 컴파일러도 도달 불가 경고를 내고 있었음</td>
+        <td>게이트가 <span class="f">const bool … = false</span> — <b>상수라 실행 중 바뀔 수 없음</b>.
+          컴파일러도 도달 불가 경고를 내고 있었음</td>
         <td class="n">94</td><td class="n d">2</td></tr>
       <tr><td class="k">모델 이동량 계산 연쇄<div class="d"><span class="f">_lastModelShiftCanvasX/Y</span></div></td>
         <td><b>읽는 곳이 대입 직후 자기 로그 1곳뿐</b>. 유일한 소비자는 위 옛 도면 경로 안</td>
@@ -387,45 +402,29 @@ svg{width:100%;height:auto}
   </div>
 </section>
 
-<!-- ═══ 04 남은 것 ═══ -->
+<!-- === 04 남은 것 === -->
 <section class="s" data-title="남은 것">
   <h1>남은 것</h1>
-  <div class="lead">지운 뒤 실제로 도는 코드만 — 파일 21개 · <b>19,542줄</b> · 메서드 322개</div>
   <div class="rule"></div>
   <div class="body">
     <div class="withshot">
       <img class="shot" src="data:image/png;base64,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" alt="파일 탐색기의 A2Z 폴더">
       <div class="sw">
         <table class="left">
-          <tr><th style="width:150px">파일</th><th>남은 기능</th><th style="width:200px">선언 클래스</th><th style="width:230px">누구를 부르나</th></tr>
-          <tr><td class="f">Form1.BOM</td><td>파일 열기 · 부재/Osnap/구멍 수집</td><td class="d">—</td><td class="d">Dimensions · Clash · DrawingSheets</td></tr>
-          <tr><td class="f">Form1.Stru</td><td>STRU 목록 · 체크 · 도면 일괄 출력</td><td class="d">—</td><td class="d">DrawingSheets · MfgDrawing</td></tr>
-          <tr><td class="f">Form1.Clash</td><td>간섭검사 접합 판정 · BOM 표 조립</td><td class="f d">DrawingBomPartData 외 3</td><td class="d">Dimensions (완료 이벤트에서)</td></tr>
-          <tr><td class="f">Form1.Dimensions</td><td>Osnap → 체인 치수 · 3D 작도</td><td class="d">—</td><td class="d">Drawing2D · DrawingSheets</td></tr>
-          <tr><td class="f">Form1.DrawingSheets</td><td>시트 묶기 · 엑셀 양식 위 4면도</td><td class="f d">DrawingSheetExportKind 외 2</td><td class="d">Drawing2D · Clash · ExcelTemplate</td></tr>
-          <tr><td class="f">Form1.MfgDrawing</td><td>부재 1개 격리 → 가공도</td><td class="f d">MfgPage · MfgAxisVector 외 4</td><td class="d">Dimensions · Drawing2D · DrawingSheets</td></tr>
-          <tr><td class="f">Form1.GlobalViews</td><td>시점 전환 · 설치도 접합 치수</td><td class="f d">InstallationAxisComponent 외 2</td><td class="d">Dimensions</td></tr>
-          <tr><td class="f">Form1.Drawing2D</td><td>Osnap 편집 UI · 묶음 PDF</td><td class="d">—</td><td class="d">SDK 직접</td></tr>
-          <tr><td class="f">Form1.Attribute</td><td>부재 속성 표 · UDA 편집 · CSV</td><td class="d">—</td><td class="d">거의 없음 — 사실상 독립</td></tr>
-          <tr><td class="f">Form1.License</td><td>인증 · 30분 자동 갱신</td><td class="d">—</td><td class="d">SDK 직접</td></tr>
-          <tr><td class="f">Form1.ExcelTemplate</td><td>표제부 REV 표 · 괘선 보존</td><td class="d">—</td><td class="d">불려가기만 함</td></tr>
-          <tr><td class="f">Form1.cs</td><td>뷰어 생성 · 공유 필드 40 · 진행창</td><td class="f d">BodyBoundsData</td><td class="d">전 파일이 408회 부름</td></tr>
-          <tr><td class="f">Models.cs · Models\</td><td>값만 담는 그릇</td><td class="f d">데이터 클래스 13</td><td class="d">로직 없음</td></tr>
-          <tr><td class="f">Form1.Designer · resx</td><td>탭 3 · 버튼 37 배치 (자동 생성)</td><td class="d">—</td><td class="d">사람이 안 고침</td></tr>
-          <tr><td class="f">Program.cs</td><td>Form1 띄우고 끝</td><td class="f d">Program</td><td class="d">Form1</td></tr>
+          <tr><th style="width:152px">파일</th><th>남은 기능</th><th style="width:150px">선언 클래스</th><th style="width:200px">누구를 부르나</th></tr>
+          <tr><td class="f">Models\</td><td>가공도 장면 결과를 묶어 전달</td><td class="f d">가공도 데이터 3</td><td class="d">로직 없음</td></tr><tr><td class="f">Properties\</td><td>리소스 · 설정 (자동 생성)</td><td class="f d">자동 생성 2</td><td class="d">쓰이지 않음</td></tr><tr><td class="f">templates\</td><td>배포 시 양식이 복사될 자리</td><td class="d">—</td><td class="d">—</td></tr><tr><td class="f">A2Z.csproj</td><td>빌드 설정 · 참조 DLL</td><td class="d">—</td><td class="d">—</td></tr><tr><td class="f">App.config</td><td>실행 설정 · .NET 버전</td><td class="d">—</td><td class="d">—</td></tr><tr><td class="f">Form1.Attribute.cs</td><td>부재 속성 표 · UDA 편집 · CSV</td><td class="d">—</td><td class="d">거의 없음 — 사실상 독립</td></tr><tr><td class="f">Form1.BOM.cs</td><td>파일 열기 · 부재/Osnap/구멍 수집</td><td class="d">—</td><td class="d">Dimensions · Clash · Sheets</td></tr><tr><td class="f">Form1.Clash.cs</td><td>간섭 접합 판정 · BOM 표 조립</td><td class="f d">BOM 데이터 3</td><td class="d">Dimensions (완료 이벤트)</td></tr><tr><td class="f">Form1.cs</td><td>뷰어 생성 · 공유 필드 40 · 진행창</td><td class="f d">BodyBoundsData</td><td class="d">전 파일이 408회 부름</td></tr><tr><td class="f">Form1.Designer.cs</td><td>탭 3 · 버튼 37 배치 (자동 생성)</td><td class="d">—</td><td class="d">사람이 안 고침</td></tr><tr><td class="f">Form1.Dimensions.cs</td><td>Osnap → 체인 치수 · 3D 작도</td><td class="d">—</td><td class="d">BOM · Drawing2D · Sheets</td></tr><tr><td class="f">Form1.Drawing2D.cs</td><td>Osnap 편집 UI · 묶음 PDF</td><td class="d">—</td><td class="d">SDK 직접</td></tr><tr><td class="f">Form1.DrawingSheets.cs</td><td>시트 묶기 · 엑셀 양식 위 4면도</td><td class="f d">시트 데이터 2</td><td class="d">Drawing2D · Clash · Excel</td></tr><tr><td class="f">Form1.ExcelTemplate.cs</td><td>표제부 REV 표 · 괘선 보존</td><td class="d">—</td><td class="d">불려가기만 함</td></tr><tr><td class="f">Form1.GlobalViews.cs</td><td>시점 전환 · 설치도 접합 치수</td><td class="f d">설치도 데이터 2</td><td class="d">Dimensions</td></tr><tr><td class="f">Form1.License.cs</td><td>인증 · 30분 자동 갱신</td><td class="d">—</td><td class="d">SDK 직접</td></tr><tr><td class="f">Form1.MfgDrawing.cs</td><td>부재 1개 격리 → 가공도</td><td class="f d">가공도 데이터 5</td><td class="d">Dimensions · Drawing2D · Sheets</td></tr><tr><td class="f">Form1.resx</td><td>폼 리소스 (VS 템플릿 4개)</td><td class="d">—</td><td class="d">쓰이지 않음</td></tr><tr><td class="f">Form1.Stru.cs</td><td>STRU 목록 · 체크 · 일괄 출력</td><td class="d">—</td><td class="d">DrawingSheets · MfgDrawing</td></tr><tr><td class="f">Models.cs</td><td>값만 담는 그릇</td><td class="f d">데이터 클래스 10</td><td class="d">로직 없음</td></tr><tr><td class="f">Program.cs</td><td>Form1 띄우고 끝</td><td class="f d">Program</td><td class="d">Form1</td></tr>
         </table>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══ 05 제작도가 나오는 길 ═══ -->
-<section class="s" data-title="제작도가 나오는 길">
-  <h1>제작도가 나오는 길</h1>
-  <div class="lead">일곱 단계가 <b>각각 어느 파일 어느 메서드인지</b> — 간섭검사에서 한 번 끊김</div>
+<!-- === 05 제작도 출력 과정 === -->
+<section class="s" data-title="제작도 출력 과정">
+  <h1>제작도 출력 과정</h1>
   <div class="rule"></div>
   <div class="body">
-<svg viewBox="0 0 1144 452" xmlns="http://www.w3.org/2000/svg" role="img"
+<svg viewBox="0 0 1144 400" xmlns="http://www.w3.org/2000/svg" role="img"
      aria-label="제작도가 나오기까지의 일곱 단계와 각 단계가 실제로 어느 파일 어느 메서드인지.">
   <defs><marker id="tip" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
     <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/></marker>
@@ -435,126 +434,174 @@ svg{width:100%;height:auto}
     .loc{font-size:9.5px;fill:#98A2B3;font-family:"D2Coding",Consolas,monospace}
     .mth{font-size:11px;font-weight:700;fill:#0071DB;font-family:"D2Coding",Consolas,monospace}
     .nte{font-size:11px;fill:#475467}
-    .who{font-size:11.5px;font-weight:700;fill:#98A2B3;letter-spacing:.1em}
-    .brk{font-size:15px;font-weight:700;fill:#B42318}
-    .brs{font-size:11.5px;fill:#98A2B3}
+    .brs{font-size:11px;fill:#98A2B3}
   </style></defs>
-  <text class="who" x="2" y="16">프로그램이 직접 진행</text>
-  <line x1="2" y1="26" x2="150" y2="26" stroke="#E7EAEE"/>
-  <text class="who" x="820" y="16">SDK 알림 후 재개</text>
-  <line x1="820" y1="26" x2="960" y2="26" stroke="#E7EAEE"/>
-  <line x1="2" y1="214" x2="570" y2="214" stroke="#0071DB" stroke-width="3"/>
-  <line x1="700" y1="214" x2="1128" y2="214" stroke="#0071DB" stroke-width="3"/>
-  <path d="M1128 214 H1142" stroke="#0071DB" stroke-width="3" marker-end="url(#tip)"/>
-  <line x1="570" y1="184" x2="570" y2="244" stroke="#D0D5DD"/>
-  <line x1="700" y1="184" x2="700" y2="244" stroke="#D0D5DD"/>
-  <path d="M629 208 c-5-0-8.6 3.6-8.6 8.6 v5 l-2.3 3.4 h21.8 l-2.3-3.4 v-5 c0-5-3.6-8.6-8.6-8.6 z M625.6 228 a3.6 3.6 0 0 0 6.8 0" fill="none" stroke="#B42318" stroke-width="1.8" stroke-linejoin="round"/>
-  <text class="brk" x="635" y="196" text-anchor="middle">여기서 끊긴다</text>
-  <text class="brs" x="635" y="258" text-anchor="middle">함수는 이미 반환된 상태</text>
-  <text class="brs" x="635" y="277" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">Clash_OnClashTestFinishedEvent</text>
-  <text class="brs" x="635" y="296" text-anchor="middle">Form1.Clash.cs:1146 이 받는다</text>
-  <circle cx="40" cy="214" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="40" y="72" text-anchor="middle">01</text>
-  <text class="lab" x="40" y="104" text-anchor="middle">모델 열기</text>
-  <text class="loc" x="40" y="128" text-anchor="middle">Form1.BOM.cs:182</text>
-  <text class="mth" x="40" y="150" text-anchor="middle">btnOpen_Click</text>
-  <text class="nte" x="40" y="248" text-anchor="middle">Model.Open(path)</text>
-  <circle cx="192" cy="214" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="192" y="72" text-anchor="middle">02</text>
-  <text class="lab" x="192" y="104" text-anchor="middle">대상 고르기</text>
-  <text class="loc" x="192" y="128" text-anchor="middle">Form1.Stru.cs:362</text>
-  <text class="mth" x="192" y="150" text-anchor="middle">ClbStruList_ItemCheck</text>
-  <text class="nte" x="192" y="248" text-anchor="middle">체크 직전 이벤트</text>
-  <circle cx="344" cy="214" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="344" y="72" text-anchor="middle">03</text>
-  <text class="lab" x="344" y="104" text-anchor="middle">대상만 남기기</text>
-  <text class="loc" x="344" y="128" text-anchor="middle">Form1.Stru.cs:307</text>
-  <text class="mth" x="344" y="150" text-anchor="middle">Show(전체,false)</text>
-  <text class="nte" x="344" y="248" text-anchor="middle">→ Show(대상,true)</text>
-  <circle cx="496" cy="214" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="496" y="72" text-anchor="middle">04</text>
-  <text class="lab" x="496" y="104" text-anchor="middle">붙은 것 찾기</text>
-  <text class="loc" x="496" y="128" text-anchor="middle">Form1.Clash.cs:1021</text>
-  <text class="mth" x="496" y="150" text-anchor="middle">DetectClash</text>
-  <text class="nte" x="496" y="248" text-anchor="middle">등록만 하고 반환</text>
-  <circle cx="776" cy="214" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="776" y="72" text-anchor="middle">05</text>
-  <text class="lab" x="776" y="104" text-anchor="middle">치수 뽑기</text>
-  <text class="loc" x="776" y="128" text-anchor="middle">Form1.Dimensions.cs:1824</text>
-  <text class="mth" x="776" y="150" text-anchor="middle">CollectAllOsnap</text>
-  <text class="nte" x="776" y="248" text-anchor="middle">축별 3회 체인 치수</text>
-  <circle cx="918" cy="214" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="918" y="72" text-anchor="middle">06</text>
-  <text class="lab" x="918" y="104" text-anchor="middle">도면 나누기</text>
-  <text class="loc" x="918" y="128" text-anchor="middle">Form1.DrawingSheets.cs:20</text>
-  <text class="mth" x="918" y="150" text-anchor="middle">GenerateDrawingSheets</text>
-  <text class="nte" x="918" y="248" text-anchor="middle">이어진 것끼리 한 장</text>
-  <circle cx="1060" cy="214" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="1060" y="72" text-anchor="middle">07</text>
-  <text class="lab" x="1060" y="104" text-anchor="middle">그리고 저장</text>
-  <text class="loc" x="1060" y="128" text-anchor="middle">Form1.DrawingSheets.cs:1799</text>
-  <text class="mth" x="1060" y="150" text-anchor="middle">GenerateSheetDrawing2D</text>
-  <text class="nte" x="1060" y="248" text-anchor="middle">954줄 · PDF 1장</text>
-  <line x1="344" y1="376" x2="344" y2="356" stroke="#E7EAEE"/>
-  <line x1="344" y1="376" x2="1000" y2="376" stroke="#E7EAEE"/>
-  <line x1="1000" y1="376" x2="1000" y2="356" stroke="#E7EAEE"/>
-  <text class="nte" x="672" y="400" text-anchor="middle" fill="#667085">같은 &#8220;숨기고 남기기&#8221;가 구조물 &#183; 도면 &#183; 뷰 세 단계에서 반복 &#8212; 코드로는 8곳</text>
-  <text class="brs" x="672" y="426" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">Stru.cs:307 &#8594; DrawingSheets.cs:688 &#183; 893 &#183; 942 &#183; 2083 &#183; 2268 &#183; 2330 &#183; 2372 &#183; 2381</text>
+  <line x1="2" y1="196" x2="1128" y2="196" stroke="#0071DB" stroke-width="3"/>
+  <path d="M1128 196 H1142" stroke="#0071DB" stroke-width="3" marker-end="url(#tip)"/>
+  <circle cx="46" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="46" y="56" text-anchor="middle">01</text>
+  <text class="lab" x="46" y="88" text-anchor="middle">모델 열기</text>
+  <text class="loc" x="46" y="112" text-anchor="middle">Form1.BOM.cs:182</text>
+  <text class="mth" x="46" y="134" text-anchor="middle">btnOpen_Click</text>
+  <text class="nte" x="46" y="228" text-anchor="middle">Model.Open(path)</text>
+  <circle cx="204" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="204" y="56" text-anchor="middle">02</text>
+  <text class="lab" x="204" y="88" text-anchor="middle">대상 고르기</text>
+  <text class="loc" x="204" y="112" text-anchor="middle">Form1.Stru.cs:362</text>
+  <text class="mth" x="204" y="134" text-anchor="middle">ClbStruList_ItemCheck</text>
+  <text class="nte" x="204" y="228" text-anchor="middle">체크 직전 이벤트</text>
+  <circle cx="362" cy="196" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="362" y="56" text-anchor="middle">03</text>
+  <text class="lab" x="362" y="88" text-anchor="middle">대상만 남기기</text>
+  <text class="loc" x="362" y="112" text-anchor="middle">Form1.Stru.cs:307</text>
+  <text class="mth" x="362" y="134" text-anchor="middle">Show(전체,false)</text>
+  <text class="nte" x="362" y="228" text-anchor="middle">→ Show(대상,true)</text>
+  <circle cx="520" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="520" y="56" text-anchor="middle">04</text>
+  <text class="lab" x="520" y="88" text-anchor="middle">붙은 것 찾기</text>
+  <text class="loc" x="520" y="112" text-anchor="middle">Form1.Clash.cs:1021</text>
+  <text class="mth" x="520" y="134" text-anchor="middle">DetectClash</text>
+  <text class="nte" x="520" y="228" text-anchor="middle">3mm 안이면 접합</text>
+  <circle cx="700" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="700" y="56" text-anchor="middle">05</text>
+  <text class="lab" x="700" y="88" text-anchor="middle">치수 뽑기</text>
+  <text class="loc" x="700" y="112" text-anchor="middle">Form1.Dimensions.cs:1786</text>
+  <text class="mth" x="700" y="134" text-anchor="middle">CollectAllOsnap</text>
+  <text class="nte" x="700" y="228" text-anchor="middle">축별 3회 체인 치수</text>
+  <circle cx="880" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="880" y="56" text-anchor="middle">06</text>
+  <text class="lab" x="880" y="88" text-anchor="middle">도면 나누기</text>
+  <text class="loc" x="880" y="112" text-anchor="middle">Form1.DrawingSheets.cs:20</text>
+  <text class="mth" x="880" y="134" text-anchor="middle">GenerateDrawingSheets</text>
+  <text class="nte" x="880" y="228" text-anchor="middle">이어진 것끼리 한 장</text>
+  <circle cx="1058" cy="196" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="1058" y="56" text-anchor="middle">07</text>
+  <text class="lab" x="1058" y="88" text-anchor="middle">그리고 저장</text>
+  <text class="loc" x="1058" y="112" text-anchor="middle">Form1.DrawingSheets.cs:1799</text>
+  <text class="mth" x="1058" y="134" text-anchor="middle">GenerateSheetDrawing2D</text>
+  <text class="nte" x="1058" y="228" text-anchor="middle">954줄 · PDF 1장</text>
+  <line x1="362" y1="320" x2="362" y2="300" stroke="#E7EAEE"/>
+  <line x1="362" y1="320" x2="960" y2="320" stroke="#E7EAEE"/>
+  <line x1="960" y1="320" x2="960" y2="300" stroke="#E7EAEE"/>
+  <text class="nte" x="661" y="344" text-anchor="middle" fill="#667085">같은 &#8220;숨기고 남기기&#8221;가 구조물 &#183; 도면 &#183; 뷰 세 단계에서 반복 &#8212; 코드로는 10곳</text>
+  <text class="brs" x="661" y="370" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">DrawingSheets.cs:688 &#183; 893 &#183; 942 &#183; 2083 &#183; 2268 &#183; 2330 &#183; 2372 &#183; 2381 &#160;&#183;&#160; MfgDrawing.cs:1855 &#183; 2785</text>
 </svg>
   </div>
 </section>
 
-<!-- ═══ 06 실제 화면 ═══ -->
-<section class="s" data-title="제작도 — 실제 화면">
-  <h1>제작도 &#8212; 실제 화면</h1>
-  <div class="lead">앞 장의 일곱 단계를 <b>실제로 돌린 순서</b> — 이렇게 제작도가 나옴</div>
+<!-- === 06 모델 열기 === -->
+<section class="s" data-title="모델 열기">
+  <h1>모델 열기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="film"><figure class="fm"><div class="fbox"><div class="need"><span class="fn">모델열기_코드.png</span>Form1.BOM.cs:182</div></div><figcaption><span class="fn2">01</span>모델 열기 — 코드<em>btnOpen_Click</em></figcaption></figure><figure class="fm"><div class="fbox"><div class="need"><span class="fn">STRU선택_화면.png</span>프로그램 좌측 탭</div></div><figcaption><span class="fn2">02</span>대상 고르기 — 화면<em>STRU 목록 체크</em></figcaption></figure><figure class="fm"><div class="fbox"><div class="need"><span class="fn">가시성격리_화면.png</span>가시성 격리 직후</div></div><figcaption><span class="fn2">03</span>대상만 남기기 — 화면<em>대상만 남은 3D</em></figcaption></figure><figure class="fm"><div class="fbox"><div class="need"><span class="fn">치수표시_화면.png</span>3D에 치수가 그려짐</div></div><figcaption><span class="fn2">04</span>치수 뽑기 — 화면<em>체인 치수 표시</em></figcaption></figure><figure class="fm"><div class="fbox"><div class="need"><span class="fn">제작도_결과.png</span>구조물 1개 = 1장</div></div><figcaption><span class="fn2">05</span>나온 제작도<em>PDF 결과</em></figcaption></figure></div>
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">모델열기_코드.png</span>VS 편집기 — btnOpen_Click 함수 전체</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 여기서 모델 트리가 만들어진다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:150</div><div class="wm">Vizcore3d_OnInitializedVIZCore3D</div><div class="wd">SDK가 준비됐다고 알려주는 자리. 이 알림을 받고 목록을 채운다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:56</div><div class="wm">STRU 단위 추출</div><div class="wd">모델 트리를 훑어 STRU를 골라 좌측 목록에 넣는다</div></div></li></ol>
+    </div>
   </div>
 </section>
 
-<!-- ═══ 07 앞으로 ═══ -->
-<section class="s" data-title="앞으로">
-  <h1>앞으로</h1>
-  <div class="lead">동작을 바꾸지 않는 것부터 — <span class="ok">0단계 완료</span></div>
+<!-- === 07 대상 고르기 === -->
+<section class="s" data-title="대상 고르기">
+  <h1>대상 고르기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="two">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">STRU선택_화면.png</span>프로그램 좌측 STRU 목록에서 체크한 상태</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:362</div><div class="wm">ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)</div><div class="wd">체크박스를 누르면 불린다. 단 <b>체크가 반영되기 직전</b>에 오는 이벤트다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:385</div><div class="wm">ItemCheckCore(e)</div><div class="wd">아직 목록에 반영이 안 됐으므로 <span class="f">e.NewValue</span>로 &#8220;앞으로 될 상태&#8221;를 계산한다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">체크된 STRU의 부재 인덱스 합집합</div><div class="wd">이 목록이 다음 단계부터 끝까지의 작업 대상이 된다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 08 대상만 남기기 === -->
+<section class="s" data-title="대상만 남기기">
+  <h1>대상만 남기기</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">가시성격리_화면.png</span>체크 직후 3D 뷰 — 대상만 남고 나머지가 사라진 화면</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:307</div><div class="wm">vizcore3d.Object3D.Show(allBodyIndices, false)</div><div class="wd">먼저 <b>전부 끈다</b></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:308</div><div class="wm">vizcore3d.Object3D.Show(memberIndices, true)</div><div class="wd">그다음 <b>대상만 켠다</b></div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">이 두 줄이 한 짝</div><div class="wd">이후 모든 계산이 &#8220;지금 화면에 보이는 것&#8221;을 기준으로 돈다. 같은 짝이 코드 10곳에 반복된다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 09 치수 뽑기 === -->
+<section class="s" data-title="치수 뽑기">
+  <h1>치수 뽑기</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">치수표시_화면.png</span>치수 추출 후 3D에 체인 치수가 그려진 화면</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1786</div><div class="wm">btnExtractDimension_Click</div><div class="wd">[치수 추출] 버튼. 여기서 아래를 순서대로 부른다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:857</div><div class="wm">CollectBOMData()</div><div class="wd">보이는 부재의 이름 · 규격 · 재질을 모은다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:691</div><div class="wm">CollectAllOsnap()</div><div class="wd">부재마다 모서리 · 끝점 좌표를 SDK에서 받아온다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1913</div><div class="wm">MergeCoordinates(...)</div><div class="wd">같은 자리로 볼 좌표를 합친다 — 안 합치면 치수가 겹쳐 나온다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Dimensions.cs:1987</div><div class="wm">AddChainDimensionByAxis(X · Y · Z)</div><div class="wd">축마다 한 번씩, 총 3회. 이어지는 치수 사슬을 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wl">Form1.Dimensions.cs:360</div><div class="wm">ShowAllDimensions(...)</div><div class="wd">3D 화면에 실제로 그린다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 10 도면 나누기 · 저장 === -->
+<section class="s" data-title="도면 나누기 · 저장">
+  <h1>도면 나누기 · 저장</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="step">
+      <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
+      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">체크한 STRU 수만큼 반복하면 도면 일괄 출력이 된다</div></div></li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- === 11 앞으로 나눠야 할 것 === -->
+<section class="s" data-title="앞으로 나눠야 할 것">
+  <h1>앞으로 나눠야 할 것</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="two three">
       <div>
-        <div class="h2">순서</div>
+        <div class="h2">① 같은 일을 하는 코드가 여러 벌</div>
         <table>
-          <tr><th style="width:78px">단계</th><th>무엇</th><th class="n" style="width:62px">상태</th></tr>
-          <tr><td class="f">STEP 0</td>
-            <td><span class="k">죽은 코드 덜어내기</span><div class="d">실행되지 않는 1,416줄 &#8212; 동작 변화 없음</div></td>
-            <td class="n"><span class="ok">완료</span></td></tr>
-          <tr><td class="f">STEP 1</td>
-            <td><span class="k">같은 일 하는 코드 합치기</span><div class="d">Osnap 수집 3벌 · UDA 읽기 3벌 · 간섭 그래프 2벌 · 가시성 격리 8곳</div></td>
-            <td class="n">&#8212;</td></tr>
-          <tr><td class="f">STEP 2</td>
-            <td><span class="k">작업 범위를 데이터로</span><div class="d">화면 상태 대신 &#8220;이번 대상은 이 목록&#8221;을 인자로 전달</div></td>
-            <td class="n">&#8212;</td></tr>
-          <tr><td class="f">STEP 3</td>
-            <td><span class="k">계산을 SDK에서 분리</span><div class="d">순수 계산 12% &#8212; 테스트 가능한 형태로</div></td>
-            <td class="n">&#8212;</td></tr>
+          <tr><td class="k">Osnap 수집</td><td class="n" style="width:44px">3벌</td></tr>
+          <tr><td colspan="2" class="d" style="padding-top:0">
+            <span class="f">CollectAllOsnap</span> &#8212; BOM.cs:691<br>
+            <span class="f">CollectOsnapForSelectedNodes</span> &#8212; Drawing2D.cs:464<br>
+            <span class="f">GetLinePointOsnaps</span> &#8212; GlobalViews.cs:701</td></tr>
+          <tr><td class="k">가시성 격리</td><td class="n">10곳</td></tr>
+          <tr><td colspan="2" class="d" style="padding-top:0">
+            <span class="f">Show(전체,false)</span> → <span class="f">Show(대상,true)</span><br>
+            DrawingSheets 8곳 · MfgDrawing 2곳에 같은 두 줄</td></tr>
         </table>
+        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
+          한 곳을 고치면 <b>나머지도 같이 고쳐야 함</b>
+        </div>
       </div>
       <div class="rt">
-        <div class="h2">STEP 2가 필요한 이유 — 파일 경계를 넘는 필드 36개</div>
+        <div class="h2">② partial 파일이 이름대로 안 나뉨</div>
         <table>
-          <tr><th>필드</th><th class="n">사용</th><th class="n">파일</th></tr>
-          <tr><td class="f">vizcore3d</td><td class="n" style="color:var(--brand-500);font-weight:700">651</td><td class="n">11</td></tr>
-          <tr><td class="f">bomList</td><td class="n">90</td><td class="n">8</td></tr>
-          <tr><td class="f">chainDimensionList</td><td class="n">56</td><td class="n">6</td></tr>
-          <tr><td class="f">xraySelectedNodeIndices</td><td class="n">48</td><td class="n">7</td></tr>
+          <tr><td class="f" style="width:104px">Clash.cs</td><td class="n" style="width:44px">45%</td>
+            <td class="d">가 <b>BOM 표 조립</b><br>간섭검사보다 큼</td></tr>
+          <tr><td class="f">GlobalViews.cs</td><td class="n">84%</td>
+            <td class="d">가 <b>설치도 연결 계산</b><br>시점 전환은 16%</td></tr>
+          <tr><td class="f">Drawing2D.cs</td><td class="n">&#8212;</td>
+            <td class="d">Osnap 편집 UI + PDF 페이지 관리<br>서로 무관한 네 덩어리</td></tr>
+          <tr><td class="f">BOM.cs</td><td class="n">&#8212;</td>
+            <td class="d">이름은 BOM인데 실제로는<br><b>파이프라인 사령탑</b></td></tr>
         </table>
-        <div class="h2" style="margin-top:22px">지키는 것</div>
+        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
+          <b>파일명을 믿고 찾으면 못 찾음</b>
+        </div>
+      </div>
+      <div class="rt">
+        <div class="h2">③ 클래스가 중구난방</div>
         <table>
-          <tr><td class="k" style="width:118px">동작 불변</td><td class="d">결과 도면이 이전과 동일해야 함</td></tr>
-          <tr><td class="k">한 건 = 한 커밋</td><td class="d">되돌리기 가능한 단위 유지</td></tr>
-          <tr><td class="k">빌드 + 실기</td><td class="d">통과해야 다음 단계</td></tr>
-          <tr><td class="k">기능과 분리</td><td class="d">결함 수정과 섞지 않음</td></tr>
+          <tr><th>데이터 클래스 26개</th><th class="n" style="width:44px">개</th></tr>
+          <tr><td><span class="f">Models.cs</span> · <span class="f">Models\</span> 안</td>
+            <td class="n" style="color:var(--brand-500);font-weight:700">13</td></tr>
+          <tr><td>쓰는 파일 안에 흩어짐</td>
+            <td class="n" style="color:var(--danger);font-weight:700">13</td></tr>
+          <tr><td colspan="2" class="d" style="padding-top:0">
+            MfgDrawing 5 · Clash 3 · DrawingSheets 2<br>GlobalViews 2 · Form1.cs 1</td></tr>
         </table>
+        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
+          같은 성격인데 <b>어디 두는지 규칙이 없음</b>
+        </div>
       </div>
     </div>
   </div>
