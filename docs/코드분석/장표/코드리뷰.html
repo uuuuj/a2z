@@ -130,16 +130,14 @@ table.left th{padding-bottom:5px;font-size:11px}
 table.left .f{font-size:11px}
 table.left .d{font-size:11px}
 
-/* 06 — graphify 원본 임베드 */
-.gstat{display:flex;align-items:center;gap:26px;flex:none;margin-bottom:14px;
-  font-size:14px;color:var(--muted);flex-wrap:wrap}
-.gstat b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
-.gstat .sep{width:1px;height:16px;background:var(--border)}
-.gstat .gsrc{margin-left:auto;font-size:12px;color:var(--subtle)}
-.gframe{flex:1;width:100%;border:1px solid var(--border);border-radius:4px;
-  background:#0f0f1a;display:block}
+/* 06 — graphify 전면 */
+.s.full{padding:0}
+.gframe{flex:1;width:100%;height:100%;border:0;background:#0f0f1a;display:block}
 .gmiss{flex:1;display:flex;align-items:center;justify-content:center;
-  border:1px dashed var(--border);border-radius:4px;color:var(--subtle);font-size:14px}
+  background:#0f0f1a;color:#98A2B3;font-size:15px}
+.tbox .gph{position:absolute;inset:0;background:#0f0f1a;display:flex;
+  align-items:center;justify-content:center;color:#7A8296;font-size:64px;
+  font-family:var(--mono);letter-spacing:.04em}
 
 /* 07~12 — 단계별 (코드 따라가기용, 캡처 없음) */
 ol.walk{flex:1;min-width:0;list-style:none;display:grid;
@@ -494,22 +492,9 @@ svg{width:100%;height:auto}
   </div>
 </section>
 
-<!-- === 06 graphify 호출 그래프 === -->
-<section class="s" data-title="graphify 호출 그래프">
-  <h1>graphify 호출 그래프</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="gstat">
-      <span><b>656</b> 노드</span>
-      <span><b>1,719</b> 엣지</span>
-      <span><b>37</b> 커뮤니티</span>
-      <span>순환 참조 <b class="ok">없음</b></span>
-      <span class="sep"></span>
-      <span><span class="f">Form1</span> 엣지 <b class="hi">389</b> &#8212; 전체의 <b class="hi">23%</b></span>
-      <span>직접 이웃 <b class="hi">389 / 656</b> &#8212; 노드의 59%</span>
-      <span class="gsrc">커밋 <span class="f">06773b5</span> · 토큰 0 · 정적 분석</span>
-    </div>
-    <iframe class="gframe" title="graphify 호출 그래프" sandbox="allow-scripts allow-same-origin" srcdoc="<!DOCTYPE html>
+<!-- === 06 graphify 호출 그래프 (전면) === -->
+<section class="s full" data-title="graphify 호출 그래프">
+  <iframe class="gframe" title="graphify 호출 그래프" sandbox="allow-scripts allow-same-origin" srcdoc="<!DOCTYPE html>
 <html lang=&quot;en&quot;>
 <head>
 <meta charset=&quot;UTF-8&quot;>
@@ -855,7 +840,6 @@ network.on('afterDrawing', function(ctx) {
 <script>(function(){function f(){try{network.fit({animation:false});}catch(e){}}try{network.once(&quot;stabilizationIterationsDone&quot;,f);}catch(e){}setTimeout(f,900);setTimeout(f,2200);addEventListener(&quot;resize&quot;,f);})();</script>
 </body>
 </html>"></iframe>
-  </div>
 </section>
 
 <!-- === 07 제작도 출력 과정 === -->
@@ -1069,7 +1053,7 @@ network.on('afterDrawing', function(ctx) {
   /* §5 sid + 푸터 */
   slides.forEach(function(s,i){
     s.setAttribute('data-sid','s'+String(i+1).padStart(2,'0'));
-    if(s.classList.contains('cover')) return;
+    if(s.classList.contains('cover')||s.classList.contains('full')) return;
     var f=document.createElement('div'); f.className='foot';
     f.innerHTML='<span>'+CFG.dept+' &middot; '+CFG.title+'</span>'+
                 '<span class="pg">'+String(i+1).padStart(2,'0')+' / '+String(N).padStart(2,'0')+'</span>';
@@ -1083,6 +1067,9 @@ network.on('afterDrawing', function(ctx) {
     var t=s.getAttribute('data-title')||('장 '+(i+1));
     b.innerHTML='<div class="tn">'+String(i+1).padStart(2,'0')+'. '+t+'</div><div class="tbox"></div>';
     var c=s.cloneNode(true); c.classList.remove('on'); c.style.display='flex';
+    [].forEach.call(c.querySelectorAll('iframe'),function(fr){
+      var ph=document.createElement('div'); ph.className='gph'; ph.textContent='graphify';
+      fr.parentNode.replaceChild(ph,fr);});
     b.querySelector('.tbox').appendChild(c);
     b.addEventListener('click',function(){go(i)});
     list.appendChild(b); thumbs.push(b);
