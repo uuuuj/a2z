@@ -310,19 +310,31 @@ def gen_structure(files, methods, owner, stamp):
             if m and m.group(1) not in KEYWORDS:
                 fields.setdefault(m.group(1), (fname, i + 1))
 
+    # 「값을 바꾸는 파일이 2곳 이상」인 필드만 센다.
+    #   여러 파일이 '읽는' 것은 문제가 아니다 — SDK 핸들(vizcore3d)이 그렇다.
+    #   추적을 어렵게 하는 건 여러 파일이 같은 필드의 '값을 바꾸는' 것이다.
+    #   (2026-08-31 기준 변경. 이전 기준으로는 vizcore3d 가 1위로 올라왔다.)
+    MUT = "Clear|Add|AddRange|Remove|RemoveAll|RemoveAt|Insert|Sort|Reverse"
     crossing = []
     for fld, (home, ln_) in fields.items():
-        pat = re.compile(r'(?<![\w.])' + re.escape(fld) + r'(?![\w])')
-        outside = []
+        e = re.escape(fld)
+        wpat = re.compile(
+            r'(?<![\w.])' + e + r'\s*(?:\[[^\]]*\])?\s*(?:\+|-|\*|/|\||&|\^|\?\?)?=(?!=)'
+            r'|(?<![\w.])' + e + r'\s*\.\s*(?:' + MUT + r')\s*\('
+            r'|(?<![\w.])' + e + r'\s*(?:\+\+|--)')
+        rpat = re.compile(r'(?<![\w.])' + e + r'(?![\w])')
+        wfiles, wcount, rfiles = 0, 0, 0
         for f, lines in files.items():
-            if f == home:
-                continue
-            c = len(pat.findall("\n".join(lines)))
-            if c:
-                outside.append((f, c))
-        if outside:
-            crossing.append((fld, home, sum(c for _, c in outside), len(outside)))
-    crossing.sort(key=lambda x: -x[2])
+            text = "\n".join(lines)
+            w = len(wpat.findall(text))
+            if w:
+                wfiles += 1
+                wcount += w
+            if rpat.search(text):
+                rfiles += 1
+        if wfiles > 1:
+            crossing.append((fld, home, wcount, wfiles, rfiles))
+    crossing.sort(key=lambda x: (-x[3], -x[2]))
 
     # 호출 매트릭스
     edges = collections.Counter()
@@ -355,11 +367,17 @@ def gen_structure(files, methods, owner, stamp):
         out.append(f"| `{k}` | {kind} | {f}:{l} |")
 
     out += ["", "---", "",
-            "## 2. 공유 상태 — 필드가 파일 경계를 넘는다", "",
-            f"필드 **{len(fields)}개** 중 **{len(crossing)}개**가 선언된 파일 **밖에서** 쓰입니다.", "",
-            "| 필드 | 선언 위치 | 밖에서 쓰인 횟수 | 몇 개 파일에서 |", "|---|---|---|---|"]
-    for f, home, cnt, nf in crossing[:25]:
-        out.append(f"| `{f}` | {short(home)} | {cnt}회 | {nf}개 |")
+            "## 2. 공유 상태 — 여러 파일이 같은 필드의 값을 바꾼다", "",
+            "> **여러 파일이 읽는 것 자체는 문제가 아니다.** SDK를 쓰는 프로그램이면",
+            "> SDK 핸들은 모든 파일이 쓰는 게 당연하다 — `vizcore3d` 는 11개 파일이 읽지만",
+            "> 값을 바꾸는 곳은 초기화 대입 1곳뿐이다. 추적을 어렵게 하는 건",
+            "> **여러 파일이 같은 필드의 「값을 바꾸는」 것**이라 그 기준으로 센다.",
+            "> (대입 `=` · 컬렉션 변형 `Clear`/`Add`/`Remove`/`Sort` 등 · 증감 `++`. 단순 읽기 제외)", "",
+            f"`Form1` 필드 **{len(fields)}개** 중 **{len(crossing)}개**를 "
+            f"**2개 이상의 파일이 값을 바꿉니다.**", "",
+            "| 필드 | 선언 위치 | 값을 바꾸는 파일 | 바꾼 횟수 | 읽는 파일 |", "|---|---|---|---|---|"]
+    for f, home, cnt, nfw, nfr in crossing[:30]:
+        out.append(f"| `{f}` | {short(home)} | **{nfw}개** | {cnt} | {nfr}개 |")
 
     out += ["", "---", "",
             "## 3. 어느 파일이 어느 파일을 부르는가", "",
@@ -408,7 +426,7 @@ def main():
     print(f"기준 코드: {stamp}")
     print(f"  버튼별 코드 위치.md — 버튼 {nb}개 + 목록 핸들러 {nev}개")
     print(f"  함수 목록.md       — 메서드 {nm}개 (불리는 곳 없음 {north}개)")
-    print(f"  파일 구조.md       — partial 파일 {nf}개, 필드 {nfld}개 (경계 넘음 {ncross}개)")
+    print(f"  파일 구조.md       — partial 파일 {nf}개, 필드 {nfld}개 (여러 파일이 값 바꿈 {ncross}개)")
     print(f"→ {OUT}")
 
 
