@@ -57,8 +57,12 @@ RE_TYPE = re.compile(
 )
 RE_API = re.compile(r'\bvizcore3d\.((?:[A-Za-z_]\w*\.)*[A-Za-z_]\w*)\s*\(', re.I)
 
+#   readonly·const·new 는 수식어인데, 튜플 반환형 허용 때문에 이름 자리로 잡힌다.
+#   예: `private static readonly (string Ip, int Port)[] LicenseServers =` (Form1.License.cs:18)
+#   reach.py 는 처음부터 막아뒀고, generate.py 는 2026-09-01 에 맞췄다.
 KEYWORDS = {'if', 'while', 'for', 'foreach', 'switch', 'catch', 'using',
-            'lock', 'return', 'get', 'set', 'yield', 'fixed', 'nameof'}
+            'lock', 'return', 'get', 'set', 'yield', 'fixed', 'nameof',
+            'readonly', 'const', 'new', 'volatile', 'event'}
 
 
 def short(name):
