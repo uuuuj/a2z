@@ -141,20 +141,20 @@ table.left .d{font-size:11px}
 .fixnote{font-size:14px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)}
 
 /* 15 — 마일스톤 */
-.mile{display:flex;gap:0;flex:none;position:relative;margin:6px 0 24px}
-.mile::before{content:"";position:absolute;left:34px;right:34px;top:7px;height:2px;
+.mile{display:flex;gap:0;flex:none;position:relative;margin:auto 0}
+.mile::before{content:"";position:absolute;left:34px;right:34px;top:8px;height:2px;
   background:var(--border)}
 .ms{flex:1;position:relative;padding:0 16px 0 0}
-.ms .mdot{width:15px;height:15px;border-radius:50%;background:#FFFFFF;
+.ms .mdot{width:17px;height:17px;border-radius:50%;background:#FFFFFF;
   border:3px solid var(--border);position:relative;z-index:1}
 .ms.done .mdot{background:var(--success);border-color:var(--success)}
 .ms:not(.done) .mdot{border-color:var(--brand-500)}
-.ms .mno{margin-top:12px;font-family:var(--mono);font-size:12px;font-weight:700;
+.ms .mno{margin-top:16px;font-family:var(--mono);font-size:13px;font-weight:700;
   color:var(--subtle);letter-spacing:.1em}
-.ms .mt{margin-top:3px;font-size:19px;font-weight:700;letter-spacing:-.02em}
-.ms .mb{margin-top:9px;font-size:13.5px;color:var(--muted);line-height:1.55}
-.ms .mr{margin-top:12px;font-size:12px;font-weight:700;display:inline-block;
-  padding:3px 9px;border-radius:3px}
+.ms .mt{margin-top:5px;font-size:24px;font-weight:700;letter-spacing:-.025em}
+.ms .mb{margin-top:14px;font-size:15px;color:var(--muted);line-height:1.75}
+.ms .mr{margin-top:18px;font-size:13px;font-weight:700;display:inline-block;
+  padding:4px 11px;border-radius:3px}
 .ms .mr.ok{color:var(--success);background:#E7F6EE}
 .ms .mr.low{color:var(--brand-700);background:var(--brand-50)}
 .ms .mr.mid{color:#B54708;background:#FEF0C7}
@@ -1274,24 +1274,6 @@ network.on('afterDrawing', function(ctx) {
         <div class="mt">공유 상태 정리</div>
         <div class="mb">값이 여러 곳에서 바뀌는<br>필드 23개를 한 곳으로<br>작업 범위를 넘겨주는 방식</div>
         <div class="mr high">위험 높음 · 기준 도면 선행</div>
-      </div>
-    </div>
-    <div class="two mfoot">
-      <div>
-        <div class="h2">매 단계 공통</div>
-        <table>
-          <tr><td class="k" style="width:120px">한 건 = 한 커밋</td><td class="d">되돌릴 수 있는 단위 유지</td></tr>
-          <tr><td class="k">빌드 + 실기</td><td class="d">도면 4종이 이전과 같아야 다음 단계</td></tr>
-          <tr><td class="k">기능과 분리</td><td class="d">결함 수정·신규 기능과 섞지 않음</td></tr>
-        </table>
-      </div>
-      <div class="rt">
-        <div class="h2">따로 가는 트랙</div>
-        <table>
-          <tr><td class="k" style="width:120px">벤더 요청</td><td class="n" style="width:40px">2</td><td class="d">캡처 즉사 · PDF 병합 불가</td></tr>
-          <tr><td class="k">확인된 결함</td><td class="n">9</td><td class="d">이슈 등록 후 개별 대응</td></tr>
-          <tr><td class="k">기준 도면 보관</td><td class="n">&#8212;</td><td class="d"><b>M4 전까지</b> 지금 나오는 도면을 남겨 대조용으로</td></tr>
-        </table>
       </div>
     </div>
   </div>
