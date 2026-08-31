@@ -670,10 +670,7 @@ namespace A2Z
 
                     try
                     {
-                        ProcessSingleStruFull(
-                            stru,
-                            saveDir,
-                            savedCount => totalPdfCount += savedCount);
+                        totalPdfCount += ProcessSingleStruFull(stru, saveDir);
                         successCount++;
                     }
                     catch (OperationCanceledException ex)
@@ -688,19 +685,8 @@ namespace A2Z
                         DiagLog($"T-064 STRU '{stru.NodeName}' ERROR: {ex.Message}\n{ex.StackTrace}");
                     }
 
-                    // 묶기(Pdf.MergePages=true)일 때만 쌓아둔 페이지를 PDF 1개로 저장한다.
-                    //   기본(false)은 장마다 이미 저장됐으므로 여기서 할 일이 없고 null이 온다.
-                    //   취소·실패로 위에서 빠져나왔어도 그때까지 그린 페이지는 남긴다.
-                    string mergedPdfPath = FlushPendingMergedPdf();
-                    if (!string.IsNullOrEmpty(mergedPdfPath))
-                    {
-                        totalPdfCount++;
-                        DiagLog($"T-064 STRU '{stru.NodeName}' 완료 — 묶음 PDF: {mergedPdfPath}");
-                    }
-                    else
-                    {
-                        DiagLog($"T-064 STRU '{stru.NodeName}' — 저장할 페이지 없음");
-                    }
+                    // 저장은 ProcessSingleStruFull 안에서 장마다 이미 끝났다 (묶기 없음).
+                    DiagLog($"T-064 STRU '{stru.NodeName}' 처리 종료 — 누적 PDF {totalPdfCount}개");
 
                     // STRU 간 메모리 정리
                     //   [issue #116] `GC.WaitForPendingFinalizers()`는 UI 스레드 데드락 원인이라 뺐다 (2026-08-04).
@@ -803,8 +789,7 @@ namespace A2Z
         /// </summary>
         private int ProcessSingleStruFull(
             VIZCore3D.NET.Data.Node struNode,
-            string saveDir,
-            Action<int> reportPdfSaved = null)
+            string saveDir)
         {
             ThrowIfCancellationRequested("STRU 부재 수집 전");
 
@@ -954,18 +939,12 @@ namespace A2Z
             int pdfCount = 0;
             int pageCount = 0;   // 그린 도면 장수 (PDF 파일 수와 다를 수 있다 — 아래 참조)
 
-            // 🔴 현재 동작: 도면은 **장마다 따로** 저장된다 ({STRU}_{시트이름}.pdf).
-            //   App.config `Pdf.MergePages`가 기본 false라 누적이 열리지 않기 때문이다.
-            //   묶기를 켜면 조립도에서 SDK 네이티브 "보호된 메모리" 오류로 프로세스가 즉사한다
-            //   (2026-08-04 실기). 그래서 「STRU 1개 = PDF 1개」(#119)는 지금 성립하지 않는다.
-            //
-            //   아래 두 줄은 묶기를 켰을 때를 위한 준비다 —
-            //   경로를 먼저 확정하고(누적을 연 뒤 예외가 나면 누적이 안 닫힌다), 누적을 연다.
-            //   묶기가 꺼져 있으면 BeginPdfPageAccumulation이 false를 돌려주고 아무 일도 안 한다.
-            //   파일명 규칙은 {STRU}_{종류}.pdf — 일괄 출력만 `생산제작도`를 쓴다 (#49).
-            _pendingMergedPdfPath = BuildMergedDrawingPdfPath(
-                struSubDir, struNode.NodeName, "생산제작도");
-            BeginPdfPageAccumulation($"도면 일괄 출력/{struNode.NodeName}");
+            // 도면은 **장마다 따로** 저장한다 — {STRU}_{시트이름}.pdf.
+            //   여러 장을 PDF 하나로 묶는 기능(#119)은 조립도에서 SDK 네이티브
+            //   "보호된 메모리" 오류로 프로세스가 즉사해 쓰지 않는다 (2026-08-04 실기).
+            //   SDK의 Export2PDFBy2DView는 기존 PDF에 이어붙이지 못하고, 묶으려면 모든 장의
+            //   2D 객체가 저장 때까지 함께 살아 있어야 해서 장수가 많으면 죽는다.
+            //   → 일괄 출력은 묶기를 아예 쓰지 않는다. 누적도 열지 않는다.
 
             // ─── 7) 일반 시트 루프 (제작도/조립도/설치도) — 시트별 처리 ───
             // 사용자 평소 흐름: 시트 클릭 → "2D 출력" 버튼 → "PDF 출력" 버튼
@@ -1003,27 +982,26 @@ namespace A2Z
                     System.Threading.Thread.Sleep(200);
                     ThrowIfCancellationRequested($"일반 시트 {i + 1} 2D 생성 후");
 
-                    // [issue #119] 묶기(App.config Pdf.MergePages=true)면 캔버스를 쌓아뒀다가
-                    //   STRU 도면을 다 그린 뒤 FlushPendingMergedPdf가 PDF 1개로 저장한다.
-                    //   기본(false)이면 누적을 안 하므로 아래에서 장마다 저장한다.
+                    // 저장 전에 선택 표시를 지운다 — 파란 선택 테두리가 PDF에 찍히지 않게.
                     vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                     vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
                     pageCount++;
                     DiagLog($"T-064 페이지 추가: {sheetLabel} (누적 {pageCount}장)");
                     ThrowIfCancellationRequested($"일반 시트 {i + 1} 페이지 완성 후");
 
-                    // 묶지 않는 모드(기본)에서는 이 장을 바로 저장한다 — DrawingSheets.cs 종류별 출력과 같은 폴백.
-                    //   저장하지 않으면 아래 CleanupBetweenPdfPages가 Clear2DView로 뷰를 비워 그린 도면이 사라진다.
-                    //   (2026-08-04 묶기 중단 때 종류별·가공도 경로에만 폴백을 넣고 여기를 빠뜨렸다 — 2026-08-31 수정)
-                    if (!_pdfPageAccumulating)
+                    // 이 장을 바로 저장한다. 저장하지 않으면 아래 CleanupBetweenPdfPages가
+                    //   Clear2DView로 뷰를 비워 방금 그린 도면이 그대로 사라진다.
+                    //   (2026-08-04 묶기 중단 때 종류별·가공도 경로에만 저장을 넣고 여기를 빠뜨렸다 — 2026-08-31 수정)
+                    string pagePath = BuildMergedDrawingPdfPath(
+                        struSubDir, struNode.NodeName, SanitizeFileName(sheetLabel));
+                    if (SaveCurrentDrawingToPdf(pagePath))
                     {
-                        string pagePath = BuildMergedDrawingPdfPath(
-                            struSubDir, struNode.NodeName, SanitizeFileName(sheetLabel));
-                        if (SaveCurrentDrawingToPdf(pagePath))
-                        {
-                            pdfCount++;
-                            DiagLog($"T-064 장별 저장: {sheetLabel} → {pagePath}");
-                        }
+                        pdfCount++;
+                        DiagLog($"T-064 저장: {sheetLabel} → {pagePath}");
+                    }
+                    else
+                    {
+                        DiagLog($"T-064 저장 실패: {sheetLabel} → {pagePath}");
                     }
 
                     // 메모리 정리 — 누적 중이면 GC만, 아니면 Clear2DView로 뷰를 비운다 (#119)
@@ -1047,6 +1025,7 @@ namespace A2Z
             // ─── 8) 가공도 묶음 처리 — 검증된 수동 함수 재사용 (2026-07-23, #35) ───
             //   옛 P1 hard skip 제거. 수동 경로(btnMfgDrawingSheet_Click)와 동일한 GenerateMfgDrawingManual로
             //   실제 생성·저장. 저장 위치는 STRU 폴더(struSubDir), 결과 SuccessPdfs를 pdfCount에 합산.
+            //   가공도도 장마다 따로 저장된다 (묶기 안 씀).
             //   ⚠ 여러 STRU 연속 생성이라 가공도 크래시(#3) 핵심 검증 시나리오 — 재현 시 #3에 반영.
             var mfgSheets = new List<DrawingSheetData>();
             foreach (ListViewItem lvi in lvDrawingSheet.Items)
@@ -1068,8 +1047,9 @@ namespace A2Z
                         struNode.NodeName,
                         struNode.Index,
                         () => _cancelRequested);
-                    // 가공도는 자기 안에서 저장까지 끝낸다 (묶기면 바깥 누적에 페이지만 얹는다).
+                    // 가공도는 자기 안에서 장마다 저장까지 끝낸다.
                     pageCount += mfgResult.SuccessPages;
+                    pdfCount  += mfgResult.SuccessPdfs;   // (2026-08-31) 주석대로 합산 — 코드가 빠뜨리고 있었다
                     if (mfgResult.Canceled)
                     {
                         throw new OperationCanceledException(
@@ -1098,7 +1078,7 @@ namespace A2Z
             }
 
             ThrowIfCancellationRequested("STRU 출력 완료 후");
-            DiagLog($"T-064 STRU '{struNode.NodeName}' 도면 {pageCount}장 그림 — 저장은 호출부에서 마무리");
+            DiagLog($"T-064 STRU '{struNode.NodeName}' 완료 — 도면 {pageCount}장 그림, PDF {pdfCount}개 저장");
             return pdfCount;
         }
 
