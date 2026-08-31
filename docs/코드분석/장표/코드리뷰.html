@@ -130,24 +130,28 @@ table.left th{padding-bottom:5px;font-size:11px}
 table.left .f{font-size:11px}
 table.left .d{font-size:11px}
 
-/* 06~10 — 단계별 */
-.step{display:flex;gap:34px;flex:1;min-height:0}
-.step .sbox{flex:0 0 512px;border:1px solid var(--border);border-radius:4px;overflow:hidden;
-  background:var(--surface-muted);display:flex;align-items:center;justify-content:center}
-.step .sbox img{width:100%;height:100%;object-fit:contain}
-.step .need{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  color:#98A2B3;font-size:12.5px;text-align:center;padding:20px;width:100%;height:100%;
-  border:1px dashed var(--border);border-radius:3px;line-height:1.5}
-.step .need .fn{font-family:var(--mono);font-size:12px;color:var(--brand-500);font-weight:700}
-ol.walk{flex:1;min-width:0;list-style:none;display:flex;flex-direction:column;justify-content:center;gap:13px}
-ol.walk li{display:flex;gap:12px}
-ol.walk .wn{flex:none;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--subtle);
-  letter-spacing:.06em;padding-top:3px;width:20px}
-ol.walk .wc{flex:1;min-width:0;border-left:2px solid var(--brand-100);padding-left:13px}
-ol.walk .wl{font-family:var(--mono);font-size:10.5px;color:var(--subtle);margin-bottom:2px}
-ol.walk .wm{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--brand-500);
-  letter-spacing:-.02em;word-break:break-all;line-height:1.3}
-ol.walk .wd{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.45}
+/* 06 — graphify */
+.two.gfy{gap:40px}
+.two.gfy>.rt{padding-left:40px;justify-content:center}
+.two.gfy table{font-size:14px}
+.two.gfy td{padding:5px 8px 5px 0}
+.two.gfy .d{font-size:13px}
+.two.gfy .figs{margin:0 0 16px}
+.two.gfy .fig{padding-right:30px}
+.two.gfy .fig+.fig{padding-left:30px}
+.two.gfy .fig .n{font-size:30px}
+
+/* 07~12 — 단계별 (코드 따라가기용, 캡처 없음) */
+ol.walk{flex:1;min-width:0;list-style:none;display:grid;
+  grid-template-columns:1fr 1fr;gap:18px 56px;align-content:space-evenly;padding:4px 0 18px}
+ol.walk li{display:flex;gap:14px;break-inside:avoid}
+ol.walk .wn{flex:none;font-family:var(--mono);font-size:12.5px;font-weight:700;
+  color:var(--subtle);letter-spacing:.06em;padding-top:3px;width:24px}
+ol.walk .wc{flex:1;min-width:0;border-left:2px solid var(--brand-100);padding-left:16px}
+ol.walk .wl{font-family:var(--mono);font-size:11.5px;color:var(--subtle);margin-bottom:3px}
+ol.walk .wm{font-family:var(--mono);font-size:15.5px;font-weight:700;color:var(--brand-500);
+  letter-spacing:-.02em;word-break:break-word;line-height:1.32}
+ol.walk .wd{font-size:15px;color:var(--muted);margin-top:6px;line-height:1.5}
 ol.walk .wd b{color:var(--text);font-weight:600}
 ol.walk .wd .f,ol.walk .wm .f{font-family:var(--mono)}
 
@@ -490,7 +494,95 @@ svg{width:100%;height:auto}
   </div>
 </section>
 
-<!-- === 06 제작도 출력 과정 === -->
+<!-- === 06 graphify 호출 그래프 === -->
+<section class="s" data-title="graphify 호출 그래프">
+  <h1>graphify 호출 그래프</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="two gfy">
+      <div>
+        <div class="h2">무엇을 한 것인가</div>
+        <table>
+          <tr><td class="k" style="width:88px">도구</td><td class="d"><span class="f">graphify</span> &#8212; 소스를 읽어 <b>누가 누구를 참조하는지</b> 그래프로 뽑는 오픈소스</td></tr>
+          <tr><td class="k">비용</td><td class="d">토큰 0 &#183; API 호출 없음 &#8212; 순수 정적 분석</td></tr>
+          <tr><td class="k">기준</td><td class="d">커밋 <span class="f">06773b5</span> (8/26) &#8212; <b>죽은 코드를 다 지운 뒤</b></td></tr>
+          <tr><td class="k">정확도</td><td class="d">82% 추출 &#183; 18% 추정(신뢰도 0.85)</td></tr>
+        </table>
+        <div class="h2" style="margin-top:22px">나온 것</div>
+        <div class="figs">
+          <div class="fig"><div class="n">656</div><div class="l">노드</div></div>
+          <div class="fig"><div class="n">1,719</div><div class="l">엣지</div></div>
+          <div class="fig"><div class="n">37</div><div class="l">커뮤니티</div></div>
+        </div>
+        <table>
+          <tr><td class="k" style="width:132px">순환 참조</td><td><span class="ok">없음</span></td></tr>
+          <tr><td class="k"><span class="f">Form1</span> 엣지 비중</td><td><b class="hi">23%</b> <span class="d">&#8212; 1,719개 중 389개</span></td></tr>
+          <tr><td class="k">직접 이웃</td><td><b class="hi">389 / 656</b> <span class="d">&#8212; 노드의 59%가 Form1에 붙음</span></td></tr>
+        </table>
+        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
+          <b>기계가 따로 확인해준 것</b> &#8212; 우리가 읽어서 내린 결론과 같음
+        </div>
+      </div>
+      <div class="rt">
+        <div class="h2">엣지 수 &#8212; <span class="f">Form1</span> 이 2위의 4배</div>
+<svg viewBox="0 0 700 470" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="graphify 가 뽑은 호출 그래프. Form1 이 엣지 389개로 압도적 허브이고 나머지는 20~98개.">
+  <style>
+    .gc{font-size:17px;font-weight:700;fill:#FFFFFF;font-family:"D2Coding",Consolas,monospace}
+    .gcn{font-size:25px;font-weight:700;fill:#FFFFFF}
+    .gl{font-size:14px;fill:#475467;font-family:"D2Coding",Consolas,monospace}
+    .gn{font-size:13px;font-weight:700;fill:#98A2B3;font-family:"D2Coding",Consolas,monospace}
+  </style>
+  <line x1="350" y1="232" x2="350.0" y2="64.0" stroke="#CCE3FA" stroke-width="3.8"/>
+  <line x1="350" y1="232" x2="448.7" y2="96.1" stroke="#CCE3FA" stroke-width="2.0"/>
+  <line x1="350" y1="232" x2="509.8" y2="180.1" stroke="#CCE3FA" stroke-width="1.9"/>
+  <line x1="350" y1="232" x2="509.8" y2="283.9" stroke="#CCE3FA" stroke-width="1.4"/>
+  <line x1="350" y1="232" x2="448.7" y2="367.9" stroke="#CCE3FA" stroke-width="1.3"/>
+  <line x1="350" y1="232" x2="350.0" y2="400.0" stroke="#CCE3FA" stroke-width="1.3"/>
+  <line x1="350" y1="232" x2="251.3" y2="367.9" stroke="#CCE3FA" stroke-width="1.2"/>
+  <line x1="350" y1="232" x2="190.2" y2="283.9" stroke="#CCE3FA" stroke-width="1.2"/>
+  <line x1="350" y1="232" x2="190.2" y2="180.1" stroke="#CCE3FA" stroke-width="1.1"/>
+  <line x1="350" y1="232" x2="251.3" y2="96.1" stroke="#CCE3FA" stroke-width="1.0"/>
+  <circle cx="350.0" cy="64.0" r="29.7" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="350.0" y="69.0" text-anchor="middle">98</text>
+  <text class="gl" x="350.0" y="14.3" text-anchor="middle">DiagLog()</text>
+  <circle cx="448.7" cy="96.1" r="21.8" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="448.7" y="101.1" text-anchor="middle">53</text>
+  <text class="gl" x="466.9" y="75.1" text-anchor="start">MfgViewPose</text>
+  <circle cx="509.8" cy="180.1" r="21.0" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="509.8" y="185.1" text-anchor="middle">49</text>
+  <text class="gl" x="538.3" y="174.8" text-anchor="start">DrawingSheetData</text>
+  <circle cx="509.8" cy="283.9" r="18.2" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="509.8" y="288.9" text-anchor="middle">37</text>
+  <text class="gl" x="535.7" y="296.3" text-anchor="start">GenerateSheet…Template()</text>
+  <circle cx="448.7" cy="367.9" r="17.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="448.7" y="372.9" text-anchor="middle">34</text>
+  <text class="gl" x="464.3" y="393.3" text-anchor="start">GenerateMfgDrawingManual()</text>
+  <circle cx="350.0" cy="400.0" r="17.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="350.0" y="405.0" text-anchor="middle">34</text>
+  <text class="gl" x="350.0" y="443.5" text-anchor="middle">BOMData</text>
+  <circle cx="251.3" cy="367.9" r="17.0" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="251.3" y="372.9" text-anchor="middle">32</text>
+  <text class="gl" x="236.0" y="392.9" text-anchor="end">ChainDimensionData</text>
+  <circle cx="190.2" cy="283.9" r="16.7" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="190.2" y="288.9" text-anchor="middle">31</text>
+  <text class="gl" x="165.8" y="295.9" text-anchor="end">BuildMfgSceneCore()</text>
+  <circle cx="190.2" cy="180.1" r="16.2" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="190.2" y="185.1" text-anchor="middle">29</text>
+  <text class="gl" x="166.3" y="176.3" text-anchor="end">ExportSheetsByKind()</text>
+  <circle cx="251.3" cy="96.1" r="14.7" fill="#FFFFFF" stroke="#0071DB" stroke-width="1.6"/>
+  <text class="gn" x="251.3" y="101.1" text-anchor="middle">24</text>
+  <text class="gl" x="237.3" y="80.9" text-anchor="end">DrawingReferenceFrame</text>
+  <circle cx="350" cy="232" r="59" fill="#0071DB"/>
+  <text class="gc" x="350" y="224" text-anchor="middle">Form1</text>
+  <text class="gcn" x="350" y="254" text-anchor="middle">389</text>
+</svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === 07 제작도 출력 과정 === -->
 <section class="s" data-title="제작도 출력 과정">
   <h1>제작도 출력 과정</h1>
   <div class="rule"></div>
@@ -569,10 +661,7 @@ svg{width:100%;height:auto}
   <h1>모델 열기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">모델열기_코드.png</span>VS 편집기 — btnOpen_Click 함수 전체</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 모델 트리가 만들어지고, 성공하면 <span class="f">FitToView()</span>로 화면에 맞춘다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:245</div><div class="wm">BuildBodyToPartNameMap()</div><div class="wd">부재(Body)와 부품(Part) 이름을 짝지어 캐시해 둔다. 이후 BOM · 도면이 이 이름을 쓴다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:248</div><div class="wm">PopulateStruCheckList()</div><div class="wd">정의는 <span class="f">Stru.cs:149</span>. <b>좌측 STRU 목록이 여기서 채워진다</b></div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:182</div><div class="wm">btnOpen_Click(object sender, EventArgs e)</div><div class="wd">[파일 열기] 버튼이 눌리면 여기부터 시작. 파일 선택 창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.BOM.cs:230</div><div class="wm">vizcore3d.Model.Open(dlg.FileName)</div><div class="wd">SDK에 경로를 넘긴다. 모델 트리가 만들어지고, 성공하면 <span class="f">FitToView()</span>로 화면에 맞춘다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.BOM.cs:245</div><div class="wm">BuildBodyToPartNameMap()</div><div class="wd">부재(Body)와 부품(Part) 이름을 짝지어 캐시해 둔다. 이후 BOM · 도면이 이 이름을 쓴다</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:248</div><div class="wm">PopulateStruCheckList()</div><div class="wd">정의는 <span class="f">Stru.cs:149</span>. <b>좌측 STRU 목록이 여기서 채워진다</b></div></div></li></ol>
   </div>
 </section>
 
@@ -581,10 +670,7 @@ svg{width:100%;height:auto}
   <h1>대상 고르기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">STRU선택_화면.png</span>프로그램 좌측 STRU 목록에서 체크한 상태</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:362</div><div class="wm">ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)</div><div class="wd">체크박스를 누르면 불린다. 단 <b>체크가 반영되기 직전</b>에 오는 이벤트다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:385</div><div class="wm">ItemCheckCore(e)</div><div class="wd">아직 반영 전이므로 <span class="f">e.NewValue</span>로 &#8220;앞으로 될 상태&#8221;를 계산한다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">체크된 STRU의 부재 인덱스 합집합</div><div class="wd">이 목록이 다음 단계부터 끝까지의 작업 대상이 된다</div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:362</div><div class="wm">ClbStruList_ItemCheck(object sender, ItemCheckEventArgs e)</div><div class="wd">체크박스를 누르면 불린다. 단 <b>체크가 반영되기 직전</b>에 오는 이벤트다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:385</div><div class="wm">ItemCheckCore(e)</div><div class="wd">아직 반영 전이므로 <span class="f">e.NewValue</span>로 &#8220;앞으로 될 상태&#8221;를 계산한다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">체크된 STRU의 부재 인덱스 합집합</div><div class="wd">이 목록이 다음 단계부터 끝까지의 작업 대상이 된다</div></div></li></ol>
   </div>
 </section>
 
@@ -593,10 +679,7 @@ svg{width:100%;height:auto}
   <h1>도면 일괄 출력</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">일괄출력_화면.png</span>「도면 일괄 출력」을 누른 뒤 완료 메시지 · 또는 Drawings 폴더에 쌓인 PDF</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:514</div><div class="wm">btnExtractDrawingList_Click</div><div class="wd">[도면 일괄 출력] 버튼. 체크된 STRU를 모으고 저장 폴더 <span class="f">Drawings\</span>를 만든 뒤 진행창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:659</div><div class="wm">for (int s = 0; s &lt; checkedStrus.Count; s++)</div><div class="wd"><b>체크한 STRU 하나씩</b> 순서대로 돈다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Stru.cs:803</div><div class="wm">ProcessSingleStruFull(...)</div><div class="wd">STRU 한 개에 대해 <b>다음 세 장(대상만 남기기 · 치수 · 도면)을 그대로 수행</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:1046</div><div class="wm">GenerateMfgDrawingManual(...)</div><div class="wd">제작 · 조립 · 설치에 이어 <b>가공도</b>까지 만든다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Stru.cs:693</div><div class="wm">FlushPendingMergedPdf()</div><div class="wd">쌓아둔 페이지를 묶음 PDF로 저장. 완료 창에 <b>성공 STRU 수와 PDF 개수</b>가 뜬다</div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:514</div><div class="wm">btnExtractDrawingList_Click</div><div class="wd">[도면 일괄 출력] 버튼. 체크된 STRU를 모으고 저장 폴더 <span class="f">Drawings\</span>를 만든 뒤 진행창을 띄운다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:659</div><div class="wm">for (int s = 0; s &lt; checkedStrus.Count; s++)</div><div class="wd"><b>체크한 STRU 하나씩</b> 순서대로 돈다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Stru.cs:803</div><div class="wm">ProcessSingleStruFull(...)</div><div class="wd">STRU 한 개에 대해 <b>다음 세 장(대상만 남기기 · 치수 · 도면)을 그대로 수행</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.Stru.cs:1046</div><div class="wm">GenerateMfgDrawingManual(...)</div><div class="wd">제작 · 조립 · 설치에 이어 <b>가공도</b>까지 만든다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.Stru.cs:693</div><div class="wm">FlushPendingMergedPdf()</div><div class="wd">쌓아둔 페이지를 묶음 PDF로 저장. 완료 창에 <b>성공 STRU 수와 PDF 개수</b>가 뜬다</div></div></li></ol>
   </div>
 </section>
 
@@ -605,10 +688,7 @@ svg{width:100%;height:auto}
   <h1>대상만 남기기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">가시성격리_화면.png</span>격리 직후 3D 뷰 — 대상만 남고 나머지가 사라진 화면</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:843</div><div class="wm">vizcore3d.Object3D.Show(allBodyIndices, false)</div><div class="wd">먼저 <b>전부 끈다</b></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:844</div><div class="wm">vizcore3d.Object3D.Show(memberIndices, true)</div><div class="wd">그다음 <b>이번 STRU의 부재만 켠다</b></div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">이 두 줄이 한 짝</div><div class="wd">이후 모든 계산이 &#8220;지금 화면에 보이는 것&#8221;을 기준으로 돈다. 같은 짝이 코드 10곳에 반복된다</div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:843</div><div class="wm">vizcore3d.Object3D.Show(allBodyIndices, false)</div><div class="wd">먼저 <b>전부 끈다</b></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:844</div><div class="wm">vizcore3d.Object3D.Show(memberIndices, true)</div><div class="wd">그다음 <b>이번 STRU의 부재만 켠다</b></div></div></li><li><span class="wn">03</span><div class="wc"><div class="wm">이 두 줄이 한 짝</div><div class="wd">이후 모든 계산이 &#8220;지금 화면에 보이는 것&#8221;을 기준으로 돈다. 같은 짝이 코드 10곳에 반복된다</div></div></li></ol>
   </div>
 </section>
 
@@ -617,10 +697,7 @@ svg{width:100%;height:auto}
   <h1>치수 뽑기</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">치수표시_화면.png</span>치수 추출 후 3D에 체인 치수가 그려진 화면</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:869</div><div class="wm">CollectBOMData(...)</div><div class="wd">보이는 부재의 이름 · 규격 · 재질을 모은다. 정의는 <span class="f">BOM.cs:857</span></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:878</div><div class="wm">DetectClash(includeOutsideNeighbors: true)</div><div class="wd">3mm 안이면 접합으로 본다. <b>SDK에 맡기고 함수는 그대로 반환</b>된다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Clash.cs:1146</div><div class="wm">Clash_OnClashTestFinishedEvent</div><div class="wd">SDK가 끝났다고 알려주면 <b>여기서 이어받는다</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:557</div><div class="wm">CollectAllOsnap()</div><div class="wd">부재마다 모서리 · 끝점 좌표를 SDK에서 받아온다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.BOM.cs:585</div><div class="wm">ComputeViewDimensionsForMembers(...)</div><div class="wd">좌표를 합치고 축별로 <span class="f">AddChainDimensionByAxis</span>(X · Y · Z)를 돌려 치수 사슬을 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wm">사람이 직접 할 때는</div><div class="wd"><span class="f">Dimensions.cs:1786 btnExtractDimension_Click</span> 이 같은 일을 한다</div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.Stru.cs:869</div><div class="wm">CollectBOMData(...)</div><div class="wd">보이는 부재의 이름 · 규격 · 재질을 모은다. 정의는 <span class="f">BOM.cs:857</span></div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.Stru.cs:878</div><div class="wm">DetectClash(includeOutsideNeighbors: true)</div><div class="wd">3mm 안이면 접합으로 본다. <b>SDK에 맡기고 함수는 그대로 반환</b>된다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.Clash.cs:1146</div><div class="wm">Clash_OnClashTestFinishedEvent</div><div class="wd">SDK가 끝났다고 알려주면 <b>여기서 이어받는다</b></div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.BOM.cs:557</div><div class="wm">CollectAllOsnap()</div><div class="wd">부재마다 모서리 · 끝점 좌표를 SDK에서 받아온다</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wl">Form1.BOM.cs:585</div><div class="wm">ComputeViewDimensionsForMembers(...)</div><div class="wd">좌표를 합치고 축별로 <span class="f">AddChainDimensionByAxis</span>(X · Y · Z)를 돌려 치수 사슬을 만든다</div></div></li><li><span class="wn">06</span><div class="wc"><div class="wm">사람이 직접 할 때는</div><div class="wd"><span class="f">Dimensions.cs:1786 btnExtractDimension_Click</span> 이 같은 일을 한다</div></div></li></ol>
   </div>
 </section>
 
@@ -629,10 +706,7 @@ svg{width:100%;height:auto}
   <h1>도면 나누기 · 저장</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="step">
-      <div class="sbox"><div class="need"><span class="fn">제작도_결과.png</span>나온 PDF 한 장</div></div>
-      <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:644</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">치수가 끝나면 <b>바로 이어서</b> 호출된다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets() 정의</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">일괄 출력이 이 전체를 체크한 STRU 수만큼 반복한다</div></div></li></ol>
-    </div>
+    <ol class="walk"><li><span class="wn">01</span><div class="wc"><div class="wl">Form1.BOM.cs:644</div><div class="wm">GenerateDrawingSheets()</div><div class="wd">치수가 끝나면 <b>바로 이어서</b> 호출된다</div></div></li><li><span class="wn">02</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:20</div><div class="wm">GenerateDrawingSheets() 정의</div><div class="wd">간섭검사로 얻은 &#8220;붙어 있다&#8221; 관계를 따라가며 <b>이어진 것끼리 한 시트</b>로 묶는다</div></div></li><li><span class="wn">03</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1781</div><div class="wm">GenerateSheetDrawing2D_WithExcelTemplate(sheet)</div><div class="wd">시트 하나마다 호출</div></div></li><li><span class="wn">04</span><div class="wc"><div class="wl">Form1.DrawingSheets.cs:1799</div><div class="wm">954줄 — 이 파일의 심장</div><div class="wd">엑셀 양식을 열고 → 4면도를 투영하고 → 치수 · 풍선을 얹고 → PDF로 저장</div></div></li><li><span class="wn">05</span><div class="wc"><div class="wm">구조물 1개 = PDF 1장</div><div class="wd">일괄 출력이 이 전체를 체크한 STRU 수만큼 반복한다</div></div></li></ol>
   </div>
 </section>
 
