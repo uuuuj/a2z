@@ -189,6 +189,7 @@ table.left .d{font-size:11px}
 .cex .cel{display:block;font-size:11px;font-weight:700;color:var(--subtle);
   letter-spacing:.1em;margin-bottom:5px}
 .cex b{color:var(--text);font-weight:600}
+.cex .d2{display:block;margin-top:5px;font-size:12px;color:var(--subtle);line-height:1.5}
 
 /* 07 — 결과 */
 .figs.res{margin-bottom:16px}
@@ -861,7 +862,6 @@ network.on('afterDrawing', function(ctx) {
   </div>
 </section>
 
-<!-- === 06 걸러낸 방법 === -->
 <section class="s" data-title="검출 방법">
   <h1>검출 방법</h1>
   <div class="rule"></div>
@@ -872,42 +872,42 @@ network.on('afterDrawing', function(ctx) {
         <div class="ct">배선 검사</div>
         <div class="cq">이 버튼을 누르면 <b>정말 이 함수가 불리나?</b></div>
         <table>
-          <tr><td class="k">보는 것</td><td class="d">핸들러 이름이 코드 어딘가에서<br><span class="f">+=</span> 로 연결돼 있는가</td></tr>
-          <tr><td class="k">판정</td><td class="d">연결이 <b>0건</b>이면 그 함수는<br>버튼을 눌러도 <b>절대 안 불린다</b></td></tr>
-          <tr><td class="k">찾은 것</td><td><b class="rd">핸들러 8개 · 52줄</b></td></tr>
-          <tr><td class="k">수행</td><td class="d"><b>전수 검색 도구</b> — 이름으로 코드 전체를 훑음</td></tr>
+          <tr><td class="k">도구</td><td class="d"><b>전수 검색</b> <span class="f">grep</span></td></tr>
+          <tr><td class="k">방법</td><td class="d">핸들러 이름으로 코드 전체를 훑어<br><span class="f">+=</span> 로 연결된 곳이 있는지 본다</td></tr>
+          <tr><td class="k">판정</td><td class="d">연결 <b>0건</b> → 버튼을 눌러도 안 불린다</td></tr>
+          <tr><td class="k">찾음</td><td><b class="rd">핸들러 8개 · 52줄</b></td></tr>
         </table>
-        <div class="cex"><span class="cel">실제로 걸린 것</span>
-          화면에 축 전환 버튼이 있는데 <b>눌러도 아무 일이 없던 것</b>.
-          살아 있는 축 전환은 다른 곳이 맡고 있었고, 이건 옛 화면의 껍데기였음</div>
+        <div class="cex"><span class="cel">한계</span>
+          이름이 흔하면 엉뚱한 게 걸린다. <b>후보만 뽑고 사람이 확인</b></div>
       </div>
       <div class="rt">
         <div class="cn">검사 2</div>
         <div class="ct">호출처 전수 대조</div>
         <div class="cq">이 함수·필드를 <b>쓰는 곳이 있나?</b></div>
         <table>
-          <tr><td class="k">보는 것</td><td class="d">이름을 코드 전체에서 찾아<br>정의 1건 말고 <b>몇 건 더 나오나</b></td></tr>
-          <tr><td class="k">판정</td><td class="d">0건이면 죽은 것.<br>스위치가 <b>상수</b>라 못 켜는 것도 여기</td></tr>
-          <tr><td class="k">찾은 것</td><td><b class="rd">5건 · 1,267줄</b></td></tr>
-          <tr><td class="k">수행</td><td class="d"><b>AI가 만든 스크립트</b><br>레포에 있어 <b>다시 돌리면 재현</b>됨</td></tr>
+          <tr><td class="k">도구</td><td class="d"><b>AI가 만든 스크립트</b><br><span class="f">docs/코드분석/generate.py</span></td></tr>
+          <tr><td class="k">방법</td><td class="d">메서드를 전수 추출한 뒤, 이름별로<br><b>다른 파일에서 몇 번 나오는지</b> 센다</td></tr>
+          <tr><td class="k">판정</td><td class="d">0건 → 죽은 것.<br>스위치가 <b>상수</b>라 못 켜는 것도 여기</td></tr>
+          <tr><td class="k">찾음</td><td><b class="rd">5건 · 1,267줄</b></td></tr>
         </table>
-        <div class="cex"><span class="cel">실제로 걸린 것</span>
-          옛 도면 경로 <b>733줄</b>. 새 경로로 바꾸며 스위치를 상수로 고정해 둔 채
-          <b>옛 코드를 지우지 않고</b> 남겨둔 것</div>
+        <div class="cex"><span class="cel">한계</span>
+          오버로드·동명 지역변수를 구분 못 한다. 지금 돌리면 「불리는 곳 없음」이
+          <b>54개</b>인데 대부분 이벤트 핸들러라 정상</div>
       </div>
       <div class="rt">
         <div class="cn">검사 3</div>
         <div class="ct">호출 그래프 도달성</div>
         <div class="cq">시작점에서 출발해 <b>여기까지 닿나?</b></div>
         <table>
-          <tr><td class="k">보는 것</td><td class="d">진입점 <b>54개</b>(핸들러 53 + 시작)에서<br>호출을 따라 <b>닿는 곳을 전부 칠함</b></td></tr>
-          <tr><td class="k">판정</td><td class="d"><b>안 칠해진 함수</b>는 어떤 경로로도<br>도달할 수 없다</td></tr>
-          <tr><td class="k">찾은 것</td><td><b class="rd">함수 2개 · 97줄</b></td></tr>
-          <tr><td class="k">수행</td><td class="d"><b class="rd">AI가 직접 추적</b> — 스크립트 없음<br>재현하려면 다시 해야 함</td></tr>
+          <tr><td class="k">도구</td><td class="d"><b>AI가 만든 스크립트</b><br><span class="f">docs/코드분석/reach.py</span> 74줄</td></tr>
+          <tr><td class="k">방법</td><td class="d">본문에서 호출을 뽑아 그래프를 만들고<br>진입점 <b>78개</b>에서 <b>닿는 곳을 전부 칠함</b></td></tr>
+          <tr><td class="k">판정</td><td class="d">안 칠해진 것 → 어떤 경로로도 도달 불가</td></tr>
+          <tr><td class="k">찾음</td><td><b class="rd">함수 2개 · 97줄</b></td></tr>
         </table>
-        <div class="cex"><span class="cel">실제로 걸린 것</span>
-          <b>이름으로 검색하면 나오지만</b> 어느 버튼에서도 닿지 않던 함수.
-          주석에 &#8220;폐기&#8221;라 적혀 있었는데 코드는 남아 있었음</div>
+        <div class="cex"><span class="cel">지금 돌리면</span>
+          메서드 <b>317개 전부 도달 · 고아 0</b><br>
+          <span class="d2">최초 실행 땐 오탐 4종(생성자 · 이름만 넘기는 호출 · 프로퍼티 · 정규식)이
+          섞여 있었고 8/31 보정</span></div>
       </div>
     </div>
   </div>
