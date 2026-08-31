@@ -164,6 +164,8 @@ table.left .d{font-size:11px}
 .mfoot td{padding:5px 8px 5px 0}
 .mfoot .d{font-size:13.5px}
 
+.s .body > svg{margin:auto 0}
+
 /* 02 — 현황 */
 .figs.stat5{margin-bottom:14px}
 .figs.stat5 .fig{padding-right:26px}
@@ -183,7 +185,7 @@ table.left .d{font-size:11px}
   letter-spacing:.04em;vertical-align:top;padding-top:8px}
 .two.three.chk .d{font-size:13.5px;line-height:1.5}
 .chkfoot{font-size:15px;margin-top:auto;padding-top:16px;border-top:1px solid var(--border);flex:none}
-.cex{margin-top:auto;padding-top:14px;font-size:13px;color:var(--muted);line-height:1.55}
+.cex{margin-top:auto;padding-top:16px;border-top:1px solid var(--hair);font-size:13px;color:var(--muted);line-height:1.55}
 .cex .cel{display:block;font-size:11px;font-weight:700;color:var(--subtle);
   letter-spacing:.1em;margin-bottom:5px}
 .cex b{color:var(--text);font-weight:600}
@@ -359,9 +361,6 @@ svg{width:100%;height:auto}
           <tr><td class="f">bomList</td><td class="n">3</td><td class="n">7</td></tr>
           <tr><td class="f">clashList</td><td class="n">3</td><td class="n">6</td></tr>
         </table>
-        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          <b>SDK 핸들처럼 읽기만 하는 건 정상</b> — 문제는 <b>값이 여러 곳에서 바뀌는</b> 23개
-        </div>
       </div>
     </div>
   </div>
@@ -905,9 +904,6 @@ network.on('afterDrawing', function(ctx) {
           주석에 &#8220;폐기&#8221;라 적혀 있었는데 코드는 남아 있었음</div>
       </div>
     </div>
-    <div class="lead chkfoot">
-      셋 다 <b>기계가 세는 것</b> — 「안 쓸 것 같다」가 아니라 <b>「쓰는 곳이 0건이다」</b> 로 판정
-    </div>
   </div>
 </section>
 
@@ -957,71 +953,61 @@ network.on('afterDrawing', function(ctx) {
   <h1>제작도 출력 과정</h1>
   <div class="rule"></div>
   <div class="body">
-<svg viewBox="0 0 1144 434" xmlns="http://www.w3.org/2000/svg" role="img"
+<svg viewBox="0 0 1144 360" xmlns="http://www.w3.org/2000/svg" role="img"
      aria-label="제작도가 나오기까지의 일곱 단계와 각 단계가 실제로 어느 파일 어느 메서드인지.">
   <defs><marker id="tip" markerWidth="10" markerHeight="10" refX="8" refY="3.4" orient="auto">
     <path d="M0,0 L8,3.4 L0,6.8 Z" fill="#0071DB"/></marker>
   <style>
-    .lab{font-size:16px;font-weight:700;fill:#101828;letter-spacing:-.02em}
-    .stp{font-size:11px;font-weight:700;fill:#98A2B3;letter-spacing:.12em;font-family:"D2Coding",Consolas,monospace}
-    .loc{font-size:9.5px;fill:#98A2B3;font-family:"D2Coding",Consolas,monospace}
-    .mth{font-size:11px;font-weight:700;fill:#0071DB;font-family:"D2Coding",Consolas,monospace}
-    .nte{font-size:11px;fill:#475467}
-    .brs{font-size:11px;fill:#98A2B3}
+    .lab{font-size:20px;font-weight:700;fill:#101828;letter-spacing:-.025em}
+    .stp{font-size:12px;font-weight:700;fill:#98A2B3;letter-spacing:.12em;font-family:"D2Coding",Consolas,monospace}
+    .loc{font-size:10px;fill:#98A2B3;font-family:"D2Coding",Consolas,monospace}
+    .mth{font-size:12px;font-weight:700;fill:#0071DB;font-family:"D2Coding",Consolas,monospace}
+    .nte{font-size:14px;fill:#475467}
   </style></defs>
-  <line x1="2" y1="196" x2="1128" y2="196" stroke="#0071DB" stroke-width="3"/>
-  <path d="M1128 196 H1142" stroke="#0071DB" stroke-width="3" marker-end="url(#tip)"/>
-  <circle cx="46" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="46" y="56" text-anchor="middle">01</text>
-  <text class="lab" x="46" y="88" text-anchor="middle">모델 열기</text>
-  <text class="loc" x="46" y="112" text-anchor="middle">Form1.BOM.cs:182</text>
-  <text class="mth" x="46" y="134" text-anchor="middle">btnOpen_Click</text>
-  <text class="nte" x="46" y="228" text-anchor="middle">Model.Open(path)</text>
-  <circle cx="204" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="204" y="56" text-anchor="middle">02</text>
+  <line x1="2" y1="230" x2="1128" y2="230" stroke="#0071DB" stroke-width="3"/>
+  <path d="M1128 230 H1142" stroke="#0071DB" stroke-width="3" marker-end="url(#tip)"/>
+  <circle cx="74" cy="230" r="5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="74" y="44" text-anchor="middle">01</text>
+  <text class="lab" x="74" y="88" text-anchor="middle">모델 열기</text>
+  <text class="loc" x="74" y="118" text-anchor="middle">Form1.BOM.cs:182</text>
+  <text class="mth" x="74" y="146" text-anchor="middle">btnOpen_Click</text>
+  <text class="nte" x="74" y="272" text-anchor="middle">Model.Open(path)</text>
+  <circle cx="204" cy="230" r="5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="204" y="44" text-anchor="middle">02</text>
   <text class="lab" x="204" y="88" text-anchor="middle">대상 고르기</text>
-  <text class="loc" x="204" y="112" text-anchor="middle">Form1.Stru.cs:362</text>
-  <text class="mth" x="204" y="134" text-anchor="middle">ClbStruList_ItemCheck</text>
-  <text class="nte" x="204" y="228" text-anchor="middle">체크 직전 이벤트</text>
-  <circle cx="362" cy="196" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="362" y="56" text-anchor="middle">03</text>
+  <text class="loc" x="204" y="118" text-anchor="middle">Form1.Stru.cs:362</text>
+  <text class="mth" x="204" y="146" text-anchor="middle">ClbStruList_ItemCheck</text>
+  <text class="nte" x="204" y="272" text-anchor="middle">체크 직전 이벤트</text>
+  <circle cx="362" cy="230" r="8" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="362" y="44" text-anchor="middle">03</text>
   <text class="lab" x="362" y="88" text-anchor="middle">대상만 남기기</text>
-  <text class="loc" x="362" y="112" text-anchor="middle">Form1.Stru.cs:307</text>
-  <text class="mth" x="362" y="134" text-anchor="middle">Show(전체,false)</text>
-  <text class="nte" x="362" y="228" text-anchor="middle">→ Show(대상,true)</text>
-  <circle cx="520" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="520" y="56" text-anchor="middle">04</text>
+  <text class="loc" x="362" y="118" text-anchor="middle">Form1.Stru.cs:307</text>
+  <text class="mth" x="362" y="146" text-anchor="middle">Show(전체,false)</text>
+  <text class="nte" x="362" y="272" text-anchor="middle">→ Show(대상,true)</text>
+  <circle cx="520" cy="230" r="5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="520" y="44" text-anchor="middle">04</text>
   <text class="lab" x="520" y="88" text-anchor="middle">붙은 것 찾기</text>
-  <text class="loc" x="520" y="112" text-anchor="middle">Form1.Clash.cs:1021</text>
-  <text class="mth" x="520" y="134" text-anchor="middle">DetectClash</text>
-  <text class="nte" x="520" y="228" text-anchor="middle">3mm 안이면 접합</text>
-  <circle cx="700" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="700" y="56" text-anchor="middle">05</text>
+  <text class="loc" x="520" y="118" text-anchor="middle">Form1.Clash.cs:1021</text>
+  <text class="mth" x="520" y="146" text-anchor="middle">DetectClash</text>
+  <text class="nte" x="520" y="272" text-anchor="middle">3mm 안이면 접합</text>
+  <circle cx="700" cy="230" r="5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="700" y="44" text-anchor="middle">05</text>
   <text class="lab" x="700" y="88" text-anchor="middle">치수 뽑기</text>
-  <text class="loc" x="700" y="112" text-anchor="middle">Form1.BOM.cs:557</text>
-  <text class="mth" x="700" y="134" text-anchor="middle">CollectAllOsnap</text>
-  <text class="nte" x="700" y="228" text-anchor="middle">축별 3회 체인 치수</text>
-  <circle cx="880" cy="196" r="4.5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="880" y="56" text-anchor="middle">06</text>
+  <text class="loc" x="700" y="118" text-anchor="middle">Form1.BOM.cs:557</text>
+  <text class="mth" x="700" y="146" text-anchor="middle">CollectAllOsnap</text>
+  <text class="nte" x="700" y="272" text-anchor="middle">축별 3회 체인 치수</text>
+  <circle cx="880" cy="230" r="5" fill="#FFFFFF" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="880" y="44" text-anchor="middle">06</text>
   <text class="lab" x="880" y="88" text-anchor="middle">도면 나누기</text>
-  <text class="loc" x="880" y="112" text-anchor="middle">Form1.DrawingSheets.cs:20</text>
-  <text class="mth" x="880" y="134" text-anchor="middle">GenerateDrawingSheets</text>
-  <text class="nte" x="880" y="228" text-anchor="middle">이어진 것끼리 한 장</text>
-  <circle cx="1058" cy="196" r="7" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
-  <text class="stp" x="1058" y="56" text-anchor="middle">07</text>
+  <text class="loc" x="880" y="118" text-anchor="middle">Form1.DrawingSheets.cs:20</text>
+  <text class="mth" x="880" y="146" text-anchor="middle">GenerateDrawingSheets</text>
+  <text class="nte" x="880" y="272" text-anchor="middle">이어진 것끼리 한 장</text>
+  <circle cx="1058" cy="230" r="8" fill="#0071DB" stroke="#0071DB" stroke-width="2"/>
+  <text class="stp" x="1058" y="44" text-anchor="middle">07</text>
   <text class="lab" x="1058" y="88" text-anchor="middle">그리고 저장</text>
-  <text class="loc" x="1058" y="112" text-anchor="middle">Form1.DrawingSheets.cs:1799</text>
-  <text class="mth" x="1058" y="134" text-anchor="middle">GenerateSheetDrawing2D</text>
-  <text class="nte" x="1058" y="228" text-anchor="middle">954줄 · PDF 1장</text>
-  <line x1="362" y1="320" x2="362" y2="300" stroke="#E7EAEE"/>
-  <line x1="362" y1="320" x2="960" y2="320" stroke="#E7EAEE"/>
-  <line x1="960" y1="320" x2="960" y2="300" stroke="#E7EAEE"/>
-  <text class="nte" x="661" y="344" text-anchor="middle" fill="#667085">같은 &#8220;숨기고 남기기&#8221;가 구조물 &#183; 도면 &#183; 뷰 세 단계에서 반복 &#8212; 코드로는 10곳</text>
-  <text class="brs" x="661" y="368" text-anchor="middle" font-family="D2Coding,Consolas,monospace" font-size="10.5">DrawingSheets.cs:688 &#183; 893 &#183; 942 &#183; 2083 &#183; 2268 &#183; 2330 &#183; 2372 &#183; 2381 &#160;&#183;&#160; MfgDrawing.cs:1855 &#183; 2785</text>
-  <line x1="2" y1="398" x2="1142" y2="398" stroke="#E7EAEE"/>
-  <text class="nte" x="2" y="422" font-size="12" fill="#101828" font-weight="700">&#12300;도면 일괄 출력&#12301; 버튼</text>
-  <text class="nte" x="122" y="422" fill="#475467">을 누르면 &#8212; 02~07 전체를 <tspan font-weight="700" fill="#0071DB">체크한 STRU 수만큼 자동 반복</tspan>한다</text>
-  <text class="brs" x="1142" y="422" text-anchor="end" font-family="D2Coding,Consolas,monospace" font-size="10.5">Stru.cs:514 &#8594; 659 &#8594; 803</text>
+  <text class="loc" x="1058" y="118" text-anchor="middle">Form1.DrawingSheets.cs:1799</text>
+  <text class="mth" x="1058" y="146" text-anchor="middle">GenerateSheetDrawing2D</text>
+  <text class="nte" x="1058" y="272" text-anchor="middle">954줄 · PDF 1장</text>
 </svg>
   </div>
 </section>
