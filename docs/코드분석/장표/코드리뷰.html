@@ -931,67 +931,6 @@ network.on('afterDrawing', function(ctx) {
   </div>
 </section>
 
-<!-- === 07 검출 도구 === -->
-<section class="s" data-title="검출 도구">
-  <h1>검출 도구</h1>
-  <div class="rule"></div>
-  <div class="body">
-    <div class="two three tool">
-      <div>
-        <div class="cn">검사 1</div>
-        <div class="ct">grep</div>
-<pre class="code"><span class="c"># 핸들러 이름으로 코드 전체를 훑고</span>
-grep -rn <b>"btnOpen_Click"</b>      --include=*.cs A2Z/</pre>
-        <div class="tl">결과에 <span class="f">+=</span> 가 있나</div>
-        <table class="cmp">
-          <tr><td class="ok2">살아 있음</td><td class="d"><span class="f">Designer.cs:1202</span><br>
-            <span class="f">btnOpen.Click <b>+=</b> new EventHandler(…)</span></td></tr>
-          <tr><td class="rd2">죽어 있음</td><td class="d"><span class="f">Dimensions.cs:205</span> 정의뿐<br>
-            <b class="rd">+= 0건</b> — <b>진입 경로 없음</b></td></tr>
-        </table>
-      </div>
-      <div class="rt">
-        <div class="cn">검사 2</div>
-        <div class="ct">generate.py</div>
-<pre class="code"><span class="c"># 이름 뒤에 ( 가 붙은 것만 호출</span>
-pat = re.compile(
-  <b>r'(?&lt;![\w.])'</b> + name + r'\s*\(')
-
-c = len(pat.findall(text))
-<b>if</b> f == home: c -= 1  <span class="c"># 선언 제외</span></pre>
-        <div class="tl"><span class="f">(?&lt;![\w.])</span> = 앞에 <b>글자·점이 붙은 건 제외</b><br>
-          <span class="f">this.Foo(</span> · <span class="f">BarFoo(</span> <b>제외</b></div>
-        <table class="cmp">
-          <tr><td class="d">지금 돌리면 메서드 <b>313개</b> 중<br>
-            「불리는 곳 없음」 <b>54개</b><br>
-            <span class="d2">대부분 이벤트 핸들러라 정상 → 검사 1 이 걸러냄</span></td></tr>
-        </table>
-      </div>
-      <div class="rt">
-        <div class="cn">검사 3</div>
-        <div class="ct">reach.py</div>
-<pre class="code"><span class="c"># 진입점에서 출발해 부르는 함수를 계속 추적</span>
-지나온것, 남은것 = set(), list(<b>진입점</b>)
-<b>while</b> 남은것:
-    f = 남은것.pop()
-    <b>if</b> f <b>in</b> 지나온것: <b>continue</b>
-    지나온것.add(f)
-    남은것.extend(<b>f가 부르는 함수들</b>)
-
-<b>한번도 안 나온 것</b> = 전체 - 지나온것</pre>
-        <div class="tl"><b>진입점을 무엇으로 보느냐가 곧 정확도</b>다.<br>
-          잘못 잡으면 멀쩡한 함수가 <b>안 나온 것으로 표시</b></div>
-        <table class="cmp">
-          <tr><td class="k2">Designer 배선</td><td class="d"><span class="f">+= new EventHandler(이름)</span></td></tr>
-          <tr><td class="k2">코드 배선</td><td class="d"><span class="f">+= 이름;</span> · <span class="f">+= new Action(이름);</span></td></tr>
-          <tr><td class="k2">생성자</td><td class="d"><span class="f">public Form1()</span> — 반환형이 없어<br><b>별도 처리 필요</b></td></tr>
-          <tr><td class="k2">프로퍼티</td><td class="d"><span class="f">get { return 이름(…); }</span></td></tr>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- === 07 결과 === -->
 <section class="s" data-title="지운 결과">
   <h1>지운 결과</h1>
