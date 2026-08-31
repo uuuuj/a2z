@@ -191,6 +191,23 @@ table.left .d{font-size:11px}
 .cex b{color:var(--text);font-weight:600}
 .cex .d2{display:block;margin-top:5px;font-size:12px;color:var(--subtle);line-height:1.5}
 
+/* 07 — 검출 도구 */
+.two.three.tool .cn{font-size:11px;font-weight:700;color:var(--subtle);letter-spacing:.12em}
+.two.three.tool .ct{font-size:22px;font-weight:700;margin:3px 0 12px;letter-spacing:-.025em;
+  font-family:var(--mono)}
+.two.three.tool pre.code{font-size:11.5px;line-height:1.6;padding:12px 13px;margin-bottom:12px}
+.two.three.tool .tl{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;
+  padding-bottom:12px;border-bottom:1px solid var(--hair)}
+.two.three.tool .tl b{color:var(--text);font-weight:600}
+table.cmp{font-size:13px}
+table.cmp td{padding:5px 8px 5px 0;border-bottom:none;line-height:1.45}
+table.cmp th{font-size:10.5px;padding-bottom:4px}
+table.cmp .d{font-size:12.5px}
+table.cmp .d2{display:block;margin-top:4px;font-size:11.5px;color:var(--subtle)}
+table.cmp .ok2{font-size:11.5px;font-weight:700;color:var(--success);width:64px;vertical-align:top;padding-top:2px}
+table.cmp .rd2{font-size:11.5px;font-weight:700;color:var(--danger);width:64px;vertical-align:top;padding-top:2px}
+table.cmp .f{font-size:11px}
+
 /* 07 — 결과 */
 .figs.res{margin-bottom:16px}
 .gstat.role{margin-bottom:14px;padding:9px 14px;background:var(--surface-muted);
@@ -908,6 +925,66 @@ network.on('afterDrawing', function(ctx) {
           메서드 <b>317개 전부 도달 · 고아 0</b><br>
           <span class="d2">최초 실행 땐 오탐 4종(생성자 · 이름만 넘기는 호출 · 프로퍼티 · 정규식)이
           섞여 있었고 8/31 보정</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === 07 검출 도구 === -->
+<section class="s" data-title="검출 도구">
+  <h1>검출 도구</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="two three tool">
+      <div>
+        <div class="cn">검사 1</div>
+        <div class="ct">grep</div>
+<pre class="code"><span class="c"># 핸들러 이름으로 코드 전체를 훑고</span>
+grep -rn <b>"btnOpen_Click"</b>      --include=*.cs A2Z/</pre>
+        <div class="tl">결과에 <span class="f">+=</span> 가 있나</div>
+        <table class="cmp">
+          <tr><td class="ok2">살아 있음</td><td class="d"><span class="f">Designer.cs:1202</span><br>
+            <span class="f">btnOpen.Click <b>+=</b> new EventHandler(…)</span></td></tr>
+          <tr><td class="rd2">죽어 있음</td><td class="d"><span class="f">Dimensions.cs:205</span> 정의뿐<br>
+            <b class="rd">+= 0건</b> — 눌러서 올 길이 없다</td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="cn">검사 2</div>
+        <div class="ct">generate.py</div>
+<pre class="code"><span class="c"># 이름 뒤에 ( 가 붙은 것만 호출</span>
+pat = re.compile(
+  <b>r'(?&lt;![\w.])'</b> + name + r'\s*\(')
+
+c = len(pat.findall(text))
+<b>if</b> f == home: c -= 1  <span class="c"># 선언 제외</span></pre>
+        <div class="tl"><span class="f">(?&lt;![\w.])</span> = 앞에 <b>글자·점이 붙은 건 제외</b><br>
+          <span class="f">this.Foo(</span> · <span class="f">BarFoo(</span> 를 안 센다</div>
+        <table class="cmp">
+          <tr><td class="d">지금 돌리면 메서드 <b>313개</b> 중<br>
+            「불리는 곳 없음」 <b>54개</b><br>
+            <span class="d2">대부분 이벤트 핸들러라 정상 → 검사 1 이 걸러냄</span></td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="cn">검사 3</div>
+        <div class="ct">reach.py</div>
+<pre class="code"><span class="c"># 진입점에서 닿는 곳을 전부 칠함</span>
+seen, stack = set(), list(<b>entries</b>)
+<b>while</b> stack:
+    c = stack.pop()
+    <b>if</b> c <b>in</b> seen: <b>continue</b>
+    seen.add(c)
+    stack.extend(calls[c])
+
+<b>orphan</b> = names - seen</pre>
+        <div class="tl"><b>진입점 4종</b> — Designer 배선 · 코드 배선 ·
+          <b>생성자</b>가 부르는 것 · <b>프로퍼티</b>가 부르는 것</div>
+        <table class="cmp">
+          <tr><th></th><th class="n">메서드</th><th class="n">진입점</th><th class="n">고아</th></tr>
+          <tr><td class="d">8/24</td><td class="n">320</td><td class="n">54</td><td class="n rd" style="font-weight:700">9</td></tr>
+          <tr><td class="d">지금</td><td class="n">317</td><td class="n">78</td><td class="n" style="color:var(--success);font-weight:700">0</td></tr>
+        </table>
       </div>
     </div>
   </div>
