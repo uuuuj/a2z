@@ -130,6 +130,40 @@ table.left th{padding-bottom:5px;font-size:11px}
 table.left .f{font-size:11px}
 table.left .d{font-size:11px}
 
+/* 14 — 고치는 법 */
+.two.three.fix table{font-size:14px}
+.two.three.fix td{padding:3px 6px 3px 0;border-bottom:none}
+.two.three.fix .k{font-weight:700;font-size:14.5px;padding-top:12px}
+.two.three.fix tr:first-child .k{padding-top:0}
+.two.three.fix .d{font-size:13px;line-height:1.5}
+.two.three.fix .f{font-size:12px}
+.cnt{font-family:var(--mono);font-size:12.5px;color:var(--danger);font-weight:700;margin-left:4px}
+.fixnote{font-size:14px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)}
+
+/* 15 — 마일스톤 */
+.mile{display:flex;gap:0;flex:none;position:relative;margin:6px 0 24px}
+.mile::before{content:"";position:absolute;left:34px;right:34px;top:7px;height:2px;
+  background:var(--border)}
+.ms{flex:1;position:relative;padding:0 16px 0 0}
+.ms .mdot{width:15px;height:15px;border-radius:50%;background:#FFFFFF;
+  border:3px solid var(--border);position:relative;z-index:1}
+.ms.done .mdot{background:var(--success);border-color:var(--success)}
+.ms:not(.done) .mdot{border-color:var(--brand-500)}
+.ms .mno{margin-top:12px;font-family:var(--mono);font-size:12px;font-weight:700;
+  color:var(--subtle);letter-spacing:.1em}
+.ms .mt{margin-top:3px;font-size:19px;font-weight:700;letter-spacing:-.02em}
+.ms .mb{margin-top:9px;font-size:13.5px;color:var(--muted);line-height:1.55}
+.ms .mr{margin-top:12px;font-size:12px;font-weight:700;display:inline-block;
+  padding:3px 9px;border-radius:3px}
+.ms .mr.ok{color:var(--success);background:#E7F6EE}
+.ms .mr.low{color:var(--brand-700);background:var(--brand-50)}
+.ms .mr.mid{color:#B54708;background:#FEF0C7}
+.ms .mr.high{color:var(--danger);background:#FEF3F2}
+.mfoot{flex:1;min-height:0;border-top:1px solid var(--border);padding-top:18px}
+.mfoot table{font-size:14px}
+.mfoot td{padding:5px 8px 5px 0}
+.mfoot .d{font-size:13.5px}
+
 /* 06 — graphify 전면 */
 .s.full{padding:0}
 .gframe{flex:1;width:100%;height:100%;border:0;background:#0f0f1a;display:block}
@@ -970,63 +1004,128 @@ network.on('afterDrawing', function(ctx) {
   </div>
 </section>
 
-<!-- === 13 앞으로 나눠야 할 것 === -->
-<section class="s" data-title="앞으로 나눠야 할 것">
-  <h1>앞으로 나눠야 할 것</h1>
+<!-- === 14 어떻게 고칠 것인가 === -->
+<section class="s" data-title="어떻게 고칠 것인가">
+  <h1>어떻게 고칠 것인가</h1>
   <div class="rule"></div>
   <div class="body">
-    <div class="two three">
+    <div class="two three fix">
       <div>
-        <div class="h2">① 같은 일을 하는 코드가 여러 벌</div>
+        <div class="h2">① 같은 일이 여러 벌 &#8594; <b>하나로 모은다</b></div>
         <table>
-          <tr><td class="k">Osnap 수집</td><td class="n" style="width:44px">3벌</td></tr>
-          <tr><td colspan="2" class="d" style="padding-top:0">
-            <span class="f">CollectAllOsnap</span> &#8212; BOM.cs:691<br>
-            <span class="f">CollectOsnapForSelectedNodes</span> &#8212; Drawing2D.cs:464<br>
-            <span class="f">GetLinePointOsnaps</span> &#8212; GlobalViews.cs:701</td></tr>
-          <tr><td class="k">가시성 격리</td><td class="n">10곳</td></tr>
-          <tr><td colspan="2" class="d" style="padding-top:0">
-            <span class="f">Show(전체,false)</span> → <span class="f">Show(대상,true)</span><br>
-            DrawingSheets 8곳 · MfgDrawing 2곳에 같은 두 줄</td></tr>
+          <tr><td class="k">가시성 격리 <span class="cnt">10곳</span></td></tr>
+          <tr><td class="d" style="padding-top:0">
+            <span class="f">Show(전체,false)</span> → <span class="f">Show(대상,true)</span> 두 줄을<br>
+            <b><span class="f">IsolateBodies(대상)</span></b> 하나로.
+            되돌리기는 <b><span class="f">RestoreAllBodies()</span></b></td></tr>
+          <tr><td class="k">전부 켜기 <span class="cnt">3곳</span></td></tr>
+          <tr><td class="d" style="padding-top:0">
+            BODY 목록을 만들어 켜는 대신<br>
+            <b><span class="f">Show(Object3DKind.ALL, true)</span></b> 한 줄</td></tr>
+          <tr><td class="k">Osnap 수집 <span class="cnt">3벌</span></td></tr>
+          <tr><td class="d" style="padding-top:0">
+            셋의 입력·출력이 달라 <b>바로 못 합침</b>.<br>
+            무엇을 받고 무엇을 주는지 <b>대조표부터</b></td></tr>
         </table>
-        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          한 곳을 고치면 <b>나머지도 같이 고쳐야 함</b>
+        <div class="lead fixnote">
+          합치기 전에 <b>지금 나오는 값을 기록</b> — 합친 뒤 같은지 대조
         </div>
       </div>
       <div class="rt">
-        <div class="h2">② partial 파일이 이름대로 안 나뉨</div>
+        <div class="h2">② 이름과 내용 불일치 &#8594; <b>이름에 맞게 옮긴다</b></div>
         <table>
-          <tr><td class="f" style="width:104px">Clash.cs</td><td class="n" style="width:44px">45%</td>
-            <td class="d">가 <b>BOM 표 조립</b><br>간섭검사보다 큼</td></tr>
-          <tr><td class="f">GlobalViews.cs</td><td class="n">84%</td>
-            <td class="d">가 <b>설치도 연결 계산</b><br>시점 전환은 16%</td></tr>
-          <tr><td class="f">Drawing2D.cs</td><td class="n">&#8212;</td>
-            <td class="d">Osnap 편집 UI + PDF 페이지 관리<br>서로 무관한 네 덩어리</td></tr>
-          <tr><td class="f">BOM.cs</td><td class="n">&#8212;</td>
-            <td class="d">이름은 BOM인데 실제로는<br><b>파이프라인 사령탑</b></td></tr>
+          <tr><td class="f">Clash.cs</td><td class="d">BOM 표 조립 <b>632줄</b><br>&#8594; <b class="hi">Form1.DrawingBom.cs</b> 신설</td></tr>
+          <tr><td class="f">GlobalViews.cs</td><td class="d">설치도 계산 <b>1,007줄</b><br>&#8594; <b class="hi">Form1.Installation.cs</b> 신설</td></tr>
+          <tr><td class="f">Drawing2D.cs</td><td class="d">Osnap UI + PDF 페이지<br>&#8594; <b class="hi">둘로 분리</b></td></tr>
+          <tr><td class="f">BOM.cs</td><td class="d">파이프라인 지휘부를 떼어<br>이름과 역할을 맞춤</td></tr>
         </table>
-        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          <b>파일명을 믿고 찾으면 못 찾음</b>
+        <div class="lead fixnote">
+          <b>이동만 하고 내용은 안 고친다</b> &#8212; <span class="f">partial</span> 이라 <b>동작 불변</b>
         </div>
       </div>
       <div class="rt">
-        <div class="h2">③ 클래스가 중구난방</div>
+        <div class="h2">③ 클래스 중구난방 &#8594; <b>모으고, 바꾸는 자리를 줄인다</b></div>
         <table>
-          <tr><th>데이터 클래스 26개</th><th class="n" style="width:44px">개</th></tr>
-          <tr><td><span class="f">Models.cs</span> · <span class="f">Models\</span> 안</td>
-            <td class="n" style="color:var(--brand-500);font-weight:700">13</td></tr>
-          <tr><td>쓰는 파일 안에 흩어짐</td>
-            <td class="n" style="color:var(--danger);font-weight:700">13</td></tr>
-          <tr><td colspan="2" class="d" style="padding-top:0">
-            MfgDrawing 5 · Clash 3 · DrawingSheets 2<br>GlobalViews 2 · Form1.cs 1</td></tr>
-          <tr><td>사람이 쓴 필드</td><td class="n">90</td></tr>
-          <tr><td colspan="2" class="d" style="padding-top:0">
-            그중 <b style="color:var(--danger)">23개</b>는 <b>여러 파일에서 값이 바뀜</b><br>
-            (읽기만 하는 SDK 핸들은 제외)</td></tr>
+          <tr><td class="k">흩어진 데이터 클래스 <span class="cnt">13개</span></td></tr>
+          <tr><td class="d" style="padding-top:0">
+            MfgDrawing 5 · Clash 3 · DrawingSheets 2 ·<br>GlobalViews 2 · Form1.cs 1
+            &#8594; <b><span class="f">Models/</span> 로 집결</b></td></tr>
+          <tr><td class="k">여러 파일이 값을 바꾸는 필드 <span class="cnt">23개</span></td></tr>
+          <tr><td class="d" style="padding-top:0">
+            <b>채우는 자리를 한 곳으로</b> 모은다.<br>
+            읽기는 그대로 둬도 됨</td></tr>
+          <tr><td class="k">먼저 손댈 것</td></tr>
+          <tr><td class="d" style="padding-top:0">
+            <span class="f">chainDimensionList</span> &#8212; <b class="rd">7파일 23회</b><br>
+            <span class="f">xraySelectedNodeIndices</span> &#8212; 7파일 20회</td></tr>
         </table>
-        <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          같은 성격인데 <b>어디 두는지 규칙이 없음</b>
+        <div class="lead fixnote">
+          <b>판정 기준도 함께</b> &#8212; 화면 글자 <span class="f">StartsWith("가공도")</span> 를
+          이미 있는 <span class="f">DrawingSheetExportKind</span> 로
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === 15 마일스톤 === -->
+<section class="s" data-title="마일스톤">
+  <h1>마일스톤</h1>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="mile">
+      <div class="ms done">
+        <div class="mdot"></div>
+        <div class="mno">M0</div>
+        <div class="mt">덜어내기</div>
+        <div class="mb">죽은 코드 1,416줄<br>주석 322개 전원<br>실기 4종 확인</div>
+        <div class="mr ok">완료</div>
+      </div>
+      <div class="ms">
+        <div class="mdot"></div>
+        <div class="mno">M1</div>
+        <div class="mt">같은 코드 합치기</div>
+        <div class="mb">가시성 격리 10곳 → 헬퍼<br>전부 켜기 3곳 → 한 줄<br>판정 기준 enum 화</div>
+        <div class="mr low">위험 낮음 · 동작 불변</div>
+      </div>
+      <div class="ms">
+        <div class="mdot"></div>
+        <div class="mno">M2</div>
+        <div class="mt">파일 재배치</div>
+        <div class="mb">DrawingBom 분리<br>Installation 분리<br>Drawing2D 둘로</div>
+        <div class="mr low">위험 낮음 · 이동만</div>
+      </div>
+      <div class="ms">
+        <div class="mdot"></div>
+        <div class="mno">M3</div>
+        <div class="mt">클래스 · Osnap</div>
+        <div class="mb">데이터 클래스 13개 집결<br>Osnap 수집 3벌 통합<br>결과 대조 필요</div>
+        <div class="mr mid">위험 중간</div>
+      </div>
+      <div class="ms">
+        <div class="mdot"></div>
+        <div class="mno">M4</div>
+        <div class="mt">공유 상태 정리</div>
+        <div class="mb">필드 23개의 변경 자리를<br>한 곳으로<br>작업 범위를 인자로</div>
+        <div class="mr high">위험 높음 · 테스트 선행</div>
+      </div>
+    </div>
+    <div class="two mfoot">
+      <div>
+        <div class="h2">매 단계 공통</div>
+        <table>
+          <tr><td class="k" style="width:120px">한 건 = 한 커밋</td><td class="d">되돌릴 수 있는 단위 유지</td></tr>
+          <tr><td class="k">빌드 + 실기</td><td class="d">도면 4종이 이전과 같아야 다음 단계</td></tr>
+          <tr><td class="k">기능과 분리</td><td class="d">결함 수정·신규 기능과 섞지 않음</td></tr>
+        </table>
+      </div>
+      <div class="rt">
+        <div class="h2">따로 가는 트랙</div>
+        <table>
+          <tr><td class="k" style="width:120px">벤더 요청</td><td class="n" style="width:40px">2</td><td class="d">캡처 즉사 · PDF 병합 불가</td></tr>
+          <tr><td class="k">확인된 결함</td><td class="n">9</td><td class="d">이슈 등록 후 개별 대응</td></tr>
+          <tr><td class="k">테스트 확보</td><td class="n">&#8212;</td><td class="d"><b>M3 전까지</b> 지금 나오는 PDF를 기준값으로</td></tr>
+        </table>
       </div>
     </div>
   </div>
