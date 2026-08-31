@@ -53,7 +53,7 @@ namespace A2Z
         /// </summary>
         private sealed class MfgDrawingResult
         {
-            public int SuccessPdfs;               // 저장된 PDF 파일 수 (#119 묶음 저장 후로는 0 또는 1)
+            public int SuccessPdfs;               // 저장된 PDF 파일 수 (묶기면 0 또는 1, 기본이면 저장한 장수)
             public int SuccessPages;              // PDF에 담긴 도면 페이지 수 (#119)
             public string SavedPdfPath;           // 저장된 묶음 PDF 경로 (#119, 미저장이면 null)
             public int InsufficientBomPdfs;       // BOM 부족 상태에서 저장된 페이지 수 (성공 페이지 중 일부)
@@ -2476,7 +2476,7 @@ namespace A2Z
             DrawingSheetData previousSelectedSheet = null;
             bool prevLvEnabled = lvDrawingSheet.Enabled;
 
-            // #119: 페이지를 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+            // 묶기(Pdf.MergePages=true)면 쌓아뒀다 마지막에 PDF 1개로, 기본(false)이면 장마다 저장한다.
             //   도면 일괄 출력이 이 함수를 품고 호출하면 그쪽 누적에 페이지만 얹고 저장은 넘긴다.
             bool ownsPdfAccumulation = false;
             string mergedPdfPath = null;
@@ -2875,7 +2875,7 @@ namespace A2Z
                 var canceledMessage = new System.Text.StringBuilder();
                 canceledMessage.AppendLine("가공도 출력을 취소했습니다.");
                 canceledMessage.AppendLine();
-                // #119: 취소해도 그때까지 그린 페이지는 PDF 1개로 저장된다.
+                // 취소해도 그때까지 그린 페이지는 저장된다 (묶기면 PDF 1개, 기본이면 장마다).
                 if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
                 {
                     canceledMessage.AppendLine($"PDF 1개에 도면 {result.SuccessPages}장 저장");
@@ -2906,11 +2906,20 @@ namespace A2Z
             }
 
             var sb = new System.Text.StringBuilder();
-            // #119: 도면 장수와 무관하게 PDF는 1개다.
+            // 묶기(Pdf.MergePages=true)면 PDF 1개, 기본(false)이면 장마다 파일이 나온다.
+            //   기본 모드에서 SavedPdfPath는 *마지막에 저장한 파일*이라 폴더를 함께 알려준다.
             if (!string.IsNullOrWhiteSpace(result.SavedPdfPath))
             {
-                sb.AppendLine($"가공도 PDF 1개에 도면 {result.SuccessPages}장 저장:");
-                sb.AppendLine(result.SavedPdfPath);
+                if (result.SuccessPdfs > 1)
+                {
+                    sb.AppendLine($"가공도 PDF {result.SuccessPdfs}개 저장 (도면 {result.SuccessPages}장):");
+                    sb.AppendLine(saveDir);
+                }
+                else
+                {
+                    sb.AppendLine($"가공도 PDF 1개에 도면 {result.SuccessPages}장 저장:");
+                    sb.AppendLine(result.SavedPdfPath);
+                }
             }
             else
             {

@@ -1347,7 +1347,7 @@ namespace A2Z
                 // [issue #116] 출력 후 로딩 무한 대기 추적 — 대상 개수부터 남긴다.
                 DiagLog($"[{kindLabel} 출력] 시작 targets={targetSheets.Count} saveDir={saveDir}");
 
-                // [issue #119] 장마다 저장하지 않고 캔버스에 쌓아뒀다가 마지막에 PDF 1개로 저장한다.
+                // 묶기(Pdf.MergePages=true)면 쌓아뒀다 마지막에 PDF 1개로, 기본(false)이면 장마다 저장한다.
                 //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
                 //   파일명은 {STRU}_{종류}.pdf — 구조물 식별자(STRU 속성)를 쓴다 (#49).
                 exportStruName = ResolveDrawingStruName(targetSheets.Select(pair => pair.Value));
@@ -1404,7 +1404,7 @@ namespace A2Z
                     }
                     finally
                     {
-                        // #119: 성공한 페이지는 저장 때까지 캔버스에 남겨둔다.
+                        // 묶기일 때만 저장 때까지 캔버스에 남겨둔다 (#119). 기본은 바로 아래에서 저장.
                         //   실패한 시트는 반쪽짜리 페이지가 PDF에 끼지 않도록 그 캔버스만 버린다.
                         DiagLog($"[{kindLabel} 출력] 시트 {i + 1}/{targetSheets.Count} 종료 ok={sheetSucceeded}");
                         if (!sheetSucceeded)
