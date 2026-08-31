@@ -999,15 +999,30 @@ namespace A2Z
                     System.Threading.Thread.Sleep(200);
                     ThrowIfCancellationRequested($"일반 시트 {i + 1} 2D 생성 후");
 
-                    // [issue #119] 여기서 저장하지 않는다. 이 캔버스는 그대로 쌓아두고
-                    //   STRU의 도면을 다 그린 뒤 PDF 1개로 한 번에 저장한다.
+                    // [issue #119] 묶기(App.config Pdf.MergePages=true)면 캔버스를 쌓아뒀다가
+                    //   STRU 도면을 다 그린 뒤 FlushPendingMergedPdf가 PDF 1개로 저장한다.
+                    //   기본(false)이면 누적을 안 하므로 아래에서 장마다 저장한다.
                     vizcore3d.Drawing2D.Object2D.UnselectAllObjectBy2DView();
                     vizcore3d.Drawing2D.Object2D.UnselectCurrentWorkObjectBy2DView();
                     pageCount++;
                     DiagLog($"T-064 페이지 추가: {sheetLabel} (누적 {pageCount}장)");
                     ThrowIfCancellationRequested($"일반 시트 {i + 1} 페이지 완성 후");
 
-                    // 메모리 정리 — 쌓아둔 캔버스는 남기고 GC만 돌린다 (#119)
+                    // 묶지 않는 모드(기본)에서는 이 장을 바로 저장한다 — DrawingSheets.cs 종류별 출력과 같은 폴백.
+                    //   저장하지 않으면 아래 CleanupBetweenPdfPages가 Clear2DView로 뷰를 비워 그린 도면이 사라진다.
+                    //   (2026-08-04 묶기 중단 때 종류별·가공도 경로에만 폴백을 넣고 여기를 빠뜨렸다 — 2026-08-31 수정)
+                    if (!_pdfPageAccumulating)
+                    {
+                        string pagePath = BuildMergedDrawingPdfPath(
+                            struSubDir, struNode.NodeName, SanitizeFileName(sheetLabel));
+                        if (SaveCurrentDrawingToPdf(pagePath))
+                        {
+                            pdfCount++;
+                            DiagLog($"T-064 장별 저장: {sheetLabel} → {pagePath}");
+                        }
+                    }
+
+                    // 메모리 정리 — 누적 중이면 GC만, 아니면 Clear2DView로 뷰를 비운다 (#119)
                     CleanupBetweenPdfPages();
                     System.Threading.Thread.Sleep(100);
                 }
