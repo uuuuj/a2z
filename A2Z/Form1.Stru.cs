@@ -688,7 +688,8 @@ namespace A2Z
                         DiagLog($"T-064 STRU '{stru.NodeName}' ERROR: {ex.Message}\n{ex.StackTrace}");
                     }
 
-                    // [issue #119] STRU 하나의 도면을 PDF 1개로 저장한다.
+                    // 묶기(Pdf.MergePages=true)일 때만 쌓아둔 페이지를 PDF 1개로 저장한다.
+                    //   기본(false)은 장마다 이미 저장됐으므로 여기서 할 일이 없고 null이 온다.
                     //   취소·실패로 위에서 빠져나왔어도 그때까지 그린 페이지는 남긴다.
                     string mergedPdfPath = FlushPendingMergedPdf();
                     if (!string.IsNullOrEmpty(mergedPdfPath))
@@ -951,14 +952,17 @@ namespace A2Z
             DiagLog($"T-064 STRU '{struNode.NodeName}' PDF 출력 시작 → {struSubDir}");
 
             int pdfCount = 0;
-            int pageCount = 0;   // #119: PDF는 1개, 세는 건 도면 장수
+            int pageCount = 0;   // 그린 도면 장수 (PDF 파일 수와 다를 수 있다 — 아래 참조)
 
-            // [issue #119] 이 STRU의 도면 4종을 캔버스에 쌓아뒀다가 PDF 1개로 저장한다.
-            //   STRU 하나가 도면 한 묶음이므로 STRU끼리는 파일을 나눈다.
-            //   저장은 호출한 쪽(btnExtractDrawingList_Click)이 STRU 처리 직후 마무리한다 —
-            //   취소가 이 함수 중간에서 예외로 튀어나와도 그때까지 그린 페이지를 남기기 위함.
-            //   경로를 먼저 확정한다 — 누적을 연 뒤 여기서 예외가 나면 누적이 닫히지 않는다.
-            //   파일명은 {STRU}_생산제작도.pdf — 일괄 출력만 `생산제작도`를 쓴다 (#49).
+            // 🔴 현재 동작: 도면은 **장마다 따로** 저장된다 ({STRU}_{시트이름}.pdf).
+            //   App.config `Pdf.MergePages`가 기본 false라 누적이 열리지 않기 때문이다.
+            //   묶기를 켜면 조립도에서 SDK 네이티브 "보호된 메모리" 오류로 프로세스가 즉사한다
+            //   (2026-08-04 실기). 그래서 「STRU 1개 = PDF 1개」(#119)는 지금 성립하지 않는다.
+            //
+            //   아래 두 줄은 묶기를 켰을 때를 위한 준비다 —
+            //   경로를 먼저 확정하고(누적을 연 뒤 예외가 나면 누적이 안 닫힌다), 누적을 연다.
+            //   묶기가 꺼져 있으면 BeginPdfPageAccumulation이 false를 돌려주고 아무 일도 안 한다.
+            //   파일명 규칙은 {STRU}_{종류}.pdf — 일괄 출력만 `생산제작도`를 쓴다 (#49).
             _pendingMergedPdfPath = BuildMergedDrawingPdfPath(
                 struSubDir, struNode.NodeName, "생산제작도");
             BeginPdfPageAccumulation($"도면 일괄 출력/{struNode.NodeName}");
@@ -1064,7 +1068,7 @@ namespace A2Z
                         struNode.NodeName,
                         struNode.Index,
                         () => _cancelRequested);
-                    // #119: 가공도는 바깥 누적에 페이지만 얹는다 (저장은 STRU 단위로 한 번).
+                    // 가공도는 자기 안에서 저장까지 끝낸다 (묶기면 바깥 누적에 페이지만 얹는다).
                     pageCount += mfgResult.SuccessPages;
                     if (mfgResult.Canceled)
                     {
@@ -1088,7 +1092,7 @@ namespace A2Z
                 }
                 finally
                 {
-                    // 쌓아둔 캔버스는 저장 전이라 남기고 GC만 돌린다 (#119)
+                    // 메모리 정리 — 누적 중이면 GC만, 아니면 Clear2DView로 뷰를 비운다 (#119)
                     CleanupBetweenPdfPages();
                 }
             }
