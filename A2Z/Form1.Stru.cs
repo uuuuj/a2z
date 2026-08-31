@@ -384,7 +384,7 @@ namespace A2Z
         /// </summary>
         private void ItemCheckCore(ItemCheckEventArgs e)
         {
-            if (clbStruList == null) return;
+            if (clbStruList == null) return; // 목록이 아직 안 만들어졌거나, 누른 줄 번호가 목록 범위 밖이면 아무것도 안 하고 나갑니다. return;은 "여기서 함수 끝"
             if (e.Index < 0 || e.Index >= _struNodeCache.Count) return;
 
             // ItemCheck는 체크 *직전* — e.NewValue로 미래 체크 set 계산
@@ -395,7 +395,7 @@ namespace A2Z
 
             try
             {
-                // 미래 체크된 STRU들의 모든 후손 BODY 합집합
+                // 체크 될 STRU들의 모든 후손 BODY 합집합 / 함수가 도는 동안 화면의 체크 표시는 아직 예전 그대로다.
                 var allBodyIndices = new HashSet<int>();
                 foreach (int idx in futureCheckedIdx)
                 {
