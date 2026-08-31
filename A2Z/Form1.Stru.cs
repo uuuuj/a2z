@@ -578,7 +578,7 @@ namespace A2Z
             //   해결: 자동 출력 = "처음부터 다시" 의도 명확히. 모든 상태 깨끗한 시작.
             try
             {
-                vizcore3d.BeginUpdate();
+                vizcore3d.BeginUpdate(); // 3D 화면 렌더링 중지
                 try
                 {
                     // (1) 전체 모델 표시 — STRU 격리 전 깨끗한 상태 보장
@@ -596,7 +596,7 @@ namespace A2Z
                     vizcore3d.Review.Measure.Clear();
                     vizcore3d.ShapeDrawing.Clear();
                 }
-                finally { vizcore3d.EndUpdate(); }
+                finally { vizcore3d.EndUpdate(); } // 3D 화면 렌더링 시작
 
                 // (4) 시트 잔재 — 60초 에러 직접 차단
                 if (drawingSheetList != null) drawingSheetList.Clear();
