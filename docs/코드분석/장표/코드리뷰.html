@@ -446,8 +446,8 @@ svg{width:100%;height:auto}
 <pre class="code"><span class="c">// Form1.cs &#8212; 여기가 본체</span>
 <b>public partial class</b> Form1 : Form
 {
-    <b>private</b> VIZCore3DControl vizcore3d;        <span class="m">12파일 659회</span>
-    <b>private</b> List&lt;BOMData&gt; bomList = <b>new</b> ...  <span class="m">9파일 91회</span>
+    <b>private</b> VIZCore3DControl vizcore3d;        <span class="c">// SDK 핸들 — 11파일이 읽음</span>
+    <b>private</b> List&lt;ChainDimensionData&gt; chain... <span class="m">// 7파일이 값을 바꿈</span>
     <span class="c">// … 공유 필드 36개</span>
 }
 
@@ -467,23 +467,23 @@ svg{width:100%;height:auto}
       <div class="rt">
         <div class="h2">필드 &#8212; 얼마나, 어디까지 퍼지나</div>
         <div class="figs">
-          <div class="fig"><div class="n">95<small>개</small></div><div class="l">사람이 쓴 <span class="f">Form1</span> 필드</div><div class="was">Designer 자동 생성 111개 별도</div></div>
-          <div class="fig"><div class="n">40<small>개</small></div><div class="l">파일 경계를 넘음</div><div class="was">95개 중 42%</div></div>
+          <div class="fig"><div class="n">90<small>개</small></div><div class="l">사람이 쓴 <span class="f">Form1</span> 필드</div><div class="was">Designer 자동 생성 111개 별도</div></div>
+          <div class="fig"><div class="n">23<small>개</small></div><div class="l">여러 파일에서 <b>값이 바뀜</b></div><div class="was">90개 중 26% · 읽기만 하는 건 제외</div></div>
         </div>
         <table>
-          <tr><th>필드</th><th style="width:104px">선언 위치</th><th class="n" style="width:48px">파일</th><th class="n" style="width:48px">사용</th></tr>
-          <tr><td class="f">bomList</td><td class="d">Form1.cs</td><td class="n" style="color:var(--brand-500);font-weight:700">9</td><td class="n" style="color:var(--brand-500);font-weight:700">91</td></tr>
-          <tr><td class="f">chainDimensionList</td><td class="d">Form1.cs</td><td class="n">7</td><td class="n">57</td></tr>
-          <tr><td class="f">xraySelectedNodeIndices</td><td class="d">Form1.cs</td><td class="n">8</td><td class="n">49</td></tr>
-          <tr><td class="f">drawingSheetList</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">46</td></tr>
-          <tr><td class="f">osnapPoints</td><td class="d">Form1.cs</td><td class="n">5</td><td class="n">45</td></tr>
-          <tr><td class="f">_struNodeCache</td><td class="d">Form1.Stru.cs</td><td class="n">2</td><td class="n">24</td></tr>
+          <tr><th>필드</th><th style="width:104px">선언 위치</th><th class="n" style="width:64px">바꾸는<br>파일</th><th class="n" style="width:56px">바꾼<br>횟수</th></tr>
+          <tr><td class="f">chainDimensionList</td><td class="d">Form1.cs</td><td class="n" style="color:var(--danger);font-weight:700">7</td><td class="n" style="color:var(--danger);font-weight:700">23</td></tr>
+          <tr><td class="f">xraySelectedNodeIndices</td><td class="d">Form1.cs</td><td class="n" style="color:var(--danger);font-weight:700">7</td><td class="n">20</td></tr>
+          <tr><td class="f">osnapPoints</td><td class="d">Form1.cs</td><td class="n">4</td><td class="n" style="color:var(--danger);font-weight:700">25</td></tr>
+          <tr><td class="f">drawingSheetList</td><td class="d">Form1.cs</td><td class="n">4</td><td class="n">11</td></tr>
+          <tr><td class="f">bomList</td><td class="d">Form1.cs</td><td class="n">3</td><td class="n">7</td></tr>
+          <tr><td class="f">clashList</td><td class="d">Form1.cs</td><td class="n">3</td><td class="n">6</td></tr>
         </table>
         <div class="cfnote" style="margin-top:12px">파일별 선언 &#8212;
           <span class="f">Form1.cs</span> 36 · <span class="f">MfgDrawing</span> 16 ·
-          <span class="f">DrawingSheets</span> 9 · <span class="f">Clash</span> 7 · 나머지 27</div>
+          <span class="f">DrawingSheets</span> 9 · <span class="f">Clash</span> 7 · 나머지 22</div>
         <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
-          <b>어느 파일에서든 바뀔 수 있음</b> — 값이 언제 어디서 달라졌는지 추적이 어려움
+          <b>SDK 핸들처럼 읽기만 하는 건 정상</b> — 문제는 여러 파일이 <b>값을 바꾸는</b> 23개
         </div>
       </div>
     </div>
@@ -685,9 +685,10 @@ svg{width:100%;height:auto}
             <td class="n" style="color:var(--danger);font-weight:700">13</td></tr>
           <tr><td colspan="2" class="d" style="padding-top:0">
             MfgDrawing 5 · Clash 3 · DrawingSheets 2<br>GlobalViews 2 · Form1.cs 1</td></tr>
-          <tr><td>사람이 쓴 필드</td><td class="n">95</td></tr>
+          <tr><td>사람이 쓴 필드</td><td class="n">90</td></tr>
           <tr><td colspan="2" class="d" style="padding-top:0">
-            그중 <b style="color:var(--danger)">40개</b>가 파일 경계를 넘음</td></tr>
+            그중 <b style="color:var(--danger)">23개</b>는 <b>여러 파일에서 값이 바뀜</b><br>
+            (읽기만 하는 SDK 핸들은 제외)</td></tr>
         </table>
         <div class="lead" style="font-size:15px;margin-top:auto;padding-top:12px;border-top:1px solid var(--hair)">
           같은 성격인데 <b>어디 두는지 규칙이 없음</b>
